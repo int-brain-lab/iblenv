@@ -2,6 +2,7 @@
 Unified environment and Issue tracker for all IBL
 
 ## Unified environment instructions
+Make sure you close
 Create or cd to a directory where you want to store all the source code:
 
 ```
@@ -17,6 +18,7 @@ git clone https://github.com/int-brain-lab/IBL-pipeline.git
 git clone https://github.com/int-brain-lab/iblenv.git
 
 conda env create --file ./iblenv/iblenv.yaml python=3.8
+conda activate iblcode
 
 conda develop ./ibllib/
 conda develop ./IBL-pipeline
@@ -24,9 +26,9 @@ conda develop ./iblapps
 
 ```
 
-Make sure you don't attempt to run code from this directory !
+Make sure you don't attempt to run code from this directory containing your sources !
 ```
-cd
+cd ..
 conda activate iblenv
 ipython
 %gui qt
