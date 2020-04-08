@@ -29,7 +29,7 @@ conda develop ./iblapps
 Make sure you don't attempt to run code from this directory containing your sources !
 ```
 cd ..
-conda activate iblenv
+conda activate iblcode
 ipython
 %gui qt
 ```
