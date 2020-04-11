@@ -6,7 +6,7 @@ In order to create the unified environment for using IBL repositories, first dow
 
 There are two options for setting up the environment:
 
-### Option 1: Run installation setup files with a single command
+### Option 1 (Windows Only): Run installation setup files with a single command
 
 First, download the [setup files](https://drive.google.com/open?id=1YtD6v9lO07fzq-xnJTwiKKIZIFt4BMLX), and extract and copy these three files to the directory in which you want to install the IBL repositories (e.g. create a folder named `int-brain-lab` and copy these files there).
 
@@ -14,9 +14,9 @@ Next, ensure that Anaconda has been installed to your home directory and `git` a
 
 Then, ensure that the only active applications on your computer are your system terminal and optionally a text editor. Close *all* other applications (this includes the web browser you may be reading this on) before continuing. If you leave other applications open, then worse than failing and aborting the install process, `conda` may create and install some packages in the environment but fail silently, which can cause future issues. Feel free to copy and paste these instructions to your text editor before closing all other applications.
 
-If you have adhered to the above directions, then all you have to do is, within your system terminal, navigate to the directory in which you copied over the setup files and run the command `sudo sh iblrepos_setup.sh` if you are using Mac/Linux, or `.\iblrepos_setup.cmd` if you are using Windows (you may need to launch the Windows terminal as an administrator). That's it, you're done!
+If you have adhered to the above directions, then all you have to do is launch your system terminal as an administrator, navigate to the directory in which you copied over the setup files, and run the command `.\iblrepos_setup.cmd`. That's it, you're done!
 
-### Option 2: Run all the setup commands manually
+### Option 2 (Any Operating System): Run all the setup commands manually
 
 Ensure that the only active applications on your computer are your system terminal and optionally a text editor. Close *all* other applications (this includes the web browser you may be reading this on) before continuing. If you leave other applications open, then worse than failing and aborting the install process, `conda` may create and install some packages in the environment but fail silently, which can cause future issues. Feel free to copy and paste these instructions to your text editor before closing all other applications.
 
