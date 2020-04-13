@@ -23,11 +23,13 @@ Ensure that the only active applications on your computer are your system termin
 In your git terminal, navigate to the directory in which you want to install the IBL repositories (e.g. create a folder named `int-brain-lab`), and run the following `git` commands:
 
 ```
-git clone https://github.com/int-brain-lab/ibllib.git --branch develop
-git clone https://github.com/int-brain-lab/iblapps.git --branch develop
+git clone https://github.com/int-brain-lab/ibllib.git
+git clone https://github.com/int-brain-lab/iblapps.git
 git clone https://github.com/int-brain-lab/analysis.git
 git clone https://github.com/int-brain-lab/IBL-pipeline.git
 git clone https://github.com/int-brain-lab/iblenv.git
+git clone https://github.com/cortex-lab/phylib
+git clone https://github.com/cortex-lab/phy
 ```
 
 Then in your conda terminal, navigate to this same directory, and run the following `conda` commands:
@@ -35,10 +37,12 @@ Then in your conda terminal, navigate to this same directory, and run the follow
 ```
 conda env create -f ./iblenv/iblenv.yaml python==3.8
 conda activate iblenv
-conda-develop ./ibllib
-conda-develop ./iblapps
-conda-develop ./analysis
-conda-develop ./IBL-pipeline
+conda develop ./ibllib
+conda develop ./iblapps
+conda develop ./analysis
+conda develop ./IBL-pipeline
+conda develop ./phy
+conda develop ./phylib
 ```
 
 Notes:
