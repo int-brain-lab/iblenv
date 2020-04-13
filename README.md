@@ -35,7 +35,7 @@ git clone https://github.com/cortex-lab/phy
 Then in your conda terminal, navigate to this same directory, and run the following `conda` commands:
 
 ```
-conda env create -f ./iblenv/iblenv.yaml python==3.8
+conda env create -f ./iblenv/iblenv.yaml
 conda activate iblenv
 conda develop ./ibllib
 conda develop ./iblapps
