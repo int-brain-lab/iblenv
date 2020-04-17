@@ -11,8 +11,8 @@ Ensure that the only active applications on your computer are your system termin
 In your git terminal, navigate to the directory in which you want to install the IBL repositories (e.g. create a folder named `int-brain-lab`), and run the following `git` commands:
 
 ```
-git clone https://github.com/int-brain-lab/ibllib.git
-git clone https://github.com/int-brain-lab/iblapps.git
+git clone https://github.com/int-brain-lab/ibllib.git --branch develop ibllib-repo
+git clone https://github.com/int-brain-lab/iblapps.git  --branch develop
 git clone https://github.com/int-brain-lab/analysis.git
 git clone https://github.com/int-brain-lab/IBL-pipeline.git
 git clone https://github.com/int-brain-lab/iblenv.git
@@ -25,7 +25,7 @@ Then in your conda terminal, navigate to this same directory, and run the follow
 ```
 conda env create -f ./iblenv/iblenv.yaml
 conda activate iblenv
-conda develop ./ibllib
+conda develop ./ibllib-repo
 conda develop ./iblapps
 conda develop ./analysis
 conda develop ./IBL-pipeline
@@ -34,7 +34,7 @@ conda develop ./phylib
 ```
 
 Notes:
-- Whenever you run IBL code in Python you should activate the `iblenv` environment, and ensure the IBL repository paths are *not* added directly to your python path (e.g. don't start a python console from within any of the directories that contain an IBL repository).
+- Whenever you run IBL code in Python you should activate the `iblenv` environment
 - While these IBL repositories are under active development, remember to git pull regularly.
 - If you want to closely follow feature development across different repositories, you can simply checkout and pull the relevant branches within those repositories.
 - If you want to launch GUIs that rely on pyqt (e.g. the IBL data exploration gui or phy) from IPython, you should first run the IPython magic command `%gui qt`.
