@@ -33,8 +33,13 @@ conda develop ./phy
 conda develop ./phylib
 ```
 
-Notes:
+## Notes:
 - Whenever you run IBL code in Python you should activate the `iblenv` environment
 - While these IBL repositories are under active development, remember to git pull regularly.
 - If you want to closely follow feature development across different repositories, you can simply checkout and pull the relevant branches within those repositories.
 - If you want to launch GUIs that rely on pyqt (e.g. the IBL data exploration gui or phy) from IPython, you should first run the IPython magic command `%gui qt`.
+
+## More:
+- **What does `conda develop` really do?** Running conda develop creates a `.pth` file in your conda environment, with the repository you give as input arg when calling conda-develop. When you run a python script (with iblenv activated) and import ibllib), conda will first see if you installed this as a package (e.g. through pip install ibllib). Warning: do not use pip install or conda install for any of the repos above; this will make conda use those, instead of the local ones that you've cloned.
+
+If conda can't find the package, it will look in the .pth file that was created by conda develop. It will then use these files on your disk (that you can keep up-to-date by simply pulling) to import the latest version of the code.
