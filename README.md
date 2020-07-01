@@ -33,6 +33,8 @@ conda develop ./phy
 conda develop ./phylib
 ```
 
+NB: On Mac OS, the git and conda terminals are one and the same, the terminal.
+
 ## Notes:
 - Whenever you run IBL code in Python you should activate the `iblenv` environment
 - While these IBL repositories are under active development, remember to git pull regularly.
