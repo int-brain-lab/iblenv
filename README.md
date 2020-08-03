@@ -2,8 +2,6 @@
 Unified environment and Issue tracker for all IBL github repositories.
 
 ## Unified environment instructions
-*Note*: if you already have a conda environment named 'iblenv' (you can check with the command `conda env list`), then remove this environment with the command `conda env remove -n iblenv`.
-
 In order to create the unified environment for using IBL repositories, first download and install [Anaconda](https://www.anaconda.com/distribution/#download-section) and [git](https://git-scm.com/downloads), and follow their installer instructions to add each to the system path. Also, ensure Anaconda is installed to your home directory. The below instructions will tell you how to set up and activate the unified conda environment (`iblenv`) and properly install the 'ibllib', 'iblapps', 'analysis', and 'IBL-pipeline' repositories within this environment.
 
 Ensure that the only active applications on your computer are your system terminal and optionally a text editor. Close *all* other applications (this includes the web browser you may be reading this on) before continuing. If you leave other applications open, then worse than failing and aborting the install process, `conda` may create and install some packages in the environment but fail silently, which can cause future issues. Feel free to copy and paste these instructions to your text editor before closing all other applications.
@@ -21,6 +19,13 @@ git clone https://github.com/cortex-lab/phy
 ```
 
 Then in your conda terminal, navigate to this same directory, and run the following `conda` commands:
+
+
+If you upgrade or try to fix iblenv:
+```
+conda env list
+conda env remove -n iblenv
+```
 
 ```
 conda env create -f ./iblenv/iblenv.yaml
