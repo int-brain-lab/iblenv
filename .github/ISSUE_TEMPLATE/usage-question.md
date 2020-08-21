@@ -2,7 +2,7 @@
 name: Usage question
 about: Ask 'how to' questions related to product usage
 title: "[Usage question] - Add your issue title here"
-labels: ''
+labels: question
 assignees: ''
 
 ---
