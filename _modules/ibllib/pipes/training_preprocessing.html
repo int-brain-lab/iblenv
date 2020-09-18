@@ -1,0 +1,355 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>ibllib.pipes.training_preprocessing &mdash; IBL Library  documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/copybutton.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/css/style.css" type="text/css" />
+
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+        <script src="../../../_static/language_data.js"></script>
+        <script src="../../../_static/clipboard.min.js"></script>
+        <script src="../../../_static/copybutton.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script src="https://unpkg.com/@jupyter-widgets/html-manager@^0.18.0/dist/embed-amd.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home" alt="Documentation Home"> IBL Library
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../01_overview.html">IBL data structure</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../02_installation.html">Installation</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../03_one.html">ONE</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../04_datajoint.html">Datajoint</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../05_tutorials.html">Tutorials</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../06_examples.html">Examples</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../07_developers.html">API Reference</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">IBL Library</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>ibllib.pipes.training_preprocessing</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for ibllib.pipes.training_preprocessing</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">OrderedDict</span>
+
+<span class="kn">from</span> <span class="nn">ibllib.pipes</span> <span class="kn">import</span> <span class="n">tasks</span>
+<span class="kn">from</span> <span class="nn">ibllib.io</span> <span class="kn">import</span> <span class="n">ffmpeg</span><span class="p">,</span> <span class="n">raw_data_loaders</span> <span class="k">as</span> <span class="n">rawio</span>
+<span class="kn">from</span> <span class="nn">ibllib.io.extractors</span> <span class="kn">import</span> <span class="p">(</span><span class="n">training_trials</span><span class="p">,</span> <span class="n">biased_trials</span><span class="p">,</span> <span class="n">training_wheel</span><span class="p">,</span> <span class="n">training_audio</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">ibllib.qc.task_metrics</span> <span class="kn">import</span> <span class="n">TaskQC</span>
+<span class="kn">from</span> <span class="nn">ibllib.qc.task_extractors</span> <span class="kn">import</span> <span class="n">TaskQCExtractor</span>
+<span class="kn">from</span> <span class="nn">oneibl.registration</span> <span class="kn">import</span> <span class="n">register_session_raw_data</span>
+
+<span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;ibllib&#39;</span><span class="p">)</span>
+
+
+<span class="c1">#  level 0</span>
+<div class="viewcode-block" id="TrainingRegisterRaw"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_preprocessing.html#ibllib.pipes.training_preprocessing.TrainingRegisterRaw">[docs]</a><span class="k">class</span> <span class="nc">TrainingRegisterRaw</span><span class="p">(</span><span class="n">tasks</span><span class="o">.</span><span class="n">Task</span><span class="p">):</span>
+    <span class="n">priority</span> <span class="o">=</span> <span class="mi">100</span>
+
+    <span class="k">def</span> <span class="nf">_run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="n">out_files</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">register_session_raw_data</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">,</span> <span class="n">dry</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">out_files</span></div>
+
+
+<div class="viewcode-block" id="TrainingTrials"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_preprocessing.html#ibllib.pipes.training_preprocessing.TrainingTrials">[docs]</a><span class="k">class</span> <span class="nc">TrainingTrials</span><span class="p">(</span><span class="n">tasks</span><span class="o">.</span><span class="n">Task</span><span class="p">):</span>
+    <span class="n">priority</span> <span class="o">=</span> <span class="mi">90</span>
+    <span class="n">level</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="k">def</span> <span class="nf">_run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Extracts an iblrig training session</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">trials</span><span class="p">,</span> <span class="n">wheel</span><span class="p">,</span> <span class="n">output_files</span> <span class="o">=</span> <span class="n">extract_training</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">trials</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>  <span class="c1"># habituation returns empty trials</span>
+            <span class="k">return</span>
+        <span class="c1"># Run the task QC</span>
+        <span class="n">qc</span> <span class="o">=</span> <span class="n">TaskQC</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">)</span>
+        <span class="n">qc</span><span class="o">.</span><span class="n">extractor</span> <span class="o">=</span> <span class="n">TaskQCExtractor</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">lazy</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">qc</span><span class="o">.</span><span class="n">one</span><span class="p">)</span>
+        <span class="n">qc</span><span class="o">.</span><span class="n">extractor</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">trials</span>
+        <span class="c1"># Update wheel data</span>
+        <span class="n">ts</span><span class="p">,</span> <span class="n">pos</span><span class="p">,</span> <span class="o">*</span><span class="n">_</span><span class="p">,</span> <span class="n">first_moves</span> <span class="o">=</span> <span class="n">wheel</span>
+        <span class="n">qc</span><span class="o">.</span><span class="n">extractor</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+            <span class="p">{</span><span class="s1">&#39;wheel_timestamps&#39;</span><span class="p">:</span> <span class="n">ts</span><span class="p">,</span> <span class="s1">&#39;wheel_position&#39;</span><span class="p">:</span> <span class="n">pos</span><span class="p">,</span> <span class="s1">&#39;firstMovement_times&#39;</span><span class="p">:</span> <span class="n">first_moves</span><span class="p">}</span>
+        <span class="p">)</span>
+        <span class="n">qc</span><span class="o">.</span><span class="n">extractor</span><span class="o">.</span><span class="n">extract_data</span><span class="p">(</span><span class="n">partial</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>  <span class="c1"># Extract the rest of the data</span>
+
+        <span class="c1"># Aggregate and update Alyx QC fields</span>
+        <span class="n">qc</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">update</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">output_files</span></div>
+
+
+<div class="viewcode-block" id="TrainingVideoCompress"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_preprocessing.html#ibllib.pipes.training_preprocessing.TrainingVideoCompress">[docs]</a><span class="k">class</span> <span class="nc">TrainingVideoCompress</span><span class="p">(</span><span class="n">tasks</span><span class="o">.</span><span class="n">Task</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">_run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># avi to mp4 compression</span>
+        <span class="n">command</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;ffmpeg -i </span><span class="si">{file_in}</span><span class="s1"> -y -nostdin -codec:v libx264 -preset slow -crf 29 &#39;</span>
+                   <span class="s1">&#39;-nostats -codec:a copy </span><span class="si">{file_out}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="n">output_files</span> <span class="o">=</span> <span class="n">ffmpeg</span><span class="o">.</span><span class="n">iblrig_video_compression</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">command</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">output_files</span></div>
+
+
+<div class="viewcode-block" id="TrainingAudio"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_preprocessing.html#ibllib.pipes.training_preprocessing.TrainingAudio">[docs]</a><span class="k">class</span> <span class="nc">TrainingAudio</span><span class="p">(</span><span class="n">tasks</span><span class="o">.</span><span class="n">Task</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Computes raw electrophysiology QC</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">cpu</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="n">priority</span> <span class="o">=</span> <span class="mi">10</span>  <span class="c1"># a lot of jobs depend on this one</span>
+    <span class="n">level</span> <span class="o">=</span> <span class="mi">0</span>  <span class="c1"># this job doesn&#39;t depend on anything</span>
+
+    <span class="k">def</span> <span class="nf">_run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">training_audio</span><span class="o">.</span><span class="n">extract_sound</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">delete</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
+
+
+<span class="c1"># level 1</span>
+<div class="viewcode-block" id="TrainingDLC"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_preprocessing.html#ibllib.pipes.training_preprocessing.TrainingDLC">[docs]</a><span class="k">class</span> <span class="nc">TrainingDLC</span><span class="p">(</span><span class="n">tasks</span><span class="o">.</span><span class="n">Task</span><span class="p">):</span>
+    <span class="n">gpu</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">cpu</span> <span class="o">=</span> <span class="mi">4</span>
+    <span class="n">io_charge</span> <span class="o">=</span> <span class="mi">90</span>
+    <span class="n">level</span> <span class="o">=</span> <span class="mi">1</span>
+
+    <span class="k">def</span> <span class="nf">_run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;empty placeholder for job creation only&quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="TrainingExtractionPipeline"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_preprocessing.html#ibllib.pipes.training_preprocessing.TrainingExtractionPipeline">[docs]</a><span class="k">class</span> <span class="nc">TrainingExtractionPipeline</span><span class="p">(</span><span class="n">tasks</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">):</span>
+    <span class="n">label</span> <span class="o">=</span> <span class="vm">__name__</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_path</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">TrainingExtractionPipeline</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">tasks</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span> <span class="o">=</span> <span class="n">session_path</span>
+        <span class="c1"># level 0</span>
+        <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;TrainingRegisterRaw&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">TrainingRegisterRaw</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;TrainingTrials&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">TrainingTrials</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;TrainingVideoCompress&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">TrainingVideoCompress</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;TrainingAudio&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">TrainingAudio</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="c1"># level 1</span>
+        <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;TrainingDLC&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">TrainingDLC</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;TrainingVideoCompress&#39;</span><span class="p">]])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span> <span class="o">=</span> <span class="n">tasks</span></div>
+
+
+<div class="viewcode-block" id="extract_training"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_preprocessing.html#ibllib.pipes.training_preprocessing.extract_training">[docs]</a><span class="k">def</span> <span class="nf">extract_training</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Extracts a training session from its path.  NB: Wheel must be extracted first in order to</span>
+<span class="sd">    extract trials.firstMovement_times.</span>
+<span class="sd">    :param session_path:</span>
+<span class="sd">    :param save:</span>
+<span class="sd">    :return: trials: Bunch/dict of trials</span>
+<span class="sd">    :return: wheel: Bunch/dict of wheel positions</span>
+<span class="sd">    :return: out_Files: list of output files</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">extractor_type</span> <span class="o">=</span> <span class="n">rawio</span><span class="o">.</span><span class="n">get_session_extractor_type</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
+    <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Extracting </span><span class="si">{</span><span class="n">session_path</span><span class="si">}</span><span class="s2"> as </span><span class="si">{</span><span class="n">extractor_type</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">settings</span><span class="p">,</span> <span class="n">bpod_trials</span> <span class="o">=</span> <span class="n">rawio</span><span class="o">.</span><span class="n">load_bpod</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">extractor_type</span> <span class="o">==</span> <span class="s1">&#39;training&#39;</span><span class="p">:</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;training session on &#39;</span> <span class="o">+</span> <span class="n">settings</span><span class="p">[</span><span class="s1">&#39;PYBPOD_BOARD&#39;</span><span class="p">])</span>
+        <span class="n">wheel</span><span class="p">,</span> <span class="n">files_wheel</span> <span class="o">=</span> <span class="n">training_wheel</span><span class="o">.</span><span class="n">extract_all</span><span class="p">(</span>
+            <span class="n">session_path</span><span class="p">,</span> <span class="n">bpod_trials</span><span class="o">=</span><span class="n">bpod_trials</span><span class="p">,</span> <span class="n">settings</span><span class="o">=</span><span class="n">settings</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="n">save</span><span class="p">)</span>
+        <span class="n">trials</span><span class="p">,</span> <span class="n">files_trials</span> <span class="o">=</span> <span class="n">training_trials</span><span class="o">.</span><span class="n">extract_all</span><span class="p">(</span>
+            <span class="n">session_path</span><span class="p">,</span> <span class="n">bpod_trials</span><span class="o">=</span><span class="n">bpod_trials</span><span class="p">,</span> <span class="n">settings</span><span class="o">=</span><span class="n">settings</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="n">save</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">extractor_type</span> <span class="o">==</span> <span class="s1">&#39;biased&#39;</span><span class="p">:</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;biased session on &#39;</span> <span class="o">+</span> <span class="n">settings</span><span class="p">[</span><span class="s1">&#39;PYBPOD_BOARD&#39;</span><span class="p">])</span>
+        <span class="n">wheel</span><span class="p">,</span> <span class="n">files_wheel</span> <span class="o">=</span> <span class="n">training_wheel</span><span class="o">.</span><span class="n">extract_all</span><span class="p">(</span>
+            <span class="n">session_path</span><span class="p">,</span> <span class="n">bpod_trials</span><span class="o">=</span><span class="n">bpod_trials</span><span class="p">,</span> <span class="n">settings</span><span class="o">=</span><span class="n">settings</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="n">save</span><span class="p">)</span>
+        <span class="n">trials</span><span class="p">,</span> <span class="n">files_trials</span> <span class="o">=</span> <span class="n">biased_trials</span><span class="o">.</span><span class="n">extract_all</span><span class="p">(</span>
+            <span class="n">session_path</span><span class="p">,</span> <span class="n">bpod_trials</span><span class="o">=</span><span class="n">bpod_trials</span><span class="p">,</span> <span class="n">settings</span><span class="o">=</span><span class="n">settings</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="n">save</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">extractor_type</span> <span class="o">==</span> <span class="s1">&#39;habituation&#39;</span><span class="p">:</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Skipped trial extraction for habituation session&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No extractor for task </span><span class="si">{</span><span class="n">extractor_type</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;session extracted </span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>  <span class="c1"># timing info in log</span>
+    <span class="k">return</span> <span class="n">trials</span><span class="p">,</span> <span class="n">wheel</span><span class="p">,</span> <span class="p">(</span><span class="n">files_trials</span> <span class="o">+</span> <span class="n">files_wheel</span><span class="p">)</span> <span class="k">if</span> <span class="n">save</span> <span class="k">else</span> <span class="kc">None</span></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        
+        &copy; Copyright 2020, International Brain Laboratory
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

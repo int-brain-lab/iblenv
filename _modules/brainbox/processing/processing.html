@@ -1,0 +1,581 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>brainbox.processing.processing &mdash; IBL Library  documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/copybutton.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/css/style.css" type="text/css" />
+
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+        <script src="../../../_static/language_data.js"></script>
+        <script src="../../../_static/clipboard.min.js"></script>
+        <script src="../../../_static/copybutton.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script src="https://unpkg.com/@jupyter-widgets/html-manager@^0.18.0/dist/embed-amd.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home" alt="Documentation Home"> IBL Library
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../01_overview.html">IBL data structure</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../02_installation.html">Installation</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../03_one.html">ONE</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../04_datajoint.html">Datajoint</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../05_tutorials.html">Tutorials</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../06_examples.html">Examples</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../07_developers.html">API Reference</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">IBL Library</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>brainbox.processing.processing</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for brainbox.processing.processing</h1><div class="highlight"><pre>
+<span></span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">Processes data from one form into another, e.g. taking spike times and binning them into</span>
+<span class="sd">non-overlapping bins and convolving spike times with a gaussian kernel.</span>
+<span class="sd">&#39;&#39;&#39;</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">interpolate</span>
+<span class="kn">from</span> <span class="nn">brainbox</span> <span class="kn">import</span> <span class="n">core</span>
+
+
+<div class="viewcode-block" id="sync"><a class="viewcode-back" href="../../../_autosummary/brainbox.processing.processing.html#brainbox.processing.processing.sync">[docs]</a><span class="k">def</span> <span class="nf">sync</span><span class="p">(</span><span class="n">dt</span><span class="p">,</span> <span class="n">times</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">values</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">timeseries</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">offsets</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">interp</span><span class="o">=</span><span class="s1">&#39;zero&#39;</span><span class="p">,</span>
+         <span class="n">fillval</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Function for resampling a single or multiple time series to a single, evenly-spaced, delta t</span>
+<span class="sd">    between observations. Uses interpolation to find values.</span>
+
+<span class="sd">    Can be used on raw numpy arrays of timestamps and values using the &#39;times&#39; and &#39;values&#39; kwargs</span>
+<span class="sd">    and/or on brainbox.core.TimeSeries objects passed to the &#39;timeseries&#39; kwarg. If passing both</span>
+<span class="sd">    TimeSeries objects and numpy arrays, the offsets passed should be for the TS objects first and</span>
+<span class="sd">    then the numpy arrays.</span>
+
+<span class="sd">    Uses scipy&#39;s interpolation library to perform interpolation.</span>
+<span class="sd">    See scipy.interp1d for more information regarding interp and fillval parameters.</span>
+
+<span class="sd">    :param dt: Separation of points which the output timeseries will be sampled at</span>
+<span class="sd">    :type dt: float</span>
+<span class="sd">    :param timeseries: A group of time series to perform alignment or a single time series.</span>
+<span class="sd">        Must have time stamps.</span>
+<span class="sd">    :type timeseries: tuple of TimeSeries objects, or a single TimeSeries object.</span>
+<span class="sd">    :param times: time stamps for the observations in &#39;values&#39;]</span>
+<span class="sd">    :type times: np.ndarray or list of np.ndarrays</span>
+<span class="sd">    :param values: observations corresponding to the timestamps in &#39;times&#39;</span>
+<span class="sd">    :type values: np.ndarray or list of np.ndarrays</span>
+<span class="sd">    :param offsets: tuple of offsets for time stamps of each time series. Offsets for passed</span>
+<span class="sd">        TimeSeries objects first, then offsets for passed numpy arrays. defaults to None</span>
+<span class="sd">    :type offsets: tuple of floats, optional</span>
+<span class="sd">    :param interp: Type of interpolation to use. Refer to scipy.interpolate.interp1d for possible</span>
+<span class="sd">        values, defaults to np.nan</span>
+<span class="sd">    :type interp: str</span>
+<span class="sd">    :param fillval: Fill values to use when interpolating outside of range of data. See interp1d</span>
+<span class="sd">        for possible values, defaults to np.nan</span>
+<span class="sd">    :return: TimeSeries object with each row representing synchronized values of all</span>
+<span class="sd">        input TimeSeries. Will carry column names from input time series if all of them have column</span>
+<span class="sd">        names.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1">#########################################</span>
+    <span class="c1"># Checks on inputs and input processing #</span>
+    <span class="c1">#########################################</span>
+
+    <span class="c1"># Initialize a list to contain times/values pairs if no TS objs are passed</span>
+    <span class="k">if</span> <span class="n">timeseries</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">timeseries</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="c1"># If a single time series is passed for resampling, wrap it in an iterable</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">timeseries</span><span class="p">,</span> <span class="n">core</span><span class="o">.</span><span class="n">TimeSeries</span><span class="p">):</span>
+        <span class="n">timeseries</span> <span class="o">=</span> <span class="p">[</span><span class="n">timeseries</span><span class="p">]</span>
+    <span class="c1"># Yell at the user if they try to pass stuff to timeseries that isn&#39;t a TimeSeries object</span>
+    <span class="k">elif</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">([</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">ts</span><span class="p">,</span> <span class="n">core</span><span class="o">.</span><span class="n">TimeSeries</span><span class="p">)</span> <span class="k">for</span> <span class="n">ts</span> <span class="ow">in</span> <span class="n">timeseries</span><span class="p">]):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;All elements of </span><span class="se">\&#39;</span><span class="s1">timeseries</span><span class="se">\&#39;</span><span class="s1"> argument must be brainbox.core.TimeSeries &#39;</span>
+                        <span class="s1">&#39;objects. Please uses </span><span class="se">\&#39;</span><span class="s1">times</span><span class="se">\&#39;</span><span class="s1"> and </span><span class="se">\&#39;</span><span class="s1">values</span><span class="se">\&#39;</span><span class="s1"> for np.ndarray args.&#39;</span><span class="p">)</span>
+    <span class="c1"># Check that if something is passed to times or values, there is a corresponding equal-length</span>
+    <span class="c1"># argument for the other element.</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">times</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="n">values</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">times</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">values</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\&#39;</span><span class="s1">times</span><span class="se">\&#39;</span><span class="s1"> and </span><span class="se">\&#39;</span><span class="s1">values</span><span class="se">\&#39;</span><span class="s1"> must have the same number of elements.&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">times</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="ow">is</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">([</span><span class="n">t</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="n">v</span><span class="o">.</span><span class="n">shape</span> <span class="k">for</span> <span class="n">t</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">values</span><span class="p">)]):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;All arrays in </span><span class="se">\&#39;</span><span class="s1">times</span><span class="se">\&#39;</span><span class="s1"> must match the shape of the&#39;</span>
+                                 <span class="s1">&#39; corresponding entry in </span><span class="se">\&#39;</span><span class="s1">values</span><span class="se">\&#39;</span><span class="s1">.&#39;</span><span class="p">)</span>
+            <span class="c1"># If all checks are passed, convert all times and values args into TimeSeries objects</span>
+            <span class="n">timeseries</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">core</span><span class="o">.</span><span class="n">TimeSeries</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">t</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">values</span><span class="p">)])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># If times and values are only numpy arrays and lists of arrays, pair them and add</span>
+            <span class="n">timeseries</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">core</span><span class="o">.</span><span class="n">TimeSeries</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">values</span><span class="p">))</span>
+
+    <span class="c1"># Adjust each timeseries by the associated offset if necessary then load into a list</span>
+    <span class="k">if</span> <span class="n">offsets</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">tstamps</span> <span class="o">=</span> <span class="p">[</span><span class="n">ts</span><span class="o">.</span><span class="n">times</span> <span class="o">+</span> <span class="n">os</span> <span class="k">for</span> <span class="n">ts</span><span class="p">,</span> <span class="n">os</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">timeseries</span><span class="p">,</span> <span class="n">offsets</span><span class="p">)]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">tstamps</span> <span class="o">=</span> <span class="p">[</span><span class="n">ts</span><span class="o">.</span><span class="n">times</span> <span class="k">for</span> <span class="n">ts</span> <span class="ow">in</span> <span class="n">timeseries</span><span class="p">]</span>
+    <span class="c1"># If all input timeseries have column names, put them together for the output TS</span>
+    <span class="k">if</span> <span class="nb">all</span><span class="p">([</span><span class="n">ts</span><span class="o">.</span><span class="n">columns</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">for</span> <span class="n">ts</span> <span class="ow">in</span> <span class="n">timeseries</span><span class="p">]):</span>
+        <span class="n">colnames</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">ts</span> <span class="ow">in</span> <span class="n">timeseries</span><span class="p">:</span>
+            <span class="n">colnames</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">ts</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">colnames</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="c1">#################</span>
+    <span class="c1"># Main function #</span>
+    <span class="c1">#################</span>
+
+    <span class="c1"># Get the min and max values for all timeseries combined after offsetting</span>
+    <span class="n">tbounds</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([(</span><span class="n">np</span><span class="o">.</span><span class="n">amin</span><span class="p">(</span><span class="n">ts</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">amax</span><span class="p">(</span><span class="n">ts</span><span class="p">))</span> <span class="k">for</span> <span class="n">ts</span> <span class="ow">in</span> <span class="n">tstamps</span><span class="p">])</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">tbounds</span><span class="p">)):</span>
+        <span class="c1"># If there is a np.inf or np.nan in the time stamps for any of the timeseries this will</span>
+        <span class="c1"># break any further code so we check for all finite values and throw an informative error.</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;NaN or inf encountered in passed timeseries.</span><span class="se">\</span>
+<span class="s1">                          Please either drop or fill these values.&#39;</span><span class="p">)</span>
+    <span class="n">tmin</span><span class="p">,</span> <span class="n">tmax</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">amin</span><span class="p">(</span><span class="n">tbounds</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]),</span> <span class="n">np</span><span class="o">.</span><span class="n">amax</span><span class="p">(</span><span class="n">tbounds</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">])</span>
+    <span class="k">if</span> <span class="n">fillval</span> <span class="o">==</span> <span class="s1">&#39;extrapolate&#39;</span><span class="p">:</span>
+        <span class="c1"># If extrapolation is enabled we can ensure we have a full coverage of the data by</span>
+        <span class="c1"># extending the t max to be an whole integer multiple of dt above tmin.</span>
+        <span class="c1"># The 0.01% fudge factor is to account for floating point arithmetic errors.</span>
+        <span class="n">newt</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">tmin</span><span class="p">,</span> <span class="n">tmax</span> <span class="o">+</span> <span class="mf">1.0001</span> <span class="o">*</span> <span class="p">(</span><span class="n">dt</span> <span class="o">-</span> <span class="p">(</span><span class="n">tmax</span> <span class="o">-</span> <span class="n">tmin</span><span class="p">)</span> <span class="o">%</span> <span class="n">dt</span><span class="p">),</span> <span class="n">dt</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">newt</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">tmin</span><span class="p">,</span> <span class="n">tmax</span><span class="p">,</span> <span class="n">dt</span><span class="p">)</span>
+    <span class="n">tsinterps</span> <span class="o">=</span> <span class="p">[</span><span class="n">interpolate</span><span class="o">.</span><span class="n">interp1d</span><span class="p">(</span><span class="n">ts</span><span class="o">.</span><span class="n">times</span><span class="p">,</span> <span class="n">ts</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="n">interp</span><span class="p">,</span> <span class="n">fill_value</span><span class="o">=</span><span class="n">fillval</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+                 <span class="k">for</span> <span class="n">ts</span> <span class="ow">in</span> <span class="n">timeseries</span><span class="p">]</span>
+    <span class="n">syncd</span> <span class="o">=</span> <span class="n">core</span><span class="o">.</span><span class="n">TimeSeries</span><span class="p">(</span><span class="n">newt</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">([</span><span class="n">tsi</span><span class="p">(</span><span class="n">newt</span><span class="p">)</span> <span class="k">for</span> <span class="n">tsi</span> <span class="ow">in</span> <span class="n">tsinterps</span><span class="p">]),</span> <span class="n">columns</span><span class="o">=</span><span class="n">colnames</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">syncd</span></div>
+
+
+<div class="viewcode-block" id="bincount2D"><a class="viewcode-back" href="../../../_autosummary/brainbox.processing.processing.html#brainbox.processing.processing.bincount2D">[docs]</a><span class="k">def</span> <span class="nf">bincount2D</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">xbin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">ybin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">xlim</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ylim</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">weights</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Computes a 2D histogram by aggregating values in a 2D array.</span>
+
+<span class="sd">    :param x: values to bin along the 2nd dimension (c-contiguous)</span>
+<span class="sd">    :param y: values to bin along the 1st dimension</span>
+<span class="sd">    :param xbin:</span>
+<span class="sd">        scalar: bin size along 2nd dimension</span>
+<span class="sd">        0: aggregate according to unique values</span>
+<span class="sd">        array: aggregate according to exact values (count reduce operation)</span>
+<span class="sd">    :param ybin:</span>
+<span class="sd">        scalar: bin size along 1st dimension</span>
+<span class="sd">        0: aggregate according to unique values</span>
+<span class="sd">        array: aggregate according to exact values (count reduce operation)</span>
+<span class="sd">    :param xlim: (optional) 2 values (array or list) that restrict range along 2nd dimension</span>
+<span class="sd">    :param ylim: (optional) 2 values (array or list) that restrict range along 1st dimension</span>
+<span class="sd">    :param weights: (optional) defaults to None, weights to apply to each value for aggregation</span>
+<span class="sd">    :return: 3 numpy arrays MAP [ny,nx] image, xscale [nx], yscale [ny]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># if no bounds provided, use min/max of vectors</span>
+    <span class="k">if</span> <span class="n">xlim</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">xlim</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">x</span><span class="p">)]</span>
+    <span class="k">if</span> <span class="n">ylim</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">ylim</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">y</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">y</span><span class="p">)]</span>
+
+    <span class="k">def</span> <span class="nf">_get_scale_and_indices</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="nb">bin</span><span class="p">,</span> <span class="n">lim</span><span class="p">):</span>
+        <span class="c1"># if bin is a nonzero scalar, this is a bin size: create scale and indices</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isscalar</span><span class="p">(</span><span class="nb">bin</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">bin</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">scale</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">lim</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">lim</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="nb">bin</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span> <span class="nb">bin</span><span class="p">)</span>
+            <span class="n">ind</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">((</span><span class="n">v</span> <span class="o">-</span> <span class="n">lim</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">/</span> <span class="nb">bin</span><span class="p">))</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+        <span class="c1"># if bin == 0, aggregate over unique values</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">scale</span><span class="p">,</span> <span class="n">ind</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">return_inverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">scale</span><span class="p">,</span> <span class="n">ind</span>
+
+    <span class="n">xscale</span><span class="p">,</span> <span class="n">xind</span> <span class="o">=</span> <span class="n">_get_scale_and_indices</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">xbin</span><span class="p">,</span> <span class="n">xlim</span><span class="p">)</span>
+    <span class="n">yscale</span><span class="p">,</span> <span class="n">yind</span> <span class="o">=</span> <span class="n">_get_scale_and_indices</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">ybin</span><span class="p">,</span> <span class="n">ylim</span><span class="p">)</span>
+    <span class="c1"># aggregate by using bincount on absolute indices for a 2d array</span>
+    <span class="n">nx</span><span class="p">,</span> <span class="n">ny</span> <span class="o">=</span> <span class="p">[</span><span class="n">xscale</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="n">yscale</span><span class="o">.</span><span class="n">size</span><span class="p">]</span>
+    <span class="n">ind2d</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ravel_multi_index</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">c_</span><span class="p">[</span><span class="n">yind</span><span class="p">,</span> <span class="n">xind</span><span class="p">]</span><span class="o">.</span><span class="n">transpose</span><span class="p">(),</span> <span class="n">dims</span><span class="o">=</span><span class="p">(</span><span class="n">ny</span><span class="p">,</span> <span class="n">nx</span><span class="p">))</span>
+    <span class="n">r</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">ind2d</span><span class="p">,</span> <span class="n">minlength</span><span class="o">=</span><span class="n">nx</span> <span class="o">*</span> <span class="n">ny</span><span class="p">,</span> <span class="n">weights</span><span class="o">=</span><span class="n">weights</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">ny</span><span class="p">,</span> <span class="n">nx</span><span class="p">)</span>
+
+    <span class="c1"># if a set of specific values is requested output an array matching the scale dimensions</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isscalar</span><span class="p">(</span><span class="n">xbin</span><span class="p">)</span> <span class="ow">and</span> <span class="n">xbin</span><span class="o">.</span><span class="n">size</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">iout</span><span class="p">,</span> <span class="n">ir</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">intersect1d</span><span class="p">(</span><span class="n">xbin</span><span class="p">,</span> <span class="n">xscale</span><span class="p">,</span> <span class="n">return_indices</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">_r</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">ny</span><span class="p">,</span> <span class="n">xbin</span><span class="o">.</span><span class="n">size</span><span class="p">))</span>
+        <span class="n">r</span><span class="p">[:,</span> <span class="n">iout</span><span class="p">]</span> <span class="o">=</span> <span class="n">_r</span><span class="p">[:,</span> <span class="n">ir</span><span class="p">]</span>
+        <span class="n">xscale</span> <span class="o">=</span> <span class="n">xbin</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isscalar</span><span class="p">(</span><span class="n">ybin</span><span class="p">)</span> <span class="ow">and</span> <span class="n">ybin</span><span class="o">.</span><span class="n">size</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">iout</span><span class="p">,</span> <span class="n">ir</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">intersect1d</span><span class="p">(</span><span class="n">ybin</span><span class="p">,</span> <span class="n">yscale</span><span class="p">,</span> <span class="n">return_indices</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">_r</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">ybin</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="n">r</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+        <span class="n">r</span><span class="p">[</span><span class="n">iout</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">_r</span><span class="p">[</span><span class="n">ir</span><span class="p">,</span> <span class="p">:]</span>
+        <span class="n">yscale</span> <span class="o">=</span> <span class="n">ybin</span>
+
+    <span class="k">return</span> <span class="n">r</span><span class="p">,</span> <span class="n">xscale</span><span class="p">,</span> <span class="n">yscale</span></div>
+
+
+<div class="viewcode-block" id="bin_spikes"><a class="viewcode-back" href="../../../_autosummary/brainbox.processing.processing.html#brainbox.processing.processing.bin_spikes">[docs]</a><span class="k">def</span> <span class="nf">bin_spikes</span><span class="p">(</span><span class="n">spikes</span><span class="p">,</span> <span class="n">binsize</span><span class="p">,</span> <span class="n">interval_indices</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Wrapper for bincount2D which is intended to take in a TimeSeries object of spike times</span>
+<span class="sd">    and cluster identities and spit out spike counts in bins of a specified width binsize, also in</span>
+<span class="sd">    another TimeSeries object. Can either return a TS object with each row labeled with the</span>
+<span class="sd">    corresponding interval or the value of the left edge of the bin.</span>
+
+<span class="sd">    :param spikes: Spike times and cluster identities of sorted spikes</span>
+<span class="sd">    :type spikes: TimeSeries object with \&#39;clusters\&#39; column and timestamps</span>
+<span class="sd">    :param binsize: Width of the non-overlapping bins in which to bin spikes</span>
+<span class="sd">    :type binsize: float</span>
+<span class="sd">    :param interval_indices: Whether to use intervals as the time stamps for binned spikes, rather</span>
+<span class="sd">        than the left edge value of the bins, defaults to False</span>
+<span class="sd">    :type interval_indices: bool, optional</span>
+<span class="sd">    :return: Object with 2D array of shape T x N, for T timesteps and N clusters, and the</span>
+<span class="sd">        associated time stamps.</span>
+<span class="sd">    :rtype: TimeSeries object</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">spikes</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">core</span><span class="o">.</span><span class="n">TimeSeries</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;Input spikes need to be in TimeSeries object format&#39;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">spikes</span><span class="p">,</span> <span class="s1">&#39;clusters&#39;</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s1">&#39;Input spikes need to have a clusters attribute. Make sure you set &#39;</span>
+                             <span class="s1">&#39;columns=(</span><span class="se">\&#39;</span><span class="s1">clusters</span><span class="se">\&#39;</span><span class="s1">,)) when constructing spikes.&#39;</span><span class="p">)</span>
+
+    <span class="n">rates</span><span class="p">,</span> <span class="n">tbins</span><span class="p">,</span> <span class="n">clusters</span> <span class="o">=</span> <span class="n">bincount2D</span><span class="p">(</span><span class="n">spikes</span><span class="o">.</span><span class="n">times</span><span class="p">,</span> <span class="n">spikes</span><span class="o">.</span><span class="n">clusters</span><span class="p">,</span> <span class="n">binsize</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">interval_indices</span><span class="p">:</span>
+        <span class="n">intervals</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">interval_range</span><span class="p">(</span><span class="n">tbins</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">tbins</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">freq</span><span class="o">=</span><span class="n">binsize</span><span class="p">,</span> <span class="n">closed</span><span class="o">=</span><span class="s1">&#39;left&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">core</span><span class="o">.</span><span class="n">TimeSeries</span><span class="p">(</span><span class="n">times</span><span class="o">=</span><span class="n">intervals</span><span class="p">,</span> <span class="n">values</span><span class="o">=</span><span class="n">rates</span><span class="o">.</span><span class="n">T</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">columns</span><span class="o">=</span><span class="n">clusters</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">core</span><span class="o">.</span><span class="n">TimeSeries</span><span class="p">(</span><span class="n">times</span><span class="o">=</span><span class="n">tbins</span><span class="p">,</span> <span class="n">values</span><span class="o">=</span><span class="n">rates</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="n">clusters</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="get_units_bunch"><a class="viewcode-back" href="../../../_autosummary/brainbox.processing.processing.html#brainbox.processing.processing.get_units_bunch">[docs]</a><span class="k">def</span> <span class="nf">get_units_bunch</span><span class="p">(</span><span class="n">spks_b</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Returns a bunch, where the bunch keys are keys from `spks` with labels of spike information</span>
+<span class="sd">    (e.g. unit IDs, times, features, etc.), and the values for each key are arrays with values for</span>
+<span class="sd">    each unit: these arrays are ordered and can be indexed by unit id.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    spks_b : bunch</span>
+<span class="sd">        A spikes bunch containing fields with spike information (e.g. unit IDs, times, features,</span>
+<span class="sd">        etc.) for all spikes.</span>
+<span class="sd">    features : list of strings (optional positional arg)</span>
+<span class="sd">        A list of names of labels of spike information (which must be keys in `spks`) that specify</span>
+<span class="sd">        which labels to return as keys in `units`. If not provided, all keys in `spks` are returned</span>
+<span class="sd">        as keys in `units`.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    units_b : bunch</span>
+<span class="sd">        A bunch with keys of labels of spike information (e.g. cluster IDs, times, features, etc.)</span>
+<span class="sd">        whose values are arrays that hold values for each unit. The arrays for each key are ordered</span>
+<span class="sd">        by unit ID.</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    1) Create a units bunch given a spikes bunch, and get the amps for unit #4 from the units</span>
+<span class="sd">    bunch.</span>
+<span class="sd">        &gt;&gt;&gt; import brainbox as bb</span>
+<span class="sd">        &gt;&gt;&gt; import alf.io as aio</span>
+<span class="sd">        &gt;&gt;&gt; import ibllib.ephys.spikes as e_spks</span>
+<span class="sd">        (*Note, if there is no &#39;alf&#39; directory, make &#39;alf&#39; directory from &#39;ks2&#39; output directory):</span>
+<span class="sd">        &gt;&gt;&gt; e_spks.ks2_to_alf(path_to_ks_out, path_to_alf_out)</span>
+<span class="sd">        &gt;&gt;&gt; spks_b = aio.load_object(path_to_alf_out, &#39;spikes&#39;)</span>
+<span class="sd">        &gt;&gt;&gt; units_b = bb.processing.get_units_bunch(spks_b)</span>
+<span class="sd">        # Get amplitudes for unit 4.</span>
+<span class="sd">        &gt;&gt;&gt; amps = units_b[&#39;amps&#39;][&#39;4&#39;]</span>
+
+<span class="sd">    TODO add computation time estimate?</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="c1"># Initialize `units`</span>
+    <span class="n">units_b</span> <span class="o">=</span> <span class="n">core</span><span class="o">.</span><span class="n">Bunch</span><span class="p">()</span>
+    <span class="c1"># Get the keys to return for `units`:</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">args</span><span class="p">:</span>
+        <span class="n">feat_keys</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">spks_b</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">feat_keys</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="c1"># Get unit id for each spike and number of units. *Note: `n_units` might not equal `len(units)`</span>
+    <span class="c1"># because some clusters may be empty (due to a &quot;wontfix&quot; bug in ks2).</span>
+    <span class="n">spks_unit_id</span> <span class="o">=</span> <span class="n">spks_b</span><span class="p">[</span><span class="s1">&#39;clusters&#39;</span><span class="p">]</span>
+    <span class="n">n_units</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">spks_unit_id</span><span class="p">)</span>
+    <span class="n">units</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">spks_b</span><span class="p">[</span><span class="s1">&#39;clusters&#39;</span><span class="p">])</span>
+    <span class="c1"># For each key in `units`, iteratively get each unit&#39;s values and add as a key to a bunch,</span>
+    <span class="c1"># `feat_bunch`. After iterating through all units, add `feat_bunch` as a key to `units`:</span>
+    <span class="k">for</span> <span class="n">feat</span> <span class="ow">in</span> <span class="n">feat_keys</span><span class="p">:</span>
+        <span class="c1"># Initialize `feat_bunch` with a key for each unit.</span>
+        <span class="n">feat_bunch</span> <span class="o">=</span> <span class="n">core</span><span class="o">.</span><span class="n">Bunch</span><span class="p">((</span><span class="nb">str</span><span class="p">(</span><span class="n">unit</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([]))</span> <span class="k">for</span> <span class="n">unit</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n_units</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">unit</span> <span class="ow">in</span> <span class="n">units</span><span class="p">:</span>
+            <span class="n">unit_idxs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">spks_unit_id</span> <span class="o">==</span> <span class="n">unit</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">feat_bunch</span><span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">unit</span><span class="p">)]</span> <span class="o">=</span> <span class="n">spks_b</span><span class="p">[</span><span class="n">feat</span><span class="p">][</span><span class="n">unit_idxs</span><span class="p">]</span>
+        <span class="n">units_b</span><span class="p">[</span><span class="n">feat</span><span class="p">]</span> <span class="o">=</span> <span class="n">feat_bunch</span>
+    <span class="k">return</span> <span class="n">units_b</span></div>
+
+
+<div class="viewcode-block" id="filter_units"><a class="viewcode-back" href="../../../_autosummary/brainbox.processing.processing.html#brainbox.processing.processing.filter_units">[docs]</a><span class="k">def</span> <span class="nf">filter_units</span><span class="p">(</span><span class="n">units_b</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Filters units according to some parameters. **kwargs are the keyword parameters used to filter</span>
+<span class="sd">    the units.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    units_b : bunch</span>
+<span class="sd">        A bunch with keys of labels of spike information (e.g. cluster IDs, times, features, etc.)</span>
+<span class="sd">        whose values are arrays that hold values for each unit. The arrays for each key are ordered</span>
+<span class="sd">        by unit ID.</span>
+<span class="sd">    t : float</span>
+<span class="sd">        Duration of time over which to calculate the firing rate and false positive rate.</span>
+
+<span class="sd">    Keyword Parameters</span>
+<span class="sd">    ------------------</span>
+<span class="sd">    min_amp : float</span>
+<span class="sd">        The minimum mean amplitude (in V) of the spikes in the unit. Default value is 50e-6.</span>
+<span class="sd">    min_fr : float</span>
+<span class="sd">        The minimum firing rate (in Hz) of the unit. Default value is 0.5.</span>
+<span class="sd">    max_fpr : float</span>
+<span class="sd">        The maximum false positive rate of the unit (using the fp formula in Hill et al. (2011)</span>
+<span class="sd">        J Neurosci 31: 8699-8705). Default value is 0.2.</span>
+<span class="sd">    rp : float</span>
+<span class="sd">        The refractory period (in s) of the unit. Used to calculate `max_fp`. Default value is</span>
+<span class="sd">        0.002.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    filt_units : ndarray</span>
+<span class="sd">        The ids of the filtered units.</span>
+
+<span class="sd">    See Also</span>
+<span class="sd">    --------</span>
+<span class="sd">    get_units_bunch</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    1) Filter units according to the default parameters.</span>
+<span class="sd">        &gt;&gt;&gt; import brainbox as bb</span>
+<span class="sd">        &gt;&gt;&gt; import alf.io as aio</span>
+<span class="sd">        &gt;&gt;&gt; import ibllib.ephys.spikes as e_spks</span>
+<span class="sd">        (*Note, if there is no &#39;alf&#39; directory, make &#39;alf&#39; directory from &#39;ks2&#39; output directory):</span>
+<span class="sd">        &gt;&gt;&gt; e_spks.ks2_to_alf(path_to_ks_out, path_to_alf_out)</span>
+<span class="sd">        # Get a spikes bunch, units bunch, and filter the units.</span>
+<span class="sd">        &gt;&gt;&gt; spks_b = aio.load_object(path_to_alf_out, &#39;spikes&#39;)</span>
+<span class="sd">        &gt;&gt;&gt; units_b = bb.processing.get_units_bunch(spks_b, [&#39;times&#39;, &#39;amps&#39;, &#39;clusters&#39;])</span>
+<span class="sd">        &gt;&gt;&gt; T = spks_b[&#39;times&#39;][-1] - spks_b[&#39;times&#39;][0]</span>
+<span class="sd">        &gt;&gt;&gt; filtered_units = bb.processing.filter_units(units_b, T)</span>
+
+<span class="sd">    2) Filter units with no minimum amplitude, a minimum firing rate of 1 Hz, and a max false</span>
+<span class="sd">    positive rate of 0.2, given a refractory period of 2 ms.</span>
+<span class="sd">        &gt;&gt;&gt; filtered_units  = bb.processing.filter_units(units_b, T, min_amp=0, min_fr=1)</span>
+
+<span class="sd">    TODO: `units_b` input arg could eventually be replaced by `clstrs_b` if the required metrics</span>
+<span class="sd">          are in `clstrs_b[&#39;metrics&#39;]`</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="c1"># Set params</span>
+    <span class="n">params</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;min_amp&#39;</span><span class="p">:</span> <span class="mf">50e-6</span><span class="p">,</span> <span class="s1">&#39;min_fr&#39;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">,</span> <span class="s1">&#39;max_fpr&#39;</span><span class="p">:</span> <span class="mf">0.2</span><span class="p">,</span> <span class="s1">&#39;rp&#39;</span><span class="p">:</span> <span class="mf">0.002</span><span class="p">}</span>  <span class="c1"># defaults</span>
+    <span class="n">params</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>  <span class="c1"># update from **kwargs</span>
+
+    <span class="c1"># Iteratively filter the units for each filter param #</span>
+    <span class="c1"># -------------------------------------------------- #</span>
+    <span class="n">units</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">units_b</span><span class="o">.</span><span class="n">amps</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+    <span class="c1"># Remove empty clusters</span>
+    <span class="n">empty_cl</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">([</span><span class="nb">len</span><span class="p">(</span><span class="n">units_b</span><span class="o">.</span><span class="n">amps</span><span class="p">[</span><span class="n">unit</span><span class="p">])</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">unit</span> <span class="ow">in</span> <span class="n">units</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">filt_units</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">units</span><span class="p">,</span> <span class="n">empty_cl</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">params</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">param</span> <span class="o">==</span> <span class="s1">&#39;min_amp&#39;</span><span class="p">:</span>  <span class="c1"># return units above with amp &gt; `&#39;min_amp&#39;`</span>
+            <span class="n">mean_amps</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">units_b</span><span class="o">.</span><span class="n">amps</span><span class="p">[</span><span class="n">unit</span><span class="p">])</span> <span class="k">for</span> <span class="n">unit</span> <span class="ow">in</span> <span class="n">filt_units</span><span class="p">])</span>
+            <span class="n">filt_idxs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">mean_amps</span> <span class="o">&gt;</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;min_amp&#39;</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">filt_units</span> <span class="o">=</span> <span class="n">filt_units</span><span class="p">[</span><span class="n">filt_idxs</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="n">param</span> <span class="o">==</span> <span class="s1">&#39;min_fr&#39;</span><span class="p">:</span>  <span class="c1"># return units with fr &gt; `&#39;min_fr&#39;`</span>
+            <span class="n">fr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">([</span><span class="nb">len</span><span class="p">(</span><span class="n">units_b</span><span class="o">.</span><span class="n">amps</span><span class="p">[</span><span class="n">unit</span><span class="p">])</span> <span class="o">/</span>
+                            <span class="p">(</span><span class="n">units_b</span><span class="o">.</span><span class="n">times</span><span class="p">[</span><span class="n">unit</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">units_b</span><span class="o">.</span><span class="n">times</span><span class="p">[</span><span class="n">unit</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+                            <span class="k">for</span> <span class="n">unit</span> <span class="ow">in</span> <span class="n">filt_units</span><span class="p">])</span>
+            <span class="n">filt_idxs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">fr</span> <span class="o">&gt;</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;min_fr&#39;</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">filt_units</span> <span class="o">=</span> <span class="n">filt_units</span><span class="p">[</span><span class="n">filt_idxs</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="n">param</span> <span class="o">==</span> <span class="s1">&#39;max_fpr&#39;</span><span class="p">:</span>  <span class="c1"># return units with fpr &lt; `&#39;max_fpr&#39;`</span>
+            <span class="n">fpr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">filt_units</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;float&#39;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">unit</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">filt_units</span><span class="p">):</span>
+                <span class="n">n_spks</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">units_b</span><span class="o">.</span><span class="n">amps</span><span class="p">[</span><span class="n">unit</span><span class="p">])</span>
+                <span class="n">n_isi_viol</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">units_b</span><span class="o">.</span><span class="n">times</span><span class="p">[</span><span class="n">unit</span><span class="p">])</span> <span class="o">&lt;</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;rp&#39;</span><span class="p">])[</span><span class="mi">0</span><span class="p">])</span>
+                <span class="c1"># fpr is min of roots of solved quadratic equation (Hill, et al. 2011).</span>
+                <span class="n">c</span> <span class="o">=</span> <span class="p">(</span><span class="n">t</span> <span class="o">*</span> <span class="n">n_isi_viol</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;rp&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="n">n_spks</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>  <span class="c1"># 3rd term in quadratic</span>
+                <span class="n">fpr</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">roots</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">c</span><span class="p">])))</span>  <span class="c1"># solve quadratic</span>
+            <span class="n">filt_idxs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">fpr</span> <span class="o">&lt;</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;max_fpr&#39;</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">filt_units</span> <span class="o">=</span> <span class="n">filt_units</span><span class="p">[</span><span class="n">filt_idxs</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">filt_units</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        
+        &copy; Copyright 2020, International Brain Laboratory
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

@@ -1,0 +1,985 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>ibllib.io.extractors.training_trials &mdash; IBL Library  documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/copybutton.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/css/style.css" type="text/css" />
+
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
+        <script src="../../../../_static/jquery.js"></script>
+        <script src="../../../../_static/underscore.js"></script>
+        <script src="../../../../_static/doctools.js"></script>
+        <script src="../../../../_static/language_data.js"></script>
+        <script src="../../../../_static/clipboard.min.js"></script>
+        <script src="../../../../_static/copybutton.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script src="https://unpkg.com/@jupyter-widgets/html-manager@^0.18.0/dist/embed-amd.js"></script>
+    
+    <script type="text/javascript" src="../../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../../index.html" class="icon icon-home" alt="Documentation Home"> IBL Library
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../01_overview.html">IBL data structure</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../02_installation.html">Installation</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../03_one.html">ONE</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../04_datajoint.html">Datajoint</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../05_tutorials.html">Tutorials</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../06_examples.html">Examples</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../07_developers.html">API Reference</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">IBL Library</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../../../index.html">Module code</a> &raquo;</li>
+        
+      <li>ibllib.io.extractors.training_trials</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for ibllib.io.extractors.training_trials</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">cv2</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">pkg_resources</span> <span class="kn">import</span> <span class="n">parse_version</span>
+
+<span class="kn">import</span> <span class="nn">ibllib.io.raw_data_loaders</span> <span class="k">as</span> <span class="nn">raw</span>
+<span class="kn">from</span> <span class="nn">ibllib.io.extractors.base</span> <span class="kn">import</span> <span class="n">BaseBpodTrialsExtractor</span><span class="p">,</span> <span class="n">run_extractor_classes</span>
+<span class="kn">from</span> <span class="nn">ibllib.misc</span> <span class="kn">import</span> <span class="n">version</span>
+
+
+<span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;ibllib&#39;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="FeedbackType"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.training_trials.html#ibllib.io.extractors.training_trials.FeedbackType">[docs]</a><span class="k">class</span> <span class="nc">FeedbackType</span><span class="p">(</span><span class="n">BaseBpodTrialsExtractor</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Get the feedback that was delivered to subject.</span>
+<span class="sd">    **Optional:** saves _ibl_trials.feedbackType.npy</span>
+
+<span class="sd">    Checks in raw datafile for error and reward state.</span>
+<span class="sd">    Will raise an error if more than one of the mutually exclusive states have</span>
+<span class="sd">    been triggered.</span>
+
+<span class="sd">    Sets feedbackType to -1 if error state was trigered (applies to no-go)</span>
+<span class="sd">    Sets feedbackType to +1 if reward state was triggered</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">save_names</span> <span class="o">=</span> <span class="s1">&#39;_ibl_trials.feedbackType.npy&#39;</span>
+    <span class="n">var_names</span> <span class="o">=</span> <span class="s1">&#39;feedbackType&#39;</span>
+
+    <span class="k">def</span> <span class="nf">_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">feedbackType</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">))</span>
+        <span class="n">feedbackType</span><span class="o">.</span><span class="n">fill</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+        <span class="n">reward</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">error</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">no_go</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">:</span>
+            <span class="n">reward</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">t</span><span class="p">[</span><span class="s1">&#39;behavior_data&#39;</span><span class="p">][</span><span class="s1">&#39;States timestamps&#39;</span><span class="p">][</span><span class="s1">&#39;reward&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]))</span>
+            <span class="n">error</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">t</span><span class="p">[</span><span class="s1">&#39;behavior_data&#39;</span><span class="p">][</span><span class="s1">&#39;States timestamps&#39;</span><span class="p">][</span><span class="s1">&#39;error&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]))</span>
+            <span class="n">no_go</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">t</span><span class="p">[</span><span class="s1">&#39;behavior_data&#39;</span><span class="p">][</span><span class="s1">&#39;States timestamps&#39;</span><span class="p">][</span><span class="s1">&#39;no_go&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]))</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">([</span><span class="n">reward</span><span class="p">,</span> <span class="n">error</span><span class="p">,</span> <span class="n">no_go</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">))):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span>
+
+        <span class="n">feedbackType</span><span class="p">[</span><span class="n">reward</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="n">feedbackType</span><span class="p">[</span><span class="n">error</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+        <span class="n">feedbackType</span><span class="p">[</span><span class="n">no_go</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+        <span class="n">feedbackType</span> <span class="o">=</span> <span class="n">feedbackType</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s1">&#39;int64&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">feedbackType</span></div>
+
+
+<div class="viewcode-block" id="ContrastLR"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.training_trials.html#ibllib.io.extractors.training_trials.ContrastLR">[docs]</a><span class="k">class</span> <span class="nc">ContrastLR</span><span class="p">(</span><span class="n">BaseBpodTrialsExtractor</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Get left and right contrasts from raw datafile. Optionally, saves</span>
+<span class="sd">    _ibl_trials.contrastLeft.npy and _ibl_trials.contrastRight.npy to alf folder.</span>
+
+<span class="sd">    Uses signed_contrast to create left and right contrast vectors.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">save_names</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;_ibl_trials.contrastLeft.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;_ibl_trials.contrastRight.npy&#39;</span><span class="p">)</span>
+    <span class="n">var_names</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;contrastLeft&#39;</span><span class="p">,</span> <span class="s1">&#39;contrastRight&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">contrastLeft</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">t</span><span class="p">[</span><span class="s1">&#39;contrast&#39;</span><span class="p">][</span><span class="s1">&#39;value&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span>
+            <span class="n">t</span><span class="p">[</span><span class="s1">&#39;position&#39;</span><span class="p">])</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">])</span>
+        <span class="n">contrastRight</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">t</span><span class="p">[</span><span class="s1">&#39;contrast&#39;</span><span class="p">][</span><span class="s1">&#39;value&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span>
+            <span class="n">t</span><span class="p">[</span><span class="s1">&#39;position&#39;</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">])</span>
+
+        <span class="k">return</span> <span class="n">contrastLeft</span><span class="p">,</span> <span class="n">contrastRight</span></div>
+
+
+<div class="viewcode-block" id="ProbabilityLeft"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.training_trials.html#ibllib.io.extractors.training_trials.ProbabilityLeft">[docs]</a><span class="k">class</span> <span class="nc">ProbabilityLeft</span><span class="p">(</span><span class="n">BaseBpodTrialsExtractor</span><span class="p">):</span>
+    <span class="n">save_names</span> <span class="o">=</span> <span class="s1">&#39;_ibl_trials.probabilityLeft.npy&#39;</span>
+    <span class="n">var_names</span> <span class="o">=</span> <span class="s1">&#39;probabilityLeft&#39;</span>
+
+    <span class="k">def</span> <span class="nf">_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">t</span><span class="p">[</span><span class="s1">&#39;stim_probability_left&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">])</span></div>
+
+
+<div class="viewcode-block" id="Choice"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.training_trials.html#ibllib.io.extractors.training_trials.Choice">[docs]</a><span class="k">class</span> <span class="nc">Choice</span><span class="p">(</span><span class="n">BaseBpodTrialsExtractor</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Get the subject&#39;s choice in every trial.</span>
+<span class="sd">    **Optional:** saves _ibl_trials.choice.npy to alf folder.</span>
+
+<span class="sd">    Uses signed_contrast and trial_correct.</span>
+<span class="sd">    -1 is a CCW turn (towards the left)</span>
+<span class="sd">    +1 is a CW turn (towards the right)</span>
+<span class="sd">    0 is a no_go trial</span>
+<span class="sd">    If a trial is correct the choice of the animal was the inverse of the sign</span>
+<span class="sd">    of the position.</span>
+
+<span class="sd">    &gt;&gt;&gt; choice[t] = -np.sign(position[t]) if trial_correct[t]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">save_names</span> <span class="o">=</span> <span class="s1">&#39;_ibl_trials.choice.npy&#39;</span>
+    <span class="n">var_names</span> <span class="o">=</span> <span class="s1">&#39;choice&#39;</span>
+
+    <span class="k">def</span> <span class="nf">_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">sitm_side</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">t</span><span class="p">[</span><span class="s1">&#39;position&#39;</span><span class="p">])</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">])</span>
+        <span class="n">trial_correct</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">t</span><span class="p">[</span><span class="s1">&#39;trial_correct&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">])</span>
+        <span class="n">trial_nogo</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="p">[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">t</span><span class="p">[</span><span class="s1">&#39;behavior_data&#39;</span><span class="p">][</span><span class="s1">&#39;States timestamps&#39;</span><span class="p">][</span><span class="s1">&#39;no_go&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+             <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">])</span>
+        <span class="n">choice</span> <span class="o">=</span> <span class="n">sitm_side</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">choice</span><span class="p">[</span><span class="n">trial_correct</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="n">choice</span><span class="p">[</span><span class="n">trial_correct</span><span class="p">]</span>
+        <span class="n">choice</span><span class="p">[</span><span class="n">trial_nogo</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">choice</span> <span class="o">=</span> <span class="n">choice</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">choice</span></div>
+
+
+<div class="viewcode-block" id="RepNum"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.training_trials.html#ibllib.io.extractors.training_trials.RepNum">[docs]</a><span class="k">class</span> <span class="nc">RepNum</span><span class="p">(</span><span class="n">BaseBpodTrialsExtractor</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Count the consecutive repeated trials.</span>
+<span class="sd">    **Optional:** saves _ibl_trials.repNum.npy to alf folder.</span>
+
+<span class="sd">    Creates trial_repeated from trial[&#39;contrast&#39;][&#39;type&#39;] == &#39;RepeatContrast&#39;</span>
+
+<span class="sd">    &gt;&gt;&gt; trial_repeated = [0, 1, 1, 0, 1, 0, 1, 1, 1, 0]</span>
+<span class="sd">    &gt;&gt;&gt; repNum =         [0, 1, 2, 0, 1, 0, 1, 2, 3, 0]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">save_names</span> <span class="o">=</span> <span class="s1">&#39;_ibl_trials.repNum.npy&#39;</span>
+    <span class="n">var_names</span> <span class="o">=</span> <span class="s1">&#39;repNum&#39;</span>
+
+    <span class="k">def</span> <span class="nf">_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">trial_repeated</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">t</span><span class="p">[</span><span class="s1">&#39;contrast&#39;</span><span class="p">][</span><span class="s1">&#39;type&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;RepeatContrast&#39;</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">])</span>
+        <span class="n">trial_repeated</span> <span class="o">=</span> <span class="n">trial_repeated</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+        <span class="n">repNum</span> <span class="o">=</span> <span class="n">trial_repeated</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">trial_repeated</span><span class="p">)):</span>
+            <span class="k">if</span> <span class="n">trial_repeated</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">c</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="n">repNum</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="k">continue</span>
+            <span class="n">c</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">repNum</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">c</span>
+        <span class="k">return</span> <span class="n">repNum</span></div>
+
+
+<div class="viewcode-block" id="RewardVolume"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.training_trials.html#ibllib.io.extractors.training_trials.RewardVolume">[docs]</a><span class="k">class</span> <span class="nc">RewardVolume</span><span class="p">(</span><span class="n">BaseBpodTrialsExtractor</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Load reward volume delivered for each trial.</span>
+<span class="sd">    **Optional:** saves _ibl_trials.rewardVolume.npy</span>
+
+<span class="sd">    Uses reward_current to accumulate the amount of</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">save_names</span> <span class="o">=</span> <span class="s1">&#39;_ibl_trials.rewardVolume.npy&#39;</span>
+    <span class="n">var_names</span> <span class="o">=</span> <span class="s1">&#39;rewardVolume&#39;</span>
+
+    <span class="k">def</span> <span class="nf">_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">trial_volume</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="s1">&#39;reward_amount&#39;</span><span class="p">]</span>
+                        <span class="k">if</span> <span class="n">x</span><span class="p">[</span><span class="s1">&#39;trial_correct&#39;</span><span class="p">]</span> <span class="k">else</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">]</span>
+        <span class="n">reward_volume</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">trial_volume</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">reward_volume</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">reward_volume</span></div>
+
+
+<div class="viewcode-block" id="FeedbackTimes"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.training_trials.html#ibllib.io.extractors.training_trials.FeedbackTimes">[docs]</a><span class="k">class</span> <span class="nc">FeedbackTimes</span><span class="p">(</span><span class="n">BaseBpodTrialsExtractor</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Get the times the water or error tone was delivered to the animal.</span>
+<span class="sd">    **Optional:** saves _ibl_trials.feedback_times.npy</span>
+
+<span class="sd">    Gets reward  and error state init times vectors,</span>
+<span class="sd">    checks if theintersection of nans is empty, then</span>
+<span class="sd">    merges the 2 vectors.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">save_names</span> <span class="o">=</span> <span class="s1">&#39;_ibl_trials.feedback_times.npy&#39;</span>
+    <span class="n">var_names</span> <span class="o">=</span> <span class="s1">&#39;feedback_times&#39;</span>
+
+<div class="viewcode-block" id="FeedbackTimes.get_feedback_times_lt5"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.training_trials.html#ibllib.io.extractors.training_trials.FeedbackTimes.get_feedback_times_lt5">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">get_feedback_times_lt5</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">data</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">raw</span><span class="o">.</span><span class="n">load_data</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="n">rw_times</span> <span class="o">=</span> <span class="p">[</span><span class="n">tr</span><span class="p">[</span><span class="s1">&#39;behavior_data&#39;</span><span class="p">][</span><span class="s1">&#39;States timestamps&#39;</span><span class="p">][</span><span class="s1">&#39;reward&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="n">data</span><span class="p">]</span>
+        <span class="n">err_times</span> <span class="o">=</span> <span class="p">[</span><span class="n">tr</span><span class="p">[</span><span class="s1">&#39;behavior_data&#39;</span><span class="p">][</span><span class="s1">&#39;States timestamps&#39;</span><span class="p">][</span><span class="s1">&#39;error&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+                     <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="n">data</span><span class="p">]</span>
+        <span class="n">nogo_times</span> <span class="o">=</span> <span class="p">[</span><span class="n">tr</span><span class="p">[</span><span class="s1">&#39;behavior_data&#39;</span><span class="p">][</span><span class="s1">&#39;States timestamps&#39;</span><span class="p">][</span><span class="s1">&#39;no_go&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+                      <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="n">data</span><span class="p">]</span>
+        <span class="k">assert</span> <span class="nb">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">rw_times</span><span class="p">)</span> <span class="o">&amp;</span>
+                   <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">err_times</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">nogo_times</span><span class="p">))</span> <span class="o">==</span> <span class="mi">0</span>
+        <span class="n">merge</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">times</span><span class="p">)[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">times</span><span class="p">)]</span> <span class="k">for</span> <span class="n">times</span> <span class="ow">in</span>
+                          <span class="nb">zip</span><span class="p">(</span><span class="n">rw_times</span><span class="p">,</span> <span class="n">err_times</span><span class="p">,</span> <span class="n">nogo_times</span><span class="p">)])</span><span class="o">.</span><span class="n">squeeze</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">merge</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="FeedbackTimes.get_feedback_times_ge5"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.training_trials.html#ibllib.io.extractors.training_trials.FeedbackTimes.get_feedback_times_ge5">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">get_feedback_times_ge5</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="c1"># ger err and no go trig times -- look for BNC2High of trial -- verify</span>
+        <span class="c1"># only 2 onset times go tone and noise, select 2nd/-1 OR select the one</span>
+        <span class="c1"># that is grater than the nogo or err trial onset time</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">data</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">raw</span><span class="o">.</span><span class="n">load_data</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="n">missed_bnc2</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">rw_times</span><span class="p">,</span> <span class="n">err_sound_times</span><span class="p">,</span> <span class="n">merge</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">),</span> <span class="p">])</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">)]</span>
+
+        <span class="k">for</span> <span class="n">ind</span><span class="p">,</span> <span class="n">tr</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+            <span class="n">st</span> <span class="o">=</span> <span class="n">tr</span><span class="p">[</span><span class="s1">&#39;behavior_data&#39;</span><span class="p">][</span><span class="s1">&#39;Events timestamps&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;BNC2High&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">st</span><span class="p">:</span>
+                <span class="n">st</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">])</span>
+                <span class="n">missed_bnc2</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="c1"># xonar soundcard duplicates events, remove consecutive events too close together</span>
+            <span class="n">st</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">st</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">st</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">0.020</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">rw_times</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span> <span class="o">=</span> <span class="n">tr</span><span class="p">[</span><span class="s1">&#39;behavior_data&#39;</span><span class="p">][</span><span class="s1">&#39;States timestamps&#39;</span><span class="p">][</span><span class="s1">&#39;reward&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+            <span class="c1"># get the error sound only if the reward is nan</span>
+            <span class="n">err_sound_times</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span> <span class="o">=</span> <span class="n">st</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="k">if</span> <span class="n">st</span><span class="o">.</span><span class="n">size</span> <span class="o">&gt;=</span> <span class="mi">2</span> <span class="ow">and</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">rw_times</span><span class="p">[</span><span class="n">ind</span><span class="p">])</span> <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+        <span class="k">if</span> <span class="n">missed_bnc2</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;No BNC2 for feedback times, filling error trials NaNs&#39;</span><span class="p">)</span>
+        <span class="n">merge</span> <span class="o">*=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+        <span class="n">merge</span><span class="p">[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">rw_times</span><span class="p">)]</span> <span class="o">=</span> <span class="n">rw_times</span><span class="p">[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">rw_times</span><span class="p">)]</span>
+        <span class="n">merge</span><span class="p">[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">err_sound_times</span><span class="p">)]</span> <span class="o">=</span> <span class="n">err_sound_times</span><span class="p">[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">err_sound_times</span><span class="p">)]</span>
+
+        <span class="k">return</span> <span class="n">merge</span></div>
+
+    <span class="k">def</span> <span class="nf">_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># Version check</span>
+        <span class="k">if</span> <span class="n">version</span><span class="o">.</span><span class="n">ge</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">],</span> <span class="s1">&#39;5.0.0&#39;</span><span class="p">):</span>
+            <span class="n">merge</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_feedback_times_ge5</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">merge</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_feedback_times_lt5</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">merge</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Intervals"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.training_trials.html#ibllib.io.extractors.training_trials.Intervals">[docs]</a><span class="k">class</span> <span class="nc">Intervals</span><span class="p">(</span><span class="n">BaseBpodTrialsExtractor</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Trial start to trial end. Trial end includes 1 or 2 seconds after feedback,</span>
+<span class="sd">    (depending on the feedback) and 0.5 seconds of iti.</span>
+<span class="sd">    **Optional:** saves _ibl_trials.intervals.npy</span>
+
+<span class="sd">    Uses the corrected Trial start and Trial end timpestamp values form PyBpod.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">save_names</span> <span class="o">=</span> <span class="s1">&#39;_ibl_trials.intervals.npy&#39;</span>
+    <span class="n">var_names</span> <span class="o">=</span> <span class="s1">&#39;intervals&#39;</span>
+
+    <span class="k">def</span> <span class="nf">_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">starts</span> <span class="o">=</span> <span class="p">[</span><span class="n">t</span><span class="p">[</span><span class="s1">&#39;behavior_data&#39;</span><span class="p">][</span><span class="s1">&#39;Trial start timestamp&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">]</span>
+        <span class="n">ends</span> <span class="o">=</span> <span class="p">[</span><span class="n">t</span><span class="p">[</span><span class="s1">&#39;behavior_data&#39;</span><span class="p">][</span><span class="s1">&#39;Trial end timestamp&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">starts</span><span class="p">,</span> <span class="n">ends</span><span class="p">])</span><span class="o">.</span><span class="n">T</span></div>
+
+
+<div class="viewcode-block" id="ResponseTimes"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.training_trials.html#ibllib.io.extractors.training_trials.ResponseTimes">[docs]</a><span class="k">class</span> <span class="nc">ResponseTimes</span><span class="p">(</span><span class="n">BaseBpodTrialsExtractor</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Time (in absolute seconds from session start) when a response was recorded.</span>
+<span class="sd">    **Optional:** saves _ibl_trials.response_times.npy</span>
+
+<span class="sd">    Uses the timestamp of the end of the closed_loop state.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">save_names</span> <span class="o">=</span> <span class="s1">&#39;_ibl_trials.response_times.npy&#39;</span>
+    <span class="n">var_names</span> <span class="o">=</span> <span class="s1">&#39;response_times&#39;</span>
+
+    <span class="k">def</span> <span class="nf">_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">rt</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">tr</span><span class="p">[</span><span class="s1">&#39;behavior_data&#39;</span><span class="p">][</span><span class="s1">&#39;States timestamps&#39;</span><span class="p">][</span><span class="s1">&#39;closed_loop&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+                       <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">rt</span></div>
+
+
+<div class="viewcode-block" id="ItiDuration"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.training_trials.html#ibllib.io.extractors.training_trials.ItiDuration">[docs]</a><span class="k">class</span> <span class="nc">ItiDuration</span><span class="p">(</span><span class="n">BaseBpodTrialsExtractor</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Calculate duration of iti from state timestamps.</span>
+<span class="sd">    **Optional:** saves _ibl_trials.iti_duration.npy</span>
+
+<span class="sd">    Uses Trial end timestamp and get_response_times to calculate iti.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">save_names</span> <span class="o">=</span> <span class="s1">&#39;_ibl_trials.itiDuration.npy&#39;</span>
+    <span class="n">var_names</span> <span class="o">=</span> <span class="s1">&#39;iti_dur&#39;</span>
+
+    <span class="k">def</span> <span class="nf">_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">rt</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">ResponseTimes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span>
+            <span class="n">save</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">bpod_trials</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">,</span> <span class="n">settings</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">)</span>
+        <span class="n">ends</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">t</span><span class="p">[</span><span class="s1">&#39;behavior_data&#39;</span><span class="p">][</span><span class="s1">&#39;Trial end timestamp&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">])</span>
+        <span class="n">iti_dur</span> <span class="o">=</span> <span class="n">ends</span> <span class="o">-</span> <span class="n">rt</span>
+        <span class="k">return</span> <span class="n">iti_dur</span></div>
+
+
+<div class="viewcode-block" id="GoCueTriggerTimes"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.training_trials.html#ibllib.io.extractors.training_trials.GoCueTriggerTimes">[docs]</a><span class="k">class</span> <span class="nc">GoCueTriggerTimes</span><span class="p">(</span><span class="n">BaseBpodTrialsExtractor</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Get trigger times of goCue from state machine.</span>
+
+<span class="sd">    Current software solution for triggering sounds uses PyBpod soft codes.</span>
+<span class="sd">    Delays can be in the order of 10&#39;s of ms. This is the time when the command</span>
+<span class="sd">    to play the sound was executed. To measure accurate time, either getting the</span>
+<span class="sd">    sound onset from xonar soundcard sync pulse (latencies may vary).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">save_names</span> <span class="o">=</span> <span class="s1">&#39;_ibl_trials.goCueTrigger_times.npy&#39;</span>
+    <span class="n">var_names</span> <span class="o">=</span> <span class="s1">&#39;goCueTrigger_times&#39;</span>
+
+    <span class="k">def</span> <span class="nf">_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">version</span><span class="o">.</span><span class="n">ge</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">],</span> <span class="s1">&#39;5.0.0&#39;</span><span class="p">):</span>
+            <span class="n">goCue</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">tr</span><span class="p">[</span><span class="s1">&#39;behavior_data&#39;</span><span class="p">][</span><span class="s1">&#39;States timestamps&#39;</span><span class="p">]</span>
+                              <span class="p">[</span><span class="s1">&#39;play_tone&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">goCue</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">tr</span><span class="p">[</span><span class="s1">&#39;behavior_data&#39;</span><span class="p">][</span><span class="s1">&#39;States timestamps&#39;</span><span class="p">]</span>
+                             <span class="p">[</span><span class="s1">&#39;closed_loop&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">goCue</span></div>
+
+
+<div class="viewcode-block" id="TrialType"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.training_trials.html#ibllib.io.extractors.training_trials.TrialType">[docs]</a><span class="k">class</span> <span class="nc">TrialType</span><span class="p">(</span><span class="n">BaseBpodTrialsExtractor</span><span class="p">):</span>
+    <span class="n">save_names</span> <span class="o">=</span> <span class="s1">&#39;_ibl_trials.type.npy&#39;</span>
+    <span class="n">var_name</span> <span class="o">=</span> <span class="s1">&#39;trial_type&#39;</span>
+
+    <span class="k">def</span> <span class="nf">_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">trial_type</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">:</span>
+            <span class="k">if</span> <span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">tr</span><span class="p">[</span><span class="s2">&quot;behavior_data&quot;</span><span class="p">][</span><span class="s2">&quot;States timestamps&quot;</span><span class="p">][</span><span class="s2">&quot;reward&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]):</span>
+                <span class="n">trial_type</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">tr</span><span class="p">[</span><span class="s2">&quot;behavior_data&quot;</span><span class="p">][</span><span class="s2">&quot;States timestamps&quot;</span><span class="p">][</span><span class="s2">&quot;error&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]):</span>
+                <span class="n">trial_type</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">tr</span><span class="p">[</span><span class="s2">&quot;behavior_data&quot;</span><span class="p">][</span><span class="s2">&quot;States timestamps&quot;</span><span class="p">][</span><span class="s2">&quot;no_go&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]):</span>
+                <span class="n">trial_type</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Trial is not in set {-1, 0, 1}, appending NaN to trialType&quot;</span><span class="p">)</span>
+                <span class="n">trial_type</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">trial_type</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="GoCueTimes"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.training_trials.html#ibllib.io.extractors.training_trials.GoCueTimes">[docs]</a><span class="k">class</span> <span class="nc">GoCueTimes</span><span class="p">(</span><span class="n">BaseBpodTrialsExtractor</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Get trigger times of goCue from state machine.</span>
+
+<span class="sd">    Current software solution for triggering sounds uses PyBpod soft codes.</span>
+<span class="sd">    Delays can be in the order of 10&#39;s of ms. This is the time when the command</span>
+<span class="sd">    to play the sound was executed. To measure accurate time, either getting the</span>
+<span class="sd">    sound onset from the future microphone OR the new xonar soundcard and</span>
+<span class="sd">    setup developed by Sanworks guarantees a set latency (in testing).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">save_names</span> <span class="o">=</span> <span class="s1">&#39;_ibl_trials.goCue_times.npy&#39;</span>
+    <span class="n">var_names</span> <span class="o">=</span> <span class="s1">&#39;goCue_times&#39;</span>
+
+    <span class="k">def</span> <span class="nf">_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">go_cue_times</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">),</span> <span class="p">])</span>
+        <span class="k">for</span> <span class="n">ind</span><span class="p">,</span> <span class="n">tr</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">raw</span><span class="o">.</span><span class="n">get_port_events</span><span class="p">(</span><span class="n">tr</span><span class="p">,</span> <span class="s1">&#39;BNC2&#39;</span><span class="p">):</span>
+                <span class="n">bnchigh</span> <span class="o">=</span> <span class="n">tr</span><span class="p">[</span><span class="s1">&#39;behavior_data&#39;</span><span class="p">][</span><span class="s1">&#39;Events timestamps&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;BNC2High&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">bnchigh</span><span class="p">:</span>
+                    <span class="n">go_cue_times</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span> <span class="o">=</span> <span class="n">bnchigh</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="k">continue</span>
+                <span class="n">bnclow</span> <span class="o">=</span> <span class="n">tr</span><span class="p">[</span><span class="s1">&#39;behavior_data&#39;</span><span class="p">][</span><span class="s1">&#39;Events timestamps&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;BNC2Low&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">bnclow</span><span class="p">:</span>
+                    <span class="n">go_cue_times</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span> <span class="o">=</span> <span class="n">bnclow</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="mf">0.1</span>
+                    <span class="k">continue</span>
+                <span class="n">go_cue_times</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">go_cue_times</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+
+        <span class="n">nmissing</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">go_cue_times</span><span class="p">))</span>
+        <span class="c1"># Check if all stim_syncs have failed to be detected</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">go_cue_times</span><span class="p">)):</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="si">}</span><span class="s1">: Missing ALL !! BNC2 TTLs (</span><span class="si">{</span><span class="n">nmissing</span><span class="si">}</span><span class="s1"> trials)&#39;</span><span class="p">)</span>
+        <span class="c1"># Check if any stim_sync has failed be detected for every trial</span>
+        <span class="k">elif</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">go_cue_times</span><span class="p">)):</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="si">}</span><span class="s1">: Missing BNC2 TTLs on </span><span class="si">{</span><span class="n">nmissing</span><span class="si">}</span><span class="s1"> trials&#39;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">go_cue_times</span></div>
+
+
+<div class="viewcode-block" id="IncludedTrials"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.training_trials.html#ibllib.io.extractors.training_trials.IncludedTrials">[docs]</a><span class="k">class</span> <span class="nc">IncludedTrials</span><span class="p">(</span><span class="n">BaseBpodTrialsExtractor</span><span class="p">):</span>
+    <span class="n">save_names</span> <span class="o">=</span> <span class="s1">&#39;_ibl_trials.included.npy&#39;</span>
+    <span class="n">var_names</span> <span class="o">=</span> <span class="s1">&#39;included&#39;</span>
+
+    <span class="k">def</span> <span class="nf">_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">version</span><span class="o">.</span><span class="n">ge</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">],</span> <span class="s1">&#39;5.0.0&#39;</span><span class="p">):</span>
+            <span class="n">trials_included</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_included_trials_ge5</span><span class="p">(</span>
+                <span class="n">data</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">,</span> <span class="n">settings</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">trials_included</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_included_trials_lt5</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">trials_included</span>
+
+<div class="viewcode-block" id="IncludedTrials.get_included_trials_lt5"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.training_trials.html#ibllib.io.extractors.training_trials.IncludedTrials.get_included_trials_lt5">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">get_included_trials_lt5</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="n">trials_included</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="kc">True</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">data</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">trials_included</span></div>
+
+<div class="viewcode-block" id="IncludedTrials.get_included_trials_ge5"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.training_trials.html#ibllib.io.extractors.training_trials.IncludedTrials.get_included_trials_ge5">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">get_included_trials_ge5</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">settings</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="n">trials_included</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="kc">True</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">data</span><span class="p">])</span>
+        <span class="k">if</span> <span class="p">(</span><span class="s1">&#39;SUBJECT_DISENGAGED_TRIGGERED&#39;</span> <span class="ow">in</span> <span class="n">settings</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="ow">and</span> <span class="n">settings</span><span class="p">[</span>
+                <span class="s1">&#39;SUBJECT_DISENGAGED_TRIGGERED&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">False</span><span class="p">):</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="n">settings</span><span class="p">[</span><span class="s1">&#39;SUBJECT_DISENGAGED_TRIALNUM&#39;</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span>
+            <span class="n">trials_included</span><span class="p">[</span><span class="n">idx</span><span class="p">:]</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">return</span> <span class="n">trials_included</span></div></div>
+
+
+<div class="viewcode-block" id="ItiInTimes"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.training_trials.html#ibllib.io.extractors.training_trials.ItiInTimes">[docs]</a><span class="k">class</span> <span class="nc">ItiInTimes</span><span class="p">(</span><span class="n">BaseBpodTrialsExtractor</span><span class="p">):</span>
+    <span class="n">save_names</span> <span class="o">=</span> <span class="s1">&#39;_ibl_trials.itiIn_times.npy&#39;</span>
+    <span class="n">var_names</span> <span class="o">=</span> <span class="s1">&#39;itiIn_times&#39;</span>
+
+    <span class="k">def</span> <span class="nf">_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">parse_version</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s2">&quot;IBLRIG_VERSION_TAG&quot;</span><span class="p">])</span> <span class="o">&lt;</span> <span class="n">parse_version</span><span class="p">(</span><span class="s2">&quot;5.0.0&quot;</span><span class="p">):</span>
+            <span class="n">iti_in</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">))</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">iti_in</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+                <span class="p">[</span><span class="n">tr</span><span class="p">[</span><span class="s2">&quot;behavior_data&quot;</span><span class="p">][</span><span class="s2">&quot;States timestamps&quot;</span><span class="p">]</span>
+                 <span class="p">[</span><span class="s2">&quot;exit_state&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">]</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="n">iti_in</span></div>
+
+
+<div class="viewcode-block" id="ErrorCueTriggerTimes"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.training_trials.html#ibllib.io.extractors.training_trials.ErrorCueTriggerTimes">[docs]</a><span class="k">class</span> <span class="nc">ErrorCueTriggerTimes</span><span class="p">(</span><span class="n">BaseBpodTrialsExtractor</span><span class="p">):</span>
+    <span class="n">save_names</span> <span class="o">=</span> <span class="s1">&#39;_ibl_trials.errorCueTrigger_times.npy&#39;</span>
+    <span class="n">var_names</span> <span class="o">=</span> <span class="s1">&#39;errorCueTrigger_times&#39;</span>
+
+    <span class="k">def</span> <span class="nf">_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">errorCueTrigger_times</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">))</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">tr</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">):</span>
+            <span class="n">nogo</span> <span class="o">=</span> <span class="n">tr</span><span class="p">[</span><span class="s2">&quot;behavior_data&quot;</span><span class="p">][</span><span class="s2">&quot;States timestamps&quot;</span><span class="p">][</span><span class="s2">&quot;no_go&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">error</span> <span class="o">=</span> <span class="n">tr</span><span class="p">[</span><span class="s2">&quot;behavior_data&quot;</span><span class="p">][</span><span class="s2">&quot;States timestamps&quot;</span><span class="p">][</span><span class="s2">&quot;error&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">nogo</span><span class="p">)):</span>
+                <span class="n">errorCueTrigger_times</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">nogo</span>
+            <span class="k">elif</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">error</span><span class="p">)):</span>
+                <span class="n">errorCueTrigger_times</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">error</span>
+        <span class="k">return</span> <span class="n">errorCueTrigger_times</span></div>
+
+
+<div class="viewcode-block" id="StimFreezeTriggerTimes"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.training_trials.html#ibllib.io.extractors.training_trials.StimFreezeTriggerTimes">[docs]</a><span class="k">class</span> <span class="nc">StimFreezeTriggerTimes</span><span class="p">(</span><span class="n">BaseBpodTrialsExtractor</span><span class="p">):</span>
+    <span class="n">save_names</span> <span class="o">=</span> <span class="s1">&#39;_ibl_trials.stimFreeze_times.npy&#39;</span>
+    <span class="n">var_names</span> <span class="o">=</span> <span class="s1">&#39;stimFreezeTrigger_times&#39;</span>
+
+    <span class="k">def</span> <span class="nf">_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">parse_version</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s2">&quot;IBLRIG_VERSION_TAG&quot;</span><span class="p">])</span> <span class="o">&lt;</span> <span class="n">parse_version</span><span class="p">(</span><span class="s2">&quot;6.2.5&quot;</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">))</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+        <span class="n">freeze_reward</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="kc">True</span>
+                <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">tr</span><span class="p">[</span><span class="s2">&quot;behavior_data&quot;</span><span class="p">][</span><span class="s2">&quot;States timestamps&quot;</span><span class="p">][</span><span class="s2">&quot;freeze_reward&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]))</span>
+                <span class="k">else</span> <span class="kc">False</span>
+                <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span>
+            <span class="p">]</span>
+        <span class="p">)</span>
+        <span class="n">freeze_error</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="kc">True</span>
+                <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">tr</span><span class="p">[</span><span class="s2">&quot;behavior_data&quot;</span><span class="p">][</span><span class="s2">&quot;States timestamps&quot;</span><span class="p">][</span><span class="s2">&quot;freeze_error&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]))</span>
+                <span class="k">else</span> <span class="kc">False</span>
+                <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span>
+            <span class="p">]</span>
+        <span class="p">)</span>
+        <span class="n">no_go</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="kc">True</span>
+                <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">tr</span><span class="p">[</span><span class="s2">&quot;behavior_data&quot;</span><span class="p">][</span><span class="s2">&quot;States timestamps&quot;</span><span class="p">][</span><span class="s2">&quot;no_go&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]))</span>
+                <span class="k">else</span> <span class="kc">False</span>
+                <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span>
+            <span class="p">]</span>
+        <span class="p">)</span>
+        <span class="k">assert</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">freeze_error</span><span class="p">)</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">freeze_reward</span><span class="p">)</span> <span class="o">+</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">no_go</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">))</span>
+        <span class="n">stimFreezeTrigger</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([])</span>
+        <span class="k">for</span> <span class="n">r</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">tr</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">freeze_reward</span><span class="p">,</span> <span class="n">freeze_error</span><span class="p">,</span> <span class="n">no_go</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">n</span><span class="p">:</span>
+                <span class="n">stimFreezeTrigger</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">stimFreezeTrigger</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+                <span class="k">continue</span>
+            <span class="n">state</span> <span class="o">=</span> <span class="s2">&quot;freeze_reward&quot;</span> <span class="k">if</span> <span class="n">r</span> <span class="k">else</span> <span class="s2">&quot;freeze_error&quot;</span>
+            <span class="n">stimFreezeTrigger</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">stimFreezeTrigger</span><span class="p">,</span> <span class="n">tr</span><span class="p">[</span><span class="s2">&quot;behavior_data&quot;</span><span class="p">][</span><span class="s2">&quot;States timestamps&quot;</span><span class="p">][</span><span class="n">state</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="n">stimFreezeTrigger</span></div>
+
+
+<div class="viewcode-block" id="StimOffTriggerTimes"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.training_trials.html#ibllib.io.extractors.training_trials.StimOffTriggerTimes">[docs]</a><span class="k">class</span> <span class="nc">StimOffTriggerTimes</span><span class="p">(</span><span class="n">BaseBpodTrialsExtractor</span><span class="p">):</span>
+    <span class="n">save_names</span> <span class="o">=</span> <span class="s1">&#39;_ibl_trials.stimOffTrigger_times.npy&#39;</span>
+    <span class="n">var_names</span> <span class="o">=</span> <span class="s1">&#39;stimOffTrigger_times&#39;</span>
+
+    <span class="k">def</span> <span class="nf">_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">parse_version</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s2">&quot;IBLRIG_VERSION_TAG&quot;</span><span class="p">])</span> <span class="o">&gt;=</span> <span class="n">parse_version</span><span class="p">(</span><span class="s2">&quot;6.2.5&quot;</span><span class="p">):</span>
+            <span class="n">stim_off_trigger_state</span> <span class="o">=</span> <span class="s2">&quot;hide_stim&quot;</span>
+        <span class="k">elif</span> <span class="n">parse_version</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s2">&quot;IBLRIG_VERSION_TAG&quot;</span><span class="p">])</span> <span class="o">&gt;=</span> <span class="n">parse_version</span><span class="p">(</span><span class="s2">&quot;5.0.0&quot;</span><span class="p">):</span>
+            <span class="n">stim_off_trigger_state</span> <span class="o">=</span> <span class="s2">&quot;exit_state&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">stim_off_trigger_state</span> <span class="o">=</span> <span class="s2">&quot;trial_start&quot;</span>
+
+        <span class="n">stimOffTrigger_times</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">tr</span><span class="p">[</span><span class="s2">&quot;behavior_data&quot;</span><span class="p">][</span><span class="s2">&quot;States timestamps&quot;</span><span class="p">][</span><span class="n">stim_off_trigger_state</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+             <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="c1"># If pre version 5.0.0 no specific nogo Off trigger was given, just return trial_starts</span>
+        <span class="k">if</span> <span class="n">stim_off_trigger_state</span> <span class="o">==</span> <span class="s2">&quot;trial_start&quot;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">stimOffTrigger_times</span>
+
+        <span class="n">no_goTrigger_times</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">tr</span><span class="p">[</span><span class="s2">&quot;behavior_data&quot;</span><span class="p">][</span><span class="s2">&quot;States timestamps&quot;</span><span class="p">][</span><span class="s2">&quot;no_go&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="c1"># Stim off trigs are either in their own state or in the no_go state if the</span>
+        <span class="c1"># mouse did not move, if the stim_off_trigger_state always exist</span>
+        <span class="c1"># (exit_state or trial_start)</span>
+        <span class="c1"># no NaNs will happen, NaNs might happen in at last trial if</span>
+        <span class="c1"># session was stopped after response</span>
+        <span class="c1"># if stim_off_trigger_state == &quot;hide_stim&quot;:</span>
+        <span class="c1">#     assert all(~np.isnan(no_goTrigger_times) == np.isnan(stimOffTrigger_times))</span>
+        <span class="c1"># Patch with the no_go states trig times</span>
+        <span class="n">stimOffTrigger_times</span><span class="p">[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">no_goTrigger_times</span><span class="p">)]</span> <span class="o">=</span> <span class="n">no_goTrigger_times</span><span class="p">[</span>
+            <span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">no_goTrigger_times</span><span class="p">)</span>
+        <span class="p">]</span>
+        <span class="k">return</span> <span class="n">stimOffTrigger_times</span></div>
+
+
+<div class="viewcode-block" id="StimOnTriggerTimes"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.training_trials.html#ibllib.io.extractors.training_trials.StimOnTriggerTimes">[docs]</a><span class="k">class</span> <span class="nc">StimOnTriggerTimes</span><span class="p">(</span><span class="n">BaseBpodTrialsExtractor</span><span class="p">):</span>
+    <span class="n">save_names</span> <span class="o">=</span> <span class="s1">&#39;_ibl_trials.stimOnTrigger_times.npy&#39;</span>
+    <span class="n">var_names</span> <span class="o">=</span> <span class="s1">&#39;stimOnTrigger_times&#39;</span>
+
+    <span class="k">def</span> <span class="nf">_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># Get the stim_on_state that triggers the onset of the stim</span>
+        <span class="n">stim_on_state</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">tr</span><span class="p">[</span><span class="s1">&#39;behavior_data&#39;</span><span class="p">][</span><span class="s1">&#39;States timestamps&#39;</span><span class="p">]</span>
+                                 <span class="p">[</span><span class="s1">&#39;stim_on&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">stim_on_state</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">T</span></div>
+
+
+<div class="viewcode-block" id="StimOnTimes"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.training_trials.html#ibllib.io.extractors.training_trials.StimOnTimes">[docs]</a><span class="k">class</span> <span class="nc">StimOnTimes</span><span class="p">(</span><span class="n">BaseBpodTrialsExtractor</span><span class="p">):</span>
+    <span class="n">save_names</span> <span class="o">=</span> <span class="s1">&#39;_ibl_trials.stimOn_times.npy&#39;</span>
+    <span class="n">var_names</span> <span class="o">=</span> <span class="s1">&#39;stimOn_times&#39;</span>
+
+    <span class="k">def</span> <span class="nf">_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Find the time of the statemachine command to turn on hte stim</span>
+<span class="sd">        (state stim_on start or rotary_encoder_event2)</span>
+<span class="sd">        Find the next frame change from the photodiodeafter that TS.</span>
+<span class="sd">        Screen is not displaying anything until then.</span>
+<span class="sd">        (Frame changes are in BNC1High and BNC1Low)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Version check</span>
+        <span class="k">if</span> <span class="n">version</span><span class="o">.</span><span class="n">ge</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">],</span> <span class="s1">&#39;5.0.0&#39;</span><span class="p">):</span>
+            <span class="n">stimOn_times</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_stimOn_times_ge5</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">stimOn_times</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_stimOn_times_lt5</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">stimOn_times</span><span class="p">)</span>
+
+<div class="viewcode-block" id="StimOnTimes.get_stimOn_times_ge5"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.training_trials.html#ibllib.io.extractors.training_trials.StimOnTimes.get_stimOn_times_ge5">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">get_stimOn_times_ge5</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Find first and last stim_sync pulse of the trial.</span>
+<span class="sd">        stimOn_times should be the first after the stim_on state.</span>
+<span class="sd">        (Stim updates are in BNC1High and BNC1Low - frame2TTL device)</span>
+<span class="sd">        Check that all trials have frame changes.</span>
+<span class="sd">        Find length of stim_on_state [start, stop].</span>
+<span class="sd">        If either check fails the HW device failed to detect the stim_sync square change</span>
+<span class="sd">        Substitute that trial&#39;s missing or incorrect value with a NaN.</span>
+<span class="sd">        return stimOn_times</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">data</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">raw</span><span class="o">.</span><span class="n">load_data</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="c1"># Get all stim_sync events detected</span>
+        <span class="n">stim_sync_all</span> <span class="o">=</span> <span class="p">[</span><span class="n">raw</span><span class="o">.</span><span class="n">get_port_events</span><span class="p">(</span><span class="n">tr</span><span class="p">,</span> <span class="s1">&#39;BNC1&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="n">data</span><span class="p">]</span>
+        <span class="n">stim_sync_all</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">stim_sync_all</span><span class="p">]</span>
+        <span class="c1"># Get the stim_on_state that triggers the onset of the stim</span>
+        <span class="n">stim_on_state</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">tr</span><span class="p">[</span><span class="s1">&#39;behavior_data&#39;</span><span class="p">][</span><span class="s1">&#39;States timestamps&#39;</span><span class="p">]</span>
+                                 <span class="p">[</span><span class="s1">&#39;stim_on&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="n">data</span><span class="p">])</span>
+
+        <span class="n">stimOn_times</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([])</span>
+        <span class="k">for</span> <span class="n">sync</span><span class="p">,</span> <span class="n">on</span><span class="p">,</span> <span class="n">off</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span>
+                <span class="n">stim_sync_all</span><span class="p">,</span> <span class="n">stim_on_state</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">stim_on_state</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]):</span>
+            <span class="n">pulse</span> <span class="o">=</span> <span class="n">sync</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">bitwise_and</span><span class="p">((</span><span class="n">sync</span> <span class="o">&gt;</span> <span class="n">on</span><span class="p">),</span> <span class="p">(</span><span class="n">sync</span> <span class="o">&lt;=</span> <span class="n">off</span><span class="p">)))]</span>
+            <span class="k">if</span> <span class="n">pulse</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">stimOn_times</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">stimOn_times</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">stimOn_times</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">stimOn_times</span><span class="p">,</span> <span class="n">pulse</span><span class="p">)</span>
+
+        <span class="n">nmissing</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">stimOn_times</span><span class="p">))</span>
+        <span class="c1"># Check if all stim_syncs have failed to be detected</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">stimOn_times</span><span class="p">)):</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">session_path</span><span class="si">}</span><span class="s1">: Missing ALL BNC1 TTLs (</span><span class="si">{</span><span class="n">nmissing</span><span class="si">}</span><span class="s1"> trials)&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Check if any stim_sync has failed be detected for every trial</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">stimOn_times</span><span class="p">)):</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">session_path</span><span class="si">}</span><span class="s1">: Missing BNC1 TTLs on </span><span class="si">{</span><span class="n">nmissing</span><span class="si">}</span><span class="s1"> trials&#39;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">stimOn_times</span></div>
+
+<div class="viewcode-block" id="StimOnTimes.get_stimOn_times_lt5"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.training_trials.html#ibllib.io.extractors.training_trials.StimOnTimes.get_stimOn_times_lt5">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">get_stimOn_times_lt5</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Find the time of the statemachine command to turn on hte stim</span>
+<span class="sd">        (state stim_on start or rotary_encoder_event2)</span>
+<span class="sd">        Find the next frame change from the photodiodeafter that TS.</span>
+<span class="sd">        Screen is not displaying anything until then.</span>
+<span class="sd">        (Frame changes are in BNC1High and BNC1Low)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">data</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">raw</span><span class="o">.</span><span class="n">load_data</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="n">stim_on</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">bnc_h</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">bnc_l</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+            <span class="n">stim_on</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tr</span><span class="p">[</span><span class="s1">&#39;behavior_data&#39;</span><span class="p">][</span><span class="s1">&#39;States timestamps&#39;</span><span class="p">][</span><span class="s1">&#39;stim_on&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+            <span class="k">if</span> <span class="s1">&#39;BNC1High&#39;</span> <span class="ow">in</span> <span class="n">tr</span><span class="p">[</span><span class="s1">&#39;behavior_data&#39;</span><span class="p">][</span><span class="s1">&#39;Events timestamps&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="n">bnc_h</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">tr</span><span class="p">[</span><span class="s1">&#39;behavior_data&#39;</span><span class="p">]</span>
+                                      <span class="p">[</span><span class="s1">&#39;Events timestamps&#39;</span><span class="p">][</span><span class="s1">&#39;BNC1High&#39;</span><span class="p">]))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">bnc_h</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">NINF</span><span class="p">]))</span>
+            <span class="k">if</span> <span class="s1">&#39;BNC1Low&#39;</span> <span class="ow">in</span> <span class="n">tr</span><span class="p">[</span><span class="s1">&#39;behavior_data&#39;</span><span class="p">][</span><span class="s1">&#39;Events timestamps&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="n">bnc_l</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">tr</span><span class="p">[</span><span class="s1">&#39;behavior_data&#39;</span><span class="p">]</span>
+                                      <span class="p">[</span><span class="s1">&#39;Events timestamps&#39;</span><span class="p">][</span><span class="s1">&#39;BNC1Low&#39;</span><span class="p">]))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">bnc_l</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">NINF</span><span class="p">]))</span>
+
+        <span class="n">stim_on</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">stim_on</span><span class="p">)</span>
+        <span class="n">bnc_h</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">bnc_h</span><span class="p">)</span>
+        <span class="n">bnc_l</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">bnc_l</span><span class="p">)</span>
+
+        <span class="n">count_missing</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">stimOn_times</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">stim_on</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">stim_on</span><span class="p">)):</span>
+            <span class="n">hl</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">bnc_h</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">bnc_l</span><span class="p">[</span><span class="n">i</span><span class="p">]]))</span>
+            <span class="n">stot</span> <span class="o">=</span> <span class="n">hl</span><span class="p">[</span><span class="n">hl</span> <span class="o">&gt;</span> <span class="n">stim_on</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span>
+            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="n">stot</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">stot</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">])</span>
+                <span class="n">count_missing</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">stimOn_times</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">stot</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">stimOn_times</span><span class="p">)):</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">session_path</span><span class="si">}</span><span class="s1">: Missing ALL BNC1 TTLs (</span><span class="si">{</span><span class="n">count_missing</span><span class="si">}</span><span class="s1"> trials)&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">count_missing</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">session_path</span><span class="si">}</span><span class="s1">: Missing BNC1 TTLs on </span><span class="si">{</span><span class="n">count_missing</span><span class="si">}</span><span class="s1"> trials&#39;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">stimOn_times</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="StimOnOffFreezeTimes"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.training_trials.html#ibllib.io.extractors.training_trials.StimOnOffFreezeTimes">[docs]</a><span class="k">class</span> <span class="nc">StimOnOffFreezeTimes</span><span class="p">(</span><span class="n">BaseBpodTrialsExtractor</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Extracts stim on / off and freeze times from Bpod BNC1 detected fronts</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">save_names</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;_ibl_trials.stimOn_times.npy&quot;</span><span class="p">,</span> <span class="s2">&quot;_ibl_trials.stimOff_times.npy&quot;</span><span class="p">,</span>
+                  <span class="s2">&quot;_ibl_trials.stimFreeze_times.npy&quot;</span><span class="p">]</span>
+    <span class="n">var_names</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;stimOn_times&#39;</span><span class="p">,</span> <span class="s1">&#39;stimOff_times&#39;</span><span class="p">,</span> <span class="s1">&#39;stimFreeze_times&#39;</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">choice</span> <span class="o">=</span> <span class="n">Choice</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span>
+            <span class="n">bpod_trials</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">,</span> <span class="n">settings</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">False</span>
+        <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">f2TTL</span> <span class="o">=</span> <span class="p">[</span><span class="n">raw</span><span class="o">.</span><span class="n">get_port_events</span><span class="p">(</span><span class="n">tr</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;BNC1&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">]</span>
+
+        <span class="n">stimOn_times</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([])</span>
+        <span class="n">stimOff_times</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([])</span>
+        <span class="n">stimFreeze_times</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([])</span>
+        <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="n">f2TTL</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">tr</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">tr</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="n">stimOn_times</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">stimOn_times</span><span class="p">,</span> <span class="n">tr</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                <span class="n">stimOff_times</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">stimOff_times</span><span class="p">,</span> <span class="n">tr</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+                <span class="n">stimFreeze_times</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">stimFreeze_times</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">tr</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">tr</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">3</span><span class="p">:</span>
+                <span class="n">stimOn_times</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">stimOn_times</span><span class="p">,</span> <span class="n">tr</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                <span class="n">stimOff_times</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">stimOff_times</span><span class="p">,</span> <span class="n">tr</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+                <span class="n">stimFreeze_times</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">stimFreeze_times</span><span class="p">,</span> <span class="n">tr</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">stimOn_times</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">stimOn_times</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+                <span class="n">stimOff_times</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">stimOff_times</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+                <span class="n">stimFreeze_times</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">stimFreeze_times</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+
+        <span class="c1"># In no_go trials no stimFreeze happens jsut stim Off</span>
+        <span class="n">stimFreeze_times</span><span class="p">[</span><span class="n">choice</span> <span class="o">==</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+        <span class="c1"># Check for trigger times</span>
+        <span class="c1"># 2nd order criteria:</span>
+        <span class="c1"># stimOn -&gt; Closest one to stimOnTrigger?</span>
+        <span class="c1"># stimOff -&gt; Closest one to stimOffTrigger?</span>
+        <span class="c1"># stimFreeze -&gt; Closest one to stimFreezeTrigger?</span>
+
+        <span class="k">return</span> <span class="n">stimOn_times</span><span class="p">,</span> <span class="n">stimOff_times</span><span class="p">,</span> <span class="n">stimFreeze_times</span></div>
+
+
+<div class="viewcode-block" id="CameraTimestamps"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.training_trials.html#ibllib.io.extractors.training_trials.CameraTimestamps">[docs]</a><span class="k">class</span> <span class="nc">CameraTimestamps</span><span class="p">(</span><span class="n">BaseBpodTrialsExtractor</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Get the camera timestamps from the Bpod</span>
+
+<span class="sd">    The camera events are logged only during the events not in between, so the times need</span>
+<span class="sd">    to be interpolated</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">save_names</span> <span class="o">=</span> <span class="s1">&#39;_ibl_leftCamera.times.npy&#39;</span>
+    <span class="n">var_names</span> <span class="o">=</span> <span class="s1">&#39;camera_timestamps&#39;</span>
+
+    <span class="k">def</span> <span class="nf">_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">ntrials</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">)</span>
+
+        <span class="n">cam_times</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">n_frames</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">n_out_of_sync</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">ind</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">ntrials</span><span class="p">):</span>
+            <span class="c1"># get upgoing and downgoing fronts</span>
+            <span class="n">pin</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">[</span><span class="n">ind</span><span class="p">][</span><span class="s1">&#39;behavior_data&#39;</span><span class="p">]</span>
+                           <span class="p">[</span><span class="s1">&#39;Events timestamps&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;Port1In&#39;</span><span class="p">))</span>
+            <span class="n">pout</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">[</span><span class="n">ind</span><span class="p">][</span><span class="s1">&#39;behavior_data&#39;</span><span class="p">]</span>
+                            <span class="p">[</span><span class="s1">&#39;Events timestamps&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;Port1Out&#39;</span><span class="p">))</span>
+            <span class="c1"># some trials at startup may not have the camera working, discard</span>
+            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">pin</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="c1"># if the trial starts in the middle of a square, discard the first downgoing front</span>
+            <span class="k">if</span> <span class="n">pout</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">pin</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="n">pout</span> <span class="o">=</span> <span class="n">pout</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+            <span class="c1"># same if the last sample is during an upgoing front, always</span>
+            <span class="c1"># put size as it happens last</span>
+            <span class="n">pin</span> <span class="o">=</span> <span class="n">pin</span><span class="p">[:</span><span class="n">pout</span><span class="o">.</span><span class="n">size</span><span class="p">]</span>
+            <span class="n">frate</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">pin</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">ind</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                assert that the pulses have the same length and that we don&#39;t miss frames during</span>
+<span class="sd">                the trial, the refresh rate of bpod is 100us</span>
+<span class="sd">                &quot;&quot;&quot;</span>
+                <span class="n">test1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="p">(</span><span class="n">pin</span> <span class="o">-</span> <span class="n">pout</span><span class="p">)</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">pin</span> <span class="o">-</span> <span class="n">pout</span><span class="p">))</span> <span class="o">&lt;</span> <span class="mf">0.1</span><span class="p">)</span>
+                <span class="n">test2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">pin</span><span class="p">)</span> <span class="o">-</span> <span class="n">frate</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="mf">0.00011</span><span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">([</span><span class="n">test1</span><span class="p">,</span> <span class="n">test2</span><span class="p">]):</span>
+                    <span class="n">n_out_of_sync</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="c1"># grow a list of cam times for ech trial</span>
+            <span class="n">cam_times</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pin</span><span class="p">)</span>
+            <span class="n">n_frames</span> <span class="o">+=</span> <span class="n">pin</span><span class="o">.</span><span class="n">size</span>
+
+        <span class="k">if</span> <span class="n">n_out_of_sync</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">n_out_of_sync</span><span class="si">}</span><span class="s2"> trials with bpod camera frame times not within&quot;</span>
+                            <span class="sa">f</span><span class="s2">&quot; 10% of the expected sampling rate&quot;</span><span class="p">)</span>
+
+        <span class="n">t_first_frame</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">c</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">cam_times</span><span class="p">])</span>
+        <span class="n">t_last_frame</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">c</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">cam_times</span><span class="p">])</span>
+        <span class="n">frate</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmedian</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">c</span><span class="p">))</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">cam_times</span><span class="p">]))</span>
+        <span class="n">intertrial_duration</span> <span class="o">=</span> <span class="n">t_first_frame</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="o">-</span> <span class="n">t_last_frame</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">intertrial_missed_frames</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">intertrial_duration</span> <span class="o">*</span> <span class="n">frate</span><span class="p">))</span> <span class="o">-</span> <span class="mi">1</span>
+
+        <span class="c1"># initialize the full times array</span>
+        <span class="n">frame_times</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_frames</span> <span class="o">+</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">intertrial_missed_frames</span><span class="p">)))</span>
+        <span class="n">ii</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">trial</span><span class="p">,</span> <span class="n">cam_time</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">cam_times</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">cam_time</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="c1"># populate first the recovered times within the trials</span>
+                <span class="n">frame_times</span><span class="p">[</span><span class="n">ii</span><span class="p">:</span> <span class="n">ii</span> <span class="o">+</span> <span class="n">cam_time</span><span class="o">.</span><span class="n">size</span><span class="p">]</span> <span class="o">=</span> <span class="n">cam_time</span>
+                <span class="n">ii</span> <span class="o">+=</span> <span class="n">cam_time</span><span class="o">.</span><span class="n">size</span>
+            <span class="k">if</span> <span class="n">trial</span> <span class="o">==</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">cam_times</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+                <span class="k">break</span>
+            <span class="c1"># then extrapolate in-between</span>
+            <span class="n">nmiss</span> <span class="o">=</span> <span class="n">intertrial_missed_frames</span><span class="p">[</span><span class="n">trial</span><span class="p">]</span>
+            <span class="n">frame_times</span><span class="p">[</span><span class="n">ii</span><span class="p">:</span> <span class="n">ii</span> <span class="o">+</span> <span class="n">nmiss</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">cam_time</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">intertrial_duration</span><span class="p">[</span><span class="n">trial</span><span class="p">]</span> <span class="o">/</span>
+                                           <span class="p">(</span><span class="n">nmiss</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">nmiss</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+            <span class="n">ii</span> <span class="o">+=</span> <span class="n">nmiss</span>
+        <span class="c1"># import matplotlib.pyplot as plt</span>
+        <span class="c1"># plt.plot(np.diff(frame_times))</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        if we find a video file, get the number of frames and extrapolate the times</span>
+<span class="sd">         using the median frame rate as the video stops after the bpod</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">video_file</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span>
+            <span class="s1">&#39;raw_video_data&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s1">&#39;_iblrig_leftCamera*.mp4&#39;</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">video_file</span><span class="p">:</span>
+            <span class="n">cap</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">VideoCapture</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">video_file</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+            <span class="n">nframes</span> <span class="o">=</span> <span class="n">cap</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">cv2</span><span class="o">.</span><span class="n">CAP_PROP_FRAME_COUNT</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">nframes</span> <span class="o">&gt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">frame_times</span><span class="p">):</span>
+                <span class="n">to_app</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">nframes</span> <span class="o">-</span> <span class="n">frame_times</span><span class="o">.</span><span class="n">size</span><span class="p">),)</span> <span class="o">+</span> <span class="mi">1</span>
+                          <span class="p">)</span> <span class="o">/</span> <span class="n">frate</span> <span class="o">+</span> <span class="n">frame_times</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                <span class="n">frame_times</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="n">frame_times</span><span class="p">,</span> <span class="n">to_app</span><span class="p">]</span>
+        <span class="k">assert</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">frame_times</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">))</span>  <span class="c1"># negative diffs implies a big problem</span>
+        <span class="k">return</span> <span class="n">frame_times</span></div>
+
+
+<div class="viewcode-block" id="extract_all"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.training_trials.html#ibllib.io.extractors.training_trials.extract_all">[docs]</a><span class="k">def</span> <span class="nf">extract_all</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">bpod_trials</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">settings</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">bpod_trials</span><span class="p">:</span>
+        <span class="n">bpod_trials</span> <span class="o">=</span> <span class="n">raw</span><span class="o">.</span><span class="n">load_data</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">settings</span><span class="p">:</span>
+        <span class="n">settings</span> <span class="o">=</span> <span class="n">raw</span><span class="o">.</span><span class="n">load_settings</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">settings</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">settings</span><span class="p">[</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;&#39;</span><span class="p">:</span>
+        <span class="n">settings</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">:</span> <span class="s1">&#39;100.0.0&#39;</span><span class="p">}</span>
+
+    <span class="n">base</span> <span class="o">=</span> <span class="p">[</span><span class="n">FeedbackType</span><span class="p">,</span> <span class="n">ContrastLR</span><span class="p">,</span> <span class="n">ProbabilityLeft</span><span class="p">,</span> <span class="n">Choice</span><span class="p">,</span> <span class="n">RepNum</span><span class="p">,</span> <span class="n">RewardVolume</span><span class="p">,</span>
+            <span class="n">FeedbackTimes</span><span class="p">,</span> <span class="n">StimOnTimes</span><span class="p">,</span> <span class="n">Intervals</span><span class="p">,</span> <span class="n">ResponseTimes</span><span class="p">,</span> <span class="n">GoCueTriggerTimes</span><span class="p">,</span>
+            <span class="n">GoCueTimes</span><span class="p">]</span>
+    <span class="c1"># Version check</span>
+    <span class="k">if</span> <span class="n">version</span><span class="o">.</span><span class="n">ge</span><span class="p">(</span><span class="n">settings</span><span class="p">[</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">],</span> <span class="s1">&#39;5.0.0&#39;</span><span class="p">):</span>
+        <span class="n">base</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">StimOnTriggerTimes</span><span class="p">,</span> <span class="n">CameraTimestamps</span><span class="p">])</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">base</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">IncludedTrials</span><span class="p">,</span> <span class="n">ItiDuration</span><span class="p">])</span>
+
+    <span class="n">out</span><span class="p">,</span> <span class="n">fil</span> <span class="o">=</span> <span class="n">run_extractor_classes</span><span class="p">(</span>
+        <span class="n">base</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="n">save</span><span class="p">,</span> <span class="n">session_path</span><span class="o">=</span><span class="n">session_path</span><span class="p">,</span> <span class="n">bpod_trials</span><span class="o">=</span><span class="n">bpod_trials</span><span class="p">,</span> <span class="n">settings</span><span class="o">=</span><span class="n">settings</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">out</span><span class="p">,</span> <span class="n">fil</span></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        
+        &copy; Copyright 2020, International Brain Laboratory
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

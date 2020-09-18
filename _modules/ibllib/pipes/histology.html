@@ -1,0 +1,687 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>ibllib.pipes.histology &mdash; IBL Library  documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/copybutton.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/css/style.css" type="text/css" />
+
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+        <script src="../../../_static/language_data.js"></script>
+        <script src="../../../_static/clipboard.min.js"></script>
+        <script src="../../../_static/copybutton.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script src="https://unpkg.com/@jupyter-widgets/html-manager@^0.18.0/dist/embed-amd.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home" alt="Documentation Home"> IBL Library
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../01_overview.html">IBL data structure</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../02_installation.html">Installation</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../03_one.html">ONE</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../04_datajoint.html">Datajoint</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../05_tutorials.html">Tutorials</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../06_examples.html">Examples</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../07_developers.html">API Reference</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">IBL Library</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>ibllib.pipes.histology</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for ibllib.pipes.histology</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">from</span> <span class="nn">ibllib.ephys.neuropixel</span> <span class="kn">import</span> <span class="n">SITES_COORDINATES</span>
+<span class="kn">from</span> <span class="nn">oneibl.one</span> <span class="kn">import</span> <span class="n">ONE</span>
+<span class="kn">import</span> <span class="nn">alf.io</span>
+<span class="kn">import</span> <span class="nn">ibllib.atlas</span> <span class="k">as</span> <span class="nn">atlas</span>
+<span class="kn">from</span> <span class="nn">ibllib.ephys.spikes</span> <span class="kn">import</span> <span class="n">probes_description</span> <span class="k">as</span> <span class="n">extract_probes</span>
+<span class="kn">from</span> <span class="nn">ibllib.dsp.utils</span> <span class="kn">import</span> <span class="n">fcn_cosine</span>
+<span class="kn">from</span> <span class="nn">ibllib.ephys.neuropixel</span> <span class="kn">import</span> <span class="n">TIP_SIZE_UM</span>
+
+
+<span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;ibllib&#39;</span><span class="p">)</span>
+
+<span class="c1"># origin Allen left, front, up</span>
+<span class="n">brain_atlas</span> <span class="o">=</span> <span class="n">atlas</span><span class="o">.</span><span class="n">AllenAtlas</span><span class="p">(</span><span class="n">res_um</span><span class="o">=</span><span class="mi">25</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="load_track_csv"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.histology.html#ibllib.pipes.histology.load_track_csv">[docs]</a><span class="k">def</span> <span class="nf">load_track_csv</span><span class="p">(</span><span class="n">file_track</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Loads a lasagna track and convert to IBL-ALlen coordinate framework</span>
+<span class="sd">    :param file_track:</span>
+<span class="sd">    :return: xyz</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># apmldv in the histology file is flipped along y direction</span>
+    <span class="n">file_track</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">file_track</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">file_track</span><span class="o">.</span><span class="n">stat</span><span class="p">()</span><span class="o">.</span><span class="n">st_size</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([])</span>
+    <span class="n">ixiyiz</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="n">file_track</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s1">&#39;,&#39;</span><span class="p">)[:,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">]]</span>
+    <span class="n">ixiyiz</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mi">527</span> <span class="o">-</span> <span class="n">ixiyiz</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span>
+    <span class="n">ixiyiz</span> <span class="o">=</span> <span class="n">ixiyiz</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">ixiyiz</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]),</span> <span class="p">:]</span>
+    <span class="n">xyz</span> <span class="o">=</span> <span class="n">brain_atlas</span><span class="o">.</span><span class="n">bc</span><span class="o">.</span><span class="n">i2xyz</span><span class="p">(</span><span class="n">ixiyiz</span><span class="p">)</span>
+    <span class="c1"># xyz[:, 0] = - xyz[:, 0]</span>
+    <span class="k">return</span> <span class="n">xyz</span></div>
+
+
+<div class="viewcode-block" id="get_picked_tracks"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.histology.html#ibllib.pipes.histology.get_picked_tracks">[docs]</a><span class="k">def</span> <span class="nf">get_picked_tracks</span><span class="p">(</span><span class="n">histology_path</span><span class="p">,</span> <span class="n">glob_pattern</span><span class="o">=</span><span class="s2">&quot;*_pts_transformed.csv&quot;</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This outputs reads in the Lasagna output and converts the picked tracks in the IBL coordinates</span>
+<span class="sd">    :param histology_path: Path object: folder path containing tracks</span>
+<span class="sd">    :return: xyz coordinates in</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">xyzs</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">histology_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">histology_path</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">histology_path</span><span class="o">.</span><span class="n">is_file</span><span class="p">():</span>
+        <span class="n">files_track</span> <span class="o">=</span> <span class="p">[</span><span class="n">histology_path</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">files_track</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">histology_path</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="n">glob_pattern</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">file_track</span> <span class="ow">in</span> <span class="n">files_track</span><span class="p">:</span>
+        <span class="n">xyzs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">load_track_csv</span><span class="p">(</span><span class="n">file_track</span><span class="p">))</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;files&#39;</span><span class="p">:</span> <span class="n">files_track</span><span class="p">,</span> <span class="s1">&#39;xyz&#39;</span><span class="p">:</span> <span class="n">xyzs</span><span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="get_micro_manipulator_data"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.histology.html#ibllib.pipes.histology.get_micro_manipulator_data">[docs]</a><span class="k">def</span> <span class="nf">get_micro_manipulator_data</span><span class="p">(</span><span class="n">subject</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">force_extract</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Looks for all ephys sessions for a given subject and get the probe micro-manipulator</span>
+<span class="sd">    trajectories.</span>
+<span class="sd">    If probes ALF object not on flat-iron, attempts to perform the extraction from meta-data</span>
+<span class="sd">    and task settings file.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">one</span><span class="p">:</span>
+        <span class="n">one</span> <span class="o">=</span> <span class="n">ONE</span><span class="p">()</span>
+
+    <span class="n">eids</span><span class="p">,</span> <span class="n">sessions</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">subject</span><span class="o">=</span><span class="n">subject</span><span class="p">,</span> <span class="n">task_protocol</span><span class="o">=</span><span class="s1">&#39;ephys&#39;</span><span class="p">,</span> <span class="n">details</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">probes</span> <span class="o">=</span> <span class="n">alf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">AlfBunch</span><span class="p">({})</span>
+    <span class="k">for</span> <span class="n">ses</span> <span class="ow">in</span> <span class="n">sessions</span><span class="p">:</span>
+        <span class="n">sess_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">ses</span><span class="p">[</span><span class="s1">&#39;local_path&#39;</span><span class="p">])</span>
+        <span class="n">probe</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">force_extract</span><span class="p">:</span>
+            <span class="n">probe</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="n">ses</span><span class="p">[</span><span class="s1">&#39;url&#39;</span><span class="p">],</span> <span class="s1">&#39;probes&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">probe</span><span class="p">:</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Re-extraction probe info for </span><span class="si">{</span><span class="n">sess_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">dtypes</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;_iblrig_taskSettings.raw&#39;</span><span class="p">,</span> <span class="s1">&#39;ephysData.raw.meta&#39;</span><span class="p">]</span>
+            <span class="n">raw_files</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">ses</span><span class="p">[</span><span class="s1">&#39;url&#39;</span><span class="p">],</span> <span class="n">dataset_types</span><span class="o">=</span><span class="n">dtypes</span><span class="p">,</span> <span class="n">download_only</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">all</span><span class="p">([</span><span class="n">rf</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">for</span> <span class="n">rf</span> <span class="ow">in</span> <span class="n">raw_files</span><span class="p">]):</span>
+                <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;no raw settings files nor ephys data found for&quot;</span>
+                                <span class="sa">f</span><span class="s2">&quot; </span><span class="si">{</span><span class="n">ses</span><span class="p">[</span><span class="s1">&#39;local_path&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">. Skip this session.&quot;</span><span class="p">)</span>
+                <span class="k">continue</span>
+            <span class="n">extract_probes</span><span class="p">(</span><span class="n">sess_path</span><span class="p">,</span> <span class="n">bin_exists</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="n">probe</span> <span class="o">=</span> <span class="n">alf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="n">sess_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;alf&#39;</span><span class="p">),</span> <span class="s1">&#39;probes&#39;</span><span class="p">)</span>
+        <span class="n">one</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">ses</span><span class="p">[</span><span class="s1">&#39;url&#39;</span><span class="p">],</span> <span class="n">dataset_types</span><span class="o">=</span><span class="s1">&#39;channels.localCoordinates&#39;</span><span class="p">,</span> <span class="n">download_only</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="c1"># get for each insertion the sites local mapping: if not found assumes checkerboard pattern</span>
+        <span class="n">probe</span><span class="p">[</span><span class="s1">&#39;sites_coordinates&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">prb</span> <span class="ow">in</span> <span class="n">probe</span><span class="o">.</span><span class="n">description</span><span class="p">:</span>
+            <span class="n">chfile</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">ses</span><span class="p">[</span><span class="s1">&#39;local_path&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="n">prb</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">],</span>
+                                                      <span class="s1">&#39;channels.localCoordinates.npy&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">chfile</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+                <span class="n">probe</span><span class="p">[</span><span class="s1">&#39;sites_coordinates&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">chfile</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;no channel.localCoordinates found for </span><span class="si">{</span><span class="n">ses</span><span class="p">[</span><span class="s1">&#39;local_path&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">.&quot;</span>
+                                <span class="sa">f</span><span class="s2">&quot;Assumes checkerboard pattern&quot;</span><span class="p">)</span>
+                <span class="n">probe</span><span class="p">[</span><span class="s1">&#39;sites_coordinates&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">SITES_COORDINATES</span><span class="p">)</span>
+        <span class="c1"># put the session information in there</span>
+        <span class="n">probe</span><span class="p">[</span><span class="s1">&#39;session&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">ses</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">probe</span><span class="o">.</span><span class="n">description</span><span class="p">)</span>
+        <span class="n">probes</span> <span class="o">=</span> <span class="n">probes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">probe</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">probes</span></div>
+
+
+<div class="viewcode-block" id="plot2d_all"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.histology.html#ibllib.pipes.histology.plot2d_all">[docs]</a><span class="k">def</span> <span class="nf">plot2d_all</span><span class="p">(</span><span class="n">trajectories</span><span class="p">,</span> <span class="n">tracks</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Plot all tracks on a single 2d slice</span>
+<span class="sd">    :param trajectories: dictionary output of the Alyx REST query on trajectories</span>
+<span class="sd">    :param tracks:</span>
+<span class="sd">    :return:</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+    <span class="n">axs</span> <span class="o">=</span> <span class="n">brain_atlas</span><span class="o">.</span><span class="n">plot_sslice</span><span class="p">(</span><span class="n">brain_atlas</span><span class="o">.</span><span class="n">bc</span><span class="o">.</span><span class="n">i2x</span><span class="p">(</span><span class="mi">190</span><span class="p">),</span> <span class="n">cmap</span><span class="o">=</span><span class="n">plt</span><span class="o">.</span><span class="n">get_cmap</span><span class="p">(</span><span class="s1">&#39;bone&#39;</span><span class="p">))</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+    <span class="n">axc</span> <span class="o">=</span> <span class="n">brain_atlas</span><span class="o">.</span><span class="n">plot_cslice</span><span class="p">(</span><span class="n">brain_atlas</span><span class="o">.</span><span class="n">bc</span><span class="o">.</span><span class="n">i2y</span><span class="p">(</span><span class="mi">350</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">xyz</span> <span class="ow">in</span> <span class="n">tracks</span><span class="p">[</span><span class="s1">&#39;xyz&#39;</span><span class="p">]:</span>
+        <span class="n">axc</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">xyz</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="mf">1e3</span><span class="p">,</span> <span class="n">xyz</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="mf">1e6</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">)</span>
+        <span class="n">axs</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">xyz</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="mf">1e3</span><span class="p">,</span> <span class="n">xyz</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="mf">1e6</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">trj</span> <span class="ow">in</span> <span class="n">trajectories</span><span class="p">:</span>
+        <span class="n">ins</span> <span class="o">=</span> <span class="n">atlas</span><span class="o">.</span><span class="n">Insertion</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">trj</span><span class="p">,</span> <span class="n">brain_atlas</span><span class="o">=</span><span class="n">brain_atlas</span><span class="p">)</span>
+        <span class="n">xyz</span> <span class="o">=</span> <span class="n">ins</span><span class="o">.</span><span class="n">xyz</span>
+        <span class="n">axc</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">xyz</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="mf">1e3</span><span class="p">,</span> <span class="n">xyz</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="mf">1e6</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span>
+        <span class="n">axs</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">xyz</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="mf">1e3</span><span class="p">,</span> <span class="n">xyz</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="mf">1e6</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="plot3d_all"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.histology.html#ibllib.pipes.histology.plot3d_all">[docs]</a><span class="k">def</span> <span class="nf">plot3d_all</span><span class="p">(</span><span class="n">trajectories</span><span class="p">,</span> <span class="n">tracks</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Plot all tracks on a single 2d slice</span>
+<span class="sd">    :param trajectories: dictionary output of the Alyx REST query on trajectories</span>
+<span class="sd">    :param tracks:</span>
+<span class="sd">    :return:</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span> <span class="nn">mayavi</span> <span class="kn">import</span> <span class="n">mlab</span>
+    <span class="n">src</span> <span class="o">=</span> <span class="n">mlab</span><span class="o">.</span><span class="n">pipeline</span><span class="o">.</span><span class="n">scalar_field</span><span class="p">(</span><span class="n">brain_atlas</span><span class="o">.</span><span class="n">label</span><span class="p">)</span>
+    <span class="n">mlab</span><span class="o">.</span><span class="n">pipeline</span><span class="o">.</span><span class="n">iso_surface</span><span class="p">(</span><span class="n">src</span><span class="p">,</span> <span class="n">contours</span><span class="o">=</span><span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="p">],</span> <span class="n">opacity</span><span class="o">=</span><span class="mf">0.3</span><span class="p">)</span>
+
+    <span class="n">pts</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">xyz</span> <span class="ow">in</span> <span class="n">tracks</span><span class="p">[</span><span class="s1">&#39;xyz&#39;</span><span class="p">]:</span>
+        <span class="n">mlapdv</span> <span class="o">=</span> <span class="n">brain_atlas</span><span class="o">.</span><span class="n">bc</span><span class="o">.</span><span class="n">xyz2i</span><span class="p">(</span><span class="n">xyz</span><span class="p">)</span>
+        <span class="n">pts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mlab</span><span class="o">.</span><span class="n">plot3d</span><span class="p">(</span><span class="n">mlapdv</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">mlapdv</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">mlapdv</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">],</span> <span class="n">line_width</span><span class="o">=</span><span class="mi">3</span><span class="p">))</span>
+
+    <span class="n">plt_trj</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">trj</span> <span class="ow">in</span> <span class="n">trajectories</span><span class="p">:</span>
+        <span class="n">ins</span> <span class="o">=</span> <span class="n">atlas</span><span class="o">.</span><span class="n">Insertion</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">trj</span><span class="p">,</span> <span class="n">brain_atlas</span><span class="o">=</span><span class="n">brain_atlas</span><span class="p">)</span>
+        <span class="n">mlapdv</span> <span class="o">=</span> <span class="n">brain_atlas</span><span class="o">.</span><span class="n">bc</span><span class="o">.</span><span class="n">xyz2i</span><span class="p">(</span><span class="n">ins</span><span class="o">.</span><span class="n">xyz</span><span class="p">)</span>
+        <span class="n">plt</span> <span class="o">=</span> <span class="n">mlab</span><span class="o">.</span><span class="n">plot3d</span><span class="p">(</span><span class="n">mlapdv</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">mlapdv</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">mlapdv</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">],</span>
+                          <span class="n">line_width</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="p">(</span><span class="mf">1.</span><span class="p">,</span> <span class="mf">0.</span><span class="p">,</span> <span class="mf">1.</span><span class="p">))</span>
+        <span class="n">plt_trj</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">plt</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="interpolate_along_track"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.histology.html#ibllib.pipes.histology.interpolate_along_track">[docs]</a><span class="k">def</span> <span class="nf">interpolate_along_track</span><span class="p">(</span><span class="n">xyz_track</span><span class="p">,</span> <span class="n">depths</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Get the coordinates of points along a track according to their distances from the first</span>
+<span class="sd">    point.</span>
+<span class="sd">    :param xyz_track: np.array [npoints, 3]. Usually the first point is the deepest</span>
+<span class="sd">    :param depths: distance from the first point of the track, usually the convention is the</span>
+<span class="sd">    deepest point is 0 and going up</span>
+<span class="sd">    :return: xyz_channels</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># from scipy.interpolate import interp1d</span>
+    <span class="c1"># this is the cumulative distance from the lowest picked point (first)</span>
+    <span class="n">distance</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">xyz_track</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))])</span>
+    <span class="n">xyz_channels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">depths</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">3</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+        <span class="n">xyz_channels</span><span class="p">[:,</span> <span class="n">m</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">interp</span><span class="p">(</span><span class="n">depths</span><span class="p">,</span> <span class="n">distance</span><span class="p">,</span> <span class="n">xyz_track</span><span class="p">[:,</span> <span class="n">m</span><span class="p">])</span>
+        <span class="c1"># xyz_channels[:, m] = interp1d(distance, xyz[:, m], kind=&#39;cubic&#39;)(chdepths / 1e6)</span>
+    <span class="c1"># plt.figure()</span>
+    <span class="c1"># plt.plot(xyz_track[:, 0] * 1e6, xyz_track[:, 2] * 1e6, &#39;k*&#39;), plt.axis(&#39;equal&#39;)</span>
+    <span class="c1"># plt.plot(xyz_channels[:, 0] * 1e6, xyz_channels[:, 2] * 1e6, &#39;.&#39;), plt.axis(&#39;equal&#39;)</span>
+    <span class="k">return</span> <span class="n">xyz_channels</span></div>
+
+
+<div class="viewcode-block" id="get_brain_regions"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.histology.html#ibllib.pipes.histology.get_brain_regions">[docs]</a><span class="k">def</span> <span class="nf">get_brain_regions</span><span class="p">(</span><span class="n">xyz</span><span class="p">,</span> <span class="n">channels_positions</span><span class="o">=</span><span class="n">SITES_COORDINATES</span><span class="p">,</span> <span class="n">brain_atlas</span><span class="o">=</span><span class="n">brain_atlas</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    :param xyz: numpy array of 3D coordinates corresponding to a picked track or a trajectory</span>
+<span class="sd">    the deepest point is assumed to be the tip.</span>
+<span class="sd">    :param channels_positions:</span>
+<span class="sd">    :param brain_atlas:</span>
+<span class="sd">    :return: brain_regions (associated to each channel),</span>
+<span class="sd">             insertion (object atlas.Insertion, defining 2 points of entries</span>
+<span class="sd">             (tip and end of probe))</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    this is the depth along the probe (from the first point which is the deepest labeled point)</span>
+<span class="sd">    Due to the blockiness, depths may not be unique along the track so it has to be prepared</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">xyz</span> <span class="o">=</span> <span class="n">xyz</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">xyz</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]),</span> <span class="p">:]</span>
+    <span class="n">d</span> <span class="o">=</span> <span class="n">atlas</span><span class="o">.</span><span class="n">cart2sph</span><span class="p">(</span><span class="n">xyz</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">xyz</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">xyz</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">xyz</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">xyz</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">xyz</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">indsort</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+    <span class="n">xyz</span> <span class="o">=</span> <span class="n">xyz</span><span class="p">[</span><span class="n">indsort</span><span class="p">,</span> <span class="p">:]</span>
+    <span class="n">d</span> <span class="o">=</span> <span class="n">d</span><span class="p">[</span><span class="n">indsort</span><span class="p">]</span>
+    <span class="n">iduplicates</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">d</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">xyz</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">xyz</span><span class="p">,</span> <span class="n">iduplicates</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">d</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">iduplicates</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">d</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">),</span> <span class="s2">&quot;Depths should be strictly increasing&quot;</span>
+
+    <span class="c1"># Get the probe insertion from the coordinates</span>
+    <span class="n">insertion</span> <span class="o">=</span> <span class="n">atlas</span><span class="o">.</span><span class="n">Insertion</span><span class="o">.</span><span class="n">from_track</span><span class="p">(</span><span class="n">xyz</span><span class="p">,</span> <span class="n">brain_atlas</span><span class="p">)</span>
+
+    <span class="c1"># Interpolate channel positions along the probe depth and get brain locations</span>
+    <span class="n">TIP_SIZE_UM</span> <span class="o">=</span> <span class="mi">200</span>
+    <span class="n">xyz_channels</span> <span class="o">=</span> <span class="n">interpolate_along_track</span><span class="p">(</span><span class="n">xyz</span><span class="p">,</span> <span class="p">(</span><span class="n">channels_positions</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">TIP_SIZE_UM</span><span class="p">)</span> <span class="o">/</span> <span class="mf">1e6</span><span class="p">)</span>
+
+    <span class="c1"># get the brain regions</span>
+    <span class="n">brain_regions</span> <span class="o">=</span> <span class="n">brain_atlas</span><span class="o">.</span><span class="n">regions</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">brain_atlas</span><span class="o">.</span><span class="n">get_labels</span><span class="p">(</span><span class="n">xyz_channels</span><span class="p">))</span>
+    <span class="n">brain_regions</span><span class="p">[</span><span class="s1">&#39;xyz&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">xyz_channels</span>
+    <span class="n">brain_regions</span><span class="p">[</span><span class="s1">&#39;lateral&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">channels_positions</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
+    <span class="n">brain_regions</span><span class="p">[</span><span class="s1">&#39;axial&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">channels_positions</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span>
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">([</span><span class="nb">len</span><span class="p">(</span><span class="n">brain_regions</span><span class="p">[</span><span class="n">k</span><span class="p">])</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">brain_regions</span><span class="p">])</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="mi">1</span>
+
+    <span class="k">return</span> <span class="n">brain_regions</span><span class="p">,</span> <span class="n">insertion</span></div>
+
+
+<div class="viewcode-block" id="register_track"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.histology.html#ibllib.pipes.histology.register_track">[docs]</a><span class="k">def</span> <span class="nf">register_track</span><span class="p">(</span><span class="n">probe_id</span><span class="p">,</span> <span class="n">picks</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Register the user picks to a probe in Alyx</span>
+<span class="sd">    Here we update Alyx models on the database in 3 steps</span>
+<span class="sd">    1) The user picks converted to IBL coordinates will be stored in the json field of the</span>
+<span class="sd">    corresponding probe insertion models</span>
+<span class="sd">    2) The trajectory computed from the histology track is created or patched</span>
+<span class="sd">    3) Channel locations are set in the table</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">assert</span> <span class="n">one</span>
+    <span class="c1"># 0) if it&#39;s an empty track, create a null trajectory and exit</span>
+    <span class="k">if</span> <span class="n">picks</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">picks</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">tdict</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;probe_insertion&#39;</span><span class="p">:</span> <span class="n">probe_id</span><span class="p">,</span>
+                 <span class="s1">&#39;x&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;z&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="s1">&#39;phi&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;theta&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;depth&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;roll&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="s1">&#39;provenance&#39;</span><span class="p">:</span> <span class="s1">&#39;Histology track&#39;</span><span class="p">,</span>
+                 <span class="s1">&#39;coordinate_system&#39;</span><span class="p">:</span> <span class="s1">&#39;IBL-Allen&#39;</span><span class="p">,</span>
+                 <span class="p">}</span>
+        <span class="n">brain_locations</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">brain_locations</span><span class="p">,</span> <span class="n">insertion_histology</span> <span class="o">=</span> <span class="n">get_brain_regions</span><span class="p">(</span><span class="n">picks</span><span class="p">)</span>
+        <span class="c1"># 1) update the alyx models, first put the picked points in the insertion json</span>
+        <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;insertions&#39;</span><span class="p">,</span> <span class="s1">&#39;partial_update&#39;</span><span class="p">,</span>
+                      <span class="nb">id</span><span class="o">=</span><span class="n">probe_id</span><span class="p">,</span>
+                      <span class="n">data</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;json&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;xyz_picks&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">(</span><span class="n">picks</span> <span class="o">*</span> <span class="mf">1e6</span><span class="p">)</span><span class="o">.</span><span class="n">tolist</span><span class="p">()}})</span>
+        <span class="c1"># 2) patch or create the trajectory coming from histology track</span>
+        <span class="n">tdict</span> <span class="o">=</span> <span class="n">create_trajectory_dict</span><span class="p">(</span><span class="n">probe_id</span><span class="p">,</span> <span class="n">insertion_histology</span><span class="p">,</span> <span class="n">provenance</span><span class="o">=</span><span class="s1">&#39;Histology track&#39;</span><span class="p">)</span>
+
+    <span class="n">hist_traj</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;trajectories&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span>
+                              <span class="n">probe_insertion</span><span class="o">=</span><span class="n">probe_id</span><span class="p">,</span>
+                              <span class="n">provenance</span><span class="o">=</span><span class="s1">&#39;Histology track&#39;</span><span class="p">)</span>
+    <span class="c1"># if the trajectory exists, remove it, this will cascade delete existing channel locations</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">hist_traj</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">overwrite</span><span class="p">:</span>
+            <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;trajectories&#39;</span><span class="p">,</span> <span class="s1">&#39;delete&#39;</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">hist_traj</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;id&#39;</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">FileExistsError</span><span class="p">(</span><span class="s1">&#39;The session already exists, however overwrite is set to False.&#39;</span>
+                                  <span class="s1">&#39;If you want to overwrite, set overwrite=True.&#39;</span><span class="p">)</span>
+    <span class="n">hist_traj</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;trajectories&#39;</span><span class="p">,</span> <span class="s1">&#39;create&#39;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">tdict</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">brain_locations</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">brain_locations</span><span class="p">,</span> <span class="kc">None</span>
+    <span class="c1"># 3) create channel locations</span>
+    <span class="n">channel_dict</span> <span class="o">=</span> <span class="n">create_channel_dict</span><span class="p">(</span><span class="n">hist_traj</span><span class="p">,</span> <span class="n">brain_locations</span><span class="p">)</span>
+    <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;channels&#39;</span><span class="p">,</span> <span class="s1">&#39;create&#39;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">channel_dict</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">brain_locations</span><span class="p">,</span> <span class="n">insertion_histology</span></div>
+
+
+<div class="viewcode-block" id="register_aligned_track"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.histology.html#ibllib.pipes.histology.register_aligned_track">[docs]</a><span class="k">def</span> <span class="nf">register_aligned_track</span><span class="p">(</span><span class="n">probe_id</span><span class="p">,</span> <span class="n">insertion</span><span class="p">,</span> <span class="n">brain_locations</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Register ephys aligned trajectory and channel locations to Alyx</span>
+<span class="sd">    Here we update Alyx models on the database in 2 steps</span>
+<span class="sd">    1) The trajectory computed from the final electrode channel locations</span>
+<span class="sd">    2) Channel locations are set to the trajectory</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">assert</span> <span class="n">one</span>
+    <span class="n">tdict</span> <span class="o">=</span> <span class="n">create_trajectory_dict</span><span class="p">(</span><span class="n">probe_id</span><span class="p">,</span> <span class="n">insertion</span><span class="p">,</span> <span class="n">provenance</span><span class="o">=</span><span class="s1">&#39;Ephys aligned histology track&#39;</span><span class="p">)</span>
+
+    <span class="n">hist_traj</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;trajectories&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span>
+                              <span class="n">probe_insertion</span><span class="o">=</span><span class="n">probe_id</span><span class="p">,</span>
+                              <span class="n">provenance</span><span class="o">=</span><span class="s1">&#39;Ephys aligned histology track&#39;</span><span class="p">)</span>
+    <span class="c1"># if the trajectory exists, remove it, this will cascade delete existing channel locations</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">hist_traj</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">overwrite</span><span class="p">:</span>
+            <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;trajectories&#39;</span><span class="p">,</span> <span class="s1">&#39;delete&#39;</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">hist_traj</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;id&#39;</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">FileExistsError</span><span class="p">(</span><span class="s1">&#39;The session already exists, however overwrite is set to False.&#39;</span>
+                                  <span class="s1">&#39;If you want to overwrite, set overwrite=True.&#39;</span><span class="p">)</span>
+    <span class="n">hist_traj</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;trajectories&#39;</span><span class="p">,</span> <span class="s1">&#39;create&#39;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">tdict</span><span class="p">)</span>
+
+    <span class="n">channel_dict</span> <span class="o">=</span> <span class="n">create_channel_dict</span><span class="p">(</span><span class="n">hist_traj</span><span class="p">,</span> <span class="n">brain_locations</span><span class="p">)</span>
+    <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;channels&#39;</span><span class="p">,</span> <span class="s1">&#39;create&#39;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">channel_dict</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="create_trajectory_dict"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.histology.html#ibllib.pipes.histology.create_trajectory_dict">[docs]</a><span class="k">def</span> <span class="nf">create_trajectory_dict</span><span class="p">(</span><span class="n">probe_id</span><span class="p">,</span> <span class="n">insertion</span><span class="p">,</span> <span class="n">provenance</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Create trajectory dictionary in form to upload to alyx</span>
+<span class="sd">    :param probe id: unique id of probe insertion</span>
+<span class="sd">    :type probe_id: string (hexadecimal UUID)</span>
+<span class="sd">    :param insertion: Insertion object describing entry and tip of trajectory</span>
+<span class="sd">    :type insertion: object atlas.Insertion</span>
+<span class="sd">    :param provenance: &#39;Histology track&#39; or &#39;Ephys aligned histology track&#39;</span>
+<span class="sd">    :type provenance: string</span>
+<span class="sd">    :return tdict:</span>
+<span class="sd">    :type tdict: dict</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">tdict</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;probe_insertion&#39;</span><span class="p">:</span> <span class="n">probe_id</span><span class="p">,</span>
+             <span class="s1">&#39;x&#39;</span><span class="p">:</span> <span class="n">insertion</span><span class="o">.</span><span class="n">x</span> <span class="o">*</span> <span class="mf">1e6</span><span class="p">,</span>
+             <span class="s1">&#39;y&#39;</span><span class="p">:</span> <span class="n">insertion</span><span class="o">.</span><span class="n">y</span> <span class="o">*</span> <span class="mf">1e6</span><span class="p">,</span>
+             <span class="s1">&#39;z&#39;</span><span class="p">:</span> <span class="n">insertion</span><span class="o">.</span><span class="n">z</span> <span class="o">*</span> <span class="mf">1e6</span><span class="p">,</span>
+             <span class="s1">&#39;phi&#39;</span><span class="p">:</span> <span class="n">insertion</span><span class="o">.</span><span class="n">phi</span><span class="p">,</span>
+             <span class="s1">&#39;theta&#39;</span><span class="p">:</span> <span class="n">insertion</span><span class="o">.</span><span class="n">theta</span><span class="p">,</span>
+             <span class="s1">&#39;depth&#39;</span><span class="p">:</span> <span class="n">insertion</span><span class="o">.</span><span class="n">depth</span> <span class="o">*</span> <span class="mf">1e6</span><span class="p">,</span>
+             <span class="s1">&#39;roll&#39;</span><span class="p">:</span> <span class="n">insertion</span><span class="o">.</span><span class="n">beta</span><span class="p">,</span>
+             <span class="s1">&#39;provenance&#39;</span><span class="p">:</span> <span class="n">provenance</span><span class="p">,</span>
+             <span class="s1">&#39;coordinate_system&#39;</span><span class="p">:</span> <span class="s1">&#39;IBL-Allen&#39;</span><span class="p">,</span>
+             <span class="p">}</span>
+
+    <span class="k">return</span> <span class="n">tdict</span></div>
+
+
+<div class="viewcode-block" id="create_channel_dict"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.histology.html#ibllib.pipes.histology.create_channel_dict">[docs]</a><span class="k">def</span> <span class="nf">create_channel_dict</span><span class="p">(</span><span class="n">traj</span><span class="p">,</span> <span class="n">brain_locations</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Create channel dictionary in form to upload to alyx</span>
+<span class="sd">    :param traj: alyx trajectory object to attach channel information to</span>
+<span class="sd">    :type traj: dict</span>
+<span class="sd">    :param brain_locations: information about location of electrode channels in brain atlas</span>
+<span class="sd">    :type insertion: Bunch</span>
+<span class="sd">    :return tdict:</span>
+<span class="sd">    :type tdict: list of dict</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">channel_dict</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">brain_locations</span><span class="o">.</span><span class="n">id</span><span class="o">.</span><span class="n">size</span><span class="p">):</span>
+        <span class="n">channel_dict</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+            <span class="s1">&#39;x&#39;</span><span class="p">:</span> <span class="n">brain_locations</span><span class="o">.</span><span class="n">xyz</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="mf">1e6</span><span class="p">,</span>
+            <span class="s1">&#39;y&#39;</span><span class="p">:</span> <span class="n">brain_locations</span><span class="o">.</span><span class="n">xyz</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="mf">1e6</span><span class="p">,</span>
+            <span class="s1">&#39;z&#39;</span><span class="p">:</span> <span class="n">brain_locations</span><span class="o">.</span><span class="n">xyz</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="mf">1e6</span><span class="p">,</span>
+            <span class="s1">&#39;axial&#39;</span><span class="p">:</span> <span class="n">brain_locations</span><span class="o">.</span><span class="n">axial</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+            <span class="s1">&#39;lateral&#39;</span><span class="p">:</span> <span class="n">brain_locations</span><span class="o">.</span><span class="n">lateral</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+            <span class="s1">&#39;brain_region&#39;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">brain_locations</span><span class="o">.</span><span class="n">id</span><span class="p">[</span><span class="n">i</span><span class="p">]),</span>
+            <span class="s1">&#39;trajectory_estimate&#39;</span><span class="p">:</span> <span class="n">traj</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span>
+        <span class="p">})</span>
+
+    <span class="k">return</span> <span class="n">channel_dict</span></div>
+
+
+<span class="k">def</span> <span class="nf">_parse_filename</span><span class="p">(</span><span class="n">track_file</span><span class="p">):</span>
+    <span class="n">tmp</span> <span class="o">=</span> <span class="n">track_file</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)</span>
+    <span class="n">inumber</span> <span class="o">=</span> <span class="p">[</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">s</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">tmp</span><span class="p">)</span> <span class="k">if</span> <span class="n">s</span><span class="o">.</span><span class="n">isdigit</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">search_filter</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;date&#39;</span><span class="p">:</span> <span class="n">tmp</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s1">&#39;experiment_number&#39;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">tmp</span><span class="p">[</span><span class="n">inumber</span><span class="p">]),</span>
+                     <span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="s1">&#39;_&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">tmp</span><span class="p">[</span><span class="n">inumber</span> <span class="o">+</span> <span class="mi">1</span><span class="p">:</span><span class="o">-</span> <span class="mi">1</span><span class="p">]),</span>
+                     <span class="s1">&#39;subject&#39;</span><span class="p">:</span> <span class="s1">&#39;_&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">tmp</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="n">inumber</span><span class="p">])}</span>
+    <span class="k">return</span> <span class="n">search_filter</span>
+
+
+<div class="viewcode-block" id="register_track_files"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.histology.html#ibllib.pipes.histology.register_track_files">[docs]</a><span class="k">def</span> <span class="nf">register_track_files</span><span class="p">(</span><span class="n">path_tracks</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    :param path_tracks: path to directory containing tracks; also works with a single file name</span>
+<span class="sd">    :param one:</span>
+<span class="sd">    :return:</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">glob_pattern</span> <span class="o">=</span> <span class="s2">&quot;*_probe*_pts*.csv&quot;</span>
+
+    <span class="n">path_tracks</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path_tracks</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">path_tracks</span><span class="o">.</span><span class="n">is_dir</span><span class="p">():</span>
+        <span class="n">track_files</span> <span class="o">=</span> <span class="p">[</span><span class="n">path_tracks</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">track_files</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">path_tracks</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="n">glob_pattern</span><span class="p">))</span>
+        <span class="n">track_files</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
+
+    <span class="k">assert</span> <span class="n">path_tracks</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="n">one</span>
+
+    <span class="n">ntracks</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">track_files</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">ind</span><span class="p">,</span> <span class="n">track_file</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">track_files</span><span class="p">):</span>
+        <span class="c1"># Nomenclature expected:</span>
+        <span class="c1"># &#39;{yyyy-mm-dd}}_{nickname}_{session_number}_{probe_label}_pts.csv&#39;</span>
+        <span class="c1"># beware: there may be underscores in the subject nickname</span>
+
+        <span class="n">search_filter</span> <span class="o">=</span> <span class="n">_parse_filename</span><span class="p">(</span><span class="n">track_file</span><span class="p">)</span>
+        <span class="n">probe</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;insertions&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">search_filter</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">probe</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">eid</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">subject</span><span class="o">=</span><span class="n">search_filter</span><span class="p">[</span><span class="s1">&#39;subject&#39;</span><span class="p">],</span> <span class="n">date_range</span><span class="o">=</span><span class="n">search_filter</span><span class="p">[</span><span class="s1">&#39;date&#39;</span><span class="p">],</span>
+                             <span class="n">number</span><span class="o">=</span><span class="n">search_filter</span><span class="p">[</span><span class="s1">&#39;experiment_number&#39;</span><span class="p">])</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">eid</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No session found </span><span class="si">{</span><span class="n">track_file</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">insertion</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;session&#39;</span><span class="p">:</span> <span class="n">eid</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                         <span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="n">search_filter</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]}</span>
+            <span class="n">probe</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;insertions&#39;</span><span class="p">,</span> <span class="s1">&#39;create&#39;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">insertion</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">probe</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">probe</span> <span class="o">=</span> <span class="n">probe</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Multiple probes found.&quot;</span><span class="p">)</span>
+        <span class="n">probe_id</span> <span class="o">=</span> <span class="n">probe</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">xyz_picks</span> <span class="o">=</span> <span class="n">load_track_csv</span><span class="p">(</span><span class="n">track_file</span><span class="p">)</span>
+            <span class="n">register_track</span><span class="p">(</span><span class="n">probe_id</span><span class="p">,</span> <span class="n">xyz_picks</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="n">overwrite</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">track_file</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="n">e</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">ind</span> <span class="o">+</span> <span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">ntracks</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">track_file</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="coverage"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.histology.html#ibllib.pipes.histology.coverage">[docs]</a><span class="k">def</span> <span class="nf">coverage</span><span class="p">(</span><span class="n">trajs</span><span class="p">,</span> <span class="n">ba</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Computes a coverage volume from</span>
+<span class="sd">    :param trajs: dictionary of trajectories from Alyx rest endpoint (one.alyx.rest...)</span>
+<span class="sd">    :param ba: ibllib.atlas.BrainAtlas instance</span>
+<span class="sd">    :return: 3D np.array the same size as the volume provided in the brain atlas</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># in um. Coverage = 1 below the first value, 0 after the second, cosine taper in between</span>
+    <span class="n">DIST_FCN</span> <span class="o">=</span> <span class="p">[</span><span class="mi">100</span><span class="p">,</span> <span class="mi">150</span><span class="p">]</span>
+    <span class="n">ACTIVE_LENGTH_UM</span> <span class="o">=</span> <span class="mf">3.5</span> <span class="o">*</span> <span class="mf">1e3</span>
+    <span class="n">MAX_DIST_UM</span> <span class="o">=</span> <span class="n">DIST_FCN</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>  <span class="c1"># max distance around the probe to be searched for</span>
+    <span class="k">if</span> <span class="n">ba</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">ba</span> <span class="o">=</span> <span class="n">atlas</span><span class="o">.</span><span class="n">AllenAtlas</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">crawl_up_from_tip</span><span class="p">(</span><span class="n">ins</span><span class="p">,</span> <span class="n">d</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">ins</span><span class="o">.</span><span class="n">entry</span> <span class="o">-</span> <span class="n">ins</span><span class="o">.</span><span class="n">tip</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">d</span><span class="p">[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">/</span>
+                                        <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">ins</span><span class="o">.</span><span class="n">entry</span> <span class="o">-</span> <span class="n">ins</span><span class="o">.</span><span class="n">tip</span><span class="p">))</span> <span class="o">+</span> <span class="n">ins</span><span class="o">.</span><span class="n">tip</span>
+
+    <span class="n">full_coverage</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">ba</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+
+    <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">trajs</span><span class="p">)):</span>
+        <span class="k">if</span> <span class="n">p</span> <span class="o">%</span> <span class="mi">20</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">p</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">trajs</span><span class="p">))</span>
+        <span class="n">traj</span> <span class="o">=</span> <span class="n">trajs</span><span class="p">[</span><span class="n">p</span><span class="p">]</span>
+
+        <span class="n">ins</span> <span class="o">=</span> <span class="n">atlas</span><span class="o">.</span><span class="n">Insertion</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">traj</span><span class="p">)</span>
+        <span class="c1"># those are the top and bottom coordinates of the active part of the shank extended</span>
+        <span class="c1"># to maxdist</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">ACTIVE_LENGTH_UM</span> <span class="o">+</span> <span class="n">MAX_DIST_UM</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">2</span><span class="p">),</span>
+                       <span class="o">-</span><span class="n">MAX_DIST_UM</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">2</span><span class="p">)])</span> <span class="o">+</span> <span class="n">TIP_SIZE_UM</span><span class="p">)</span>
+        <span class="n">top_bottom</span> <span class="o">=</span> <span class="n">crawl_up_from_tip</span><span class="p">(</span><span class="n">ins</span><span class="p">,</span> <span class="n">d</span> <span class="o">/</span> <span class="mf">1e6</span><span class="p">)</span>
+        <span class="c1"># this is the axis that has the biggest deviation. Almost always z</span>
+        <span class="n">axis</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">top_bottom</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)))</span>
+        <span class="k">if</span> <span class="n">axis</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;This works only for 45 degree or vertical tracks so far, skipping&quot;</span>
+                            <span class="sa">f</span><span class="s2">&quot; </span><span class="si">{</span><span class="n">ins</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">continue</span>
+        <span class="c1"># sample the active track path along this axis</span>
+        <span class="n">tbi</span> <span class="o">=</span> <span class="n">ba</span><span class="o">.</span><span class="n">bc</span><span class="o">.</span><span class="n">xyz2i</span><span class="p">(</span><span class="n">top_bottom</span><span class="p">)</span>
+        <span class="n">nz</span> <span class="o">=</span> <span class="n">tbi</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="n">axis</span><span class="p">]</span> <span class="o">-</span> <span class="n">tbi</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">axis</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="n">ishank</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">tbi</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">i</span><span class="p">],</span> <span class="n">tbi</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="n">i</span><span class="p">],</span> <span class="n">nz</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">3</span><span class="p">)])</span><span class="o">.</span><span class="n">T</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+
+        <span class="c1"># creates a flattened &quot;column&quot; of candidate volume indices around the track</span>
+        <span class="c1"># around each sample get an horizontal square slice of nx *2 +1 and ny *2 +1 samples</span>
+        <span class="c1"># flatten the corresponding xyz indices and  compute the min distance to the track only</span>
+        <span class="c1"># for those</span>
+        <span class="n">nx</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">MAX_DIST_UM</span> <span class="o">/</span> <span class="mf">1e6</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">ba</span><span class="o">.</span><span class="n">bc</span><span class="o">.</span><span class="n">dxyz</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span><span class="p">))</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="n">ny</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">MAX_DIST_UM</span> <span class="o">/</span> <span class="mf">1e6</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">ba</span><span class="o">.</span><span class="n">bc</span><span class="o">.</span><span class="n">dxyz</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span><span class="p">))</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="n">ixyz</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">v</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="o">-</span><span class="n">nx</span><span class="p">,</span> <span class="n">nx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="o">-</span><span class="n">ny</span><span class="p">,</span> <span class="n">ny</span> <span class="o">+</span> <span class="mi">1</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">nz</span><span class="p">))])</span><span class="o">.</span><span class="n">T</span>
+        <span class="n">ixyz</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">ishank</span><span class="p">[</span><span class="n">ixyz</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">],</span> <span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">ixyz</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="n">ixyz</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">ishank</span><span class="p">[</span><span class="n">ixyz</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">],</span> <span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">ixyz</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="n">ixyz</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">ishank</span><span class="p">[</span><span class="n">ixyz</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">],</span> <span class="mi">2</span><span class="p">]</span>
+        <span class="c1"># if any, remove indices that lie outside of the volume bounds</span>
+        <span class="n">iok</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span><span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">ixyz</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">ixyz</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">ba</span><span class="o">.</span><span class="n">bc</span><span class="o">.</span><span class="n">nx</span><span class="p">)</span>
+        <span class="n">iok</span> <span class="o">&amp;=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span><span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">ixyz</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">ixyz</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">ba</span><span class="o">.</span><span class="n">bc</span><span class="o">.</span><span class="n">ny</span><span class="p">)</span>
+        <span class="n">iok</span> <span class="o">&amp;=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span><span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">ixyz</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">],</span> <span class="n">ixyz</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">ba</span><span class="o">.</span><span class="n">bc</span><span class="o">.</span><span class="n">nz</span><span class="p">)</span>
+        <span class="n">ixyz</span> <span class="o">=</span> <span class="n">ixyz</span><span class="p">[</span><span class="n">iok</span><span class="p">,</span> <span class="p">:]</span>
+        <span class="c1"># get the minimum distance to the trajectory, to which is applied the cosine taper</span>
+        <span class="n">xyz</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">c_</span><span class="p">[</span><span class="n">ba</span><span class="o">.</span><span class="n">bc</span><span class="o">.</span><span class="n">xscale</span><span class="p">[</span><span class="n">ixyz</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]],</span> <span class="n">ba</span><span class="o">.</span><span class="n">bc</span><span class="o">.</span><span class="n">yscale</span><span class="p">[</span><span class="n">ixyz</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]],</span> <span class="n">ba</span><span class="o">.</span><span class="n">bc</span><span class="o">.</span><span class="n">zscale</span><span class="p">[</span><span class="n">ixyz</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]]]</span>
+        <span class="n">sites_bounds</span> <span class="o">=</span> <span class="n">crawl_up_from_tip</span><span class="p">(</span>
+            <span class="n">ins</span><span class="p">,</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">ACTIVE_LENGTH_UM</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span> <span class="o">+</span> <span class="n">TIP_SIZE_UM</span><span class="p">)</span> <span class="o">/</span> <span class="mf">1e6</span><span class="p">)</span>
+        <span class="n">mdist</span> <span class="o">=</span> <span class="n">ins</span><span class="o">.</span><span class="n">trajectory</span><span class="o">.</span><span class="n">mindist</span><span class="p">(</span><span class="n">xyz</span><span class="p">,</span> <span class="n">bounds</span><span class="o">=</span><span class="n">sites_bounds</span><span class="p">)</span>
+        <span class="n">coverage</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">fcn_cosine</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">DIST_FCN</span><span class="p">)</span> <span class="o">/</span> <span class="mf">1e6</span><span class="p">)(</span><span class="n">mdist</span><span class="p">)</span>
+        <span class="c1"># remap to the coverage volume</span>
+        <span class="n">full_coverage</span><span class="p">[</span><span class="n">ba</span><span class="o">.</span><span class="n">_lookup_inds</span><span class="p">(</span><span class="n">ixyz</span><span class="p">)]</span> <span class="o">+=</span> <span class="n">coverage</span>
+
+    <span class="n">full_coverage</span> <span class="o">=</span> <span class="n">full_coverage</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">ba</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+    <span class="n">full_coverage</span><span class="p">[</span><span class="n">ba</span><span class="o">.</span><span class="n">label</span> <span class="o">==</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+    <span class="k">return</span> <span class="n">full_coverage</span></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        
+        &copy; Copyright 2020, International Brain Laboratory
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

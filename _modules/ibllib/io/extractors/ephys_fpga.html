@@ -1,0 +1,886 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>ibllib.io.extractors.ephys_fpga &mdash; IBL Library  documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/copybutton.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/css/style.css" type="text/css" />
+
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
+        <script src="../../../../_static/jquery.js"></script>
+        <script src="../../../../_static/underscore.js"></script>
+        <script src="../../../../_static/doctools.js"></script>
+        <script src="../../../../_static/language_data.js"></script>
+        <script src="../../../../_static/clipboard.min.js"></script>
+        <script src="../../../../_static/copybutton.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script src="https://unpkg.com/@jupyter-widgets/html-manager@^0.18.0/dist/embed-amd.js"></script>
+    
+    <script type="text/javascript" src="../../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../../index.html" class="icon icon-home" alt="Documentation Home"> IBL Library
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../01_overview.html">IBL data structure</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../02_installation.html">Installation</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../03_one.html">ONE</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../04_datajoint.html">Datajoint</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../05_tutorials.html">Tutorials</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../06_examples.html">Examples</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../07_developers.html">API Reference</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">IBL Library</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../../../index.html">Module code</a> &raquo;</li>
+        
+      <li>ibllib.io.extractors.ephys_fpga</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for ibllib.io.extractors.ephys_fpga</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">OrderedDict</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span><span class="p">,</span> <span class="n">PureWindowsPath</span>
+<span class="kn">import</span> <span class="nn">uuid</span>
+
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">pkg_resources</span> <span class="kn">import</span> <span class="n">parse_version</span>
+<span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">interpolate</span>
+
+<span class="kn">import</span> <span class="nn">alf.io</span>
+<span class="kn">from</span> <span class="nn">brainbox.core</span> <span class="kn">import</span> <span class="n">Bunch</span>
+<span class="kn">import</span> <span class="nn">ibllib.dsp</span> <span class="k">as</span> <span class="nn">dsp</span>
+<span class="kn">import</span> <span class="nn">ibllib.exceptions</span> <span class="k">as</span> <span class="nn">err</span>
+<span class="kn">from</span> <span class="nn">ibllib.io</span> <span class="kn">import</span> <span class="n">raw_data_loaders</span><span class="p">,</span> <span class="n">spikeglx</span>
+<span class="kn">from</span> <span class="nn">ibllib.io.extractors</span> <span class="kn">import</span> <span class="n">biased_trials</span>
+<span class="kn">from</span> <span class="nn">ibllib.io.extractors.base</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">BaseBpodTrialsExtractor</span><span class="p">,</span>
+    <span class="n">BaseExtractor</span><span class="p">,</span>
+    <span class="n">run_extractor_classes</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span> <span class="nn">ibllib.io.extractors.training_wheel</span> <span class="kn">import</span> <span class="n">extract_wheel_moves</span>
+<span class="kn">import</span> <span class="nn">ibllib.plots</span> <span class="k">as</span> <span class="nn">plots</span>
+
+<span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;ibllib&#39;</span><span class="p">)</span>
+
+<span class="n">SYNC_BATCH_SIZE_SAMPLES</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">**</span> <span class="mi">18</span>  <span class="c1"># number of samples to read at once in bin file for sync</span>
+<span class="n">WHEEL_RADIUS_CM</span> <span class="o">=</span> <span class="mi">1</span>  <span class="c1"># stay in radians</span>
+<span class="n">WHEEL_TICKS</span> <span class="o">=</span> <span class="mi">1024</span>
+
+<span class="n">BPOD_FPGA_DRIFT_THRESHOLD_PPM</span> <span class="o">=</span> <span class="mi">150</span>
+
+<span class="n">CHMAPS</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;3A&#39;</span><span class="p">:</span>
+          <span class="p">{</span><span class="s1">&#39;ap&#39;</span><span class="p">:</span>
+           <span class="p">{</span><span class="s1">&#39;left_camera&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+            <span class="s1">&#39;right_camera&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span>
+            <span class="s1">&#39;body_camera&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span>
+            <span class="s1">&#39;bpod&#39;</span><span class="p">:</span> <span class="mi">7</span><span class="p">,</span>
+            <span class="s1">&#39;frame2ttl&#39;</span><span class="p">:</span> <span class="mi">12</span><span class="p">,</span>
+            <span class="s1">&#39;rotary_encoder_0&#39;</span><span class="p">:</span> <span class="mi">13</span><span class="p">,</span>
+            <span class="s1">&#39;rotary_encoder_1&#39;</span><span class="p">:</span> <span class="mi">14</span><span class="p">,</span>
+            <span class="s1">&#39;audio&#39;</span><span class="p">:</span> <span class="mi">15</span>
+            <span class="p">}</span>
+           <span class="p">},</span>
+          <span class="s1">&#39;3B&#39;</span><span class="p">:</span>
+          <span class="p">{</span><span class="s1">&#39;nidq&#39;</span><span class="p">:</span>
+           <span class="p">{</span><span class="s1">&#39;left_camera&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="s1">&#39;right_camera&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="s1">&#39;body_camera&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+            <span class="s1">&#39;imec_sync&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span>
+            <span class="s1">&#39;frame2ttl&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span>
+            <span class="s1">&#39;rotary_encoder_0&#39;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>
+            <span class="s1">&#39;rotary_encoder_1&#39;</span><span class="p">:</span> <span class="mi">6</span><span class="p">,</span>
+            <span class="s1">&#39;audio&#39;</span><span class="p">:</span> <span class="mi">7</span><span class="p">,</span>
+            <span class="s1">&#39;bpod&#39;</span><span class="p">:</span> <span class="mi">16</span><span class="p">},</span>
+           <span class="s1">&#39;ap&#39;</span><span class="p">:</span>
+           <span class="p">{</span><span class="s1">&#39;imec_sync&#39;</span><span class="p">:</span> <span class="mi">6</span><span class="p">}</span>
+           <span class="p">},</span>
+          <span class="p">}</span>
+
+
+<div class="viewcode-block" id="get_ibl_sync_map"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.ephys_fpga.html#ibllib.io.extractors.ephys_fpga.get_ibl_sync_map">[docs]</a><span class="k">def</span> <span class="nf">get_ibl_sync_map</span><span class="p">(</span><span class="n">ef</span><span class="p">,</span> <span class="n">version</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Gets default channel map for the version/binary file type combination</span>
+<span class="sd">    :param ef: ibllib.io.spikeglx.glob_ephys_file dictionary with field &#39;ap&#39; or &#39;nidq&#39;</span>
+<span class="sd">    :return: channel map dictionary</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">version</span> <span class="o">==</span> <span class="s1">&#39;3A&#39;</span><span class="p">:</span>
+        <span class="n">default_chmap</span> <span class="o">=</span> <span class="n">CHMAPS</span><span class="p">[</span><span class="s1">&#39;3A&#39;</span><span class="p">][</span><span class="s1">&#39;ap&#39;</span><span class="p">]</span>
+    <span class="k">elif</span> <span class="n">version</span> <span class="o">==</span> <span class="s1">&#39;3B&#39;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">ef</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;nidq&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">):</span>
+            <span class="n">default_chmap</span> <span class="o">=</span> <span class="n">CHMAPS</span><span class="p">[</span><span class="s1">&#39;3B&#39;</span><span class="p">][</span><span class="s1">&#39;nidq&#39;</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="n">ef</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;ap&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">):</span>
+            <span class="n">default_chmap</span> <span class="o">=</span> <span class="n">CHMAPS</span><span class="p">[</span><span class="s1">&#39;3B&#39;</span><span class="p">][</span><span class="s1">&#39;ap&#39;</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">spikeglx</span><span class="o">.</span><span class="n">get_sync_map</span><span class="p">(</span><span class="n">ef</span><span class="p">[</span><span class="s1">&#39;path&#39;</span><span class="p">])</span> <span class="ow">or</span> <span class="n">default_chmap</span></div>
+
+
+<span class="k">def</span> <span class="nf">_sync_to_alf</span><span class="p">(</span><span class="n">raw_ephys_apfile</span><span class="p">,</span> <span class="n">output_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">parts</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Extracts sync.times, sync.channels and sync.polarities from binary ephys dataset</span>
+
+<span class="sd">    :param raw_ephys_apfile: bin file containing ephys data or spike</span>
+<span class="sd">    :param output_path: output directory</span>
+<span class="sd">    :param save: bool write to disk only if True</span>
+<span class="sd">    :param parts: string or list of strings that will be appended to the filename before extension</span>
+<span class="sd">    :return:</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># handles input argument: support ibllib.io.spikeglx.Reader, str and pathlib.Path</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">raw_ephys_apfile</span><span class="p">,</span> <span class="n">spikeglx</span><span class="o">.</span><span class="n">Reader</span><span class="p">):</span>
+        <span class="n">sr</span> <span class="o">=</span> <span class="n">raw_ephys_apfile</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">raw_ephys_apfile</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">raw_ephys_apfile</span><span class="p">)</span>
+        <span class="n">sr</span> <span class="o">=</span> <span class="n">spikeglx</span><span class="o">.</span><span class="n">Reader</span><span class="p">(</span><span class="n">raw_ephys_apfile</span><span class="p">)</span>
+    <span class="c1"># if no output, need a temp folder to swap for big files</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">output_path</span><span class="p">:</span>
+        <span class="n">output_path</span> <span class="o">=</span> <span class="n">raw_ephys_apfile</span><span class="o">.</span><span class="n">parent</span>
+    <span class="n">file_ftcp</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">output_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;fronts_times_channel_polarity</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">())</span><span class="si">}</span><span class="s1">.bin&#39;</span><span class="p">)</span>
+
+    <span class="c1"># loop over chunks of the raw ephys file</span>
+    <span class="n">wg</span> <span class="o">=</span> <span class="n">dsp</span><span class="o">.</span><span class="n">WindowGenerator</span><span class="p">(</span><span class="n">sr</span><span class="o">.</span><span class="n">ns</span><span class="p">,</span> <span class="n">SYNC_BATCH_SIZE_SAMPLES</span><span class="p">,</span> <span class="n">overlap</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">fid_ftcp</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_ftcp</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">sl</span> <span class="ow">in</span> <span class="n">wg</span><span class="o">.</span><span class="n">slice</span><span class="p">:</span>
+        <span class="n">ss</span> <span class="o">=</span> <span class="n">sr</span><span class="o">.</span><span class="n">read_sync</span><span class="p">(</span><span class="n">sl</span><span class="p">)</span>
+        <span class="n">ind</span><span class="p">,</span> <span class="n">fronts</span> <span class="o">=</span> <span class="n">dsp</span><span class="o">.</span><span class="n">fronts</span><span class="p">(</span><span class="n">ss</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="c1"># a = sr.read_sync_analog(sl)</span>
+        <span class="n">sav</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">c_</span><span class="p">[(</span><span class="n">ind</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:]</span> <span class="o">+</span> <span class="n">sl</span><span class="o">.</span><span class="n">start</span><span class="p">)</span> <span class="o">/</span> <span class="n">sr</span><span class="o">.</span><span class="n">fs</span><span class="p">,</span> <span class="n">ind</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">:],</span> <span class="n">fronts</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">double</span><span class="p">)]</span>
+        <span class="n">sav</span><span class="o">.</span><span class="n">tofile</span><span class="p">(</span><span class="n">fid_ftcp</span><span class="p">)</span>
+        <span class="c1"># print progress</span>
+        <span class="n">wg</span><span class="o">.</span><span class="n">print_progress</span><span class="p">()</span>
+    <span class="c1"># close temp file, read from it and delete</span>
+    <span class="n">fid_ftcp</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+    <span class="n">tim_chan_pol</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fromfile</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">file_ftcp</span><span class="p">))</span>
+    <span class="n">tim_chan_pol</span> <span class="o">=</span> <span class="n">tim_chan_pol</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="nb">int</span><span class="p">(</span><span class="n">tim_chan_pol</span><span class="o">.</span><span class="n">size</span> <span class="o">/</span> <span class="mi">3</span><span class="p">),</span> <span class="mi">3</span><span class="p">))</span>
+    <span class="n">file_ftcp</span><span class="o">.</span><span class="n">unlink</span><span class="p">()</span>
+    <span class="n">sync</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;times&#39;</span><span class="p">:</span> <span class="n">tim_chan_pol</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span>
+            <span class="s1">&#39;channels&#39;</span><span class="p">:</span> <span class="n">tim_chan_pol</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span>
+            <span class="s1">&#39;polarities&#39;</span><span class="p">:</span> <span class="n">tim_chan_pol</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]}</span>
+    <span class="k">if</span> <span class="n">save</span><span class="p">:</span>
+        <span class="n">out_files</span> <span class="o">=</span> <span class="n">alf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">save_object_npy</span><span class="p">(</span><span class="n">output_path</span><span class="p">,</span> <span class="n">sync</span><span class="p">,</span> <span class="s1">&#39;_spikeglx_sync&#39;</span><span class="p">,</span> <span class="n">parts</span><span class="o">=</span><span class="n">parts</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Bunch</span><span class="p">(</span><span class="n">sync</span><span class="p">),</span> <span class="n">out_files</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">Bunch</span><span class="p">(</span><span class="n">sync</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_assign_events_bpod</span><span class="p">(</span><span class="n">bpod_t</span><span class="p">,</span> <span class="n">bpod_polarities</span><span class="p">,</span> <span class="n">ignore_first_valve</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    From detected fronts on the bpod sync traces, outputs the synchronisation events</span>
+<span class="sd">    related to trial start and valve opening</span>
+<span class="sd">    :param bpod_t: numpy vector containing times of fronts</span>
+<span class="sd">    :param bpod_fronts: numpy vector containing polarity of fronts (1 rise, -1 fall)</span>
+<span class="sd">    :param ignore_first_valve (True): removes detected valve events at indices le 2</span>
+<span class="sd">    :return: numpy arrays of times t_trial_start, t_valve_open and t_iti_in</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">TRIAL_START_TTL_LEN</span> <span class="o">=</span> <span class="mf">2.33e-4</span>
+    <span class="n">ITI_TTL_LEN</span> <span class="o">=</span> <span class="mf">0.4</span>
+    <span class="c1"># make sure that there are no 2 consecutive fall or consecutive rise events</span>
+    <span class="k">assert</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">bpod_polarities</span><span class="p">))</span> <span class="o">==</span> <span class="mi">2</span><span class="p">))</span>
+    <span class="c1"># make sure that the first event is a rise</span>
+    <span class="k">assert</span><span class="p">(</span><span class="n">bpod_polarities</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="c1"># take only even time differences: ie. from rising to falling fronts</span>
+    <span class="n">dt</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">bpod_t</span><span class="p">)[::</span><span class="mi">2</span><span class="p">]</span>
+    <span class="c1"># detect start trials event assuming length is 0.23 ms except the first trial</span>
+    <span class="n">i_trial_start</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">dt</span> <span class="o">&lt;=</span> <span class="n">TRIAL_START_TTL_LEN</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">]</span>
+    <span class="n">t_trial_start</span> <span class="o">=</span> <span class="n">bpod_t</span><span class="p">[</span><span class="n">i_trial_start</span><span class="p">]</span>
+    <span class="c1"># # the first trial we detect the first falling edge to which we subtract 0.1ms</span>
+    <span class="c1"># t_trial_start[0] -= 1e-4</span>
+    <span class="c1"># the last trial is a dud and should be removed</span>
+    <span class="n">t_trial_start</span> <span class="o">=</span> <span class="n">t_trial_start</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="c1"># valve open events are between 50ms to 300 ms</span>
+    <span class="n">i_valve_open</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span><span class="n">dt</span> <span class="o">&gt;</span> <span class="n">TRIAL_START_TTL_LEN</span><span class="p">,</span>
+                                           <span class="n">dt</span> <span class="o">&lt;</span> <span class="n">ITI_TTL_LEN</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span>
+    <span class="k">if</span> <span class="n">ignore_first_valve</span><span class="p">:</span>
+        <span class="n">i_valve_open</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">i_valve_open</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">i_valve_open</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">))</span>
+    <span class="n">t_valve_open</span> <span class="o">=</span> <span class="n">bpod_t</span><span class="p">[</span><span class="n">i_valve_open</span><span class="p">]</span>
+    <span class="c1"># ITI events are above 400 ms</span>
+    <span class="n">i_iti_in</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">dt</span> <span class="o">&gt;</span> <span class="n">ITI_TTL_LEN</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span>
+    <span class="n">i_iti_in</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">i_iti_in</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">i_valve_open</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">))</span>
+    <span class="n">i_iti_in</span> <span class="o">=</span> <span class="n">bpod_t</span><span class="p">[</span><span class="n">i_iti_in</span><span class="p">]</span>
+    <span class="c1"># # some debug plots when needed</span>
+    <span class="c1"># import matplotlib.pyplot as plt</span>
+    <span class="c1"># import ibllib.plots as plots</span>
+    <span class="c1"># plt.figure()</span>
+    <span class="c1"># plots.squares(bpod_t, bpod_fronts)</span>
+    <span class="c1"># plots.vertical_lines(t_valve_open, ymin=-0.2, ymax=1.2, linewidth=0.5, color=&#39;g&#39;)</span>
+    <span class="c1"># plots.vertical_lines(t_trial_start, ymin=-0.2, ymax=1.2, linewidth=0.5, color=&#39;r&#39;)</span>
+    <span class="k">return</span> <span class="n">t_trial_start</span><span class="p">,</span> <span class="n">t_valve_open</span><span class="p">,</span> <span class="n">i_iti_in</span>
+
+
+<span class="k">def</span> <span class="nf">_rotary_encoder_positions_from_fronts</span><span class="p">(</span><span class="n">ta</span><span class="p">,</span> <span class="n">pa</span><span class="p">,</span> <span class="n">tb</span><span class="p">,</span> <span class="n">pb</span><span class="p">,</span> <span class="n">ticks</span><span class="o">=</span><span class="n">WHEEL_TICKS</span><span class="p">,</span> <span class="n">radius</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                                          <span class="n">coding</span><span class="o">=</span><span class="s1">&#39;x4&#39;</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Extracts the rotary encoder absolute position as function of time from fronts detected</span>
+<span class="sd">    on the 2 channels. Outputs in units of radius parameters, by default radians</span>
+<span class="sd">    Coding options detailed here: http://www.ni.com/tutorial/7109/pt/</span>
+<span class="sd">    Here output is clockwise from subject perspective</span>
+
+<span class="sd">    :param ta: time of fronts on channel A</span>
+<span class="sd">    :param pa: polarity of fronts on channel A</span>
+<span class="sd">    :param tb: time of fronts on channel B</span>
+<span class="sd">    :param pb: polarity of fronts on channel B</span>
+<span class="sd">    :param ticks: number of ticks corresponding to a full revolution (1024 for IBL rotary encoder)</span>
+<span class="sd">    :param radius: radius of the wheel. Defaults to 1 for an output in radians</span>
+<span class="sd">    :param coding: x1, x2 or x4 coding (IBL default is x4)</span>
+<span class="sd">    :return: indices vector (ta) and position vector</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">coding</span> <span class="o">==</span> <span class="s1">&#39;x1&#39;</span><span class="p">:</span>
+        <span class="n">ia</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">searchsorted</span><span class="p">(</span><span class="n">tb</span><span class="p">,</span> <span class="n">ta</span><span class="p">[</span><span class="n">pa</span> <span class="o">==</span> <span class="mi">1</span><span class="p">])</span>
+        <span class="n">ia</span> <span class="o">=</span> <span class="n">ia</span><span class="p">[</span><span class="n">ia</span> <span class="o">&lt;</span> <span class="n">ta</span><span class="o">.</span><span class="n">size</span><span class="p">]</span>
+        <span class="n">ia</span> <span class="o">=</span> <span class="n">ia</span><span class="p">[</span><span class="n">pa</span><span class="p">[</span><span class="n">ia</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="n">ib</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">searchsorted</span><span class="p">(</span><span class="n">ta</span><span class="p">,</span> <span class="n">tb</span><span class="p">[</span><span class="n">pb</span> <span class="o">==</span> <span class="mi">1</span><span class="p">])</span>
+        <span class="n">ib</span> <span class="o">=</span> <span class="n">ib</span><span class="p">[</span><span class="n">ib</span> <span class="o">&lt;</span> <span class="n">tb</span><span class="o">.</span><span class="n">size</span><span class="p">]</span>
+        <span class="n">ib</span> <span class="o">=</span> <span class="n">ib</span><span class="p">[</span><span class="n">pb</span><span class="p">[</span><span class="n">ib</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="n">ta</span><span class="p">[</span><span class="n">ia</span><span class="p">],</span> <span class="n">tb</span><span class="p">[</span><span class="n">ib</span><span class="p">]]</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="n">ia</span> <span class="o">*</span> <span class="mi">0</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">ib</span> <span class="o">*</span> <span class="mi">0</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="n">ordre</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="n">t</span><span class="p">[</span><span class="n">ordre</span><span class="p">]</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">p</span><span class="p">[</span><span class="n">ordre</span><span class="p">]</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="o">/</span> <span class="n">ticks</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">radius</span>
+        <span class="k">return</span> <span class="n">t</span><span class="p">,</span> <span class="n">p</span>
+    <span class="k">elif</span> <span class="n">coding</span> <span class="o">==</span> <span class="s1">&#39;x2&#39;</span><span class="p">:</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">pb</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">searchsorted</span><span class="p">(</span><span class="n">tb</span><span class="p">,</span> <span class="n">ta</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">pa</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="o">/</span> <span class="n">ticks</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">radius</span> <span class="o">/</span> <span class="mi">2</span>
+        <span class="k">return</span> <span class="n">ta</span><span class="p">,</span> <span class="n">p</span>
+    <span class="k">elif</span> <span class="n">coding</span> <span class="o">==</span> <span class="s1">&#39;x4&#39;</span><span class="p">:</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="n">pb</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">searchsorted</span><span class="p">(</span><span class="n">tb</span><span class="p">,</span> <span class="n">ta</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">pa</span><span class="p">,</span> <span class="o">-</span><span class="n">pa</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">searchsorted</span><span class="p">(</span><span class="n">ta</span><span class="p">,</span> <span class="n">tb</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">pb</span><span class="p">]</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="n">ta</span><span class="p">,</span> <span class="n">tb</span><span class="p">]</span>
+        <span class="n">ordre</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="n">t</span><span class="p">[</span><span class="n">ordre</span><span class="p">]</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">p</span><span class="p">[</span><span class="n">ordre</span><span class="p">]</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="o">/</span> <span class="n">ticks</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">radius</span> <span class="o">/</span> <span class="mi">4</span>
+        <span class="k">return</span> <span class="n">t</span><span class="p">,</span> <span class="n">p</span>
+
+
+<span class="k">def</span> <span class="nf">_assign_events_audio</span><span class="p">(</span><span class="n">audio_t</span><span class="p">,</span> <span class="n">audio_polarities</span><span class="p">,</span> <span class="n">return_indices</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    From detected fronts on the audio sync traces, outputs the synchronisation events</span>
+<span class="sd">    related to tone in</span>
+
+<span class="sd">    :param audio_t: numpy vector containing times of fronts</span>
+<span class="sd">    :param audio_fronts: numpy vector containing polarity of fronts (1 rise, -1 fall)</span>
+<span class="sd">    :param return_indices (False): returns indices of tones</span>
+<span class="sd">    :return: numpy arrays t_ready_tone_in, t_error_tone_in</span>
+<span class="sd">    :return: numpy arrays ind_ready_tone_in, ind_error_tone_in if return_indices=True</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># make sure that there are no 2 consecutive fall or consecutive rise events</span>
+    <span class="k">assert</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">audio_polarities</span><span class="p">))</span> <span class="o">==</span> <span class="mi">2</span><span class="p">))</span>
+    <span class="c1"># take only even time differences: ie. from rising to falling fronts</span>
+    <span class="n">dt</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">audio_t</span><span class="p">)[::</span><span class="mi">2</span><span class="p">]</span>
+    <span class="c1"># detect ready tone by length below 110 ms</span>
+    <span class="n">i_ready_tone_in</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">dt</span> <span class="o">&lt;=</span> <span class="mf">0.11</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">]</span>
+    <span class="n">t_ready_tone_in</span> <span class="o">=</span> <span class="n">audio_t</span><span class="p">[</span><span class="n">i_ready_tone_in</span><span class="p">]</span>
+    <span class="c1"># error tones are events lasting from 400ms to 600ms</span>
+    <span class="n">i_error_tone_in</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span><span class="mf">0.4</span> <span class="o">&lt;</span> <span class="n">dt</span><span class="p">,</span> <span class="n">dt</span> <span class="o">&lt;</span> <span class="mf">1.2</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span>
+    <span class="n">t_error_tone_in</span> <span class="o">=</span> <span class="n">audio_t</span><span class="p">[</span><span class="n">i_error_tone_in</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">return_indices</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">t_ready_tone_in</span><span class="p">,</span> <span class="n">t_error_tone_in</span><span class="p">,</span> <span class="n">i_ready_tone_in</span><span class="p">,</span> <span class="n">i_error_tone_in</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">t_ready_tone_in</span><span class="p">,</span> <span class="n">t_error_tone_in</span>
+
+
+<span class="k">def</span> <span class="nf">_frame2ttl_events_extraction</span><span class="p">(</span><span class="n">f2ttl_t</span><span class="p">,</span> <span class="n">f2ttl_fronts</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+
+<span class="k">def</span> <span class="nf">_assign_events_to_trial</span><span class="p">(</span><span class="n">t_trial_start</span><span class="p">,</span> <span class="n">t_event</span><span class="p">,</span> <span class="n">take</span><span class="o">=</span><span class="s1">&#39;last&#39;</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Assign events to a trial given trial start times and event times.</span>
+
+<span class="sd">    Trials without an event</span>
+<span class="sd">    result in nan value in output time vector.</span>
+<span class="sd">    The output has a consistent size with t_trial_start and ready to output to alf.</span>
+
+<span class="sd">    :param t_trial_start: numpy vector of trial start times</span>
+<span class="sd">    :param t_event: numpy vector of event times to assign to trials</span>
+<span class="sd">    :param take: &#39;last&#39; or &#39;first&#39; (optional, default &#39;last&#39;): index to take in case of duplicates</span>
+<span class="sd">    :return: numpy array of event times with the same shape of trial start.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># make sure the events are sorted</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">assert</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">t_trial_start</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">))</span>
+    <span class="k">except</span> <span class="ne">AssertionError</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Trial starts vector not sorted&#39;</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">assert</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">t_event</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">))</span>
+    <span class="k">except</span> <span class="ne">AssertionError</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Events vector is not sorted&#39;</span><span class="p">)</span>
+    <span class="c1"># remove events that happened before the first trial start</span>
+    <span class="n">t_event</span> <span class="o">=</span> <span class="n">t_event</span><span class="p">[</span><span class="n">t_event</span> <span class="o">&gt;=</span> <span class="n">t_trial_start</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+    <span class="n">ind</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">searchsorted</span><span class="p">(</span><span class="n">t_trial_start</span><span class="p">,</span> <span class="n">t_event</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+    <span class="n">t_event_nans</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">t_trial_start</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+    <span class="c1"># select first or last element matching each trial start</span>
+    <span class="k">if</span> <span class="n">take</span> <span class="o">==</span> <span class="s1">&#39;last&#39;</span><span class="p">:</span>
+        <span class="n">iall</span><span class="p">,</span> <span class="n">iu</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">flip</span><span class="p">(</span><span class="n">ind</span><span class="p">),</span> <span class="n">return_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">t_event_nans</span><span class="p">[</span><span class="n">iall</span><span class="p">]</span> <span class="o">=</span> <span class="n">t_event</span><span class="p">[</span><span class="o">-</span> <span class="p">(</span><span class="n">iu</span> <span class="o">-</span> <span class="n">ind</span><span class="o">.</span><span class="n">size</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)]</span>
+    <span class="k">elif</span> <span class="n">take</span> <span class="o">==</span> <span class="s1">&#39;first&#39;</span><span class="p">:</span>
+        <span class="n">iall</span><span class="p">,</span> <span class="n">iu</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">ind</span><span class="p">,</span> <span class="n">return_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">t_event_nans</span><span class="p">[</span><span class="n">iall</span><span class="p">]</span> <span class="o">=</span> <span class="n">t_event</span><span class="p">[</span><span class="n">iu</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">t_event_nans</span>
+
+
+<span class="k">def</span> <span class="nf">_get_sync_fronts</span><span class="p">(</span><span class="n">sync</span><span class="p">,</span> <span class="n">channel_nb</span><span class="p">,</span> <span class="n">tmin</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">tmax</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="n">selection</span> <span class="o">=</span> <span class="n">sync</span><span class="p">[</span><span class="s1">&#39;channels&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">channel_nb</span>
+    <span class="n">selection</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span><span class="n">selection</span><span class="p">,</span> <span class="n">sync</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">tmax</span><span class="p">)</span> <span class="k">if</span> <span class="n">tmax</span> <span class="k">else</span> <span class="n">selection</span>
+    <span class="n">selection</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span><span class="n">selection</span><span class="p">,</span> <span class="n">sync</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">tmin</span><span class="p">)</span> <span class="k">if</span> <span class="n">tmin</span> <span class="k">else</span> <span class="n">selection</span>
+    <span class="k">return</span> <span class="n">Bunch</span><span class="p">({</span><span class="s1">&#39;times&#39;</span><span class="p">:</span> <span class="n">sync</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">][</span><span class="n">selection</span><span class="p">],</span>
+                  <span class="s1">&#39;polarities&#39;</span><span class="p">:</span> <span class="n">sync</span><span class="p">[</span><span class="s1">&#39;polarities&#39;</span><span class="p">][</span><span class="n">selection</span><span class="p">]})</span>
+
+
+<div class="viewcode-block" id="bpod_fpga_sync"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.ephys_fpga.html#ibllib.io.extractors.ephys_fpga.bpod_fpga_sync">[docs]</a><span class="k">def</span> <span class="nf">bpod_fpga_sync</span><span class="p">(</span><span class="n">bpod_intervals</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ephys_intervals</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">iti_duration</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Computes synchronization function from bpod to fpga</span>
+<span class="sd">    :param bpod_intervals</span>
+<span class="sd">    :param ephys_intervals</span>
+<span class="sd">    :return: interpolation function</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">iti_duration</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">iti_duration</span> <span class="o">=</span> <span class="mf">0.5</span>
+    <span class="c1"># check consistency</span>
+    <span class="k">if</span> <span class="n">bpod_intervals</span><span class="o">.</span><span class="n">size</span> <span class="o">!=</span> <span class="n">ephys_intervals</span><span class="o">.</span><span class="n">size</span><span class="p">:</span>
+        <span class="c1"># patching things up if the bpod and FPGA don&#39;t have the same recording span</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;BPOD/FPGA synchronization: Bpod and FPGA don&#39;t have the same amount of&quot;</span>
+                        <span class="s2">&quot; trial start events. Patching alf files.&quot;</span><span class="p">)</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">ibpod</span><span class="p">,</span> <span class="n">ifpga</span> <span class="o">=</span> <span class="n">raw_data_loaders</span><span class="o">.</span><span class="n">sync_trials_robust</span><span class="p">(</span>
+            <span class="n">bpod_intervals</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">ephys_intervals</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">return_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">ibpod</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">err</span><span class="o">.</span><span class="n">SyncBpodFpgaException</span><span class="p">(</span><span class="s1">&#39;Can not sync BPOD and FPGA - no matching sync pulses &#39;</span>
+                                            <span class="s1">&#39;found.&#39;</span><span class="p">)</span>
+        <span class="n">bpod_intervals</span> <span class="o">=</span> <span class="n">bpod_intervals</span><span class="p">[</span><span class="n">ibpod</span><span class="p">,</span> <span class="p">:]</span>
+        <span class="n">ephys_intervals</span> <span class="o">=</span> <span class="n">ephys_intervals</span><span class="p">[</span><span class="n">ifpga</span><span class="p">,</span> <span class="p">:]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">ibpod</span><span class="p">,</span> <span class="n">ifpga</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">bpod_intervals</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">2</span><span class="p">)]</span>
+    <span class="n">tlen</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">bpod_intervals</span><span class="p">)</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">ephys_intervals</span><span class="p">))[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">iti_duration</span>
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">tlen</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">invert</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">tlen</span><span class="p">))])[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">5</span> <span class="o">*</span> <span class="mf">1e-3</span><span class="p">)</span>
+    <span class="c1"># dt is the delta to apply to bpod times in order to be on the ephys clock</span>
+    <span class="n">dt</span> <span class="o">=</span> <span class="n">bpod_intervals</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">ephys_intervals</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
+    <span class="c1"># compute the clock drift bpod versus dt</span>
+    <span class="n">ppm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">polyfit</span><span class="p">(</span><span class="n">bpod_intervals</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">dt</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="mf">1e6</span>
+    <span class="k">if</span> <span class="n">ppm</span> <span class="o">&gt;</span> <span class="n">BPOD_FPGA_DRIFT_THRESHOLD_PPM</span><span class="p">:</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+            <span class="s1">&#39;BPOD/FPGA synchronization shows values greater than </span><span class="si">%i</span><span class="s1"> ppm&#39;</span><span class="p">,</span>
+            <span class="n">BPOD_FPGA_DRIFT_THRESHOLD_PPM</span><span class="p">)</span>
+        <span class="c1"># plt.plot(trials[&#39;intervals&#39;][:, 0], dt, &#39;*&#39;)</span>
+    <span class="c1"># so far 2 datasets concerned: goCueTrigger_times_bpod  and response_times_bpod</span>
+    <span class="n">fcn_bpod2fpga</span> <span class="o">=</span> <span class="n">interpolate</span><span class="o">.</span><span class="n">interp1d</span><span class="p">(</span><span class="n">bpod_intervals</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">ephys_intervals</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span>
+                                         <span class="n">fill_value</span><span class="o">=</span><span class="s2">&quot;extrapolate&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">ibpod</span><span class="p">,</span> <span class="n">ifpga</span><span class="p">,</span> <span class="n">fcn_bpod2fpga</span></div>
+
+
+<div class="viewcode-block" id="extract_camera_sync"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.ephys_fpga.html#ibllib.io.extractors.ephys_fpga.extract_camera_sync">[docs]</a><span class="k">def</span> <span class="nf">extract_camera_sync</span><span class="p">(</span><span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Extract camera timestamps from the sync matrix</span>
+
+<span class="sd">    :param sync: dictionary &#39;times&#39;, &#39;polarities&#39; of fronts detected on sync trace</span>
+<span class="sd">    :param chmap: dictionary containing channel indices. Default to constant.</span>
+<span class="sd">    :return: dictionary containing camera timestamps</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># NB: should we check we opencv the expected number of frames ?</span>
+    <span class="k">assert</span><span class="p">(</span><span class="n">chmap</span><span class="p">)</span>
+    <span class="n">sr</span> <span class="o">=</span> <span class="n">_get_sync_fronts</span><span class="p">(</span><span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span><span class="p">[</span><span class="s1">&#39;right_camera&#39;</span><span class="p">])</span>
+    <span class="n">sl</span> <span class="o">=</span> <span class="n">_get_sync_fronts</span><span class="p">(</span><span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span><span class="p">[</span><span class="s1">&#39;left_camera&#39;</span><span class="p">])</span>
+    <span class="n">sb</span> <span class="o">=</span> <span class="n">_get_sync_fronts</span><span class="p">(</span><span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span><span class="p">[</span><span class="s1">&#39;body_camera&#39;</span><span class="p">])</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;right_camera&#39;</span><span class="p">:</span> <span class="n">sr</span><span class="o">.</span><span class="n">times</span><span class="p">[::</span><span class="mi">2</span><span class="p">],</span>
+            <span class="s1">&#39;left_camera&#39;</span><span class="p">:</span> <span class="n">sl</span><span class="o">.</span><span class="n">times</span><span class="p">[::</span><span class="mi">2</span><span class="p">],</span>
+            <span class="s1">&#39;body_camera&#39;</span><span class="p">:</span> <span class="n">sb</span><span class="o">.</span><span class="n">times</span><span class="p">[::</span><span class="mi">2</span><span class="p">]}</span></div>
+
+
+<div class="viewcode-block" id="extract_wheel_sync"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.ephys_fpga.html#ibllib.io.extractors.ephys_fpga.extract_wheel_sync">[docs]</a><span class="k">def</span> <span class="nf">extract_wheel_sync</span><span class="p">(</span><span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Extract wheel positions and times from sync fronts dictionary for all 16 chans</span>
+<span class="sd">    Output position is in radians, mathematical convention</span>
+<span class="sd">    :param sync: dictionary &#39;times&#39;, &#39;polarities&#39; of fronts detected on sync trace</span>
+<span class="sd">    :param chmap: dictionary containing channel indices. Default to constant.</span>
+<span class="sd">        chmap = {&#39;rotary_encoder_0&#39;: 13, &#39;rotary_encoder_1&#39;: 14}</span>
+<span class="sd">    :return: timestamps (np.array)</span>
+<span class="sd">    :return: positions (np.array)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">wheel</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">channela</span> <span class="o">=</span> <span class="n">_get_sync_fronts</span><span class="p">(</span><span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span><span class="p">[</span><span class="s1">&#39;rotary_encoder_0&#39;</span><span class="p">])</span>
+    <span class="n">channelb</span> <span class="o">=</span> <span class="n">_get_sync_fronts</span><span class="p">(</span><span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span><span class="p">[</span><span class="s1">&#39;rotary_encoder_1&#39;</span><span class="p">])</span>
+    <span class="n">wheel</span><span class="p">[</span><span class="s1">&#39;re_ts&#39;</span><span class="p">],</span> <span class="n">wheel</span><span class="p">[</span><span class="s1">&#39;re_pos&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">_rotary_encoder_positions_from_fronts</span><span class="p">(</span>
+        <span class="n">channela</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">],</span> <span class="n">channela</span><span class="p">[</span><span class="s1">&#39;polarities&#39;</span><span class="p">],</span> <span class="n">channelb</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">],</span> <span class="n">channelb</span><span class="p">[</span><span class="s1">&#39;polarities&#39;</span><span class="p">],</span>
+        <span class="n">ticks</span><span class="o">=</span><span class="n">WHEEL_TICKS</span><span class="p">,</span> <span class="n">radius</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">coding</span><span class="o">=</span><span class="s1">&#39;x4&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">wheel</span><span class="p">[</span><span class="s1">&#39;re_ts&#39;</span><span class="p">],</span> <span class="n">wheel</span><span class="p">[</span><span class="s1">&#39;re_pos&#39;</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="extract_behaviour_sync"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.ephys_fpga.html#ibllib.io.extractors.ephys_fpga.extract_behaviour_sync">[docs]</a><span class="k">def</span> <span class="nf">extract_behaviour_sync</span><span class="p">(</span><span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">display</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">tmax</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Extract wheel positions and times from sync fronts dictionary</span>
+
+<span class="sd">    :param sync: dictionary &#39;times&#39;, &#39;polarities&#39; of fronts detected on sync trace for all 16 chans</span>
+<span class="sd">    :param chmap: dictionary containing channel index. Default to constant.</span>
+<span class="sd">        chmap = {&#39;bpod&#39;: 7, &#39;frame2ttl&#39;: 12, &#39;audio&#39;: 15}</span>
+<span class="sd">    :param display: bool or matplotlib axes: show the full session sync pulses display</span>
+<span class="sd">    defaults to False</span>
+<span class="sd">    :return: trials dictionary</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">bpod</span> <span class="o">=</span> <span class="n">_get_sync_fronts</span><span class="p">(</span><span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span><span class="p">[</span><span class="s1">&#39;bpod&#39;</span><span class="p">],</span> <span class="n">tmax</span><span class="o">=</span><span class="n">tmax</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">bpod</span><span class="o">.</span><span class="n">times</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">err</span><span class="o">.</span><span class="n">SyncBpodFpgaException</span><span class="p">(</span><span class="s1">&#39;No Bpod event found in FPGA. No behaviour extraction. &#39;</span>
+                                        <span class="s1">&#39;Check channel maps.&#39;</span><span class="p">)</span>
+    <span class="n">frame2ttl</span> <span class="o">=</span> <span class="n">_get_sync_fronts</span><span class="p">(</span><span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span><span class="p">[</span><span class="s1">&#39;frame2ttl&#39;</span><span class="p">],</span> <span class="n">tmax</span><span class="o">=</span><span class="n">tmax</span><span class="p">)</span>
+    <span class="n">audio</span> <span class="o">=</span> <span class="n">_get_sync_fronts</span><span class="p">(</span><span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span><span class="p">[</span><span class="s1">&#39;audio&#39;</span><span class="p">],</span> <span class="n">tmax</span><span class="o">=</span><span class="n">tmax</span><span class="p">)</span>
+    <span class="c1"># extract events from the fronts for each trace</span>
+    <span class="n">t_trial_start</span><span class="p">,</span> <span class="n">t_valve_open</span><span class="p">,</span> <span class="n">t_iti_in</span> <span class="o">=</span> <span class="n">_assign_events_bpod</span><span class="p">(</span>
+        <span class="n">bpod</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">],</span> <span class="n">bpod</span><span class="p">[</span><span class="s1">&#39;polarities&#39;</span><span class="p">])</span>
+    <span class="n">t_ready_tone_in</span><span class="p">,</span> <span class="n">t_error_tone_in</span> <span class="o">=</span> <span class="n">_assign_events_audio</span><span class="p">(</span>
+        <span class="n">audio</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">],</span> <span class="n">audio</span><span class="p">[</span><span class="s1">&#39;polarities&#39;</span><span class="p">])</span>
+    <span class="c1"># stim off time is the first frame2ttl rise/fall after the trial start</span>
+    <span class="c1"># does not apply for 1st trial</span>
+    <span class="n">ind</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">searchsorted</span><span class="p">(</span><span class="n">frame2ttl</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">],</span> <span class="n">t_iti_in</span><span class="p">,</span> <span class="n">side</span><span class="o">=</span><span class="s1">&#39;left&#39;</span><span class="p">)</span>
+    <span class="n">t_stim_off</span> <span class="o">=</span> <span class="n">frame2ttl</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">][</span><span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">ind</span><span class="p">,</span> <span class="n">frame2ttl</span><span class="o">.</span><span class="n">times</span><span class="o">.</span><span class="n">size</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)]</span>
+    <span class="n">t_stim_freeze</span> <span class="o">=</span> <span class="n">frame2ttl</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">][</span><span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">ind</span><span class="p">,</span> <span class="n">frame2ttl</span><span class="o">.</span><span class="n">times</span><span class="o">.</span><span class="n">size</span> <span class="o">-</span> <span class="mi">2</span><span class="p">)]</span>
+    <span class="c1"># t_stim_freeze = frame2ttl[&#39;times&#39;][np.maximum(ind - 1, 0)]</span>
+    <span class="c1"># stimOn_times: first fram2ttl change after trial start</span>
+    <span class="n">trials</span> <span class="o">=</span> <span class="n">Bunch</span><span class="p">({</span>
+        <span class="s1">&#39;goCue_times&#39;</span><span class="p">:</span> <span class="n">_assign_events_to_trial</span><span class="p">(</span><span class="n">t_trial_start</span><span class="p">,</span> <span class="n">t_ready_tone_in</span><span class="p">,</span> <span class="n">take</span><span class="o">=</span><span class="s1">&#39;first&#39;</span><span class="p">),</span>
+        <span class="s1">&#39;errorCue_times&#39;</span><span class="p">:</span> <span class="n">_assign_events_to_trial</span><span class="p">(</span><span class="n">t_trial_start</span><span class="p">,</span> <span class="n">t_error_tone_in</span><span class="p">),</span>
+        <span class="s1">&#39;valveOpen_times&#39;</span><span class="p">:</span> <span class="n">_assign_events_to_trial</span><span class="p">(</span><span class="n">t_trial_start</span><span class="p">,</span> <span class="n">t_valve_open</span><span class="p">),</span>
+        <span class="s1">&#39;stimFreeze_times&#39;</span><span class="p">:</span> <span class="n">_assign_events_to_trial</span><span class="p">(</span><span class="n">t_trial_start</span><span class="p">,</span> <span class="n">t_stim_freeze</span><span class="p">),</span>
+        <span class="s1">&#39;stimOn_times&#39;</span><span class="p">:</span> <span class="n">_assign_events_to_trial</span><span class="p">(</span><span class="n">t_trial_start</span><span class="p">,</span> <span class="n">frame2ttl</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">],</span> <span class="n">take</span><span class="o">=</span><span class="s1">&#39;first&#39;</span><span class="p">),</span>
+        <span class="s1">&#39;stimOff_times&#39;</span><span class="p">:</span> <span class="n">_assign_events_to_trial</span><span class="p">(</span><span class="n">t_trial_start</span><span class="p">,</span> <span class="n">t_stim_off</span><span class="p">),</span>
+        <span class="s1">&#39;itiIn_times&#39;</span><span class="p">:</span> <span class="n">_assign_events_to_trial</span><span class="p">(</span><span class="n">t_trial_start</span><span class="p">,</span> <span class="n">t_iti_in</span><span class="p">)</span>
+    <span class="p">})</span>
+    <span class="c1"># feedback times are valve open on good trials and error tone in on error trials</span>
+    <span class="n">trials</span><span class="p">[</span><span class="s1">&#39;feedback_times&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">trials</span><span class="p">[</span><span class="s1">&#39;valveOpen_times&#39;</span><span class="p">])</span>
+    <span class="n">ind_err</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">trials</span><span class="p">[</span><span class="s1">&#39;valveOpen_times&#39;</span><span class="p">])</span>
+    <span class="n">trials</span><span class="p">[</span><span class="s1">&#39;feedback_times&#39;</span><span class="p">][</span><span class="n">ind_err</span><span class="p">]</span> <span class="o">=</span> <span class="n">trials</span><span class="p">[</span><span class="s1">&#39;errorCue_times&#39;</span><span class="p">][</span><span class="n">ind_err</span><span class="p">]</span>
+    <span class="n">trials</span><span class="p">[</span><span class="s1">&#39;intervals&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">c_</span><span class="p">[</span><span class="n">t_trial_start</span><span class="p">,</span> <span class="n">trials</span><span class="p">[</span><span class="s1">&#39;itiIn_times&#39;</span><span class="p">]]</span>
+
+    <span class="k">if</span> <span class="n">display</span><span class="p">:</span>
+        <span class="n">width</span> <span class="o">=</span> <span class="mf">0.5</span>
+        <span class="n">ymax</span> <span class="o">=</span> <span class="mi">5</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">display</span><span class="p">,</span> <span class="nb">bool</span><span class="p">):</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="s2">&quot;Ephys FPGA Sync&quot;</span><span class="p">)</span>
+            <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">gca</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">ax</span> <span class="o">=</span> <span class="n">display</span>
+        <span class="n">r0</span> <span class="o">=</span> <span class="n">_get_sync_fronts</span><span class="p">(</span><span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span><span class="p">[</span><span class="s1">&#39;rotary_encoder_0&#39;</span><span class="p">])</span>
+        <span class="n">plots</span><span class="o">.</span><span class="n">squares</span><span class="p">(</span><span class="n">bpod</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">],</span> <span class="n">bpod</span><span class="p">[</span><span class="s1">&#39;polarities&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="mf">0.4</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">)</span>
+        <span class="n">plots</span><span class="o">.</span><span class="n">squares</span><span class="p">(</span><span class="n">frame2ttl</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">],</span> <span class="n">frame2ttl</span><span class="p">[</span><span class="s1">&#39;polarities&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="mf">0.4</span> <span class="o">+</span> <span class="mi">2</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">)</span>
+        <span class="n">plots</span><span class="o">.</span><span class="n">squares</span><span class="p">(</span><span class="n">audio</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">],</span> <span class="n">audio</span><span class="p">[</span><span class="s1">&#39;polarities&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="mf">0.4</span> <span class="o">+</span> <span class="mi">3</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">)</span>
+        <span class="n">plots</span><span class="o">.</span><span class="n">squares</span><span class="p">(</span><span class="n">r0</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">],</span> <span class="n">r0</span><span class="p">[</span><span class="s1">&#39;polarities&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="mf">0.4</span> <span class="o">+</span> <span class="mi">4</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">)</span>
+        <span class="n">plots</span><span class="o">.</span><span class="n">vertical_lines</span><span class="p">(</span><span class="n">t_ready_tone_in</span><span class="p">,</span> <span class="n">ymin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">ymax</span><span class="o">=</span><span class="n">ymax</span><span class="p">,</span>
+                             <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;goCue_times&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;b&#39;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="n">width</span><span class="p">)</span>
+        <span class="n">plots</span><span class="o">.</span><span class="n">vertical_lines</span><span class="p">(</span><span class="n">t_trial_start</span><span class="p">,</span> <span class="n">ymin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">ymax</span><span class="o">=</span><span class="n">ymax</span><span class="p">,</span>
+                             <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;start_trial&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;m&#39;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="n">width</span><span class="p">)</span>
+        <span class="n">plots</span><span class="o">.</span><span class="n">vertical_lines</span><span class="p">(</span><span class="n">t_error_tone_in</span><span class="p">,</span> <span class="n">ymin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">ymax</span><span class="o">=</span><span class="n">ymax</span><span class="p">,</span>
+                             <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;error tone&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="n">width</span><span class="p">)</span>
+        <span class="n">plots</span><span class="o">.</span><span class="n">vertical_lines</span><span class="p">(</span><span class="n">t_valve_open</span><span class="p">,</span> <span class="n">ymin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">ymax</span><span class="o">=</span><span class="n">ymax</span><span class="p">,</span>
+                             <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;valveOpen_times&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;g&#39;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="n">width</span><span class="p">)</span>
+        <span class="n">plots</span><span class="o">.</span><span class="n">vertical_lines</span><span class="p">(</span><span class="n">t_stim_freeze</span><span class="p">,</span> <span class="n">ymin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">ymax</span><span class="o">=</span><span class="n">ymax</span><span class="p">,</span>
+                             <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;stimFreeze_times&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="n">width</span><span class="p">)</span>
+        <span class="n">plots</span><span class="o">.</span><span class="n">vertical_lines</span><span class="p">(</span><span class="n">t_stim_off</span><span class="p">,</span> <span class="n">ymin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">ymax</span><span class="o">=</span><span class="n">ymax</span><span class="p">,</span>
+                             <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;stim off&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;c&#39;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="n">width</span><span class="p">)</span>
+        <span class="n">plots</span><span class="o">.</span><span class="n">vertical_lines</span><span class="p">(</span><span class="n">trials</span><span class="p">[</span><span class="s1">&#39;stimOn_times&#39;</span><span class="p">],</span> <span class="n">ymin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">ymax</span><span class="o">=</span><span class="n">ymax</span><span class="p">,</span>
+                             <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;stimOn_times&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;tab:orange&#39;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="n">width</span><span class="p">)</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="n">_get_sync_fronts</span><span class="p">(</span><span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span><span class="p">[</span><span class="s1">&#39;left_camera&#39;</span><span class="p">])</span>
+        <span class="n">plots</span><span class="o">.</span><span class="n">squares</span><span class="p">(</span><span class="n">c</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">],</span> <span class="n">c</span><span class="p">[</span><span class="s1">&#39;polarities&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="mf">0.4</span> <span class="o">+</span> <span class="mi">5</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">)</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="n">_get_sync_fronts</span><span class="p">(</span><span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span><span class="p">[</span><span class="s1">&#39;right_camera&#39;</span><span class="p">])</span>
+        <span class="n">plots</span><span class="o">.</span><span class="n">squares</span><span class="p">(</span><span class="n">c</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">],</span> <span class="n">c</span><span class="p">[</span><span class="s1">&#39;polarities&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="mf">0.4</span> <span class="o">+</span> <span class="mi">6</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">)</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="n">_get_sync_fronts</span><span class="p">(</span><span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span><span class="p">[</span><span class="s1">&#39;body_camera&#39;</span><span class="p">])</span>
+        <span class="n">plots</span><span class="o">.</span><span class="n">squares</span><span class="p">(</span><span class="n">c</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">],</span> <span class="n">c</span><span class="p">[</span><span class="s1">&#39;polarities&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="mf">0.4</span> <span class="o">+</span> <span class="mi">7</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_yticklabels</span><span class="p">([</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;bpod&#39;</span><span class="p">,</span> <span class="s1">&#39;f2ttl&#39;</span><span class="p">,</span> <span class="s1">&#39;audio&#39;</span><span class="p">,</span> <span class="s1">&#39;re_0&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">])</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_yticks</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">])</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">5</span><span class="p">])</span>
+
+    <span class="k">return</span> <span class="n">trials</span></div>
+
+
+<div class="viewcode-block" id="extract_sync"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.ephys_fpga.html#ibllib.io.extractors.ephys_fpga.extract_sync">[docs]</a><span class="k">def</span> <span class="nf">extract_sync</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">ephys_files</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Reads ephys binary file (s) and extract sync within the binary file folder</span>
+<span class="sd">    Assumes ephys data is within a `raw_ephys_data` folder</span>
+
+<span class="sd">    :param session_path: &#39;/path/to/subject/yyyy-mm-dd/001&#39;</span>
+<span class="sd">    :param overwrite: Bool on re-extraction, forces overwrite instead of loading existing files</span>
+<span class="sd">    :return: list of sync dictionaries</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">session_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">ephys_files</span><span class="p">:</span>
+        <span class="n">ephys_files</span> <span class="o">=</span> <span class="n">spikeglx</span><span class="o">.</span><span class="n">glob_ephys_files</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
+    <span class="n">syncs</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">outputs</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">efi</span> <span class="ow">in</span> <span class="n">ephys_files</span><span class="p">:</span>
+        <span class="n">bin_file</span> <span class="o">=</span> <span class="n">efi</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;ap&#39;</span><span class="p">,</span> <span class="n">efi</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;nidq&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">bin_file</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">alfname</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">object</span><span class="o">=</span><span class="s1">&#39;sync&#39;</span><span class="p">,</span> <span class="n">namespace</span><span class="o">=</span><span class="s1">&#39;spikeglx&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">efi</span><span class="o">.</span><span class="n">label</span><span class="p">:</span>
+            <span class="n">alfname</span><span class="p">[</span><span class="s1">&#39;extra&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">efi</span><span class="o">.</span><span class="n">label</span>
+        <span class="n">file_exists</span> <span class="o">=</span> <span class="n">alf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">bin_file</span><span class="o">.</span><span class="n">parent</span><span class="p">,</span> <span class="o">**</span><span class="n">alfname</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">overwrite</span> <span class="ow">and</span> <span class="n">file_exists</span><span class="p">:</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Skipping raw sync: SGLX sync found for probe </span><span class="si">{</span><span class="n">efi</span><span class="o">.</span><span class="n">label</span><span class="si">}</span><span class="s1"> !&#39;</span><span class="p">)</span>
+            <span class="n">sync</span> <span class="o">=</span> <span class="n">alf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="n">bin_file</span><span class="o">.</span><span class="n">parent</span><span class="p">,</span> <span class="o">**</span><span class="n">alfname</span><span class="p">)</span>
+            <span class="n">out_files</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">alf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">_ls</span><span class="p">(</span><span class="n">bin_file</span><span class="o">.</span><span class="n">parent</span><span class="p">,</span> <span class="o">**</span><span class="n">alfname</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">sr</span> <span class="o">=</span> <span class="n">spikeglx</span><span class="o">.</span><span class="n">Reader</span><span class="p">(</span><span class="n">bin_file</span><span class="p">)</span>
+            <span class="n">sync</span><span class="p">,</span> <span class="n">out_files</span> <span class="o">=</span> <span class="n">_sync_to_alf</span><span class="p">(</span><span class="n">sr</span><span class="p">,</span> <span class="n">bin_file</span><span class="o">.</span><span class="n">parent</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">parts</span><span class="o">=</span><span class="n">efi</span><span class="o">.</span><span class="n">label</span><span class="p">)</span>
+        <span class="n">outputs</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">out_files</span><span class="p">)</span>
+        <span class="n">syncs</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">sync</span><span class="p">])</span>
+
+    <span class="k">return</span> <span class="n">syncs</span><span class="p">,</span> <span class="n">outputs</span></div>
+
+
+<span class="k">def</span> <span class="nf">_get_all_probes_sync</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">bin_exists</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="c1"># round-up of all bin ephys files in the session, infer revision and get sync map</span>
+    <span class="n">ephys_files</span> <span class="o">=</span> <span class="n">spikeglx</span><span class="o">.</span><span class="n">glob_ephys_files</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">bin_exists</span><span class="o">=</span><span class="n">bin_exists</span><span class="p">)</span>
+    <span class="n">version</span> <span class="o">=</span> <span class="n">spikeglx</span><span class="o">.</span><span class="n">get_neuropixel_version_from_files</span><span class="p">(</span><span class="n">ephys_files</span><span class="p">)</span>
+    <span class="c1"># attach the sync information to each binary file found</span>
+    <span class="k">for</span> <span class="n">ef</span> <span class="ow">in</span> <span class="n">ephys_files</span><span class="p">:</span>
+        <span class="n">ef</span><span class="p">[</span><span class="s1">&#39;sync&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">alf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="n">ef</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;sync&#39;</span><span class="p">,</span> <span class="n">namespace</span><span class="o">=</span><span class="s1">&#39;spikeglx&#39;</span><span class="p">,</span> <span class="n">short_keys</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">ef</span><span class="p">[</span><span class="s1">&#39;sync_map&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">get_ibl_sync_map</span><span class="p">(</span><span class="n">ef</span><span class="p">,</span> <span class="n">version</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">ephys_files</span>
+
+
+<span class="k">def</span> <span class="nf">_get_main_probe_sync</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">bin_exists</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    From 3A or 3B multiprobe session, returns the main probe (3A) or nidq sync pulses</span>
+<span class="sd">    with the attached channel map (default chmap if none)</span>
+<span class="sd">    :param session_path:</span>
+<span class="sd">    :return:</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">ephys_files</span> <span class="o">=</span> <span class="n">_get_all_probes_sync</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">bin_exists</span><span class="o">=</span><span class="n">bin_exists</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">ephys_files</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No ephys files found in </span><span class="si">{</span><span class="n">session_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">version</span> <span class="o">=</span> <span class="n">spikeglx</span><span class="o">.</span><span class="n">get_neuropixel_version_from_files</span><span class="p">(</span><span class="n">ephys_files</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">version</span> <span class="o">==</span> <span class="s1">&#39;3A&#39;</span><span class="p">:</span>
+        <span class="c1"># the sync master is the probe with the most sync pulses</span>
+        <span class="n">sync_box_ind</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">([</span><span class="n">ef</span><span class="o">.</span><span class="n">sync</span><span class="o">.</span><span class="n">times</span><span class="o">.</span><span class="n">size</span> <span class="k">for</span> <span class="n">ef</span> <span class="ow">in</span> <span class="n">ephys_files</span><span class="p">])</span>
+    <span class="k">elif</span> <span class="n">version</span> <span class="o">==</span> <span class="s1">&#39;3B&#39;</span><span class="p">:</span>
+        <span class="c1"># the sync master is the nidq breakout box</span>
+        <span class="n">sync_box_ind</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">([</span><span class="mi">1</span> <span class="k">if</span> <span class="n">ef</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;nidq&#39;</span><span class="p">)</span> <span class="k">else</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">ef</span> <span class="ow">in</span> <span class="n">ephys_files</span><span class="p">])</span>
+
+    <span class="n">sync</span> <span class="o">=</span> <span class="n">ephys_files</span><span class="p">[</span><span class="n">sync_box_ind</span><span class="p">]</span><span class="o">.</span><span class="n">sync</span>
+    <span class="n">sync_chmap</span> <span class="o">=</span> <span class="n">ephys_files</span><span class="p">[</span><span class="n">sync_box_ind</span><span class="p">]</span><span class="o">.</span><span class="n">sync_map</span>
+    <span class="k">return</span> <span class="n">sync</span><span class="p">,</span> <span class="n">sync_chmap</span>
+
+
+<span class="k">def</span> <span class="nf">_get_pregenerated_events</span><span class="p">(</span><span class="n">bpod_trials</span><span class="p">,</span> <span class="n">settings</span><span class="p">):</span>
+    <span class="n">num</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;PRELOADED_SESSION_NUM&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">num</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">num</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;PREGENERATED_SESSION_NUM&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">num</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">fn</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;SESSION_LOADED_FILE_PATH&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
+        <span class="n">fn</span> <span class="o">=</span> <span class="n">PureWindowsPath</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span><span class="o">.</span><span class="n">name</span>
+        <span class="n">num</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">d</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">fn</span> <span class="k">if</span> <span class="n">d</span><span class="o">.</span><span class="n">isdigit</span><span class="p">()])</span>
+        <span class="k">if</span> <span class="n">num</span> <span class="o">==</span> <span class="s1">&#39;&#39;</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Can&#39;t extract left probability behaviour.&quot;</span><span class="p">)</span>
+    <span class="c1"># Load the pregenerated file</span>
+    <span class="n">ntrials</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">bpod_trials</span><span class="p">)</span>
+    <span class="n">sessions_folder</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">raw_data_loaders</span><span class="o">.</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span>
+        <span class="s2">&quot;extractors&quot;</span><span class="p">,</span> <span class="s2">&quot;ephys_sessions&quot;</span><span class="p">)</span>
+    <span class="n">fname</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;session_</span><span class="si">{</span><span class="n">num</span><span class="si">}</span><span class="s2">_ephys_pcqs.npy&quot;</span>
+    <span class="n">pcqsp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">sessions_folder</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">fname</span><span class="p">))</span>
+    <span class="n">pos</span> <span class="o">=</span> <span class="n">pcqsp</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
+    <span class="n">con</span> <span class="o">=</span> <span class="n">pcqsp</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span>
+    <span class="n">pos</span> <span class="o">=</span> <span class="n">pos</span><span class="p">[:</span> <span class="n">ntrials</span><span class="p">]</span>
+    <span class="n">con</span> <span class="o">=</span> <span class="n">con</span><span class="p">[:</span> <span class="n">ntrials</span><span class="p">]</span>
+    <span class="n">contrastRight</span> <span class="o">=</span> <span class="n">con</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">contrastLeft</span> <span class="o">=</span> <span class="n">con</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">contrastRight</span><span class="p">[</span><span class="n">pos</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+    <span class="n">contrastLeft</span><span class="p">[</span><span class="n">pos</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+    <span class="n">qui</span> <span class="o">=</span> <span class="n">pcqsp</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span>
+    <span class="n">qui</span> <span class="o">=</span> <span class="n">qui</span><span class="p">[:</span> <span class="n">ntrials</span><span class="p">]</span>
+    <span class="n">phase</span> <span class="o">=</span> <span class="n">pcqsp</span><span class="p">[:,</span> <span class="mi">3</span><span class="p">]</span>
+    <span class="n">phase</span> <span class="o">=</span> <span class="n">phase</span><span class="p">[:</span> <span class="n">ntrials</span><span class="p">]</span>
+    <span class="n">pLeft</span> <span class="o">=</span> <span class="n">pcqsp</span><span class="p">[:,</span> <span class="mi">4</span><span class="p">]</span>
+    <span class="n">pLeft</span> <span class="o">=</span> <span class="n">pLeft</span><span class="p">[:</span> <span class="n">ntrials</span><span class="p">]</span>
+
+    <span class="n">phase_path</span> <span class="o">=</span> <span class="n">sessions_folder</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;session_</span><span class="si">{</span><span class="n">num</span><span class="si">}</span><span class="s2">_stim_phase.npy&quot;</span><span class="p">)</span>
+    <span class="n">is_patched_version</span> <span class="o">=</span> <span class="n">parse_version</span><span class="p">(</span>
+        <span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span> <span class="o">&gt;</span> <span class="n">parse_version</span><span class="p">(</span><span class="s1">&#39;6.4.0&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">phase_path</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="ow">and</span> <span class="n">is_patched_version</span><span class="p">:</span>
+        <span class="n">phase</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">phase_path</span><span class="p">)[:</span><span class="n">ntrials</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;position&quot;</span><span class="p">:</span> <span class="n">pos</span><span class="p">,</span> <span class="s2">&quot;contrast&quot;</span><span class="p">:</span> <span class="n">con</span><span class="p">,</span> <span class="s2">&quot;quiescence&quot;</span><span class="p">:</span> <span class="n">qui</span><span class="p">,</span> <span class="s2">&quot;phase&quot;</span><span class="p">:</span> <span class="n">phase</span><span class="p">,</span>
+            <span class="s2">&quot;probabilityLeft&quot;</span><span class="p">:</span> <span class="n">pLeft</span><span class="p">,</span> <span class="s1">&#39;contrastRight&#39;</span><span class="p">:</span> <span class="n">contrastRight</span><span class="p">,</span> <span class="s1">&#39;contrastLeft&#39;</span><span class="p">:</span> <span class="n">contrastLeft</span><span class="p">}</span>
+
+
+<div class="viewcode-block" id="ProbaContrasts"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.ephys_fpga.html#ibllib.io.extractors.ephys_fpga.ProbaContrasts">[docs]</a><span class="k">class</span> <span class="nc">ProbaContrasts</span><span class="p">(</span><span class="n">BaseBpodTrialsExtractor</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Bpod pre-generated values for probabilityLeft, contrastLR, phase, quiescence</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">save_names</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;_ibl_trials.probabilityLeft.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;_ibl_trials.contrastLeft.npy&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;_ibl_trials.contrastRight.npy&#39;</span><span class="p">)</span>
+    <span class="n">var_names</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;probabilityLeft&#39;</span><span class="p">,</span> <span class="s1">&#39;contrastLeft&#39;</span><span class="p">,</span> <span class="s1">&#39;contrastRight&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Extracts positions, contrasts, quiescent delay, stimulus phase and probability left</span>
+<span class="sd">        from pregenerated session files.</span>
+<span class="sd">        Optional: saves alf contrastLR and probabilityLeft npy files&quot;&quot;&quot;</span>
+        <span class="n">pe</span> <span class="o">=</span> <span class="n">_get_pregenerated_events</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">pe</span><span class="p">[</span><span class="s1">&#39;probabilityLeft&#39;</span><span class="p">],</span> <span class="n">pe</span><span class="p">[</span><span class="s1">&#39;contrastLeft&#39;</span><span class="p">],</span> <span class="n">pe</span><span class="p">[</span><span class="s1">&#39;contrastRight&#39;</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="CameraTimestamps"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.ephys_fpga.html#ibllib.io.extractors.ephys_fpga.CameraTimestamps">[docs]</a><span class="k">class</span> <span class="nc">CameraTimestamps</span><span class="p">(</span><span class="n">BaseExtractor</span><span class="p">):</span>
+    <span class="n">save_names</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;_ibl_rightCamera.times.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;_ibl_leftCamera.times.npy&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;_ibl_bodyCamera.times.npy&#39;</span><span class="p">]</span>
+    <span class="n">var_names</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;right_camera_timestamps&#39;</span><span class="p">,</span> <span class="s1">&#39;left_camera_timestamps&#39;</span><span class="p">,</span> <span class="s1">&#39;body_camera_timestamps&#39;</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sync</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">chmap</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">ts</span> <span class="o">=</span> <span class="n">extract_camera_sync</span><span class="p">(</span><span class="n">sync</span><span class="o">=</span><span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span><span class="o">=</span><span class="n">chmap</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">ts</span><span class="p">[</span><span class="s1">&#39;right_camera&#39;</span><span class="p">],</span> <span class="n">ts</span><span class="p">[</span><span class="s1">&#39;left_camera&#39;</span><span class="p">],</span> <span class="n">ts</span><span class="p">[</span><span class="s1">&#39;body_camera&#39;</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="FpgaTrials"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.ephys_fpga.html#ibllib.io.extractors.ephys_fpga.FpgaTrials">[docs]</a><span class="k">class</span> <span class="nc">FpgaTrials</span><span class="p">(</span><span class="n">BaseExtractor</span><span class="p">):</span>
+    <span class="n">save_names</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;_ibl_trials.probabilityLeft.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;_ibl_trials.contrastLeft.npy&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;_ibl_trials.contrastRight.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;_ibl_trials.feedbackType.npy&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;_ibl_trials.choice.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;_ibl_trials.rewardVolume.npy&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;_ibl_trials.intervals_bpod.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;_ibl_trials.intervals.npy&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;_ibl_trials.response_times.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;_ibl_trials.goCueTrigger_times.npy&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;_ibl_trials.stimOn_times.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;_ibl_trials.stimOff_times.npy&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;_ibl_trials.goCue_times.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;_ibl_trials.feedback_times.npy&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;_ibl_trials.firstMovement_times.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;_ibl_wheel.timestamps.npy&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;_ibl_wheel.position.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;_ibl_wheelMoves.intervals.npy&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;_ibl_wheelMoves.peakAmplitude.npy&#39;</span><span class="p">)</span>
+    <span class="n">var_names</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;probabilityLeft&#39;</span><span class="p">,</span> <span class="s1">&#39;contrastLeft&#39;</span><span class="p">,</span> <span class="s1">&#39;contrastRight&#39;</span><span class="p">,</span> <span class="s1">&#39;feedbackType&#39;</span><span class="p">,</span> <span class="s1">&#39;choice&#39;</span><span class="p">,</span>
+                 <span class="s1">&#39;rewardVolume&#39;</span><span class="p">,</span> <span class="s1">&#39;intervals_bpod&#39;</span><span class="p">,</span> <span class="s1">&#39;intervals&#39;</span><span class="p">,</span> <span class="s1">&#39;response_times&#39;</span><span class="p">,</span>
+                 <span class="s1">&#39;goCueTrigger_times&#39;</span><span class="p">,</span> <span class="s1">&#39;stimOn_times&#39;</span><span class="p">,</span> <span class="s1">&#39;stimOff_times&#39;</span><span class="p">,</span> <span class="s1">&#39;goCue_times&#39;</span><span class="p">,</span>
+                 <span class="s1">&#39;feedback_times&#39;</span><span class="p">,</span> <span class="s1">&#39;firstMovement_times&#39;</span><span class="p">,</span> <span class="s1">&#39;wheel_timestamps&#39;</span><span class="p">,</span> <span class="s1">&#39;wheel_position&#39;</span><span class="p">,</span>
+                 <span class="s1">&#39;wheelMoves_intervals&#39;</span><span class="p">,</span> <span class="s1">&#39;wheelMoves_peakAmplitude&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sync</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">chmap</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="c1"># extracts trials</span>
+        <span class="c1"># extract the behaviour data from bpod</span>
+        <span class="k">if</span> <span class="n">sync</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">chmap</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">_sync</span><span class="p">,</span> <span class="n">_chmap</span> <span class="o">=</span> <span class="n">_get_main_probe_sync</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">bin_exists</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="n">sync</span> <span class="o">=</span> <span class="n">sync</span> <span class="ow">or</span> <span class="n">_sync</span>
+            <span class="n">chmap</span> <span class="o">=</span> <span class="n">chmap</span> <span class="ow">or</span> <span class="n">_chmap</span>
+        <span class="n">bpod_raw</span> <span class="o">=</span> <span class="n">raw_data_loaders</span><span class="o">.</span><span class="n">load_data</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="n">tmax</span> <span class="o">=</span> <span class="n">bpod_raw</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s1">&#39;behavior_data&#39;</span><span class="p">][</span><span class="s1">&#39;States timestamps&#39;</span><span class="p">][</span><span class="s1">&#39;exit_state&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mi">60</span>
+        <span class="n">bpod_trials</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">biased_trials</span><span class="o">.</span><span class="n">extract_all</span><span class="p">(</span>
+            <span class="n">session_path</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">bpod_trials</span><span class="o">=</span><span class="n">bpod_raw</span><span class="p">)</span>
+        <span class="n">bpod_trials</span><span class="p">[</span><span class="s1">&#39;intervals_bpod&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">bpod_trials</span><span class="p">[</span><span class="s1">&#39;intervals&#39;</span><span class="p">])</span>
+        <span class="n">fpga_trials</span> <span class="o">=</span> <span class="n">extract_behaviour_sync</span><span class="p">(</span><span class="n">sync</span><span class="o">=</span><span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span><span class="o">=</span><span class="n">chmap</span><span class="p">,</span> <span class="n">tmax</span><span class="o">=</span><span class="n">tmax</span><span class="p">)</span>
+        <span class="c1"># checks consistency and compute dt with bpod</span>
+        <span class="n">ibpod</span><span class="p">,</span> <span class="n">ifpga</span><span class="p">,</span> <span class="n">fcn_bpod2fpga</span> <span class="o">=</span> <span class="n">bpod_fpga_sync</span><span class="p">(</span>
+            <span class="n">bpod_trials</span><span class="p">[</span><span class="s1">&#39;intervals_bpod&#39;</span><span class="p">],</span> <span class="n">fpga_trials</span><span class="p">[</span><span class="s1">&#39;intervals&#39;</span><span class="p">])</span>
+        <span class="c1"># those fields get directly in the output</span>
+        <span class="n">bpod_fields</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;feedbackType&#39;</span><span class="p">,</span> <span class="s1">&#39;choice&#39;</span><span class="p">,</span> <span class="s1">&#39;rewardVolume&#39;</span><span class="p">,</span> <span class="s1">&#39;intervals_bpod&#39;</span><span class="p">]</span>
+        <span class="c1"># those fields have to be resynced</span>
+        <span class="n">bpod_rsync_fields</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;intervals&#39;</span><span class="p">,</span> <span class="s1">&#39;response_times&#39;</span><span class="p">,</span> <span class="s1">&#39;goCueTrigger_times&#39;</span><span class="p">]</span>
+        <span class="c1"># ephys fields to save in the output</span>
+        <span class="n">fpga_fields</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;stimOn_times&#39;</span><span class="p">,</span> <span class="s1">&#39;stimOff_times&#39;</span><span class="p">,</span> <span class="s1">&#39;goCue_times&#39;</span><span class="p">,</span> <span class="s1">&#39;feedback_times&#39;</span><span class="p">]</span>
+        <span class="c1"># get (&#39;probabilityLeft&#39;, &#39;contrastLeft&#39;, &#39;contrastRight&#39;) from the custom ephys extractors</span>
+        <span class="n">pclcr</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">ProbaContrasts</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span><span class="n">bpod_trials</span><span class="o">=</span><span class="n">bpod_raw</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="c1"># build trials output</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="n">pclcr</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">ifpga</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">ProbaContrasts</span><span class="o">.</span><span class="n">var_names</span><span class="p">)})</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="n">bpod_trials</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="n">ibpod</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">bpod_fields</span><span class="p">})</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="n">fcn_bpod2fpga</span><span class="p">(</span><span class="n">bpod_trials</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="n">ibpod</span><span class="p">])</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">bpod_rsync_fields</span><span class="p">})</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="n">fpga_trials</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="n">ifpga</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">fpga_fields</span><span class="p">})</span>
+
+        <span class="c1"># extract the wheel data</span>
+        <span class="kn">from</span> <span class="nn">ibllib.io.extractors.training_wheel</span> <span class="kn">import</span> <span class="n">extract_first_movement_times</span>
+        <span class="n">ts</span><span class="p">,</span> <span class="n">pos</span> <span class="o">=</span> <span class="n">extract_wheel_sync</span><span class="p">(</span><span class="n">sync</span><span class="o">=</span><span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span><span class="o">=</span><span class="n">chmap</span><span class="p">)</span>
+        <span class="n">moves</span> <span class="o">=</span> <span class="n">extract_wheel_moves</span><span class="p">(</span><span class="n">ts</span><span class="p">,</span> <span class="n">pos</span><span class="p">)</span>
+        <span class="n">settings</span> <span class="o">=</span> <span class="n">raw_data_loaders</span><span class="o">.</span><span class="n">load_settings</span><span class="p">(</span><span class="n">session_path</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="n">min_qt</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;QUIESCENT_PERIOD&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">first_move_onsets</span><span class="p">,</span> <span class="o">*</span><span class="n">_</span> <span class="o">=</span> <span class="n">extract_first_movement_times</span><span class="p">(</span><span class="n">moves</span><span class="p">,</span> <span class="n">out</span><span class="p">,</span> <span class="n">min_qt</span><span class="o">=</span><span class="n">min_qt</span><span class="p">)</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;firstMovement_times&#39;</span><span class="p">:</span> <span class="n">first_move_onsets</span><span class="p">})</span>
+
+        <span class="k">assert</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="s1">&#39;wheel&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">x</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">var_names</span><span class="p">))</span> <span class="o">==</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">out</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">out</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">out</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="n">ts</span><span class="p">,</span> <span class="n">pos</span><span class="p">,</span> <span class="n">moves</span><span class="p">[</span><span class="s1">&#39;intervals&#39;</span><span class="p">],</span> <span class="n">moves</span><span class="p">[</span><span class="s1">&#39;peakAmplitude&#39;</span><span class="p">]]</span></div>
+
+
+<div class="viewcode-block" id="extract_all"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.ephys_fpga.html#ibllib.io.extractors.ephys_fpga.extract_all">[docs]</a><span class="k">def</span> <span class="nf">extract_all</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">bin_exists</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    For the IBL ephys task, reads ephys binary file and extract:</span>
+<span class="sd">        -   sync</span>
+<span class="sd">        -   wheel</span>
+<span class="sd">        -   behaviour</span>
+<span class="sd">        -   video time stamps</span>
+<span class="sd">    :param session_path: &#39;/path/to/subject/yyyy-mm-dd/001&#39;</span>
+<span class="sd">    :param save: Bool, defaults to False</span>
+<span class="sd">    :param version: bpod version, defaults to None</span>
+<span class="sd">    :return: outputs, files</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span> <span class="o">=</span> <span class="n">_get_main_probe_sync</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">bin_exists</span><span class="o">=</span><span class="n">bin_exists</span><span class="p">)</span>
+    <span class="n">outputs</span><span class="p">,</span> <span class="n">files</span> <span class="o">=</span> <span class="n">run_extractor_classes</span><span class="p">(</span>
+        <span class="p">[</span><span class="n">CameraTimestamps</span><span class="p">,</span> <span class="n">FpgaTrials</span><span class="p">],</span> <span class="n">session_path</span><span class="o">=</span><span class="n">session_path</span><span class="p">,</span>
+        <span class="n">save</span><span class="o">=</span><span class="n">save</span><span class="p">,</span> <span class="n">sync</span><span class="o">=</span><span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span><span class="o">=</span><span class="n">chmap</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">outputs</span><span class="p">,</span> <span class="n">files</span></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        
+        &copy; Copyright 2020, International Brain Laboratory
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

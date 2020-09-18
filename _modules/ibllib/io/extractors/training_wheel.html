@@ -1,0 +1,608 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>ibllib.io.extractors.training_wheel &mdash; IBL Library  documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/copybutton.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/css/style.css" type="text/css" />
+
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
+        <script src="../../../../_static/jquery.js"></script>
+        <script src="../../../../_static/underscore.js"></script>
+        <script src="../../../../_static/doctools.js"></script>
+        <script src="../../../../_static/language_data.js"></script>
+        <script src="../../../../_static/clipboard.min.js"></script>
+        <script src="../../../../_static/copybutton.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script src="https://unpkg.com/@jupyter-widgets/html-manager@^0.18.0/dist/embed-amd.js"></script>
+    
+    <script type="text/javascript" src="../../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../../index.html" class="icon icon-home" alt="Documentation Home"> IBL Library
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../01_overview.html">IBL data structure</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../02_installation.html">Installation</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../03_one.html">ONE</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../04_datajoint.html">Datajoint</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../05_tutorials.html">Tutorials</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../06_examples.html">Examples</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../07_developers.html">API Reference</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">IBL Library</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../../../index.html">Module code</a> &raquo;</li>
+        
+      <li>ibllib.io.extractors.training_wheel</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for ibllib.io.extractors.training_wheel</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">Sized</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">interpolate</span>
+
+<span class="kn">from</span> <span class="nn">ibllib.io.extractors</span> <span class="kn">import</span> <span class="n">training_trials</span>
+<span class="kn">from</span> <span class="nn">ibllib.io.extractors.base</span> <span class="kn">import</span> <span class="n">BaseBpodTrialsExtractor</span>
+<span class="kn">import</span> <span class="nn">ibllib.io.raw_data_loaders</span> <span class="k">as</span> <span class="nn">raw</span>
+<span class="kn">from</span> <span class="nn">ibllib.misc</span> <span class="kn">import</span> <span class="n">structarr</span>
+<span class="kn">import</span> <span class="nn">ibllib.exceptions</span> <span class="k">as</span> <span class="nn">err</span>
+<span class="kn">import</span> <span class="nn">brainbox.behavior.wheel</span> <span class="k">as</span> <span class="nn">wh</span>
+
+<span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;ibllib&#39;</span><span class="p">)</span>
+<span class="n">WHEEL_RADIUS_CM</span> <span class="o">=</span> <span class="mi">1</span>  <span class="c1"># we want the output in radians</span>
+<span class="n">THRESHOLD_RAD_PER_SEC</span> <span class="o">=</span> <span class="mi">10</span>
+<span class="n">THRESHOLD_CONSECUTIVE_SAMPLES</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">EPS</span> <span class="o">=</span> <span class="mf">7.</span> <span class="o">/</span> <span class="mi">3</span> <span class="o">-</span> <span class="mf">4.</span> <span class="o">/</span> <span class="mi">3</span> <span class="o">-</span> <span class="mi">1</span>
+
+
+<div class="viewcode-block" id="get_trial_start_times"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.training_wheel.html#ibllib.io.extractors.training_wheel.get_trial_start_times">[docs]</a><span class="k">def</span> <span class="nf">get_trial_start_times</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">data</span><span class="p">:</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">raw</span><span class="o">.</span><span class="n">load_data</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
+    <span class="n">trial_start_times</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+        <span class="n">trial_start_times</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">tr</span><span class="p">[</span><span class="s1">&#39;behavior_data&#39;</span><span class="p">][</span><span class="s1">&#39;States timestamps&#39;</span><span class="p">][</span><span class="s1">&#39;trial_start&#39;</span><span class="p">]])</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">trial_start_times</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="sync_rotary_encoder"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.training_wheel.html#ibllib.io.extractors.training_wheel.sync_rotary_encoder">[docs]</a><span class="k">def</span> <span class="nf">sync_rotary_encoder</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">bpod_data</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">re_events</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">bpod_data</span><span class="p">:</span>
+        <span class="n">bpod_data</span> <span class="o">=</span> <span class="n">raw</span><span class="o">.</span><span class="n">load_data</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
+    <span class="n">evt</span> <span class="o">=</span> <span class="n">re_events</span> <span class="ow">or</span> <span class="n">raw</span><span class="o">.</span><span class="n">load_encoder_events</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
+    <span class="c1"># we work with stim_on (2) and closed_loop (3) states for the synchronization with bpod</span>
+    <span class="n">tre</span> <span class="o">=</span> <span class="n">evt</span><span class="o">.</span><span class="n">re_ts</span><span class="o">.</span><span class="n">values</span> <span class="o">/</span> <span class="mf">1e6</span>  <span class="c1"># convert to seconds</span>
+    <span class="c1"># the first trial on the rotary encoder is a dud</span>
+    <span class="n">rote</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;stim_on&#39;</span><span class="p">:</span> <span class="n">tre</span><span class="p">[</span><span class="n">evt</span><span class="o">.</span><span class="n">sm_ev</span> <span class="o">==</span> <span class="mi">2</span><span class="p">][:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span>
+            <span class="s1">&#39;closed_loop&#39;</span><span class="p">:</span> <span class="n">tre</span><span class="p">[</span><span class="n">evt</span><span class="o">.</span><span class="n">sm_ev</span> <span class="o">==</span> <span class="mi">3</span><span class="p">][:</span><span class="o">-</span><span class="mi">1</span><span class="p">]}</span>
+    <span class="n">bpod</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;stim_on&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">tr</span><span class="p">[</span><span class="s1">&#39;behavior_data&#39;</span><span class="p">][</span><span class="s1">&#39;States timestamps&#39;</span><span class="p">]</span>
+                             <span class="p">[</span><span class="s1">&#39;stim_on&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="n">bpod_data</span><span class="p">]),</span>
+        <span class="s1">&#39;closed_loop&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">tr</span><span class="p">[</span><span class="s1">&#39;behavior_data&#39;</span><span class="p">][</span><span class="s1">&#39;States timestamps&#39;</span><span class="p">]</span>
+                                 <span class="p">[</span><span class="s1">&#39;closed_loop&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="n">bpod_data</span><span class="p">]),</span>
+    <span class="p">}</span>
+    <span class="k">if</span> <span class="n">rote</span><span class="p">[</span><span class="s1">&#39;closed_loop&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">size</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">err</span><span class="o">.</span><span class="n">SyncBpodWheelException</span><span class="p">(</span><span class="s2">&quot;Not enough Rotary Encoder events to perform wheel&quot;</span>
+                                         <span class="s2">&quot; synchronization. Wheel data not extracted&quot;</span><span class="p">)</span>
+    <span class="c1"># bpod bug that spits out events in ms instead of us</span>
+    <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">bpod</span><span class="p">[</span><span class="s1">&#39;closed_loop&#39;</span><span class="p">][[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">]])[</span><span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">rote</span><span class="p">[</span><span class="s1">&#39;closed_loop&#39;</span><span class="p">][[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">]])[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">900</span><span class="p">:</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Rotary encoder stores values in ms instead of us. Wheel timing inaccurate&quot;</span><span class="p">)</span>
+        <span class="n">rote</span><span class="p">[</span><span class="s1">&#39;stim_on&#39;</span><span class="p">]</span> <span class="o">*=</span> <span class="mf">1e3</span>
+        <span class="n">rote</span><span class="p">[</span><span class="s1">&#39;closed_loop&#39;</span><span class="p">]</span> <span class="o">*=</span> <span class="mf">1e3</span>
+    <span class="c1"># just use the closed loop for synchronization</span>
+    <span class="c1"># handle different sizes in synchronization:</span>
+    <span class="n">sz</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">rote</span><span class="p">[</span><span class="s1">&#39;closed_loop&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="n">bpod</span><span class="p">[</span><span class="s1">&#39;closed_loop&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>
+    <span class="c1"># if all the sample are contiguous and first samples match</span>
+    <span class="n">diff_first_match</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">rote</span><span class="p">[</span><span class="s1">&#39;closed_loop&#39;</span><span class="p">][:</span><span class="n">sz</span><span class="p">])</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">bpod</span><span class="p">[</span><span class="s1">&#39;closed_loop&#39;</span><span class="p">][:</span><span class="n">sz</span><span class="p">])</span>
+    <span class="c1"># if all the sample are contiguous and last samples match</span>
+    <span class="n">diff_last_match</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">rote</span><span class="p">[</span><span class="s1">&#39;closed_loop&#39;</span><span class="p">][</span><span class="o">-</span><span class="n">sz</span><span class="p">:])</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">bpod</span><span class="p">[</span><span class="s1">&#39;closed_loop&#39;</span><span class="p">][</span><span class="o">-</span><span class="n">sz</span><span class="p">:])</span>
+    <span class="c1"># 99% of the pulses match for a first sample lock</span>
+    <span class="n">DIFF_THRESHOLD</span> <span class="o">=</span> <span class="mf">0.005</span>
+    <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">diff_first_match</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">DIFF_THRESHOLD</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mf">0.99</span><span class="p">:</span>
+        <span class="n">re</span> <span class="o">=</span> <span class="n">rote</span><span class="p">[</span><span class="s1">&#39;closed_loop&#39;</span><span class="p">][:</span><span class="n">sz</span><span class="p">]</span>
+        <span class="n">bp</span> <span class="o">=</span> <span class="n">bpod</span><span class="p">[</span><span class="s1">&#39;closed_loop&#39;</span><span class="p">][:</span><span class="n">sz</span><span class="p">]</span>
+        <span class="n">indko</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">diff_first_match</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">DIFF_THRESHOLD</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="c1"># 99% of the pulses match for a last sample lock</span>
+    <span class="k">elif</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">diff_last_match</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">DIFF_THRESHOLD</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mf">0.99</span><span class="p">:</span>
+        <span class="n">re</span> <span class="o">=</span> <span class="n">rote</span><span class="p">[</span><span class="s1">&#39;closed_loop&#39;</span><span class="p">][</span><span class="o">-</span><span class="n">sz</span><span class="p">:]</span>
+        <span class="n">bp</span> <span class="o">=</span> <span class="n">bpod</span><span class="p">[</span><span class="s1">&#39;closed_loop&#39;</span><span class="p">][</span><span class="o">-</span><span class="n">sz</span><span class="p">:]</span>
+        <span class="n">indko</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">diff_last_match</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">DIFF_THRESHOLD</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="c1"># last resort is to use ad-hoc sync function</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">bp</span><span class="p">,</span> <span class="n">re</span> <span class="o">=</span> <span class="n">raw</span><span class="o">.</span><span class="n">sync_trials_robust</span><span class="p">(</span><span class="n">bpod</span><span class="p">[</span><span class="s1">&#39;closed_loop&#39;</span><span class="p">],</span> <span class="n">rote</span><span class="p">[</span><span class="s1">&#39;closed_loop&#39;</span><span class="p">],</span>
+                                        <span class="n">diff_threshold</span><span class="o">=</span><span class="n">DIFF_THRESHOLD</span><span class="p">,</span> <span class="n">max_shift</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+        <span class="n">indko</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([])</span>
+        <span class="c1"># raise ValueError(&quot;Can&#39;t sync bpod and rotary encoder: non-contiguous sync pulses&quot;)</span>
+    <span class="c1"># remove faulty indices due to missing or bad syncs</span>
+    <span class="n">indko</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="n">indko</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">indko</span><span class="p">]))</span>
+    <span class="n">re</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">re</span><span class="p">,</span> <span class="n">indko</span><span class="p">)</span>
+    <span class="n">bp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">bp</span><span class="p">,</span> <span class="n">indko</span><span class="p">)</span>
+    <span class="c1"># check the linear drift</span>
+    <span class="k">assert</span> <span class="n">bp</span><span class="o">.</span><span class="n">size</span> <span class="o">&gt;</span> <span class="mi">1</span>
+    <span class="n">poly</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">polyfit</span><span class="p">(</span><span class="n">bp</span><span class="p">,</span> <span class="n">re</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">polyval</span><span class="p">(</span><span class="n">poly</span><span class="p">,</span> <span class="n">bp</span><span class="p">)</span> <span class="o">-</span> <span class="n">re</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">0.002</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">interpolate</span><span class="o">.</span><span class="n">interp1d</span><span class="p">(</span><span class="n">re</span><span class="p">,</span> <span class="n">bp</span><span class="p">,</span> <span class="n">fill_value</span><span class="o">=</span><span class="s2">&quot;extrapolate&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="get_wheel_position"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.training_wheel.html#ibllib.io.extractors.training_wheel.get_wheel_position">[docs]</a><span class="k">def</span> <span class="nf">get_wheel_position</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">bp_data</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">display</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Gets wheel timestamps and position. Position is in radian (constant above for radius is 1)</span>
+<span class="sd">    mathematical convention.</span>
+<span class="sd">    :param session_path:</span>
+<span class="sd">    :param bp_data (optional): bpod trials read from jsonable file</span>
+<span class="sd">    :param display (optional): (bool)</span>
+<span class="sd">    :return: timestamps (np.array)</span>
+<span class="sd">    :return: positions (np.array)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">status</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">bp_data</span><span class="p">:</span>
+        <span class="n">bp_data</span> <span class="o">=</span> <span class="n">raw</span><span class="o">.</span><span class="n">load_data</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
+    <span class="n">df</span> <span class="o">=</span> <span class="n">raw</span><span class="o">.</span><span class="n">load_encoder_positions</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">df</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;No wheel data for &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">session_path</span><span class="p">))</span>
+        <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">structarr</span><span class="p">([</span><span class="s1">&#39;re_ts&#39;</span><span class="p">,</span> <span class="s1">&#39;re_pos&#39;</span><span class="p">,</span> <span class="s1">&#39;bns_ts&#39;</span><span class="p">],</span>
+                     <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],),</span> <span class="n">formats</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;f8&#39;</span><span class="p">,</span> <span class="s1">&#39;f8&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">object</span><span class="p">])</span>
+    <span class="n">data</span><span class="p">[</span><span class="s1">&#39;re_ts&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">re_ts</span><span class="o">.</span><span class="n">values</span>
+    <span class="n">data</span><span class="p">[</span><span class="s1">&#39;re_pos&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">re_pos</span><span class="o">.</span><span class="n">values</span> <span class="o">*</span> <span class="o">-</span><span class="mi">1</span>  <span class="c1"># anti-clockwise is positive in our output</span>
+    <span class="n">data</span><span class="p">[</span><span class="s1">&#39;re_pos&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;re_pos&#39;</span><span class="p">]</span> <span class="o">/</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span>  <span class="c1"># convert positions to radians</span>
+    <span class="n">trial_starts</span> <span class="o">=</span> <span class="n">get_trial_start_times</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
+    <span class="c1"># need a flag if the data resolution is 1ms due to the old version of rotary encoder firmware</span>
+    <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mod</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;re_ts&#39;</span><span class="p">],</span> <span class="mf">1e3</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">):</span>
+        <span class="n">status</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">data</span><span class="p">[</span><span class="s1">&#39;re_ts&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;re_ts&#39;</span><span class="p">]</span> <span class="o">/</span> <span class="mf">1e6</span>  <span class="c1"># convert ts to seconds</span>
+    <span class="c1"># # get the converter function to translate re_ts into behavior times</span>
+    <span class="n">re2bpod</span> <span class="o">=</span> <span class="n">sync_rotary_encoder</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
+    <span class="n">data</span><span class="p">[</span><span class="s1">&#39;re_ts&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">re2bpod</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;re_ts&#39;</span><span class="p">])</span>
+
+    <span class="k">def</span> <span class="nf">get_reset_trace_compensation_with_state_machine_times</span><span class="p">():</span>
+        <span class="c1"># this is the preferred way of getting resets using the state machine time information</span>
+        <span class="c1"># it will not always work depending on firmware versions, new bugs</span>
+        <span class="n">iwarn</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">ns</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;re_pos&#39;</span><span class="p">])</span>
+        <span class="n">tr_dc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;re_pos&#39;</span><span class="p">])</span>  <span class="c1"># trial dc component</span>
+        <span class="k">for</span> <span class="n">bp_dat</span> <span class="ow">in</span> <span class="n">bp_data</span><span class="p">:</span>
+            <span class="n">restarts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+                <span class="n">bp_dat</span><span class="p">[</span><span class="s1">&#39;behavior_data&#39;</span><span class="p">][</span><span class="s1">&#39;States timestamps&#39;</span><span class="p">][</span><span class="s1">&#39;reset_rotary_encoder&#39;</span><span class="p">]</span> <span class="o">+</span>
+                <span class="n">bp_dat</span><span class="p">[</span><span class="s1">&#39;behavior_data&#39;</span><span class="p">][</span><span class="s1">&#39;States timestamps&#39;</span><span class="p">][</span><span class="s1">&#39;reset2_rotary_encoder&#39;</span><span class="p">])[:,</span> <span class="mi">0</span><span class="p">])</span>
+            <span class="n">ind</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">searchsorted</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;re_ts&#39;</span><span class="p">],</span> <span class="n">restarts</span><span class="p">,</span> <span class="n">side</span><span class="o">=</span><span class="s1">&#39;left&#39;</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="c1"># the rotary encoder doesn&#39;t always reset right away, and the reset sample given the</span>
+            <span class="c1"># timestamp can be ambiguous: look for zeros</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;re_pos&#39;</span><span class="p">][</span><span class="n">ind</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="c1"># handle boundary effects</span>
+                <span class="k">if</span> <span class="n">ind</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">ns</span> <span class="o">-</span> <span class="mi">2</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="c1"># it happens quite often that we have to lock in to next sample to find the reset</span>
+                <span class="k">if</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;re_pos&#39;</span><span class="p">][</span><span class="n">ind</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">ind</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">ind</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span>
+                    <span class="k">continue</span>
+                <span class="c1"># also case where the rotary doesn&#39;t reset to 0, but erratically to -1/+1</span>
+                <span class="k">if</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;re_pos&#39;</span><span class="p">][</span><span class="n">ind</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span> <span class="o">&lt;=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">):</span>
+                    <span class="n">ind</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">ind</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span>
+                    <span class="k">continue</span>
+                <span class="c1"># compounded with the fact that the reset may have happened at next sample.</span>
+                <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;re_pos&#39;</span><span class="p">][</span><span class="n">ind</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">])</span> <span class="o">&lt;=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">):</span>
+                    <span class="n">ind</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">ind</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span>
+                    <span class="k">continue</span>
+                <span class="c1"># sometimes it is also the last trial that has this behaviour</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">bp_data</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">is</span> <span class="n">bp_dat</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="n">bp_data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">is</span> <span class="n">bp_dat</span><span class="p">):</span>
+                    <span class="k">continue</span>
+                <span class="n">iwarn</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ind</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+                <span class="c1"># at which point we are running out of possible bugs and calling it</span>
+            <span class="n">tr_dc</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;re_pos&#39;</span><span class="p">][</span><span class="n">ind</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">iwarn</span><span class="p">:</span>  <span class="c1"># if a warning flag was caught in the loop throw a single warning</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Rotary encoder reset events discrepancy. Doing my best to merge.&#39;</span><span class="p">)</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Offending inds: &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">iwarn</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39; times: &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;re_ts&#39;</span><span class="p">][</span><span class="n">iwarn</span><span class="p">]))</span>
+        <span class="c1"># exit status 0 is fine, 1 something went wrong</span>
+        <span class="k">return</span> <span class="n">tr_dc</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">iwarn</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span>
+
+    <span class="c1"># attempt to get the resets properly unless the unit is ms which means precision is</span>
+    <span class="c1"># not good enough to match SM times to wheel samples time</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">status</span><span class="p">:</span>
+        <span class="n">tr_dc</span><span class="p">,</span> <span class="n">status</span> <span class="o">=</span> <span class="n">get_reset_trace_compensation_with_state_machine_times</span><span class="p">()</span>
+
+    <span class="c1"># if something was wrong or went wrong agnostic way of getting resets: just get zeros values</span>
+    <span class="k">if</span> <span class="n">status</span><span class="p">:</span>
+        <span class="n">tr_dc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;re_pos&#39;</span><span class="p">])</span>  <span class="c1"># trial dc component</span>
+        <span class="n">i0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;re_pos&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">tr_dc</span><span class="p">[</span><span class="n">i0</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;re_pos&#39;</span><span class="p">][</span><span class="n">i0</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
+    <span class="c1"># even if things went ok, rotary encoder may not log the whole session. Need to fix outside</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">i0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">bitwise_and</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">bitwise_or</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;re_ts&#39;</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">trial_starts</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span>
+                                                   <span class="n">data</span><span class="p">[</span><span class="s1">&#39;re_ts&#39;</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">trial_starts</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span>
+                                     <span class="n">data</span><span class="p">[</span><span class="s1">&#39;re_pos&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="c1"># make sure the bounds are not included in the current list</span>
+    <span class="n">i0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">i0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">bitwise_or</span><span class="p">(</span><span class="n">i0</span> <span class="o">&gt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;re_pos&#39;</span><span class="p">])</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">i0</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)))</span>
+    <span class="c1"># a 0 sample is not a reset if 2 conditions are met:</span>
+    <span class="c1"># 1/2 no inflexion (continuous derivative)</span>
+    <span class="n">c1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;re_pos&#39;</span><span class="p">][</span><span class="n">i0</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;re_pos&#39;</span><span class="p">][</span><span class="n">i0</span><span class="p">])</span> <span class="o">-</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;re_pos&#39;</span><span class="p">][</span><span class="n">i0</span><span class="p">]</span> <span class="o">-</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;re_pos&#39;</span><span class="p">][</span><span class="n">i0</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]))</span> <span class="o">==</span> <span class="mi">2</span>
+    <span class="c1"># 2/2 needs to be below threshold</span>
+    <span class="n">c2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">((</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;re_pos&#39;</span><span class="p">][</span><span class="n">i0</span><span class="p">]</span> <span class="o">-</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;re_pos&#39;</span><span class="p">][</span><span class="n">i0</span> <span class="o">-</span> <span class="mi">1</span><span class="p">])</span> <span class="o">/</span>
+                <span class="p">(</span><span class="n">EPS</span> <span class="o">+</span> <span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;re_ts&#39;</span><span class="p">][</span><span class="n">i0</span><span class="p">]</span> <span class="o">-</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;re_ts&#39;</span><span class="p">][</span><span class="n">i0</span> <span class="o">-</span> <span class="mi">1</span><span class="p">])))</span> <span class="o">&lt;</span> <span class="n">THRESHOLD_RAD_PER_SEC</span>
+    <span class="c1"># apply reset to points identified as resets</span>
+    <span class="n">i0</span> <span class="o">=</span> <span class="n">i0</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">bitwise_not</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">bitwise_and</span><span class="p">(</span><span class="n">c1</span><span class="p">,</span> <span class="n">c2</span><span class="p">)))]</span>
+    <span class="n">tr_dc</span><span class="p">[</span><span class="n">i0</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;re_pos&#39;</span><span class="p">][</span><span class="n">i0</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
+
+    <span class="c1"># unwrap the rotation (in radians) and then add the DC component from restarts</span>
+    <span class="n">data</span><span class="p">[</span><span class="s1">&#39;re_pos&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unwrap</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;re_pos&#39;</span><span class="p">])</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="n">tr_dc</span><span class="p">)</span>
+
+    <span class="c1"># Also forgot to mention that time stamps may be repeated or very close to one another.</span>
+    <span class="c1"># Find them as they will induce large jitters on the velocity function or errors in</span>
+    <span class="c1"># attempts of interpolation</span>
+    <span class="n">rep_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;re_ts&#39;</span><span class="p">])</span> <span class="o">&lt;=</span> <span class="n">THRESHOLD_CONSECUTIVE_SAMPLES</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="c1"># Change the value of the repeated position</span>
+    <span class="n">data</span><span class="p">[</span><span class="s1">&#39;re_pos&#39;</span><span class="p">][</span><span class="n">rep_idx</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;re_pos&#39;</span><span class="p">][</span><span class="n">rep_idx</span><span class="p">]</span> <span class="o">+</span>
+                               <span class="n">data</span><span class="p">[</span><span class="s1">&#39;re_pos&#39;</span><span class="p">][</span><span class="n">rep_idx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">])</span> <span class="o">/</span> <span class="mi">2</span>
+    <span class="n">data</span><span class="p">[</span><span class="s1">&#39;re_ts&#39;</span><span class="p">][</span><span class="n">rep_idx</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;re_ts&#39;</span><span class="p">][</span><span class="n">rep_idx</span><span class="p">]</span> <span class="o">+</span>
+                              <span class="n">data</span><span class="p">[</span><span class="s1">&#39;re_ts&#39;</span><span class="p">][</span><span class="n">rep_idx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">])</span> <span class="o">/</span> <span class="mi">2</span>
+    <span class="c1"># Now remove the repeat times that are rep_idx + 1</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">rep_idx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+
+    <span class="c1"># convert to cm</span>
+    <span class="n">data</span><span class="p">[</span><span class="s1">&#39;re_pos&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;re_pos&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="n">WHEEL_RADIUS_CM</span>
+
+    <span class="c1">#  DEBUG PLOTS START HERE ########################</span>
+    <span class="k">if</span> <span class="n">display</span><span class="p">:</span>
+        <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+        <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">axes</span><span class="p">()</span>
+        <span class="n">tstart</span> <span class="o">=</span> <span class="n">get_trial_start_times</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="n">tts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">c_</span><span class="p">[</span><span class="n">tstart</span><span class="p">,</span> <span class="n">tstart</span><span class="p">,</span> <span class="n">tstart</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">]</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+        <span class="n">vts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">c_</span><span class="p">[</span><span class="n">tstart</span> <span class="o">*</span> <span class="mi">0</span> <span class="o">+</span> <span class="mi">100</span><span class="p">,</span> <span class="n">tstart</span> <span class="o">*</span> <span class="mi">0</span> <span class="o">-</span> <span class="mi">100</span><span class="p">,</span> <span class="n">tstart</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">]</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">tts</span><span class="p">,</span> <span class="n">vts</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Trial starts&#39;</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">re2bpod</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">re_ts</span><span class="o">.</span><span class="n">values</span> <span class="o">/</span> <span class="mf">1e6</span><span class="p">),</span> <span class="n">df</span><span class="o">.</span><span class="n">re_pos</span><span class="o">.</span><span class="n">values</span> <span class="o">/</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">,</span>
+                <span class="s1">&#39;.-&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Raw data&#39;</span><span class="p">)</span>
+        <span class="n">i0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">re_pos</span><span class="o">.</span><span class="n">values</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">re2bpod</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">re_ts</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="n">i0</span><span class="p">]</span> <span class="o">/</span> <span class="mf">1e6</span><span class="p">),</span> <span class="n">df</span><span class="o">.</span><span class="n">re_pos</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="n">i0</span><span class="p">]</span> <span class="o">/</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">,</span>
+                <span class="s1">&#39;r*&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Raw data zero samples&#39;</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">re2bpod</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">re_ts</span><span class="o">.</span><span class="n">values</span> <span class="o">/</span> <span class="mf">1e6</span><span class="p">),</span> <span class="n">tr_dc</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;reset compensation&#39;</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Bpod Time&#39;</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;radians&#39;</span><span class="p">)</span>
+        <span class="c1"># restarts = np.array(bp_data[10][&#39;behavior_data&#39;][&#39;States timestamps&#39;]</span>
+        <span class="c1">#                             [&#39;reset_rotary_encoder&#39;]).flatten()</span>
+        <span class="c1"># x__ = np.c_[restarts, restarts, restarts + np.nan].flatten()</span>
+        <span class="c1"># y__ = np.c_[restarts * 0 + 1, restarts * 0 - 1, restarts+ np.nan].flatten()</span>
+        <span class="c1"># ax.plot(x__, y__, &#39;k&#39;, label=&#39;Restarts&#39;)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;re_ts&#39;</span><span class="p">],</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;re_pos&#39;</span><span class="p">]</span> <span class="o">/</span> <span class="n">WHEEL_RADIUS_CM</span><span class="p">,</span> <span class="s1">&#39;.-&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Output Trace&#39;</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+        <span class="c1"># plt.hist(np.diff(data[&#39;re_ts&#39;]), 400, range=[0, 0.01])</span>
+    <span class="k">return</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;re_ts&#39;</span><span class="p">],</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;re_pos&#39;</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="extract_wheel_moves"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.training_wheel.html#ibllib.io.extractors.training_wheel.extract_wheel_moves">[docs]</a><span class="k">def</span> <span class="nf">extract_wheel_moves</span><span class="p">(</span><span class="n">re_ts</span><span class="p">,</span> <span class="n">re_pos</span><span class="p">,</span> <span class="n">display</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Extract wheel positions and times from sync fronts dictionary</span>
+<span class="sd">    :param re_ts: numpy array of rotary encoder timestamps</span>
+<span class="sd">    :param re_pos: numpy array of rotary encoder positions</span>
+<span class="sd">    :param display: bool: show the wheel position and velocity for full session with detected</span>
+<span class="sd">    movements highlighted</span>
+<span class="sd">    :return: wheel_moves dictionary</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">re_ts</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="n">re_ts</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="n">re_pos</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="s1">&#39;wheel data dimension mismatch&#39;</span>
+        <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">re_ts</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">),</span> <span class="s1">&#39;wheel timestamps not strictly increasing&#39;</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;2D wheel timestamps&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">re_pos</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>  <span class="c1"># Ensure 1D array of positions</span>
+            <span class="n">re_pos</span> <span class="o">=</span> <span class="n">re_pos</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+        <span class="c1"># Linearly interpolate the times</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">re_pos</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>
+        <span class="n">re_ts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">interp</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">re_ts</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">re_ts</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">])</span>
+
+    <span class="c1"># Check the values and units of wheel position</span>
+    <span class="n">res</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">wh</span><span class="o">.</span><span class="n">ENC_RES</span><span class="p">,</span> <span class="n">wh</span><span class="o">.</span><span class="n">ENC_RES</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span> <span class="n">wh</span><span class="o">.</span><span class="n">ENC_RES</span> <span class="o">/</span> <span class="mi">4</span><span class="p">])</span>
+    <span class="c1"># min change in rad and cm for each decoding type</span>
+    <span class="c1"># [rad_X4, rad_X2, rad_X1, cm_X4, cm_X2, cm_X1]</span>
+    <span class="n">min_change</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="n">res</span><span class="p">,</span> <span class="n">wh</span><span class="o">.</span><span class="n">WHEEL_DIAMETER</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="n">res</span><span class="p">])</span>
+    <span class="n">pos_diff</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ediff1d</span><span class="p">(</span><span class="n">re_pos</span><span class="p">)))</span>
+
+    <span class="c1"># find min change closest to min pos_diff</span>
+    <span class="n">idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">min_change</span> <span class="o">-</span> <span class="n">pos_diff</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">idx</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">res</span><span class="p">):</span>
+        <span class="c1"># Assume values are in radians</span>
+        <span class="n">units</span> <span class="o">=</span> <span class="s1">&#39;rad&#39;</span>
+        <span class="n">encoding</span> <span class="o">=</span> <span class="n">idx</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">units</span> <span class="o">=</span> <span class="s1">&#39;cm&#39;</span>
+        <span class="n">encoding</span> <span class="o">=</span> <span class="n">idx</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">res</span><span class="p">)</span>
+    <span class="n">enc_names</span> <span class="o">=</span> <span class="p">{</span><span class="mi">0</span><span class="p">:</span> <span class="s1">&#39;X4&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">:</span> <span class="s1">&#39;X2&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">:</span> <span class="s1">&#39;X1&#39;</span><span class="p">}</span>
+    <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Wheel in </span><span class="si">%s</span><span class="s1"> units using </span><span class="si">%s</span><span class="s1"> encoding&#39;</span><span class="p">,</span> <span class="n">units</span><span class="p">,</span> <span class="n">enc_names</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">encoding</span><span class="p">)])</span>
+
+    <span class="c1"># The below assertion is violated by Bpod wheel data</span>
+    <span class="c1">#  assert np.allclose(pos_diff, min_change, rtol=1e-05), &#39;wheel position skips&#39;</span>
+
+    <span class="c1"># Convert the pos threshold defaults from samples to correct unit</span>
+    <span class="n">thresholds</span> <span class="o">=</span> <span class="n">wh</span><span class="o">.</span><span class="n">samples_to_cm</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">8</span><span class="p">,</span> <span class="mf">1.5</span><span class="p">]),</span> <span class="n">resolution</span><span class="o">=</span><span class="n">res</span><span class="p">[</span><span class="n">encoding</span><span class="p">])</span>
+    <span class="k">if</span> <span class="n">units</span> <span class="o">==</span> <span class="s1">&#39;rad&#39;</span><span class="p">:</span>
+        <span class="n">thresholds</span> <span class="o">=</span> <span class="n">wh</span><span class="o">.</span><span class="n">cm_to_rad</span><span class="p">(</span><span class="n">thresholds</span><span class="p">)</span>
+    <span class="n">kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;pos_thresh&#39;</span><span class="p">:</span> <span class="n">thresholds</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+              <span class="s1">&#39;pos_thresh_onset&#39;</span><span class="p">:</span> <span class="n">thresholds</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+              <span class="s1">&#39;make_plots&#39;</span><span class="p">:</span> <span class="n">display</span><span class="p">}</span>
+
+    <span class="c1"># Interpolate and get onsets</span>
+    <span class="n">pos</span><span class="p">,</span> <span class="n">t</span> <span class="o">=</span> <span class="n">wh</span><span class="o">.</span><span class="n">interpolate_position</span><span class="p">(</span><span class="n">re_ts</span><span class="p">,</span> <span class="n">re_pos</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="mi">1000</span><span class="p">)</span>
+    <span class="n">on</span><span class="p">,</span> <span class="n">off</span><span class="p">,</span> <span class="n">amp</span><span class="p">,</span> <span class="n">peak_vel</span> <span class="o">=</span> <span class="n">wh</span><span class="o">.</span><span class="n">movements</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">pos</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">on</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="n">off</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="s1">&#39;onset/offset number mismatch&#39;</span>
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">on</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span> <span class="ow">and</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">off</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">),</span> <span class="s1">&#39;onsets/offsets not monotonically increasing&#39;</span>
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">((</span><span class="n">off</span> <span class="o">-</span> <span class="n">on</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">),</span> <span class="s1">&#39;not all offsets occur after onset&#39;</span>
+
+    <span class="c1"># Put into dict</span>
+    <span class="n">wheel_moves</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;intervals&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">c_</span><span class="p">[</span><span class="n">on</span><span class="p">,</span> <span class="n">off</span><span class="p">],</span> <span class="s1">&#39;peakAmplitude&#39;</span><span class="p">:</span> <span class="n">amp</span><span class="p">,</span> <span class="s1">&#39;peakVelocity_times&#39;</span><span class="p">:</span> <span class="n">peak_vel</span><span class="p">}</span>
+    <span class="k">return</span> <span class="n">wheel_moves</span></div>
+
+
+<div class="viewcode-block" id="extract_first_movement_times"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.training_wheel.html#ibllib.io.extractors.training_wheel.extract_first_movement_times">[docs]</a><span class="k">def</span> <span class="nf">extract_first_movement_times</span><span class="p">(</span><span class="n">wheel_moves</span><span class="p">,</span> <span class="n">trials</span><span class="p">,</span> <span class="n">min_qt</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Extracts the time of the first sufficiently large wheel movement for each trial.</span>
+<span class="sd">    To be counted, the movement must occur between go cue / stim on and before feedback /</span>
+<span class="sd">    response time.  The movement onset is sometimes just before the cue (occurring in the</span>
+<span class="sd">    gap between quiescence end and cue start, or during the quiescence period but sub-</span>
+<span class="sd">    threshold).  The movement is sufficiently large if it is greater than or equal to THRESH</span>
+<span class="sd">    :param wheel_moves: dictionary of detected wheel movement onsets and peak amplitudes for</span>
+<span class="sd">    use in extracting each trial&#39;s time of first movement.</span>
+<span class="sd">    :param trials: dictionary of trial data</span>
+<span class="sd">    :param min_qt: the minimum quiescence period, if None a default is used</span>
+<span class="sd">    :return: numpy array of first movement times, bool array indicating whether movement</span>
+<span class="sd">    crossed response threshold, and array of indices for wheel_moves arrays</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">THRESH</span> <span class="o">=</span> <span class="o">.</span><span class="mi">1</span>  <span class="c1"># peak amp should be at least .1 rad; ~1/3rd of the distance to threshold</span>
+    <span class="n">MIN_QT</span> <span class="o">=</span> <span class="o">.</span><span class="mi">2</span>  <span class="c1"># default minimum enforced quiescence period</span>
+
+    <span class="c1"># Determine minimum quiescent period</span>
+    <span class="k">if</span> <span class="n">min_qt</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">min_qt</span> <span class="o">=</span> <span class="n">MIN_QT</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;minimum quiescent period assumed to be </span><span class="si">%.0f</span><span class="s1">ms&#39;</span><span class="p">,</span> <span class="n">MIN_QT</span> <span class="o">*</span> <span class="mf">1e3</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">min_qt</span><span class="p">,</span> <span class="n">Sized</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">min_qt</span><span class="p">)</span> <span class="o">&gt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">trials</span><span class="p">[</span><span class="s1">&#39;goCue_times&#39;</span><span class="p">]):</span>
+        <span class="n">min_qt</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">min_qt</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">trials</span><span class="p">[</span><span class="s1">&#39;goCue_times&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">size</span><span class="p">])</span>
+
+    <span class="c1"># Initialize as nans</span>
+    <span class="n">first_move_onsets</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">trials</span><span class="p">[</span><span class="s1">&#39;goCue_times&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+    <span class="n">ids</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">trials</span><span class="p">[</span><span class="s1">&#39;goCue_times&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">))</span>
+    <span class="n">is_final_movement</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">trials</span><span class="p">[</span><span class="s1">&#39;goCue_times&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="nb">bool</span><span class="p">)</span>
+    <span class="n">flinch</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">wheel_moves</span><span class="p">[</span><span class="s1">&#39;peakAmplitude&#39;</span><span class="p">])</span> <span class="o">&lt;</span> <span class="n">THRESH</span>
+    <span class="n">all_move_onsets</span> <span class="o">=</span> <span class="n">wheel_moves</span><span class="p">[</span><span class="s1">&#39;intervals&#39;</span><span class="p">][:,</span> <span class="mi">0</span><span class="p">]</span>
+    <span class="c1"># Iterate over trials, extracting onsets approx. within closed-loop period</span>
+    <span class="n">cwarn</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">t1</span><span class="p">,</span> <span class="n">t2</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">trials</span><span class="p">[</span><span class="s1">&#39;goCue_times&#39;</span><span class="p">]</span> <span class="o">-</span> <span class="n">min_qt</span><span class="p">,</span>
+                                     <span class="n">trials</span><span class="p">[</span><span class="s1">&#39;feedback_times&#39;</span><span class="p">])):</span>
+        <span class="k">if</span> <span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">t2</span> <span class="o">-</span> <span class="n">t1</span><span class="p">):</span>  <span class="c1"># If both timestamps defined</span>
+            <span class="n">mask</span> <span class="o">=</span> <span class="p">(</span><span class="n">all_move_onsets</span> <span class="o">&gt;</span> <span class="n">t1</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">all_move_onsets</span> <span class="o">&lt;</span> <span class="n">t2</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">mask</span><span class="p">):</span>  <span class="c1"># If any onsets for this trial</span>
+                <span class="n">trial_onset_ids</span><span class="p">,</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">mask</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="o">~</span><span class="n">flinch</span><span class="p">[</span><span class="n">mask</span><span class="p">]):</span>  <span class="c1"># If any trial moves were sufficiently large</span>
+                    <span class="n">ids</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">trial_onset_ids</span><span class="p">[</span><span class="o">~</span><span class="n">flinch</span><span class="p">[</span><span class="n">mask</span><span class="p">]][</span><span class="mi">0</span><span class="p">]</span>  <span class="c1"># Find first large move id</span>
+                    <span class="n">first_move_onsets</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">all_move_onsets</span><span class="p">[</span><span class="n">ids</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span>  <span class="c1"># Save first large onset</span>
+                    <span class="n">is_final_movement</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">ids</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">==</span> <span class="n">trial_onset_ids</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>  <span class="c1"># Final move of trial</span>
+        <span class="k">else</span><span class="p">:</span>  <span class="c1"># Log missing timestamps</span>
+            <span class="n">cwarn</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="k">if</span> <span class="n">cwarn</span><span class="p">:</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;no reliable goCue/Feedback times (both needed) for </span><span class="si">{</span><span class="n">cwarn</span><span class="si">}</span><span class="s1"> trials&#39;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">first_move_onsets</span><span class="p">,</span> <span class="n">is_final_movement</span><span class="p">,</span> <span class="n">ids</span><span class="p">[</span><span class="n">ids</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="Wheel"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.training_wheel.html#ibllib.io.extractors.training_wheel.Wheel">[docs]</a><span class="k">class</span> <span class="nc">Wheel</span><span class="p">(</span><span class="n">BaseBpodTrialsExtractor</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Get wheel data from raw files and converts positions into radians mathematical convention</span>
+<span class="sd">     (anti-clockwise = +) and timestamps into seconds relative to Bpod clock.</span>
+<span class="sd">    **Optional:** saves _ibl_wheel.times.npy and _ibl_wheel.position.npy</span>
+
+<span class="sd">    Times:</span>
+<span class="sd">    Gets Rotary Encoder timestamps (us) for each position and converts to times.</span>
+<span class="sd">    Synchronize with Bpod and outputs</span>
+
+<span class="sd">    Positions:</span>
+<span class="sd">    Radians mathematical convention</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">save_names</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;_ibl_wheel.timestamps.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;_ibl_wheel.position.npy&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;_ibl_wheelMoves.intervals.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;_ibl_wheelMoves.peakAmplitude.npy&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;_ibl_trials.firstMovement_times.npy&#39;</span><span class="p">)</span>
+    <span class="n">var_names</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;wheel_timestamps&#39;</span><span class="p">,</span> <span class="s1">&#39;wheel_position&#39;</span><span class="p">,</span> <span class="s1">&#39;wheel_moves_intervals&#39;</span><span class="p">,</span>
+                 <span class="s1">&#39;wheel_moves_peak_amplitude&#39;</span><span class="p">,</span> <span class="s1">&#39;firstMovement_times&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">ts</span><span class="p">,</span> <span class="n">pos</span> <span class="o">=</span> <span class="n">get_wheel_position</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">)</span>
+        <span class="n">moves</span> <span class="o">=</span> <span class="n">extract_wheel_moves</span><span class="p">(</span><span class="n">ts</span><span class="p">,</span> <span class="n">pos</span><span class="p">)</span>
+
+        <span class="c1"># need some trial based info to output the first movement times</span>
+        <span class="n">goCue_times</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">training_trials</span><span class="o">.</span><span class="n">GoCueTimes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span>
+            <span class="n">save</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">bpod_trials</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">,</span> <span class="n">settings</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">)</span>
+        <span class="n">feedback_times</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">training_trials</span><span class="o">.</span><span class="n">FeedbackTimes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span>
+            <span class="n">save</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">bpod_trials</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">,</span> <span class="n">settings</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">)</span>
+        <span class="n">trials</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;goCue_times&#39;</span><span class="p">:</span> <span class="n">goCue_times</span><span class="p">,</span> <span class="s1">&#39;feedback_times&#39;</span><span class="p">:</span> <span class="n">feedback_times</span><span class="p">}</span>
+        <span class="n">min_qt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;QUIESCENT_PERIOD&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+
+        <span class="n">first_moves</span><span class="p">,</span> <span class="o">*</span><span class="n">_</span> <span class="o">=</span> <span class="n">extract_first_movement_times</span><span class="p">(</span><span class="n">moves</span><span class="p">,</span> <span class="n">trials</span><span class="p">,</span> <span class="n">min_qt</span><span class="o">=</span><span class="n">min_qt</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">ts</span><span class="p">,</span> <span class="n">pos</span><span class="p">,</span> <span class="n">moves</span><span class="p">[</span><span class="s1">&#39;intervals&#39;</span><span class="p">],</span> <span class="n">moves</span><span class="p">[</span><span class="s1">&#39;peakAmplitude&#39;</span><span class="p">],</span> <span class="n">first_moves</span></div>
+
+
+<div class="viewcode-block" id="extract_all"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.training_wheel.html#ibllib.io.extractors.training_wheel.extract_all">[docs]</a><span class="k">def</span> <span class="nf">extract_all</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">bpod_trials</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">settings</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">Wheel</span><span class="p">(</span><span class="n">session_path</span><span class="o">=</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span>
+        <span class="n">save</span><span class="o">=</span><span class="n">save</span><span class="p">,</span> <span class="n">bpod_trials</span><span class="o">=</span><span class="n">bpod_trials</span><span class="p">,</span> <span class="n">settings</span><span class="o">=</span><span class="n">settings</span><span class="p">)</span></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        
+        &copy; Copyright 2020, International Brain Laboratory
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>
