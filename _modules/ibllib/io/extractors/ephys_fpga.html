@@ -35,7 +35,6 @@
         <script src="../../../../_static/clipboard.min.js"></script>
         <script src="../../../../_static/copybutton.js"></script>
         <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
-        <script src="https://unpkg.com/@jupyter-widgets/html-manager@^0.18.0/dist/embed-amd.js"></script>
     
     <script type="text/javascript" src="../../../../_static/js/theme.js"></script>
 
@@ -410,10 +409,6 @@
         <span class="k">return</span> <span class="n">t_ready_tone_in</span><span class="p">,</span> <span class="n">t_error_tone_in</span>
 
 
-<span class="k">def</span> <span class="nf">_frame2ttl_events_extraction</span><span class="p">(</span><span class="n">f2ttl_t</span><span class="p">,</span> <span class="n">f2ttl_fronts</span><span class="p">):</span>
-    <span class="k">pass</span>
-
-
 <span class="k">def</span> <span class="nf">_assign_events_to_trial</span><span class="p">(</span><span class="n">t_trial_start</span><span class="p">,</span> <span class="n">t_event</span><span class="p">,</span> <span class="n">take</span><span class="o">=</span><span class="s1">&#39;last&#39;</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Assign events to a trial given trial start times and event times.</span>
@@ -424,7 +419,8 @@
 
 <span class="sd">    :param t_trial_start: numpy vector of trial start times</span>
 <span class="sd">    :param t_event: numpy vector of event times to assign to trials</span>
-<span class="sd">    :param take: &#39;last&#39; or &#39;first&#39; (optional, default &#39;last&#39;): index to take in case of duplicates</span>
+<span class="sd">    :param take: &#39;last&#39; or &#39;first&#39; or int (optional, default &#39;last&#39;): index to take in case</span>
+<span class="sd">     of several events whithin the trial: example -2 will take the second to last event</span>
 <span class="sd">    :return: numpy array of event times with the same shape of trial start.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="c1"># make sure the events are sorted</span>
@@ -447,7 +443,16 @@
     <span class="k">elif</span> <span class="n">take</span> <span class="o">==</span> <span class="s1">&#39;first&#39;</span><span class="p">:</span>
         <span class="n">iall</span><span class="p">,</span> <span class="n">iu</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">ind</span><span class="p">,</span> <span class="n">return_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="n">t_event_nans</span><span class="p">[</span><span class="n">iall</span><span class="p">]</span> <span class="o">=</span> <span class="n">t_event</span><span class="p">[</span><span class="n">iu</span><span class="p">]</span>
-
+    <span class="k">else</span><span class="p">:</span>  <span class="c1"># if the index is arbitrary, needs to be numeric (could be negative if from the end)</span>
+        <span class="n">iall</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">ind</span><span class="p">)</span>
+        <span class="c1"># t_event[-11]</span>
+        <span class="c1"># t_event[10]</span>
+        <span class="c1"># t_event.size</span>
+        <span class="n">minsize</span> <span class="o">=</span> <span class="n">take</span> <span class="o">+</span> <span class="mi">1</span> <span class="k">if</span> <span class="n">take</span> <span class="o">&gt;=</span> <span class="mi">0</span> <span class="k">else</span> <span class="o">-</span> <span class="n">take</span>
+        <span class="k">for</span> <span class="n">iu</span> <span class="ow">in</span> <span class="n">iall</span><span class="p">:</span>
+            <span class="n">match</span> <span class="o">=</span> <span class="n">t_event</span><span class="p">[</span><span class="n">iu</span> <span class="o">==</span> <span class="n">ind</span><span class="p">]</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">match</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">minsize</span><span class="p">:</span>
+                <span class="n">t_event_nans</span><span class="p">[</span><span class="n">iu</span><span class="p">]</span> <span class="o">=</span> <span class="n">match</span><span class="p">[</span><span class="n">take</span><span class="p">]</span>
     <span class="k">return</span> <span class="n">t_event_nans</span>
 
 
@@ -558,20 +563,16 @@
         <span class="n">bpod</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">],</span> <span class="n">bpod</span><span class="p">[</span><span class="s1">&#39;polarities&#39;</span><span class="p">])</span>
     <span class="n">t_ready_tone_in</span><span class="p">,</span> <span class="n">t_error_tone_in</span> <span class="o">=</span> <span class="n">_assign_events_audio</span><span class="p">(</span>
         <span class="n">audio</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">],</span> <span class="n">audio</span><span class="p">[</span><span class="s1">&#39;polarities&#39;</span><span class="p">])</span>
-    <span class="c1"># stim off time is the first frame2ttl rise/fall after the trial start</span>
-    <span class="c1"># does not apply for 1st trial</span>
+    <span class="c1"># stim freeze</span>
     <span class="n">ind</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">searchsorted</span><span class="p">(</span><span class="n">frame2ttl</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">],</span> <span class="n">t_iti_in</span><span class="p">,</span> <span class="n">side</span><span class="o">=</span><span class="s1">&#39;left&#39;</span><span class="p">)</span>
-    <span class="n">t_stim_off</span> <span class="o">=</span> <span class="n">frame2ttl</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">][</span><span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">ind</span><span class="p">,</span> <span class="n">frame2ttl</span><span class="o">.</span><span class="n">times</span><span class="o">.</span><span class="n">size</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)]</span>
     <span class="n">t_stim_freeze</span> <span class="o">=</span> <span class="n">frame2ttl</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">][</span><span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">ind</span><span class="p">,</span> <span class="n">frame2ttl</span><span class="o">.</span><span class="n">times</span><span class="o">.</span><span class="n">size</span> <span class="o">-</span> <span class="mi">2</span><span class="p">)]</span>
-    <span class="c1"># t_stim_freeze = frame2ttl[&#39;times&#39;][np.maximum(ind - 1, 0)]</span>
-    <span class="c1"># stimOn_times: first fram2ttl change after trial start</span>
     <span class="n">trials</span> <span class="o">=</span> <span class="n">Bunch</span><span class="p">({</span>
         <span class="s1">&#39;goCue_times&#39;</span><span class="p">:</span> <span class="n">_assign_events_to_trial</span><span class="p">(</span><span class="n">t_trial_start</span><span class="p">,</span> <span class="n">t_ready_tone_in</span><span class="p">,</span> <span class="n">take</span><span class="o">=</span><span class="s1">&#39;first&#39;</span><span class="p">),</span>
         <span class="s1">&#39;errorCue_times&#39;</span><span class="p">:</span> <span class="n">_assign_events_to_trial</span><span class="p">(</span><span class="n">t_trial_start</span><span class="p">,</span> <span class="n">t_error_tone_in</span><span class="p">),</span>
         <span class="s1">&#39;valveOpen_times&#39;</span><span class="p">:</span> <span class="n">_assign_events_to_trial</span><span class="p">(</span><span class="n">t_trial_start</span><span class="p">,</span> <span class="n">t_valve_open</span><span class="p">),</span>
         <span class="s1">&#39;stimFreeze_times&#39;</span><span class="p">:</span> <span class="n">_assign_events_to_trial</span><span class="p">(</span><span class="n">t_trial_start</span><span class="p">,</span> <span class="n">t_stim_freeze</span><span class="p">),</span>
         <span class="s1">&#39;stimOn_times&#39;</span><span class="p">:</span> <span class="n">_assign_events_to_trial</span><span class="p">(</span><span class="n">t_trial_start</span><span class="p">,</span> <span class="n">frame2ttl</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">],</span> <span class="n">take</span><span class="o">=</span><span class="s1">&#39;first&#39;</span><span class="p">),</span>
-        <span class="s1">&#39;stimOff_times&#39;</span><span class="p">:</span> <span class="n">_assign_events_to_trial</span><span class="p">(</span><span class="n">t_trial_start</span><span class="p">,</span> <span class="n">t_stim_off</span><span class="p">),</span>
+        <span class="s1">&#39;stimOff_times&#39;</span><span class="p">:</span> <span class="n">_assign_events_to_trial</span><span class="p">(</span><span class="n">t_trial_start</span><span class="p">,</span> <span class="n">frame2ttl</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">],</span> <span class="n">take</span><span class="o">=</span><span class="s1">&#39;last&#39;</span><span class="p">),</span>
         <span class="s1">&#39;itiIn_times&#39;</span><span class="p">:</span> <span class="n">_assign_events_to_trial</span><span class="p">(</span><span class="n">t_trial_start</span><span class="p">,</span> <span class="n">t_iti_in</span><span class="p">)</span>
     <span class="p">})</span>
     <span class="c1"># feedback times are valve open on good trials and error tone in on error trials</span>
@@ -603,7 +604,7 @@
                              <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;valveOpen_times&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;g&#39;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="n">width</span><span class="p">)</span>
         <span class="n">plots</span><span class="o">.</span><span class="n">vertical_lines</span><span class="p">(</span><span class="n">t_stim_freeze</span><span class="p">,</span> <span class="n">ymin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">ymax</span><span class="o">=</span><span class="n">ymax</span><span class="p">,</span>
                              <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;stimFreeze_times&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="n">width</span><span class="p">)</span>
-        <span class="n">plots</span><span class="o">.</span><span class="n">vertical_lines</span><span class="p">(</span><span class="n">t_stim_off</span><span class="p">,</span> <span class="n">ymin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">ymax</span><span class="o">=</span><span class="n">ymax</span><span class="p">,</span>
+        <span class="n">plots</span><span class="o">.</span><span class="n">vertical_lines</span><span class="p">(</span><span class="n">trials</span><span class="p">[</span><span class="s1">&#39;stimOff_times&#39;</span><span class="p">],</span> <span class="n">ymin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">ymax</span><span class="o">=</span><span class="n">ymax</span><span class="p">,</span>
                              <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;stim off&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;c&#39;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="n">width</span><span class="p">)</span>
         <span class="n">plots</span><span class="o">.</span><span class="n">vertical_lines</span><span class="p">(</span><span class="n">trials</span><span class="p">[</span><span class="s1">&#39;stimOn_times&#39;</span><span class="p">],</span> <span class="n">ymin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">ymax</span><span class="o">=</span><span class="n">ymax</span><span class="p">,</span>
                              <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;stimOn_times&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;tab:orange&#39;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="n">width</span><span class="p">)</span>

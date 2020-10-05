@@ -35,7 +35,6 @@
         <script src="../../../_static/clipboard.min.js"></script>
         <script src="../../../_static/copybutton.js"></script>
         <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
-        <script src="https://unpkg.com/@jupyter-widgets/html-manager@^0.18.0/dist/embed-amd.js"></script>
     
     <script type="text/javascript" src="../../../_static/js/theme.js"></script>
 
@@ -172,10 +171,15 @@
   <h1>Source code for ibllib.pipes.local_server</h1><div class="highlight"><pre>
 <span></span><span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">subprocess</span>
+<span class="kn">import</span> <span class="nn">pkg_resources</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
 
 <span class="kn">from</span> <span class="nn">ibllib.pipes</span> <span class="kn">import</span> <span class="n">ephys_preprocessing</span><span class="p">,</span> <span class="n">training_preprocessing</span><span class="p">,</span> <span class="n">tasks</span>
 <span class="kn">import</span> <span class="nn">ibllib.io.raw_data_loaders</span> <span class="k">as</span> <span class="nn">rawio</span>
 <span class="kn">import</span> <span class="nn">ibllib.exceptions</span>
+<span class="kn">from</span> <span class="nn">ibllib.time</span> <span class="kn">import</span> <span class="n">date2isostr</span>
 
 <span class="kn">import</span> <span class="nn">oneibl.registration</span> <span class="k">as</span> <span class="nn">registration</span>
 <span class="kn">from</span> <span class="nn">oneibl.one</span> <span class="kn">import</span> <span class="n">ONE</span>
@@ -189,6 +193,40 @@
     <span class="n">lab</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;labs&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span> <span class="n">django</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;repositories__globus_endpoint_id,</span><span class="si">{</span><span class="n">globus_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">lab</span><span class="p">):</span>
         <span class="k">return</span> <span class="p">[</span><span class="n">la</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">la</span> <span class="ow">in</span> <span class="n">lab</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="report_health"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.local_server.html#ibllib.pipes.local_server.report_health">[docs]</a><span class="k">def</span> <span class="nf">report_health</span><span class="p">(</span><span class="n">one</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Get a few indicators and label the json field of the corresponding lab with them</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">_run_command</span><span class="p">(</span><span class="n">cmd</span><span class="p">):</span>
+        <span class="n">process</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">Popen</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span> <span class="n">shell</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">stdout</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span>
+                                   <span class="n">stderr</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">)</span>
+        <span class="n">info</span><span class="p">,</span> <span class="n">error</span> <span class="o">=</span> <span class="n">process</span><span class="o">.</span><span class="n">communicate</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">process</span><span class="o">.</span><span class="n">returncode</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">info</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_get_volume_usage</span><span class="p">(</span><span class="n">vol</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">):</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;df </span><span class="si">{</span><span class="n">vol</span><span class="si">}</span><span class="s1">&#39;</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">_run_command</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+        <span class="c1"># size_list = [&#39;/dev/sdc1&#39;, &#39;1921802500&#39;, &#39;1427128132&#39;, &#39;494657984&#39;, &#39;75%&#39;, &#39;/datadisk&#39;]</span>
+        <span class="n">size_list</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39; +&#39;</span><span class="p">,</span> <span class="n">res</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">fac</span> <span class="o">=</span> <span class="mi">1024</span> <span class="o">**</span> <span class="mi">2</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;total&#39;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">size_list</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">/</span> <span class="n">fac</span><span class="p">,</span> <span class="s1">&#39;used&#39;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">size_list</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span> <span class="o">/</span> <span class="n">fac</span><span class="p">,</span>
+             <span class="s1">&#39;volume&#39;</span><span class="p">:</span> <span class="n">size_list</span><span class="p">[</span><span class="mi">5</span><span class="p">]}</span>
+        <span class="k">return</span> <span class="p">{</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">:</span> <span class="n">d</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">d</span><span class="p">}</span>
+
+    <span class="n">status</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;ibllib_version&#39;</span><span class="p">:</span> <span class="n">pkg_resources</span><span class="o">.</span><span class="n">get_distribution</span><span class="p">(</span><span class="s2">&quot;ibllib&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">version</span><span class="p">,</span>
+              <span class="s1">&#39;phylib_version&#39;</span><span class="p">:</span> <span class="n">pkg_resources</span><span class="o">.</span><span class="n">get_distribution</span><span class="p">(</span><span class="s2">&quot;phylib&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">version</span><span class="p">,</span>
+              <span class="s1">&#39;local_time&#39;</span><span class="p">:</span> <span class="n">date2isostr</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">())}</span>
+    <span class="n">status</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">_get_volume_usage</span><span class="p">(</span><span class="s1">&#39;/mnt/s0/Data&#39;</span><span class="p">,</span> <span class="s1">&#39;raid&#39;</span><span class="p">))</span>
+    <span class="n">status</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">_get_volume_usage</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">,</span> <span class="s1">&#39;system&#39;</span><span class="p">))</span>
+
+    <span class="n">lab_names</span> <span class="o">=</span> <span class="n">_get_lab</span><span class="p">(</span><span class="n">one</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">ln</span> <span class="ow">in</span> <span class="n">lab_names</span><span class="p">:</span>
+        <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">json_field_update</span><span class="p">(</span><span class="n">endpoint</span><span class="o">=</span><span class="s1">&#39;labs&#39;</span><span class="p">,</span> <span class="n">uuid</span><span class="o">=</span><span class="n">ln</span><span class="p">,</span> <span class="n">field_name</span><span class="o">=</span><span class="s1">&#39;json&#39;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">status</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="job_creator"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.local_server.html#ibllib.pipes.local_server.job_creator">[docs]</a><span class="k">def</span> <span class="nf">job_creator</span><span class="p">(</span><span class="n">root_path</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dry</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">rerun</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">max_md5_size</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
