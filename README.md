@@ -28,12 +28,13 @@ git clone https://github.com/cortex-lab/phy
 Then in your conda terminal, navigate to this same directory, and run the following `conda` commands:
 
 
-If you upgrade or try to fix iblenv:
+Make sure that if iblenv was previously installed, it is cleaned up:
 ```
 conda env list
 conda env remove -n iblenv
 ```
 
+Install all the repositories in develop mode:
 ```
 conda env create -f ./iblenv/iblenv.yaml
 conda activate iblenv
