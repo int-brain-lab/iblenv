@@ -3,7 +3,7 @@ Unified environment and Issue tracker for all IBL github repositories.
 
 ## Update environment
 
-In a terminal, navigate to the directory in which you cloned iblenv and type: 
+In a terminal, navigate to the directory in which you cloned iblenv (typically `int-brain-lab/iblenv`) and type: 
 
 ` conda env update --file iblenv.yaml --prune`
 
