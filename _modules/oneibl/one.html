@@ -171,9 +171,16 @@
   <h1>Source code for oneibl.one</h1><div class="highlight"><pre>
 <span></span><span class="kn">import</span> <span class="nn">abc</span>
 <span class="kn">import</span> <span class="nn">concurrent.futures</span>
+<span class="kn">import</span> <span class="nn">json</span>
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">fnmatch</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">wraps</span>
 <span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span><span class="p">,</span> <span class="n">PurePath</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Dict</span>
+<span class="kn">from</span> <span class="nn">uuid</span> <span class="kn">import</span> <span class="n">UUID</span>
 
 <span class="kn">import</span> <span class="nn">requests</span>
 <span class="kn">import</span> <span class="nn">tqdm</span>
@@ -182,8 +189,11 @@
 
 <span class="kn">import</span> <span class="nn">oneibl.params</span>
 <span class="kn">import</span> <span class="nn">oneibl.webclient</span> <span class="k">as</span> <span class="nn">wc</span>
-<span class="kn">from</span> <span class="nn">alf.io</span> <span class="kn">import</span> <span class="p">(</span><span class="n">AlfBunch</span><span class="p">,</span> <span class="n">get_session_path</span><span class="p">,</span> <span class="n">is_uuid_string</span><span class="p">,</span>
-                    <span class="n">load_file_content</span><span class="p">,</span> <span class="n">remove_uuid_file</span><span class="p">)</span>
+<span class="kn">import</span> <span class="nn">alf.io</span> <span class="k">as</span> <span class="nn">alfio</span>
+<span class="kn">from</span> <span class="nn">alf.files</span> <span class="kn">import</span> <span class="n">is_valid</span><span class="p">,</span> <span class="n">alf_parts</span>
+<span class="c1"># from ibllib.misc.exp_ref import is_exp_ref</span>
+<span class="kn">from</span> <span class="nn">ibllib.exceptions</span> <span class="kn">import</span> \
+    <span class="n">ALFMultipleObjectsFound</span><span class="p">,</span> <span class="n">ALFObjectNotFound</span><span class="p">,</span> <span class="n">ALFMultipleCollectionsFound</span>
 <span class="kn">from</span> <span class="nn">ibllib.io</span> <span class="kn">import</span> <span class="n">hashfile</span>
 <span class="kn">from</span> <span class="nn">ibllib.misc</span> <span class="kn">import</span> <span class="n">pprint</span>
 <span class="kn">from</span> <span class="nn">oneibl.dataclass</span> <span class="kn">import</span> <span class="n">SessionDataInfo</span>
@@ -192,12 +202,16 @@
 
 <span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;ibllib&#39;</span><span class="p">)</span>
 
+
+<div class="viewcode-block" id="Listable"><a class="viewcode-back" href="../../_autosummary/oneibl.one.html#oneibl.one.Listable">[docs]</a><span class="k">def</span> <span class="nf">Listable</span><span class="p">(</span><span class="n">t</span><span class="p">):</span> <span class="k">return</span> <span class="n">Union</span><span class="p">[</span><span class="n">t</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">t</span><span class="p">]]</span>  <span class="c1"># noqa</span></div>
+
+
 <span class="n">NTHREADS</span> <span class="o">=</span> <span class="mi">4</span>  <span class="c1"># number of download threads</span>
 
 <span class="n">_ENDPOINTS</span> <span class="o">=</span> <span class="p">{</span>  <span class="c1"># keynames are possible input arguments and values are actual endpoints</span>
     <span class="s1">&#39;data&#39;</span><span class="p">:</span> <span class="s1">&#39;dataset-types&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;dataset&#39;</span><span class="p">:</span> <span class="s1">&#39;dataset-types&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;datasets&#39;</span><span class="p">:</span> <span class="s1">&#39;dataset-types&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;dataset&#39;</span><span class="p">:</span> <span class="s1">&#39;datasets&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;datasets&#39;</span><span class="p">:</span> <span class="s1">&#39;datasets&#39;</span><span class="p">,</span>
     <span class="s1">&#39;dataset-types&#39;</span><span class="p">:</span> <span class="s1">&#39;dataset-types&#39;</span><span class="p">,</span>
     <span class="s1">&#39;dataset_types&#39;</span><span class="p">:</span> <span class="s1">&#39;dataset-types&#39;</span><span class="p">,</span>
     <span class="s1">&#39;dataset-type&#39;</span><span class="p">:</span> <span class="s1">&#39;dataset-types&#39;</span><span class="p">,</span>
@@ -223,21 +237,6 @@
     <span class="s1">&#39;start-time&#39;</span><span class="p">:</span> <span class="s1">&#39;start_time&#39;</span><span class="p">,</span>
     <span class="s1">&#39;end_time&#39;</span><span class="p">:</span> <span class="s1">&#39;end_time&#39;</span><span class="p">,</span>
     <span class="s1">&#39;end-time&#39;</span><span class="p">:</span> <span class="s1">&#39;end_time&#39;</span><span class="p">}</span>
-
-<span class="n">_LIST_KEYWORDS</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">_SESSION_FIELDS</span><span class="p">,</span> <span class="o">**</span><span class="p">{</span>
-    <span class="s1">&#39;all&#39;</span><span class="p">:</span> <span class="s1">&#39;all&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;data&#39;</span><span class="p">:</span> <span class="s1">&#39;dataset-type&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;dataset&#39;</span><span class="p">:</span> <span class="s1">&#39;dataset-type&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;datasets&#39;</span><span class="p">:</span> <span class="s1">&#39;dataset-type&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;dataset-types&#39;</span><span class="p">:</span> <span class="s1">&#39;dataset-type&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;dataset_types&#39;</span><span class="p">:</span> <span class="s1">&#39;dataset-type&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;dataset-type&#39;</span><span class="p">:</span> <span class="s1">&#39;dataset-type&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;dataset_type&#39;</span><span class="p">:</span> <span class="s1">&#39;dataset-type&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;dtypes&#39;</span><span class="p">:</span> <span class="s1">&#39;dataset-type&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;dtype&#39;</span><span class="p">:</span> <span class="s1">&#39;dataset-type&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;labs&#39;</span><span class="p">:</span> <span class="s1">&#39;lab&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;lab&#39;</span><span class="p">:</span> <span class="s1">&#39;lab&#39;</span>
-<span class="p">})</span>
 
 <span class="n">SEARCH_TERMS</span> <span class="o">=</span> <span class="p">{</span>  <span class="c1"># keynames are possible input arguments and values are actual fields</span>
     <span class="s1">&#39;data&#39;</span><span class="p">:</span> <span class="s1">&#39;dataset_types&#39;</span><span class="p">,</span>
@@ -287,6 +286,19 @@
     <span class="k">return</span> <span class="n">col</span>
 
 
+<div class="viewcode-block" id="parse_id"><a class="viewcode-back" href="../../_autosummary/oneibl.one.html#oneibl.one.parse_id">[docs]</a><span class="k">def</span> <span class="nf">parse_id</span><span class="p">(</span><span class="n">method</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Ensures the input experiment identifier is an experiment UUID string</span>
+<span class="sd">    :param method: An ONE method whose second arg is an experiment id</span>
+<span class="sd">    :return: A wrapper function that parses the id to the expected string</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nd">@wraps</span><span class="p">(</span><span class="n">method</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">wrapper</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">id</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">to_eid</span><span class="p">(</span><span class="nb">id</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">method</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">id</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">wrapper</span></div>
+
+
 <div class="viewcode-block" id="OneAbstract"><a class="viewcode-back" href="../../_autosummary/oneibl.one.html#oneibl.one.OneAbstract">[docs]</a><span class="k">class</span> <span class="nc">OneAbstract</span><span class="p">(</span><span class="n">abc</span><span class="o">.</span><span class="n">ABC</span><span class="p">):</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">username</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">password</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">base_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">cache_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">silent</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
@@ -310,7 +322,7 @@
 <span class="sd">        From a Session ID and dataset types, queries Alyx database, downloads the data</span>
 <span class="sd">        from Globus, and loads into numpy array. Single session only</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="n">is_uuid_string</span><span class="p">(</span><span class="n">eid</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">alfio</span><span class="o">.</span><span class="n">is_uuid_string</span><span class="p">(</span><span class="n">eid</span><span class="p">):</span>
             <span class="n">eid</span> <span class="o">=</span> <span class="s1">&#39;/sessions/&#39;</span> <span class="o">+</span> <span class="n">eid</span>
         <span class="n">eid_str</span> <span class="o">=</span> <span class="n">eid</span><span class="p">[</span><span class="o">-</span><span class="mi">36</span><span class="p">:]</span>
         <span class="c1"># if no dataset_type is provided:</span>
@@ -326,7 +338,7 @@
         <span class="c1"># load the files content in variables if requested</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">download_only</span><span class="p">:</span>
             <span class="k">for</span> <span class="n">ind</span><span class="p">,</span> <span class="n">fil</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">dc</span><span class="o">.</span><span class="n">local_path</span><span class="p">):</span>
-                <span class="n">dc</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span> <span class="o">=</span> <span class="n">load_file_content</span><span class="p">(</span><span class="n">fil</span><span class="p">)</span>
+                <span class="n">dc</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span> <span class="o">=</span> <span class="n">alfio</span><span class="o">.</span><span class="n">load_file_content</span><span class="p">(</span><span class="n">fil</span><span class="p">)</span>
         <span class="c1"># parse output arguments</span>
         <span class="k">if</span> <span class="n">dclass_output</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">dc</span>
@@ -351,6 +363,7 @@
         <span class="c1"># if empty in parameter file, do not allow and set default</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">cache_dir</span><span class="p">:</span>
             <span class="n">cache_dir</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">PurePath</span><span class="p">(</span><span class="n">Path</span><span class="o">.</span><span class="n">home</span><span class="p">(),</span> <span class="s2">&quot;Downloads&quot;</span><span class="p">,</span> <span class="s2">&quot;FlatIron&quot;</span><span class="p">))</span>
+        <span class="k">assert</span> <span class="n">cache_dir</span>
         <span class="k">return</span> <span class="n">cache_dir</span>
 
     <span class="k">def</span> <span class="nf">_make_dataclass_offline</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">eid</span><span class="p">,</span> <span class="n">dataset_types</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">cache_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
@@ -437,72 +450,55 @@
         <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;dataset-types&#39;</span><span class="p">,</span> <span class="s1">&#39;read&#39;</span><span class="p">,</span> <span class="n">dataset_type</span><span class="p">)</span>
         <span class="nb">print</span><span class="p">(</span><span class="n">out</span><span class="p">[</span><span class="s1">&#39;description&#39;</span><span class="p">])</span></div>
 
-<div class="viewcode-block" id="OneAlyx.list"><a class="viewcode-back" href="../../_autosummary/oneibl.one.html#oneibl.one.OneAlyx.list">[docs]</a>    <span class="k">def</span> <span class="nf">list</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">eid</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">keyword</span><span class="o">=</span><span class="s1">&#39;dataset-type&#39;</span><span class="p">,</span> <span class="n">details</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<div class="viewcode-block" id="OneAlyx.list"><a class="viewcode-back" href="../../_autosummary/oneibl.one.html#oneibl.one.OneAlyx.list">[docs]</a>    <span class="k">def</span> <span class="nf">list</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+             <span class="n">eid</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">,</span> <span class="n">UUID</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+             <span class="n">keyword</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;dataset-type&#39;</span><span class="p">,</span>
+             <span class="n">details</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">List</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]:</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        From a Session ID, queries Alyx database for datasets-types related to a session.</span>
+<span class="sd">        From a Session ID, queries Alyx database for datasets related to a session.</span>
 
-<span class="sd">        :param eid: Experiment ID, for IBL this is the UUID String of the Session as per Alyx</span>
-<span class="sd">         database. Example: &#39;698361f6-b7d0-447d-a25d-42afdef7a0da&#39;</span>
-<span class="sd">         If None, returns the set of possible values. Only for the following keys:</span>
-<span class="sd">         (&#39;users&#39;, &#39;dataset-types&#39;, subjects&#39;)</span>
-<span class="sd">        :type eid: str or list of strings</span>
+<span class="sd">        :param eid: Experiment session uuid str</span>
+<span class="sd">        :type eid: str</span>
 
-<span class="sd">        :param keyword: The attribute to be listed.</span>
+<span class="sd">        :param keyword: The attribute to be listed, options include &#39;dataset&#39;, &#39;dataset-type&#39;.</span>
+<span class="sd">        If no eid provided, only dataset-types will be returned.</span>
 <span class="sd">        :type keyword: str</span>
 
-<span class="sd">        :param details: returns a second argument with a full dictionary to provide context</span>
+<span class="sd">        :param details: If eid provided returns datasets as a dict with collection names as</span>
+<span class="sd">        keys, if eid is None a list of dataset-type dicts is returned, with a description field.</span>
 <span class="sd">        :type details: bool</span>
 
-<span class="sd">        :return: list of strings, plus list of dictionaries if details option selected</span>
-<span class="sd">        :rtype:  list, list</span>
-
-<span class="sd">        for a list of keywords, use the methods `one.search_terms()`</span>
+<span class="sd">        :return: list of strings or dict of lists if details is True</span>
+<span class="sd">        :rtype:  list, dict</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c1"># check and validate the input keyword</span>
-        <span class="k">if</span> <span class="n">keyword</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">not</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="n">_LIST_KEYWORDS</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
-            <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="s2">&quot;The field: &quot;</span> <span class="o">+</span> <span class="n">keyword</span> <span class="o">+</span> <span class="s2">&quot; doesn&#39;t exist in the Session model.&quot;</span> <span class="o">+</span>
-                           <span class="s2">&quot;</span><span class="se">\n</span><span class="s2"> Here is a list of expected values: &quot;</span> <span class="o">+</span>
-                           <span class="nb">str</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">_LIST_KEYWORDS</span><span class="o">.</span><span class="n">values</span><span class="p">())))</span>
-        <span class="n">keyword</span> <span class="o">=</span> <span class="n">_LIST_KEYWORDS</span><span class="p">[</span><span class="n">keyword</span><span class="o">.</span><span class="n">lower</span><span class="p">()]</span>  <span class="c1"># accounts for possible typos</span>
+        <span class="k">if</span> <span class="n">keyword</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;s&#39;</span><span class="p">:</span>
+            <span class="n">keyword</span> <span class="o">=</span> <span class="n">keyword</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>  <span class="c1"># Remove plural</span>
+        <span class="k">if</span> <span class="n">keyword</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;dataset&#39;</span><span class="p">,</span> <span class="s1">&#39;dataset-type&#39;</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;keyword should be either &quot;dataset&quot; or &quot;dataset-type&quot;&#39;</span><span class="p">)</span>
 
-        <span class="c1"># recursive call for cases where a list is provided</span>
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
-            <span class="n">out</span> <span class="o">=</span> <span class="p">[]</span>
-            <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">eid</span><span class="p">:</span>
-                <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">list</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="n">keyword</span><span class="o">=</span><span class="n">keyword</span><span class="p">,</span> <span class="n">details</span><span class="o">=</span><span class="n">details</span><span class="p">))</span>
-            <span class="k">if</span> <span class="n">details</span> <span class="ow">and</span> <span class="p">(</span><span class="n">keyword</span> <span class="o">!=</span> <span class="s1">&#39;dataset-type&#39;</span><span class="p">):</span>
-                <span class="k">return</span> <span class="p">[[</span><span class="n">o</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">out</span><span class="p">],</span> <span class="p">[</span><span class="n">o</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">out</span><span class="p">]]</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="k">return</span> <span class="n">out</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">eid</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">keyword</span> <span class="o">!=</span> <span class="s1">&#39;dataset-type&#39;</span><span class="p">:</span>
+                <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Unable to list all datasets, returning dataset types instead&#39;</span><span class="p">)</span>
+            <span class="n">results</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;dataset-types&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">results</span> <span class="k">if</span> <span class="n">details</span> <span class="k">else</span> <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">results</span><span class="p">]</span>
 
-        <span class="c1">#  this is for basic endpoints queries: dataset-type, users, and subjects with None</span>
-        <span class="k">if</span> <span class="n">eid</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ls</span><span class="p">(</span><span class="n">table</span><span class="o">=</span><span class="n">keyword</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">details</span><span class="p">:</span>
-                <span class="k">return</span> <span class="n">out</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="k">return</span> <span class="n">out</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="c1"># Session specific list</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;datasets&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span> <span class="n">session</span><span class="o">=</span><span class="n">eid</span><span class="p">)</span>
+        <span class="n">collection</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
+            <span class="n">collection</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">r</span><span class="p">[</span><span class="s1">&#39;collection&#39;</span><span class="p">])</span>
+            <span class="n">name</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">r</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="n">keyword</span> <span class="o">==</span> <span class="s1">&#39;dataset&#39;</span> <span class="k">else</span> <span class="n">r</span><span class="p">[</span><span class="s1">&#39;dataset_type&#39;</span><span class="p">])</span>
 
-        <span class="c1"># this is a query about datasets: need to unnest session info through the load function</span>
-        <span class="k">if</span> <span class="n">keyword</span> <span class="o">==</span> <span class="s1">&#39;dataset-type&#39;</span><span class="p">:</span>
-            <span class="n">dses</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">dataset_types</span><span class="o">=</span><span class="s1">&#39;__all__&#39;</span><span class="p">,</span> <span class="n">dry_run</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-            <span class="n">dlist</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">dses</span><span class="o">.</span><span class="n">dataset_type</span><span class="p">)))</span>
-            <span class="k">if</span> <span class="n">details</span><span class="p">:</span>
-                <span class="k">return</span> <span class="n">dses</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="k">return</span> <span class="n">dlist</span>
-
-        <span class="c1"># get the session information</span>
-        <span class="n">ses</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;sessions&#39;</span><span class="p">,</span> <span class="s1">&#39;read&#39;</span><span class="p">,</span> <span class="n">eid</span><span class="p">)</span>
-
-        <span class="k">if</span> <span class="n">keyword</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;all&#39;</span><span class="p">:</span>
-            <span class="k">return</span> <span class="p">[</span><span class="n">ses</span><span class="p">]</span>
-        <span class="k">elif</span> <span class="n">details</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">ses</span><span class="p">[</span><span class="n">keyword</span><span class="p">],</span> <span class="n">ses</span>
+        <span class="k">if</span> <span class="n">details</span><span class="p">:</span>  <span class="c1"># Order the datasets by collection</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span>
+            <span class="p">[</span><span class="n">out</span><span class="p">[</span><span class="n">k</span> <span class="ow">or</span> <span class="s1">&#39;alf&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">collection</span><span class="p">,</span> <span class="n">name</span><span class="p">)]</span>
+            <span class="k">return</span> <span class="n">out</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">ses</span><span class="p">[</span><span class="n">keyword</span><span class="p">]</span></div>
+            <span class="k">return</span> <span class="n">name</span></div>
 
-<div class="viewcode-block" id="OneAlyx.load"><a class="viewcode-back" href="../../_autosummary/oneibl.one.html#oneibl.one.OneAlyx.load">[docs]</a>    <span class="k">def</span> <span class="nf">load</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">eid</span><span class="p">,</span> <span class="n">dataset_types</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dclass_output</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">dry_run</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">cache_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+<div class="viewcode-block" id="OneAlyx.load"><a class="viewcode-back" href="../../_autosummary/oneibl.one.html#oneibl.one.OneAlyx.load">[docs]</a>    <span class="nd">@parse_id</span>
+    <span class="k">def</span> <span class="nf">load</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">eid</span><span class="p">,</span> <span class="n">dataset_types</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dclass_output</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">dry_run</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">cache_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
              <span class="n">download_only</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">clobber</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">offline</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">keep_uuid</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        From a Session ID and dataset types, queries Alyx database, downloads the data</span>
@@ -536,47 +532,106 @@
                                     <span class="n">dry_run</span><span class="o">=</span><span class="n">dry_run</span><span class="p">,</span> <span class="n">cache_dir</span><span class="o">=</span><span class="n">cache_dir</span><span class="p">,</span> <span class="n">keep_uuid</span><span class="o">=</span><span class="n">keep_uuid</span><span class="p">,</span>
                                     <span class="n">download_only</span><span class="o">=</span><span class="n">download_only</span><span class="p">,</span> <span class="n">clobber</span><span class="o">=</span><span class="n">clobber</span><span class="p">,</span> <span class="n">offline</span><span class="o">=</span><span class="n">offline</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="OneAlyx.load_dataset"><a class="viewcode-back" href="../../_autosummary/oneibl.one.html#oneibl.one.OneAlyx.load_dataset">[docs]</a>    <span class="k">def</span> <span class="nf">load_dataset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">eid</span><span class="p">,</span> <span class="n">dataset_type</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<div class="viewcode-block" id="OneAlyx.load_dataset"><a class="viewcode-back" href="../../_autosummary/oneibl.one.html#oneibl.one.OneAlyx.load_dataset">[docs]</a>    <span class="nd">@parse_id</span>
+    <span class="k">def</span> <span class="nf">load_dataset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                     <span class="n">eid</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">,</span> <span class="n">UUID</span><span class="p">],</span>
+                     <span class="n">dataset</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                     <span class="n">collection</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span>
+                     <span class="n">download_only</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Load a single dataset from a Session ID and a dataset type.</span>
 
-<span class="sd">        :param eid: Experiment ID, for IBL this is the UUID of the Session as per Alyx</span>
-<span class="sd">         database. Could be a full Alyx URL:</span>
-<span class="sd">         &#39;http://localhost:8000/sessions/698361f6-b7d0-447d-a25d-42afdef7a0da&#39; or only the UUID:</span>
-<span class="sd">         &#39;698361f6-b7d0-447d-a25d-42afdef7a0da&#39;.</span>
-<span class="sd">        :type eid: str</span>
-<span class="sd">        :param dataset_type: Alyx dataset type to be returned.</span>
-<span class="sd">        :type dataset_types: str</span>
+<span class="sd">        :param eid: Experiment session identifier; may be a UUID, URL, experiment reference string</span>
+<span class="sd">        details dict or Path</span>
+<span class="sd">        :param dataset: The ALF dataset to load.  Supports asterisks as wildcards.</span>
+<span class="sd">        :param collection:  The collection to which the object belongs, e.g. &#39;alf/probe01&#39;.</span>
+<span class="sd">        Supports asterisks as wildcards.</span>
+<span class="sd">        :param download_only: When true the data are downloaded and the file path is returned</span>
+<span class="sd">        :return: dataset or a Path object if download_only is true</span>
 
-<span class="sd">        :return: A numpy array.</span>
-<span class="sd">        :rtype: numpy array</span>
+<span class="sd">        Examples:</span>
+<span class="sd">            intervals = one.load_dataset(eid, &#39;_ibl_trials.intervals.npy&#39;)</span>
+<span class="sd">            intervals = one.load_dataset(eid, &#39;*trials.intervals*&#39;)</span>
+<span class="sd">            filepath = one.load_dataset(eid &#39;_ibl_trials.intervals.npy&#39;, download_only=True)</span>
+<span class="sd">            spikes = one.load_dataset(eid &#39;spikes.times.npy&#39;, collection=&#39;alf/probe01&#39;)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">dataset_types</span><span class="o">=</span><span class="p">[</span><span class="n">dataset_type</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span></div>
+        <span class="n">search_str</span> <span class="o">=</span> <span class="s1">&#39;name__regex,&#39;</span> <span class="o">+</span> <span class="n">dataset</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="sa">r</span><span class="s1">&#39;\.&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;*&#39;</span><span class="p">,</span> <span class="s1">&#39;.*&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">collection</span> <span class="ow">and</span> <span class="n">collection</span> <span class="o">!=</span> <span class="s1">&#39;all&#39;</span><span class="p">:</span>
+            <span class="n">search_str</span> <span class="o">+=</span> <span class="s1">&#39;,collection__regex,&#39;</span> <span class="o">+</span> <span class="n">collection</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;*&#39;</span><span class="p">,</span> <span class="s1">&#39;.*&#39;</span><span class="p">)</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;datasets&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span> <span class="n">session</span><span class="o">=</span><span class="n">eid</span><span class="p">,</span> <span class="n">django</span><span class="o">=</span><span class="n">search_str</span><span class="p">)</span>
 
-<div class="viewcode-block" id="OneAlyx.load_object"><a class="viewcode-back" href="../../_autosummary/oneibl.one.html#oneibl.one.OneAlyx.load_object">[docs]</a>    <span class="k">def</span> <span class="nf">load_object</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">eid</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="c1"># Get filenames of returned ALF files</span>
+        <span class="n">collection_set</span> <span class="o">=</span> <span class="p">{</span><span class="n">x</span><span class="p">[</span><span class="s1">&#39;collection&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">results</span><span class="p">}</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">collection_set</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">ALFMultipleCollectionsFound</span><span class="p">(</span><span class="s1">&#39;Matching dataset belongs to multiple collections:&#39;</span> <span class="o">+</span>
+                                              <span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">collection_set</span><span class="p">))</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">ALFMultipleObjectsFound</span><span class="p">(</span><span class="s1">&#39;The following matching datasets were found: &#39;</span> <span class="o">+</span>
+                                          <span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">results</span><span class="p">))</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">ALFObjectNotFound</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Dataset &quot;</span><span class="si">{</span><span class="n">dataset</span><span class="si">}</span><span class="s1">&quot; not found on Alyx&#39;</span><span class="p">)</span>
+
+        <span class="n">filename</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">download_dataset</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">assert</span> <span class="n">filename</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;failed to download dataset&#39;</span>
+
+        <span class="k">return</span> <span class="n">filename</span> <span class="k">if</span> <span class="n">download_only</span> <span class="k">else</span> <span class="n">alfio</span><span class="o">.</span><span class="n">load_file_content</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OneAlyx.load_object"><a class="viewcode-back" href="../../_autosummary/oneibl.one.html#oneibl.one.OneAlyx.load_object">[docs]</a>    <span class="nd">@parse_id</span>
+    <span class="k">def</span> <span class="nf">load_object</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                    <span class="n">eid</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">,</span> <span class="n">UUID</span><span class="p">],</span>
+                    <span class="n">obj</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                    <span class="n">collection</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span>
+                    <span class="n">download_only</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                    <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">alfio</span><span class="o">.</span><span class="n">AlfBunch</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">Path</span><span class="p">]]:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Load all attributes of an ALF object from a Session ID and an object name.</span>
 
-<span class="sd">        :param eid: Experiment ID, for IBL this is the UUID of the Session as per Alyx</span>
-<span class="sd">         database. Could be a full Alyx URL:</span>
-<span class="sd">         &#39;http://localhost:8000/sessions/698361f6-b7d0-447d-a25d-42afdef7a0da&#39; or only the UUID:</span>
-<span class="sd">         &#39;698361f6-b7d0-447d-a25d-42afdef7a0da&#39;.</span>
-<span class="sd">        :type eid: str</span>
-<span class="sd">        :param obj: Alyx object to load.</span>
-<span class="sd">        :type obj: str</span>
+<span class="sd">        :param eid: Experiment session identifier; may be a UUID, URL, experiment reference string</span>
+<span class="sd">        details dict or Path</span>
+<span class="sd">        :param obj: The ALF object to load.  Supports asterisks as wildcards.</span>
+<span class="sd">        :param collection:  The collection to which the object belongs, e.g. &#39;alf/probe01&#39;.</span>
+<span class="sd">        Supports asterisks as wildcards.</span>
+<span class="sd">        :param download_only: When true the data are downloaded and the file paths are returned</span>
+<span class="sd">        :param kwargs: Optional filters for the ALF objects, including namespace and timescale</span>
+<span class="sd">        :return: An ALF bunch or if download_only is True, a list of Paths objects</span>
 
-<span class="sd">        :return: A dictionary-like structure with one key per dataset type for the requested</span>
-<span class="sd">         object, and a NumPy array per value.</span>
-<span class="sd">        :rtype: AlfBunch instance</span>
+<span class="sd">        Examples:</span>
+<span class="sd">        load_object(eid, &#39;*moves&#39;)</span>
+<span class="sd">        load_object(eid, &#39;trials&#39;)</span>
+<span class="sd">        load_object(eid, &#39;spikes&#39;, collection=&#39;*probe01&#39;)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">dataset_types</span> <span class="o">=</span> <span class="p">[</span><span class="n">dst</span> <span class="k">for</span> <span class="n">dst</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">list</span><span class="p">(</span><span class="n">eid</span><span class="p">)</span> <span class="k">if</span> <span class="n">dst</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">obj</span><span class="p">)]</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">dataset_types</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">eid</span><span class="si">}</span><span class="s2"> does not contain any </span><span class="si">{</span><span class="n">obj</span><span class="si">}</span><span class="s2"> object datasets&quot;</span><span class="p">)</span>
-            <span class="k">return</span>
-        <span class="n">dsets</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">dataset_types</span><span class="o">=</span><span class="n">dataset_types</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">AlfBunch</span><span class="p">({</span>
-            <span class="s1">&#39;.&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">dataset_types</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">:]):</span> <span class="n">dsets</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
-            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">dataset_types</span><span class="p">))})</span></div>
+        <span class="c1"># Filter server-side by collection and dataset name</span>
+        <span class="n">search_str</span> <span class="o">=</span> <span class="s1">&#39;name__regex,&#39;</span> <span class="o">+</span> <span class="n">obj</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;*&#39;</span><span class="p">,</span> <span class="s1">&#39;.*&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">collection</span> <span class="ow">and</span> <span class="n">collection</span> <span class="o">!=</span> <span class="s1">&#39;all&#39;</span><span class="p">:</span>
+            <span class="n">search_str</span> <span class="o">+=</span> <span class="s1">&#39;,collection__regex,&#39;</span> <span class="o">+</span> <span class="n">collection</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;*&#39;</span><span class="p">,</span> <span class="s1">&#39;.*&#39;</span><span class="p">)</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;datasets&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span> <span class="n">session</span><span class="o">=</span><span class="n">eid</span><span class="p">,</span> <span class="n">django</span><span class="o">=</span><span class="n">search_str</span><span class="p">)</span>
+        <span class="n">pattern</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">fnmatch</span><span class="o">.</span><span class="n">translate</span><span class="p">(</span><span class="n">obj</span><span class="p">))</span>
+
+        <span class="c1"># Further refine by matching object part of ALF datasets</span>
+        <span class="k">def</span> <span class="nf">match</span><span class="p">(</span><span class="n">r</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">is_valid</span><span class="p">(</span><span class="n">r</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">])</span> <span class="ow">and</span> <span class="n">pattern</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">alf_parts</span><span class="p">(</span><span class="n">r</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">])[</span><span class="mi">1</span><span class="p">])</span>
+
+        <span class="c1"># Get filenames of returned ALF files</span>
+        <span class="n">returned_obj</span> <span class="o">=</span> <span class="p">{</span><span class="n">alf_parts</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">])[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">results</span> <span class="k">if</span> <span class="n">match</span><span class="p">(</span><span class="n">x</span><span class="p">)}</span>
+
+        <span class="c1"># Validate result before loading</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">returned_obj</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">ALFMultipleObjectsFound</span><span class="p">(</span><span class="s1">&#39;The following matching objects were found: &#39;</span> <span class="o">+</span>
+                                          <span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">returned_obj</span><span class="p">))</span>
+        <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">returned_obj</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">ALFObjectNotFound</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;ALF object &quot;</span><span class="si">{</span><span class="n">obj</span><span class="si">}</span><span class="s1">&quot; not found on Alyx&#39;</span><span class="p">)</span>
+        <span class="n">collection_set</span> <span class="o">=</span> <span class="p">{</span><span class="n">x</span><span class="p">[</span><span class="s1">&#39;collection&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">results</span> <span class="k">if</span> <span class="n">match</span><span class="p">(</span><span class="n">x</span><span class="p">)}</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">collection_set</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">ALFMultipleCollectionsFound</span><span class="p">(</span><span class="s1">&#39;Matching object belongs to multiple collections:&#39;</span> <span class="o">+</span>
+                                              <span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">collection_set</span><span class="p">))</span>
+
+        <span class="c1"># Download and optionally load the datasets</span>
+        <span class="n">out_files</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">download_datasets</span><span class="p">(</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">results</span> <span class="k">if</span> <span class="n">match</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
+        <span class="k">assert</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">(</span><span class="n">x</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">out_files</span><span class="p">),</span> <span class="s1">&#39;failed to download object&#39;</span>
+        <span class="k">if</span> <span class="n">download_only</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">out_files</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">alfio</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="n">out_files</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">parent</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
 
     <span class="k">def</span> <span class="nf">_load_recursive</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">eid</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -598,6 +653,36 @@
                 <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">eid</span><span class="p">:</span>
                     <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_load</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
             <span class="k">return</span> <span class="n">out</span>
+
+<div class="viewcode-block" id="OneAlyx.to_eid"><a class="viewcode-back" href="../../_autosummary/oneibl.one.html#oneibl.one.OneAlyx.to_eid">[docs]</a>    <span class="k">def</span> <span class="nf">to_eid</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+               <span class="nb">id</span><span class="p">:</span> <span class="n">Listable</span><span class="p">(</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">,</span> <span class="n">UUID</span><span class="p">,</span> <span class="nb">dict</span><span class="p">])</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+               <span class="n">cache_dir</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Listable</span><span class="p">(</span><span class="nb">str</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="nb">id</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>  <span class="c1"># Recurse</span>
+            <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">to_eid</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">cache_dir</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">id</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="nb">id</span><span class="p">,</span> <span class="n">UUID</span><span class="p">):</span>
+            <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="nb">id</span><span class="p">)</span>
+        <span class="c1"># elif is_exp_ref(id):</span>
+        <span class="c1">#     return ref2eid(id, one=self)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="nb">id</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="k">assert</span> <span class="p">{</span><span class="s1">&#39;subject&#39;</span><span class="p">,</span> <span class="s1">&#39;number&#39;</span><span class="p">,</span> <span class="s1">&#39;start_time&#39;</span><span class="p">,</span> <span class="s1">&#39;lab&#39;</span><span class="p">}</span><span class="o">.</span><span class="n">issubset</span><span class="p">(</span><span class="nb">id</span><span class="p">)</span>
+            <span class="n">root</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_cache_dir</span><span class="p">(</span><span class="n">cache_dir</span><span class="p">))</span>
+            <span class="nb">id</span> <span class="o">=</span> <span class="n">root</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span>
+                <span class="nb">id</span><span class="p">[</span><span class="s1">&#39;lab&#39;</span><span class="p">],</span>
+                <span class="s1">&#39;Subjects&#39;</span><span class="p">,</span> <span class="nb">id</span><span class="p">[</span><span class="s1">&#39;subject&#39;</span><span class="p">],</span>
+                <span class="nb">id</span><span class="p">[</span><span class="s1">&#39;start_time&#39;</span><span class="p">][:</span><span class="mi">10</span><span class="p">],</span>
+                <span class="p">(</span><span class="s1">&#39;</span><span class="si">%03d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="nb">id</span><span class="p">[</span><span class="s1">&#39;number&#39;</span><span class="p">]))</span>
+
+        <span class="k">if</span> <span class="n">alfio</span><span class="o">.</span><span class="n">is_session_path</span><span class="p">(</span><span class="nb">id</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">eid_from_path</span><span class="p">(</span><span class="nb">id</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="nb">id</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="nb">id</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">36</span><span class="p">:</span>
+                <span class="nb">id</span> <span class="o">=</span> <span class="nb">id</span><span class="p">[</span><span class="o">-</span><span class="mi">36</span><span class="p">:]</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">alfio</span><span class="o">.</span><span class="n">is_uuid_string</span><span class="p">(</span><span class="nb">id</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Invalid experiment ID&#39;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="nb">id</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Unrecognized experiment ID&#39;</span><span class="p">)</span></div>
 
     <span class="k">def</span> <span class="nf">_make_dataclass</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">eid</span><span class="p">,</span> <span class="n">dataset_types</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">cache_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dry_run</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
                         <span class="n">clobber</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">offline</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">keep_uuid</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
@@ -646,22 +731,20 @@
         <span class="k">assert</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">table</span><span class="p">,</span> <span class="nb">str</span><span class="p">))</span>
         <span class="n">table_field_names</span> <span class="o">=</span> <span class="p">{</span>
             <span class="s1">&#39;dataset-types&#39;</span><span class="p">:</span> <span class="s1">&#39;name&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;datasets&#39;</span><span class="p">:</span> <span class="s1">&#39;name&#39;</span><span class="p">,</span>
             <span class="s1">&#39;users&#39;</span><span class="p">:</span> <span class="s1">&#39;username&#39;</span><span class="p">,</span>
             <span class="s1">&#39;subjects&#39;</span><span class="p">:</span> <span class="s1">&#39;nickname&#39;</span><span class="p">,</span>
             <span class="s1">&#39;labs&#39;</span><span class="p">:</span> <span class="s1">&#39;name&#39;</span><span class="p">}</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">table</span> <span class="ow">or</span> <span class="n">table</span> <span class="ow">not</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">_ENDPOINTS</span><span class="o">.</span><span class="n">keys</span><span class="p">())):</span>
             <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="s2">&quot;The attribute/endpoint: &quot;</span> <span class="o">+</span> <span class="n">table</span> <span class="o">+</span> <span class="s2">&quot; doesn&#39;t exist </span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span>
                            <span class="s2">&quot;possible values are &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">_ENDPOINTS</span><span class="o">.</span><span class="n">values</span><span class="p">())))</span>
-        <span class="n">full_out</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="n">list_out</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">ind</span><span class="p">,</span> <span class="n">tab</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">_ENDPOINTS</span><span class="p">):</span>
-            <span class="k">if</span> <span class="n">tab</span> <span class="o">==</span> <span class="n">table</span><span class="p">:</span>
-                <span class="n">field_name</span> <span class="o">=</span> <span class="n">table_field_names</span><span class="p">[</span><span class="n">_ENDPOINTS</span><span class="p">[</span><span class="n">tab</span><span class="p">]]</span>
-                <span class="n">full_out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;/&#39;</span> <span class="o">+</span> <span class="n">_ENDPOINTS</span><span class="p">[</span><span class="n">tab</span><span class="p">]))</span>
-                <span class="n">list_out</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">f</span><span class="p">[</span><span class="n">field_name</span><span class="p">]</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">full_out</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]])</span>
+
+        <span class="n">field_name</span> <span class="o">=</span> <span class="n">table_field_names</span><span class="p">[</span><span class="n">_ENDPOINTS</span><span class="p">[</span><span class="n">table</span><span class="p">]]</span>
+        <span class="n">full_out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;/&#39;</span> <span class="o">+</span> <span class="n">_ENDPOINTS</span><span class="p">[</span><span class="n">table</span><span class="p">])</span>
+        <span class="n">list_out</span> <span class="o">=</span> <span class="p">[</span><span class="n">f</span><span class="p">[</span><span class="n">field_name</span><span class="p">]</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">full_out</span><span class="p">]</span>
         <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
             <span class="n">pprint</span><span class="p">(</span><span class="n">list_out</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">list_out</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">full_out</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">list_out</span><span class="p">,</span> <span class="n">full_out</span>
 
     <span class="c1"># def search(self, dataset_types=None, users=None, subjects=None, date_range=None,</span>
     <span class="c1">#            lab=None, number=None, task_protocol=None, details=False):</span>
@@ -828,7 +911,7 @@
         <span class="n">Path</span><span class="p">(</span><span class="n">target_dir</span><span class="p">)</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="n">local_path</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">target_dir</span><span class="p">)</span> <span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">sep</span> <span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">keep_uuid</span><span class="p">:</span>
-            <span class="n">local_path</span> <span class="o">=</span> <span class="n">remove_uuid_file</span><span class="p">(</span><span class="n">local_path</span><span class="p">,</span> <span class="n">dry</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">local_path</span> <span class="o">=</span> <span class="n">alfio</span><span class="o">.</span><span class="n">remove_uuid_file</span><span class="p">(</span><span class="n">local_path</span><span class="p">,</span> <span class="n">dry</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">Path</span><span class="p">(</span><span class="n">local_path</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">offline</span><span class="p">:</span>
             <span class="c1"># the local file hash doesn&#39;t match the dataset table cached hash</span>
             <span class="n">hash_mismatch</span> <span class="o">=</span> <span class="nb">hash</span> <span class="ow">and</span> <span class="n">hashfile</span><span class="o">.</span><span class="n">md5</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">local_path</span><span class="p">))</span> <span class="o">!=</span> <span class="nb">hash</span>
@@ -853,7 +936,7 @@
         <span class="k">if</span> <span class="n">keep_uuid</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">local_path</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">remove_uuid_file</span><span class="p">(</span><span class="n">local_path</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">alfio</span><span class="o">.</span><span class="n">remove_uuid_file</span><span class="p">(</span><span class="n">local_path</span><span class="p">)</span>
 
 <div class="viewcode-block" id="OneAlyx.search_terms"><a class="viewcode-back" href="../../_autosummary/oneibl.one.html#oneibl.one.OneAlyx.search_terms">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">search_terms</span><span class="p">():</span>
@@ -896,7 +979,7 @@
                 <span class="n">path_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path_from_eid</span><span class="p">(</span><span class="n">p</span><span class="p">))</span>
             <span class="k">return</span> <span class="n">path_list</span>
         <span class="c1"># If not valid return None</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">is_uuid_string</span><span class="p">(</span><span class="n">eid</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">alfio</span><span class="o">.</span><span class="n">is_uuid_string</span><span class="p">(</span><span class="n">eid</span><span class="p">):</span>
             <span class="nb">print</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="s2">&quot; is not a valid eID/UUID string&quot;</span><span class="p">)</span>
             <span class="k">return</span>
 
@@ -935,7 +1018,7 @@
             <span class="k">return</span> <span class="n">eid_list</span>
         <span class="c1"># else ensure the path ends with mouse,date, number</span>
         <span class="n">path_obj</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path_obj</span><span class="p">)</span>
-        <span class="n">session_path</span> <span class="o">=</span> <span class="n">get_session_path</span><span class="p">(</span><span class="n">path_obj</span><span class="p">)</span>
+        <span class="n">session_path</span> <span class="o">=</span> <span class="n">alfio</span><span class="o">.</span><span class="n">get_session_path</span><span class="p">(</span><span class="n">path_obj</span><span class="p">)</span>
         <span class="c1"># if path does not have a date and a number return None</span>
         <span class="k">if</span> <span class="n">session_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">return</span> <span class="kc">None</span>
@@ -969,7 +1052,7 @@
                 <span class="n">details_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_details</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">full</span><span class="o">=</span><span class="n">full</span><span class="p">))</span>
             <span class="k">return</span> <span class="n">details_list</span>
         <span class="c1"># If not valid return None</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">is_uuid_string</span><span class="p">(</span><span class="n">eid</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">alfio</span><span class="o">.</span><span class="n">is_uuid_string</span><span class="p">(</span><span class="n">eid</span><span class="p">):</span>
             <span class="nb">print</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="s2">&quot; is not a valid eID/UUID string&quot;</span><span class="p">)</span>
             <span class="k">return</span>
         <span class="c1"># load all details</span>
@@ -1024,7 +1107,74 @@
             <span class="n">typs</span> <span class="o">=</span> <span class="p">[</span><span class="n">t</span> <span class="k">for</span> <span class="n">t</span><span class="p">,</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="o">.</span><span class="n">dtypes</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="k">if</span> <span class="s1">&#39;id_&#39;</span> <span class="ow">in</span> <span class="n">k</span><span class="p">]</span>
             <span class="k">assert</span> <span class="p">(</span><span class="nb">all</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">t</span><span class="p">:</span> <span class="n">t</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">,</span> <span class="n">typs</span><span class="p">)))</span>
             <span class="c1"># if this gets too big, look into saving only when destroying the ONE object</span>
-            <span class="n">parquet</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cache_file</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="p">)</span></div>
+            <span class="n">parquet</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cache_file</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="p">)</span>
+
+<div class="viewcode-block" id="OneAlyx.download_raw_partial"><a class="viewcode-back" href="../../_autosummary/oneibl.one.html#oneibl.one.OneAlyx.download_raw_partial">[docs]</a>    <span class="k">def</span> <span class="nf">download_raw_partial</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">url_cbin</span><span class="p">,</span> <span class="n">url_ch</span><span class="p">,</span> <span class="n">first_chunk</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">last_chunk</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="k">assert</span> <span class="n">url_cbin</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;.cbin&#39;</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">url_ch</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;.ch&#39;</span><span class="p">)</span>
+
+        <span class="n">relpath</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">url_cbin</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_par</span><span class="o">.</span><span class="n">HTTP_DATA_SERVER</span><span class="p">,</span> <span class="s1">&#39;.&#39;</span><span class="p">))</span><span class="o">.</span><span class="n">parents</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">target_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_cache_dir</span><span class="p">(</span><span class="kc">None</span><span class="p">),</span> <span class="n">relpath</span><span class="p">)</span>
+        <span class="n">Path</span><span class="p">(</span><span class="n">target_dir</span><span class="p">)</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="c1"># First, download the .ch file.</span>
+        <span class="n">ch_local_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">wc</span><span class="o">.</span><span class="n">http_download_file</span><span class="p">(</span>
+            <span class="n">url_ch</span><span class="p">,</span>
+            <span class="n">username</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_par</span><span class="o">.</span><span class="n">HTTP_DATA_SERVER_LOGIN</span><span class="p">,</span>
+            <span class="n">password</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_par</span><span class="o">.</span><span class="n">HTTP_DATA_SERVER_PWD</span><span class="p">,</span>
+            <span class="n">cache_dir</span><span class="o">=</span><span class="n">target_dir</span><span class="p">,</span> <span class="n">clobber</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">offline</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">return_md5</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
+        <span class="n">ch_local_path</span> <span class="o">=</span> <span class="n">alfio</span><span class="o">.</span><span class="n">remove_uuid_file</span><span class="p">(</span><span class="n">ch_local_path</span><span class="p">)</span>
+        <span class="n">ch_local_path_renamed</span> <span class="o">=</span> <span class="n">ch_local_path</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s1">&#39;.chopped.ch&#39;</span><span class="p">)</span>
+        <span class="n">ch_local_path</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">ch_local_path_renamed</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">ch_local_path_renamed</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span>
+        <span class="n">ch_local_path</span> <span class="o">=</span> <span class="n">ch_local_path_renamed</span>
+
+        <span class="c1"># Load the .ch file.</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">ch_local_path</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">cmeta</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+
+        <span class="c1"># Get the first byte and number of bytes to download.</span>
+        <span class="n">total_n_samples</span> <span class="o">=</span> <span class="n">cmeta</span><span class="p">[</span><span class="s1">&#39;chunk_bounds&#39;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">i0</span> <span class="o">=</span> <span class="n">cmeta</span><span class="p">[</span><span class="s1">&#39;chunk_bounds&#39;</span><span class="p">][</span><span class="n">first_chunk</span><span class="p">]</span>
+        <span class="n">cmeta</span><span class="p">[</span><span class="s1">&#39;chunk_bounds&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">cmeta</span><span class="p">[</span><span class="s1">&#39;chunk_bounds&#39;</span><span class="p">][</span><span class="n">first_chunk</span><span class="p">:</span><span class="n">last_chunk</span> <span class="o">+</span> <span class="mi">2</span><span class="p">]</span>
+        <span class="n">cmeta</span><span class="p">[</span><span class="s1">&#39;chunk_bounds&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">_</span> <span class="o">-</span> <span class="n">i0</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">cmeta</span><span class="p">[</span><span class="s1">&#39;chunk_bounds&#39;</span><span class="p">]]</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">cmeta</span><span class="p">[</span><span class="s1">&#39;chunk_bounds&#39;</span><span class="p">])</span> <span class="o">&gt;=</span> <span class="mi">2</span>
+        <span class="k">assert</span> <span class="n">cmeta</span><span class="p">[</span><span class="s1">&#39;chunk_bounds&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span>
+
+        <span class="n">first_byte</span> <span class="o">=</span> <span class="n">cmeta</span><span class="p">[</span><span class="s1">&#39;chunk_offsets&#39;</span><span class="p">][</span><span class="n">first_chunk</span><span class="p">]</span>
+        <span class="n">cmeta</span><span class="p">[</span><span class="s1">&#39;chunk_offsets&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">cmeta</span><span class="p">[</span><span class="s1">&#39;chunk_offsets&#39;</span><span class="p">][</span><span class="n">first_chunk</span><span class="p">:</span><span class="n">last_chunk</span> <span class="o">+</span> <span class="mi">2</span><span class="p">]</span>
+        <span class="n">cmeta</span><span class="p">[</span><span class="s1">&#39;chunk_offsets&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">_</span> <span class="o">-</span> <span class="n">first_byte</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">cmeta</span><span class="p">[</span><span class="s1">&#39;chunk_offsets&#39;</span><span class="p">]]</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">cmeta</span><span class="p">[</span><span class="s1">&#39;chunk_offsets&#39;</span><span class="p">])</span> <span class="o">&gt;=</span> <span class="mi">2</span>
+        <span class="k">assert</span> <span class="n">cmeta</span><span class="p">[</span><span class="s1">&#39;chunk_offsets&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span>
+        <span class="n">n_bytes</span> <span class="o">=</span> <span class="n">cmeta</span><span class="p">[</span><span class="s1">&#39;chunk_offsets&#39;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">assert</span> <span class="n">n_bytes</span> <span class="o">&gt;</span> <span class="mi">0</span>
+
+        <span class="c1"># Save the chopped chunk bounds and ossets.</span>
+        <span class="n">cmeta</span><span class="p">[</span><span class="s1">&#39;sha1_compressed&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">cmeta</span><span class="p">[</span><span class="s1">&#39;sha1_uncompressed&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">cmeta</span><span class="p">[</span><span class="s1">&#39;chopped&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">cmeta</span><span class="p">[</span><span class="s1">&#39;chopped_first_sample&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">i0</span>
+        <span class="n">cmeta</span><span class="p">[</span><span class="s1">&#39;chopped_total_samples&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">total_n_samples</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">ch_local_path</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">cmeta</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">sort_keys</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="c1"># Download the requested chunks</span>
+        <span class="n">cbin_local_path</span> <span class="o">=</span> <span class="n">wc</span><span class="o">.</span><span class="n">http_download_file</span><span class="p">(</span>
+            <span class="n">url_cbin</span><span class="p">,</span>
+            <span class="n">username</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_par</span><span class="o">.</span><span class="n">HTTP_DATA_SERVER_LOGIN</span><span class="p">,</span>
+            <span class="n">password</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_par</span><span class="o">.</span><span class="n">HTTP_DATA_SERVER_PWD</span><span class="p">,</span>
+            <span class="n">cache_dir</span><span class="o">=</span><span class="n">target_dir</span><span class="p">,</span> <span class="n">clobber</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">offline</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">return_md5</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">chunks</span><span class="o">=</span><span class="p">(</span><span class="n">first_byte</span><span class="p">,</span> <span class="n">n_bytes</span><span class="p">))</span>
+        <span class="n">cbin_local_path</span> <span class="o">=</span> <span class="n">alfio</span><span class="o">.</span><span class="n">remove_uuid_file</span><span class="p">(</span><span class="n">cbin_local_path</span><span class="p">)</span>
+        <span class="n">cbin_local_path_renamed</span> <span class="o">=</span> <span class="n">cbin_local_path</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span>
+            <span class="s1">&#39;.chopped.cbin&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s1">&#39;.chopped.cbin&#39;</span><span class="p">)</span>
+        <span class="n">cbin_local_path</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">cbin_local_path_renamed</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">cbin_local_path_renamed</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span>
+        <span class="n">cbin_local_path</span> <span class="o">=</span> <span class="n">cbin_local_path_renamed</span>
+
+        <span class="kn">import</span> <span class="nn">mtscomp</span>
+        <span class="n">reader</span> <span class="o">=</span> <span class="n">mtscomp</span><span class="o">.</span><span class="n">decompress</span><span class="p">(</span><span class="n">cbin_local_path</span><span class="p">,</span> <span class="n">cmeta</span><span class="o">=</span><span class="n">ch_local_path</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">reader</span></div></div>
 
 
 <span class="k">def</span> <span class="nf">_validate_date_range</span><span class="p">(</span><span class="n">date_range</span><span class="p">):</span>

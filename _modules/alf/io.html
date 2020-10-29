@@ -180,6 +180,7 @@
 <span class="kn">import</span> <span class="nn">copy</span>
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">from</span> <span class="nn">uuid</span> <span class="kn">import</span> <span class="n">UUID</span>
 <span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
 <span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Union</span>
@@ -190,6 +191,7 @@
 <span class="kn">from</span> <span class="nn">brainbox.core</span> <span class="kn">import</span> <span class="n">Bunch</span>
 <span class="kn">from</span> <span class="nn">brainbox.io</span> <span class="kn">import</span> <span class="n">parquet</span>
 <span class="kn">from</span> <span class="nn">ibllib.io</span> <span class="kn">import</span> <span class="n">jsonable</span>
+<span class="kn">from</span> <span class="nn">ibllib.exceptions</span> <span class="kn">import</span> <span class="n">ALFObjectNotFound</span>
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">files</span>
 
 <span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;ibllib&#39;</span><span class="p">)</span>
@@ -350,7 +352,7 @@
     <span class="k">if</span> <span class="n">fil</span><span class="o">.</span><span class="n">suffix</span> <span class="o">==</span> <span class="s1">&#39;.jsonable&#39;</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">jsonable</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">fil</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">fil</span><span class="o">.</span><span class="n">suffix</span> <span class="o">==</span> <span class="s1">&#39;.npy&#39;</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">file</span><span class="o">=</span><span class="n">fil</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">file</span><span class="o">=</span><span class="n">fil</span><span class="p">,</span> <span class="n">allow_pickle</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">fil</span><span class="o">.</span><span class="n">suffix</span> <span class="o">==</span> <span class="s1">&#39;.pqt&#39;</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">parquet</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">fil</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">fil</span><span class="o">.</span><span class="n">suffix</span> <span class="o">==</span> <span class="s1">&#39;.ssv&#39;</span><span class="p">:</span>
@@ -368,7 +370,9 @@
 <span class="sd">    :return: lists of pathlib.Path for each file and list of corresponding attributes</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">alfpath</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">alfpath</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">alfpath</span><span class="o">.</span><span class="n">is_dir</span><span class="p">():</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">alfpath</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+        <span class="n">files_alf</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">elif</span> <span class="n">alfpath</span><span class="o">.</span><span class="n">is_dir</span><span class="p">():</span>
         <span class="k">if</span> <span class="nb">object</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="c1"># List all ALF files</span>
             <span class="n">files_alf</span><span class="p">,</span> <span class="n">attributes</span> <span class="o">=</span> <span class="n">files</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span><span class="n">alfpath</span><span class="p">)</span>
@@ -382,7 +386,7 @@
     <span class="c1"># raise error if no files found</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">files_alf</span><span class="p">:</span>
         <span class="n">err_str</span> <span class="o">=</span> <span class="s1">&#39;object &quot;</span><span class="si">%s</span><span class="s1">&quot; &#39;</span> <span class="o">%</span> <span class="nb">object</span> <span class="k">if</span> <span class="nb">object</span> <span class="k">else</span> <span class="s1">&#39;ALF files&#39;</span>
-        <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="s1">&#39;No </span><span class="si">{}</span><span class="s1"> found in </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">err_str</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">alfpath</span><span class="p">)))</span>
+        <span class="k">raise</span> <span class="n">ALFObjectNotFound</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;No </span><span class="si">{</span><span class="n">err_str</span><span class="si">}</span><span class="s1"> found in </span><span class="si">{</span><span class="n">alfpath</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="p">[</span><span class="n">alfpath</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">f</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">files_alf</span><span class="p">],</span> <span class="n">attributes</span>
 
@@ -399,7 +403,7 @@
     <span class="c1"># if the object is not found, return False</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="n">_</span><span class="p">,</span> <span class="n">attributes_found</span> <span class="o">=</span> <span class="n">_ls</span><span class="p">(</span><span class="n">alfpath</span><span class="p">,</span> <span class="nb">object</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-    <span class="k">except</span> <span class="ne">FileNotFoundError</span><span class="p">:</span>
+    <span class="k">except</span> <span class="p">(</span><span class="ne">FileNotFoundError</span><span class="p">,</span> <span class="n">ALFObjectNotFound</span><span class="p">):</span>
         <span class="k">return</span> <span class="kc">False</span>
 
     <span class="c1"># if object found and no attribute provided, True</span>
@@ -561,7 +565,8 @@
 
 <div class="viewcode-block" id="is_uuid_string"><a class="viewcode-back" href="../../_autosummary/alf.io.html#alf.io.is_uuid_string">[docs]</a><span class="k">def</span> <span class="nf">is_uuid_string</span><span class="p">(</span><span class="n">string</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Bool test for uuid version 4</span>
+<span class="sd">    Bool test for randomly generated hexadecimal uuid validity</span>
+<span class="sd">    NB: uuid must be hyphen separated</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">string</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">return</span> <span class="kc">False</span>
@@ -572,6 +577,20 @@
         <span class="k">return</span> <span class="kc">True</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="k">return</span> <span class="kc">False</span></div>
+
+
+<div class="viewcode-block" id="is_uuid"><a class="viewcode-back" href="../../_autosummary/alf.io.html#alf.io.is_uuid">[docs]</a><span class="k">def</span> <span class="nf">is_uuid</span><span class="p">(</span><span class="n">uuid</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">,</span> <span class="n">UUID</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Bool test for randomly generated hexadecimal uuid validity</span>
+<span class="sd">    Unlike `is_uuid_string`, this function accepts UUID objects</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">uuid</span><span class="p">,</span> <span class="p">(</span><span class="n">UUID</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">,</span> <span class="nb">int</span><span class="p">)):</span>
+        <span class="k">return</span> <span class="kc">False</span>
+    <span class="k">elif</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">uuid</span><span class="p">,</span> <span class="n">UUID</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">uuid</span> <span class="o">=</span> <span class="n">UUID</span><span class="p">(</span><span class="n">uuid</span><span class="p">)</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">uuid</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">else</span> <span class="n">UUID</span><span class="p">(</span><span class="o">**</span><span class="p">{</span><span class="nb">type</span><span class="p">(</span><span class="n">uuid</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="p">:</span> <span class="n">uuid</span><span class="p">})</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+    <span class="k">return</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">uuid</span><span class="p">,</span> <span class="n">UUID</span><span class="p">)</span> <span class="ow">and</span> <span class="n">uuid</span><span class="o">.</span><span class="n">version</span> <span class="o">==</span> <span class="mi">4</span></div>
 
 
 <span class="k">def</span> <span class="nf">_isdatetime</span><span class="p">(</span><span class="n">s</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>

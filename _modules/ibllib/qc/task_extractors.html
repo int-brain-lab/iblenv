@@ -179,12 +179,14 @@
     <span class="n">ErrorCueTriggerTimes</span><span class="p">,</span> <span class="n">RewardVolume</span><span class="p">,</span> <span class="n">ResponseTimes</span><span class="p">,</span> <span class="n">FeedbackTimes</span><span class="p">,</span> <span class="n">ItiInTimes</span><span class="p">,</span>
     <span class="n">ProbabilityLeft</span><span class="p">,</span> <span class="n">run_extractor_classes</span>  <span class="c1"># ContrastLR</span>
 <span class="p">)</span>
+<span class="kn">import</span> <span class="nn">ibllib.io.extractors.habituation_trials</span> <span class="k">as</span> <span class="nn">habit</span>
 <span class="kn">from</span> <span class="nn">ibllib.io.extractors.training_wheel</span> <span class="kn">import</span> <span class="n">Wheel</span>
-<span class="kn">from</span> <span class="nn">oneibl.one</span> <span class="kn">import</span> <span class="n">ONE</span>
 <span class="kn">from</span> <span class="nn">ibllib.io.extractors.ephys_fpga</span> <span class="kn">import</span> <span class="p">(</span>
     <span class="n">_get_pregenerated_events</span><span class="p">,</span> <span class="n">_get_main_probe_sync</span><span class="p">,</span> <span class="n">bpod_fpga_sync</span><span class="p">,</span> <span class="n">FpgaTrials</span>
 <span class="p">)</span>
 <span class="kn">import</span> <span class="nn">ibllib.io.raw_data_loaders</span> <span class="k">as</span> <span class="nn">raw</span>
+<span class="kn">from</span> <span class="nn">alf.io</span> <span class="kn">import</span> <span class="n">is_session_path</span>
+<span class="kn">from</span> <span class="nn">oneibl.one</span> <span class="kn">import</span> <span class="n">ONE</span>
 
 
 <div class="viewcode-block" id="TaskQCExtractor"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.task_extractors.html#ibllib.qc.task_extractors.TaskQCExtractor">[docs]</a><span class="k">class</span> <span class="nc">TaskQCExtractor</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
@@ -197,19 +199,22 @@
 <span class="sd">        :param download_data: if True, any missing raw data is downloaded via ONE</span>
 <span class="sd">        :param bpod_only: extract from from raw Bpod data only, even for FPGA sessions</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">is_session_path</span><span class="p">(</span><span class="n">session_path</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Invalid session path&#39;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span> <span class="o">=</span> <span class="n">session_path</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">one</span> <span class="o">=</span> <span class="n">one</span> <span class="ow">or</span> <span class="n">ONE</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">one</span> <span class="o">=</span> <span class="n">one</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s2">&quot;ibllib&quot;</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">settings</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">raw_data</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">frame_ttls</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_ttls</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">frame_ttls</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_ttls</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_ttls</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">wheel_encoding</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">bpod_only</span> <span class="o">=</span> <span class="n">bpod_only</span>
 
         <span class="k">if</span> <span class="n">download_data</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">one</span> <span class="o">=</span> <span class="n">one</span> <span class="ow">or</span> <span class="n">ONE</span><span class="p">()</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_ensure_required_data</span><span class="p">()</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">lazy</span><span class="p">:</span>
@@ -262,7 +267,8 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">raw_data</span> <span class="o">=</span> <span class="n">raw</span><span class="o">.</span><span class="n">load_bpod</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
         <span class="c1"># Fetch the TTLs for the photodiode and audio</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">type</span> <span class="o">!=</span> <span class="s1">&#39;ephys&#39;</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_only</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>  <span class="c1"># Extract from Bpod</span>
-            <span class="n">ttls</span> <span class="o">=</span> <span class="n">raw</span><span class="o">.</span><span class="n">load_bpod_fronts</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">raw_data</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">frame_ttls</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_ttls</span> <span class="o">=</span> <span class="n">raw</span><span class="o">.</span><span class="n">load_bpod_fronts</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">raw_data</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>  <span class="c1"># Extract from FPGA</span>
             <span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span> <span class="o">=</span> <span class="n">_get_main_probe_sync</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
 
@@ -272,8 +278,8 @@
                 <span class="n">mask</span> <span class="o">=</span> <span class="n">sync</span><span class="p">[</span><span class="s1">&#39;channels&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">chmap</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
                 <span class="k">return</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">keys</span><span class="p">,</span> <span class="p">(</span><span class="n">sync</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="n">mask</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">keys</span><span class="p">)))</span>
 
-            <span class="n">ttls</span> <span class="o">=</span> <span class="p">[</span><span class="n">channel_events</span><span class="p">(</span><span class="n">ch</span><span class="p">)</span> <span class="k">for</span> <span class="n">ch</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;frame2ttl&#39;</span><span class="p">,</span> <span class="s1">&#39;audio&#39;</span><span class="p">)]</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">frame_ttls</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_ttls</span> <span class="o">=</span> <span class="n">ttls</span></div>
+            <span class="n">ttls</span> <span class="o">=</span> <span class="p">[</span><span class="n">channel_events</span><span class="p">(</span><span class="n">ch</span><span class="p">)</span> <span class="k">for</span> <span class="n">ch</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;frame2ttl&#39;</span><span class="p">,</span> <span class="s1">&#39;audio&#39;</span><span class="p">,</span> <span class="s1">&#39;bpod&#39;</span><span class="p">)]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">frame_ttls</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">audio_ttls</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_ttls</span> <span class="o">=</span> <span class="n">ttls</span></div>
 
 <div class="viewcode-block" id="TaskQCExtractor.extract_data"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.task_extractors.html#ibllib.qc.task_extractors.TaskQCExtractor.extract_data">[docs]</a>    <span class="k">def</span> <span class="nf">extract_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">partial</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Extracts and loads behaviour data for QC</span>
@@ -295,15 +301,21 @@
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">raw_data</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">load_raw_data</span><span class="p">()</span>
 
-        <span class="c1"># Signals and parameters not usually saved to file, available for all task types</span>
-        <span class="n">extractors</span> <span class="o">=</span> <span class="p">[</span>
-            <span class="n">StimOnTriggerTimes</span><span class="p">,</span> <span class="n">StimOffTriggerTimes</span><span class="p">,</span> <span class="n">StimOnOffFreezeTimes</span><span class="p">,</span>
-            <span class="n">StimFreezeTriggerTimes</span><span class="p">,</span> <span class="n">ErrorCueTriggerTimes</span><span class="p">,</span> <span class="n">ItiInTimes</span><span class="p">]</span>
+        <span class="c1"># Signals and parameters not usually saved to file</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s1">&#39;habituation&#39;</span><span class="p">:</span>
+            <span class="n">extractors</span> <span class="o">=</span> <span class="p">[</span><span class="n">habit</span><span class="o">.</span><span class="n">StimCenterTimes</span><span class="p">,</span> <span class="n">habit</span><span class="o">.</span><span class="n">StimCenterTriggerTimes</span><span class="p">,</span>
+                          <span class="n">habit</span><span class="o">.</span><span class="n">ItiInTimes</span><span class="p">,</span> <span class="n">habit</span><span class="o">.</span><span class="n">StimOffTriggerTimes</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">extractors</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">StimOnTriggerTimes</span><span class="p">,</span> <span class="n">StimOffTriggerTimes</span><span class="p">,</span> <span class="n">StimOnOffFreezeTimes</span><span class="p">,</span>
+                <span class="n">StimFreezeTriggerTimes</span><span class="p">,</span> <span class="n">ErrorCueTriggerTimes</span><span class="p">,</span> <span class="n">ItiInTimes</span><span class="p">]</span>
 
         <span class="c1"># Extract the data that are usually saved to file</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">partial</span><span class="p">:</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s1">&#39;ephys&#39;</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_only</span><span class="p">:</span>
                 <span class="n">extractors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">FpgaTrials</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s1">&#39;habituation&#39;</span><span class="p">:</span>
+                <span class="n">extractors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">habit</span><span class="o">.</span><span class="n">HabituationTrials</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">extractors</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span>
                     <span class="n">Choice</span><span class="p">,</span> <span class="n">FeedbackType</span><span class="p">,</span> <span class="n">Intervals</span><span class="p">,</span> <span class="n">StimOnTimes</span><span class="p">,</span> <span class="n">GoCueTriggerTimes</span><span class="p">,</span> <span class="n">Wheel</span><span class="p">,</span>
@@ -315,6 +327,8 @@
         <span class="c1"># Run behaviour extractors</span>
         <span class="n">kwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">save</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">bpod_trials</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">raw_data</span><span class="p">,</span> <span class="n">settings</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">)</span>
         <span class="n">data</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">run_extractor_classes</span><span class="p">(</span><span class="n">extractors</span><span class="p">,</span> <span class="n">session_path</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="n">n_trials</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">k</span><span class="p">:</span> <span class="n">data</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">data</span><span class="p">)))[</span><span class="mi">0</span><span class="p">]</span>
 
         <span class="c1"># Extract some parameters</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s1">&#39;ephys&#39;</span><span class="p">:</span>
@@ -332,12 +346,23 @@
                 <span class="c1"># These fields have to be re-synced</span>
                 <span class="n">sync_fields</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;stimOnTrigger_times&#39;</span><span class="p">,</span> <span class="s1">&#39;stimOffTrigger_times&#39;</span><span class="p">,</span> <span class="s1">&#39;stimFreeze_times&#39;</span><span class="p">,</span>
                                <span class="s1">&#39;stimFreezeTrigger_times&#39;</span><span class="p">,</span> <span class="s1">&#39;errorCueTrigger_times&#39;</span><span class="p">,</span> <span class="s1">&#39;itiIn_times&#39;</span><span class="p">]</span>
+                <span class="n">bpod_fields</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;probabilityLeft&#39;</span><span class="p">,</span> <span class="s1">&#39;contrastLeft&#39;</span><span class="p">,</span> <span class="s1">&#39;contrastRight&#39;</span><span class="p">,</span> <span class="s1">&#39;position&#39;</span><span class="p">,</span>
+                               <span class="s1">&#39;contrast&#39;</span><span class="p">,</span> <span class="s1">&#39;quiescence&#39;</span><span class="p">,</span> <span class="s1">&#39;phase&#39;</span><span class="p">]</span>
                 <span class="c1"># build trials output</span>
                 <span class="n">data</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="n">bpod2fpga</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="n">ibpod</span><span class="p">])</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">sync_fields</span><span class="p">})</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">data</span><span class="p">[</span><span class="s1">&#39;quiescence&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">t</span><span class="p">[</span><span class="s1">&#39;quiescent_period&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">raw_data</span><span class="p">])</span>
+                <span class="n">data</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="n">data</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="n">ibpod</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">bpod_fields</span><span class="p">})</span>
+
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s1">&#39;habituation&#39;</span><span class="p">:</span>
             <span class="n">data</span><span class="p">[</span><span class="s1">&#39;position&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">t</span><span class="p">[</span><span class="s1">&#39;position&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">raw_data</span><span class="p">])</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">wheel_encoding</span> <span class="o">=</span> <span class="s1">&#39;X1&#39;</span>
+            <span class="n">data</span><span class="p">[</span><span class="s1">&#39;phase&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">t</span><span class="p">[</span><span class="s1">&#39;stim_phase&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">raw_data</span><span class="p">])</span>
+            <span class="c1"># Nasty hack to trim last trial due to stim off events happening at trial num + 1</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span><span class="p">[:</span><span class="n">n_trials</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">data</span><span class="p">[</span><span class="s1">&#39;quiescence&#39;</span><span class="p">]</span> <span class="o">=</span> \
+                <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">t</span><span class="p">[</span><span class="s1">&#39;quiescent_period&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">raw_data</span><span class="p">[:</span><span class="n">n_trials</span><span class="p">]])</span>
+            <span class="n">data</span><span class="p">[</span><span class="s1">&#39;position&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">t</span><span class="p">[</span><span class="s1">&#39;position&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">raw_data</span><span class="p">[:</span><span class="n">n_trials</span><span class="p">]])</span>
+            <span class="c1"># FIXME Check this is valid for biased choiceWorld</span>
+            <span class="n">data</span><span class="p">[</span><span class="s1">&#39;phase&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">t</span><span class="p">[</span><span class="s1">&#39;stim_phase&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">raw_data</span><span class="p">[:</span><span class="n">n_trials</span><span class="p">]])</span>
 
         <span class="c1"># Update the data attribute with extracted data</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">:</span>
@@ -349,8 +374,7 @@
 <div class="viewcode-block" id="TaskQCExtractor.rename_data"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.task_extractors.html#ibllib.qc.task_extractors.TaskQCExtractor.rename_data">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">rename_data</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Rename the extracted data dict for use with TaskQC</span>
-<span class="sd">        Splits &#39;feedback_times&#39; to &#39;errorCue_times&#39; and &#39;valveOpen_times&#39;.  Also adds &#39;outcome&#39; and</span>
-<span class="sd">        &#39;correct&#39;.</span>
+<span class="sd">        Splits &#39;feedback_times&#39; to &#39;errorCue_times&#39; and &#39;valveOpen_times&#39;.</span>
 <span class="sd">        NB: The data is not copied before making changes</span>
 <span class="sd">        :param data: A dict of task data returned by the task extractors</span>
 <span class="sd">        :return: the same dict after modifying the keys</span>
@@ -366,8 +390,6 @@
              <span class="s2">&quot;valveOpen_times&quot;</span><span class="p">:</span> <span class="n">valveOpen_times</span><span class="p">,</span>
              <span class="s2">&quot;correct&quot;</span><span class="p">:</span> <span class="n">correct</span><span class="p">}</span>
         <span class="p">)</span>
-        <span class="n">data</span><span class="p">[</span><span class="s2">&quot;outcome&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;feedbackType&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
-        <span class="n">data</span><span class="p">[</span><span class="s2">&quot;outcome&quot;</span><span class="p">][</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;choice&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
         <span class="k">return</span> <span class="n">data</span></div></div>
 </pre></div>
 
