@@ -18,13 +18,3 @@ You can also check out this
 [google colab notebook](https://colab.research.google.com/drive/19BTZT1zsduLXdT9GGbVzIw1g3Lt38VfW?usp=sharing) that uses
 ONE Light with the IBL behavioural data to replicate the figures presented in this 
 [paper](https://doi.org/10.1101/2020.05.21.109678).
-
-
-
-
-
-
-
-
-
-
