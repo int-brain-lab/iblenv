@@ -40,3 +40,20 @@ Histology
    notebooks_external/docs_visualize_session_coronal_tilted
    notebooks_external/docs_visualization3D_subject_channels
 
+Video
+#########
+.. toctree::
+   :maxdepth: 1
+
+    notebooks_external/docs_access_DLC
+
+
+
+
+
+
+
+
+
+
+
