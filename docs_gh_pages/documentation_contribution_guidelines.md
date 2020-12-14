@@ -12,6 +12,11 @@ The website is generated using
 
 # Contributing to documentation
 
+### Install dependencies to build the website locally
+```shell
+pip install -r ./docs_gh_pages/requirements-docs.txt
+```
+
 ### Including notebooks located outside of docs folder
 To include .ipynb notebooks that are not in the `./docs-gh-pages` folder in the documentation you must make a 
 [`.nblink`](https://github.com/vidartf/nbsphinx-link]) file that points to the location
@@ -26,7 +31,7 @@ Once you have made your changes to the documentation, the documentation can be b
 executes all .ipynb notebooks included in the documentation and uses nb-sphinx and sphinx to then generate the built 
 html version of the files. 
 
-```python
+```shell
 cd ./docs-gh-pages
 python make_script.py -e -d -c
 ```
@@ -39,17 +44,22 @@ Once this script has completed a preview of the documentation can be viewed by o
 
 Check that all notebooks have run without errors and that your changes have been implemented correctly!
 
+For changes only to the website, one can run:
+```shell
+cd ./docs-gh-pages
+python make_script.py -d -c
+```
+
 ## Pushing changes to gh-pages
 Once you are happy with the built documentation, the changes can be deployed to the website by running the following
 command
 
-```python
+```shell
 python make_script.py -gh -m "your commit message"
 ```
 
 ## Flake8nb
 Linting checks can be applied to ipynb. notebooks using flake8_nb, an example implementation is
-```python
+```shell
 flake8_nb .\notebooks\one_intro\one_intro.ipynb
 ```
-
