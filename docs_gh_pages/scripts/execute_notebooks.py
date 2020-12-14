@@ -166,95 +166,17 @@ class NotebookConverter(object):
                 # Makes sure original notebook isn't left blank in case of error during writing
             if self.overwrite:
                 with open(self.temp_nb_path, 'w', encoding='utf-8') as f:
-                #with open(self.temp_nb_path, 'w') as f:
                     nbformat.write(nb, f)
                 shutil.copyfile(self.temp_nb_path, self.executed_nb_path)
                 os.remove(self.temp_nb_path)
             else:
                 with open(self.executed_nb_path, 'w', encoding='utf-8') as f:
-                #with open(self.temp_nb_path, 'w') as f:
                     nbformat.write(nb, f)
 
         return self.executed_nb_path
 
-    def convert(self):
-        """
-        Converts the executed notebook to a restructured text (RST) file.
-        Returns
-        -------
-        output_file_path : str``
-            The path to the converted notebook
-        """
 
-        # Only convert if executed notebook exists
-        if not os.path.exists(self.executed_nb_path):
-            raise IOError("Executed notebook file doesn't exist! Expected: {0}"
-                          .format(self.executed_nb_path))
-
-        # Initialize the resources dict
-        resources = dict()
-        resources['unique_key'] = self.nb_name
-
-        # path to store extra files, like plots generated
-        resources['output_files_dir'] = 'nboutput/'
-
-        # Exports the notebook to RST
-        _logger.info("Exporting executed notebook to RST format")
-        exporter = RSTExporter()
-
-        # If a RST template file has been specified use this template
-        if self.rst_template:
-            exporter.template_file = self.rst_template
-
-        output, resources = exporter.from_filename(self.executed_nb_path, resources=resources)
-
-        # Write the output RST file
-        writer = FilesWriter()
-        output_file_path = writer.write(output, resources, notebook_name=self.nb_name)
-
-        return output_file_path
-
-    def append(self):
-        """
-        Append cells required to run in google colab to top of ipynb file. If you want to apply
-        this on the unexecuted notebook, must run append method before execute!!
-        Returns
-        -------
-        colab_file_path : str
-            The path to the colab notebook
-        """
-
-        if self.colab_template is None:
-            _logger.warning("No colab template specified, skipping this step")
-            return
-
-        else:
-            # Read in the colab template
-            with open(self.colab_template, 'r') as f:
-                colab_template = f.read()
-                colab_dict = json.loads(colab_template)
-                colab_cells = colab_dict['cells']
-
-            # Read in the notebook
-            with open(self.nb_path, 'r') as file:
-                nb = file.read()
-                nb_dict = json.loads(nb)
-                nb_cells = nb_dict['cells']
-
-            colab_nb = nb_dict.copy()
-            # Assumes the first cell of nb is the title
-            colab_nb['cells'] = list(np.concatenate([[nb_cells[0]], colab_cells, nb_cells[1:]]))
-
-            # Make sure colab notebooks are never executed with nbsphinx
-            nb_sphinx_dict = {"nbsphinx": {"execute": "never"}}
-            colab_nb['metadata'].update(nb_sphinx_dict)
-
-            with open(self.colab_nb_path, 'w') as json_file:
-                json.dump(colab_nb, json_file, indent=1)
-
-            return self.colab_nb_path
-
-    def unexecute(self):
+    def unexecute(self, keep_flag=False):
         """
         Unexecutes the notebook i.e. removes all output cells
         """
@@ -266,8 +188,9 @@ class NotebookConverter(object):
         with open(self.executed_nb_path) as f:
             nb = nbformat.read(f, as_version=IPYTHON_VERSION)
 
-        if nb['metadata'].get('docs_executed', None):
-            nb['metadata'].pop('docs_executed')
+        if not keep_flag:
+            if nb['metadata'].get('docs_executed', None):
+                nb['metadata'].pop('docs_executed')
         clear_executor = ClearOutputPreprocessor()
         clear_executor.preprocess(nb, {})
 
@@ -276,7 +199,7 @@ class NotebookConverter(object):
 
 
 def process_notebooks(nbfile_or_path, execute=True, force=False, link=False, cleanup=False,
-                      filename_pattern='', rst=False, colab=False, **kwargs):
+                      filename_pattern='', keep_flag=False, **kwargs):
     """
     Execute and optionally convert the specified notebook file or directory of
     notebook files.
@@ -294,10 +217,6 @@ def process_notebooks(nbfile_or_path, execute=True, force=False, link=False, cle
         execute argument to False
     filename_pattern: str, default = ''
         Filename pattern to look for in .py or .ipynb files to include in docs
-    rst : bool, default=False
-        Whether to convert executed notebook to rst format
-    colab : bool, default=False
-        Whether to make colab compatible notebook
     **kwargs
         Other keyword arguments that are passed to the 'NotebookExecuter'
     """
@@ -319,30 +238,6 @@ def process_notebooks(nbfile_or_path, execute=True, force=False, link=False, cle
                     else:
                         continue
 
-                # if name starts with 'exec' and cleanup=True delete the notebook
-                if name.startswith('exec'):
-                    if cleanup:
-                        os.remove(full_path)
-                        continue
-                    else:
-                        continue
-
-                # if name starts with 'colab' and cleanup=True delete colab notebook
-                if name.startswith('colab'):
-                    if cleanup:
-                        os.remove(full_path)
-                        continue
-                    else:
-                        continue
-
-                # if name rst file and cleanup=True delete file
-                if ext == '.rst':
-                    if cleanup:
-                        os.remove(full_path)
-                        continue
-                    else:
-                        continue
-
                 # if file has 'ipynb' extension create the NotebookConverter object
                 if ext == '.ipynb':
                     if re.search(filename_pattern, name):
@@ -355,7 +250,7 @@ def process_notebooks(nbfile_or_path, execute=True, force=False, link=False, cle
                             nbc.execute(force=force)
                         # If cleanup is true and execute is false unexecute the notebook
                         if cleanup:
-                            nbc.unexecute()
+                            nbc.unexecute(keep_flag=keep_flag)
 
                 # if file has 'py' extension convert to '.ipynb' and then execute
                 if ext == '.py':
@@ -380,12 +275,54 @@ def process_notebooks(nbfile_or_path, execute=True, force=False, link=False, cle
                             if execute:
                                 nbc.execute(force=force)
 
-
     else:
+
+        full_path = Path(nbfile_or_path)
+        ext = full_path.suffix
+
+        # skip checkpoints
+        if 'ipynb_checkpoints' in full_path:
+            if cleanup:
+                os.remove(full_path)
+
+        # if file has 'ipynb' extension create the NotebookConverter object
+        elif ext == '.ipynb':
+            nbc = NotebookConverter(full_path, **kwargs)
+            # Want to create the link file
+            if link:
+                nbc.link()
+            # Execute the notebook
+            if execute:
+                nbc.execute(force=force)
+            # If cleanup is true and execute is false unexecute the notebook
+            if cleanup:
+                nbc.unexecute(keep_flag=keep_flag)
+
+        # if file has 'py' extension convert to '.ipynb' and then execute
+        elif ext == '.py':
+            # See if the ipynb version already exists
+            ipy_path = sph_nb.replace_py_ipynb(full_path)
+            if Path(ipy_path).exists():
+                # If it does and we want to execute, skip as it would have been
+                # If cleanup then we want to delete this file
+                if cleanup:
+                    os.remove(ipy_path)
+            else:
+                # If it doesn't exist, we need to make it
+                full_path = NotebookConverter.py_to_ipynb(full_path)
+                nbc = NotebookConverter(full_path, **kwargs)
+                if link:
+                    nbc.link()
+                # Execute the notebook
+                if execute:
+                    nbc.execute(force=force)
+
+
+
         # If a single file is passed in
-        nbc = NotebookConverter(nbfile_or_path, **kwargs)
-        if execute:
-            nbc.execute(force=force)
-        # If cleanup is true and execute is false unexecute the notebook
-        elif not execute and cleanup:
-            nbc.unexecute()
+        # nbc = NotebookConverter(nbfile_or_path, **kwargs)
+        # if execute:
+        #     nbc.execute(force=force)
+        # # If cleanup is true and execute is false unexecute the notebook
+        # elif not execute and cleanup:
+        #     nbc.unexecute()
