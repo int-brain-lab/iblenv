@@ -179,7 +179,6 @@ class NotebookConverter(object):
         if not remove_gh:
             if not keep_flag:
                 if nb['metadata'].get('docs_executed', None):
-                    print('popping that flag')
                     nb['metadata'].pop('docs_executed')
 
             clear_executor = ClearOutputPreprocessor()

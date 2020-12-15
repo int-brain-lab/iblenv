@@ -45,7 +45,6 @@ def make_documentation(execute, force, documentation, clean, specific, github, m
             if str(nb).startswith(str(root)):
                 process_notebooks(nb, execute=True, force=force)
             else:
-                print('here')
                 process_notebooks(nb, execute=True, force=force, link=True)
             _logger.info("Finished processing notebooks")
 
@@ -81,7 +80,8 @@ def make_documentation(execute, force, documentation, clean, specific, github, m
 
         # remove the _sources folder as we don't need this
         build_nb_source_path = root.joinpath('_build', 'html', '_sources')
-        shutil.rmtree(build_nb_source_path)
+        if build_nb_source_path.exists():
+            shutil.rmtree(build_nb_source_path)
 
         # Need to figure out how to do this
         if not message:

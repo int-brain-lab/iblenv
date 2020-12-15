@@ -33,7 +33,9 @@ An example implementation can be seen in the `06_examples.rst` file
 
 ## Making documentation
 ### Install dependencies to build the website locally
+```shell
 pip install -r ./docs_gh_pages/requirements-docs.txt
+```
 
 ### Option 1: Only building changes to documentation
 If you have only made changes to the documentation (any of the files with `.md` extenstion), you can build the
