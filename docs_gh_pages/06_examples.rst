@@ -22,8 +22,8 @@ Ephys
    notebooks_external/docs_plot_sound_spectrogram_ephysrig
    notebooks_external/docs_load_spike_sorting
 
-Histology
-#########
+ONE
+###
 .. toctree::
    :maxdepth: 1
 
