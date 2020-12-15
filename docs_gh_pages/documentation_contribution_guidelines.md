@@ -79,7 +79,7 @@ run the `make_script.py` using option 1 or 2, some or all of the examples will n
 Once you are happy with the built documentation, the changes can be deployed to the website by running the following
 command
 
-```python
+```shell
 python make_script.py -gh -m "your commit message"
 ```
 

@@ -1,4 +1,6 @@
-# iblenv
+[Documentation here ! ](https://int-brain-lab.github.io/iblenv/)
+
+# IBLENV installation guide
 Unified environment and Issue tracker for all IBL github repositories.
 
 ## Update environment

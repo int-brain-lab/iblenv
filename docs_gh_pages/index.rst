@@ -60,13 +60,22 @@ Examples
    06_examples
 
 
+Contribution Statement
+------------------------------------
+
+.. toctree::
+   :maxdepth: 5
+
+   07_contribution
+
+
 API
 ------------------------------------
 
 .. toctree::
    :maxdepth: 2
 
-   07_developers
+   08_api_reference.rst
 
 
 * :ref:`genindex`
