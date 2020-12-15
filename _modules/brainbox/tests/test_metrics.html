@@ -104,7 +104,10 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../06_examples.html">Examples</a></li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../07_developers.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../07_contribution.html">Contribution Statement</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../08_api_reference.html">API Reference</a></li>
 </ul>
 
             
@@ -169,23 +172,90 @@
            <div itemprop="articleBody">
             
   <h1>Source code for brainbox.tests.test_metrics</h1><div class="highlight"><pre>
-<span></span><span class="c1"># Create synthetic dataset in a top-level function (times, amps, clusters)</span>
+<span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">brainbox.metrics</span> <span class="kn">import</span> <span class="n">quick_unit_metrics</span><span class="p">,</span> <span class="n">electrode_drift</span>
+
+<span class="n">REC_LEN_SECS</span> <span class="o">=</span> <span class="mi">1000</span>
+<span class="n">fr</span> <span class="o">=</span> <span class="mi">200</span>
 
 
-<div class="viewcode-block" id="test_unit_stability"><a class="viewcode-back" href="../../../_autosummary/brainbox.tests.test_metrics.html#brainbox.tests.test_metrics.test_unit_stability">[docs]</a><span class="k">def</span> <span class="nf">test_unit_stability</span><span class="p">():</span>
-    <span class="k">pass</span></div>
+<div class="viewcode-block" id="multiple_spike_trains"><a class="viewcode-back" href="../../../_autosummary/brainbox.tests.test_metrics.html#brainbox.tests.test_metrics.multiple_spike_trains">[docs]</a><span class="k">def</span> <span class="nf">multiple_spike_trains</span><span class="p">(</span><span class="n">firing_rates</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">rec_len_secs</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">cluster_ids</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                          <span class="n">amplitude_noise</span><span class="o">=</span><span class="mi">20</span> <span class="o">*</span> <span class="mf">1e-6</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    :param firing_rates: list or np.array of firing rates (spikes per second)</span>
+<span class="sd">    :param rec_len_secs: recording length in seconds</span>
+<span class="sd">    :return: spike_times, spike_amps, spike_clusters</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">firing_rates</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">firing_rates</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">150</span><span class="p">,</span> <span class="mi">600</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">cluster_ids</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">cluster_ids</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">firing_rates</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>
+    <span class="n">ca</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mf">5.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="n">firing_rates</span><span class="o">.</span><span class="n">size</span><span class="p">))</span> <span class="o">/</span> <span class="mf">1e6</span>  <span class="c1"># output is in V</span>
+    <span class="n">st</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">sc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">firing_rate</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">firing_rates</span><span class="p">):</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="n">generate_spike_train</span><span class="p">(</span><span class="n">firing_rate</span><span class="o">=</span><span class="n">firing_rate</span><span class="p">,</span> <span class="n">rec_len_secs</span><span class="o">=</span><span class="n">rec_len_secs</span><span class="p">)</span>
+        <span class="n">st</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="n">st</span><span class="p">,</span> <span class="n">t</span><span class="p">]</span>
+        <span class="n">sc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="n">sc</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span> <span class="o">+</span> <span class="n">cluster_ids</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span>
+
+    <span class="n">ordre</span> <span class="o">=</span> <span class="n">st</span><span class="o">.</span><span class="n">argsort</span><span class="p">()</span>
+    <span class="n">st</span> <span class="o">=</span> <span class="n">st</span><span class="p">[</span><span class="n">ordre</span><span class="p">]</span>
+    <span class="n">sc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">(</span><span class="n">sc</span><span class="p">[</span><span class="n">ordre</span><span class="p">])</span>
+    <span class="n">sa</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">ca</span><span class="p">[</span><span class="n">sc</span><span class="p">]</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">st</span><span class="o">.</span><span class="n">size</span><span class="p">)</span> <span class="o">*</span> <span class="n">amplitude_noise</span><span class="p">,</span> <span class="mi">25</span> <span class="o">*</span> <span class="mf">1e-6</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">st</span><span class="p">,</span> <span class="n">sa</span><span class="p">,</span> <span class="n">sc</span></div>
 
 
-<div class="viewcode-block" id="test_feat_cutoff"><a class="viewcode-back" href="../../../_autosummary/brainbox.tests.test_metrics.html#brainbox.tests.test_metrics.test_feat_cutoff">[docs]</a><span class="k">def</span> <span class="nf">test_feat_cutoff</span><span class="p">():</span>
-    <span class="k">pass</span></div>
+<div class="viewcode-block" id="generate_spike_train"><a class="viewcode-back" href="../../../_autosummary/brainbox.tests.test_metrics.html#brainbox.tests.test_metrics.generate_spike_train">[docs]</a><span class="k">def</span> <span class="nf">generate_spike_train</span><span class="p">(</span><span class="n">firing_rate</span><span class="o">=</span><span class="mi">200</span><span class="p">,</span> <span class="n">rec_len_secs</span><span class="o">=</span><span class="mi">1000</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Basic spike train generator following a poisson process for spike-times and</span>
+<span class="sd">    :param firing_rate:</span>
+<span class="sd">    :param rec_len_secs:</span>
+<span class="sd">    :return: spike_times (secs) , spike_amplitudes (V)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># spike times: exponential decay prob</span>
+    <span class="n">st</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">rec_len_secs</span> <span class="o">*</span> <span class="n">firing_rate</span> <span class="o">*</span> <span class="mf">1.5</span><span class="p">)))</span> <span class="o">/</span> <span class="n">firing_rate</span><span class="p">)</span>
+    <span class="n">st</span> <span class="o">=</span> <span class="n">st</span><span class="p">[:</span><span class="n">np</span><span class="o">.</span><span class="n">searchsorted</span><span class="p">(</span><span class="n">st</span><span class="p">,</span> <span class="n">rec_len_secs</span><span class="p">)]</span>
+
+    <span class="k">return</span> <span class="n">st</span></div>
 
 
-<div class="viewcode-block" id="test_wf_similarity"><a class="viewcode-back" href="../../../_autosummary/brainbox.tests.test_metrics.html#brainbox.tests.test_metrics.test_wf_similarity">[docs]</a><span class="k">def</span> <span class="nf">test_wf_similarity</span><span class="p">():</span>
-    <span class="k">pass</span></div>
+<div class="viewcode-block" id="test_clusters_metrics"><a class="viewcode-back" href="../../../_autosummary/brainbox.tests.test_metrics.html#brainbox.tests.test_metrics.test_clusters_metrics">[docs]</a><span class="k">def</span> <span class="nf">test_clusters_metrics</span><span class="p">():</span>
+    <span class="n">frs</span> <span class="o">=</span> <span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">200</span><span class="p">,</span> <span class="mi">259</span><span class="p">,</span> <span class="mi">567</span><span class="p">]</span>  <span class="c1"># firing rates</span>
+    <span class="n">t</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">c</span> <span class="o">=</span> <span class="n">multiple_spike_trains</span><span class="p">(</span><span class="n">firing_rates</span><span class="o">=</span><span class="n">frs</span><span class="p">,</span> <span class="n">rec_len_secs</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">cluster_ids</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">])</span>
+    <span class="n">d</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">c</span> <span class="o">/</span> <span class="mi">1000</span> <span class="o">*</span> <span class="n">t</span><span class="p">)</span> <span class="o">*</span> <span class="mi">100</span>  <span class="c1"># sinusoidal shift where cluster id drives period</span>
+    <span class="n">dfm</span> <span class="o">=</span> <span class="n">quick_unit_metrics</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">d</span><span class="p">)</span>
+
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">dfm</span><span class="p">[</span><span class="s1">&#39;amp_median&#39;</span><span class="p">]</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="mf">5.5</span><span class="p">)</span> <span class="o">*</span> <span class="mf">1e6</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">rtol</span><span class="o">=</span><span class="mf">1.1</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">dfm</span><span class="p">[</span><span class="s1">&#39;amp_std_dB&#39;</span><span class="p">]</span> <span class="o">/</span> <span class="mi">20</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="mf">0.5</span><span class="p">)),</span> <span class="mi">1</span><span class="p">,</span> <span class="n">rtol</span><span class="o">=</span><span class="mf">1.1</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">dfm</span><span class="p">[</span><span class="s1">&#39;drift&#39;</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">])</span> <span class="o">*</span> <span class="mi">100</span> <span class="o">*</span> <span class="mi">4</span> <span class="o">*</span> <span class="mf">3.6</span><span class="p">,</span> <span class="n">rtol</span><span class="o">=</span><span class="mf">1.1</span><span class="p">)</span>
+
+    <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">dfm</span><span class="p">[</span><span class="s1">&#39;firing_rate&#39;</span><span class="p">],</span> <span class="n">frs</span><span class="p">)</span></div>
+    <span class="c1"># probe_path = &quot;/datadisk/FlatIron/m1ainenlab/Subjects/ZFM-01577/2020-11-04/001/alf/probe00&quot;</span>
+    <span class="c1"># spikes = alf.io.load_object(probe_path, &#39;spikes&#39;)</span>
+    <span class="c1"># quick_unit_metrics(spikes[&#39;clusters&#39;], spikes[&#39;times&#39;], spikes[&#39;amps&#39;], spikes[&#39;depths&#39;])</span>
 
 
-<div class="viewcode-block" id="test_firing_rate_coeff_var"><a class="viewcode-back" href="../../../_autosummary/brainbox.tests.test_metrics.html#brainbox.tests.test_metrics.test_firing_rate_coeff_var">[docs]</a><span class="k">def</span> <span class="nf">test_firing_rate_coeff_var</span><span class="p">():</span>
-    <span class="k">pass</span></div>
+<div class="viewcode-block" id="test_drift_estimate"><a class="viewcode-back" href="../../../_autosummary/brainbox.tests.test_metrics.html#brainbox.tests.test_metrics.test_drift_estimate">[docs]</a><span class="k">def</span> <span class="nf">test_drift_estimate</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    From spike depths, xcorrelate drift maps to find a drift estimate</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="mi">42</span><span class="p">)</span>
+    <span class="n">ncells</span> <span class="o">=</span> <span class="mi">200</span>
+    <span class="n">cells_depth</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">(</span><span class="n">ncells</span><span class="p">)</span> <span class="o">*</span> <span class="mi">3800</span> <span class="o">+</span> <span class="mi">50</span>
+    <span class="n">frs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">ncells</span><span class="p">)</span> <span class="o">*</span> <span class="mi">50</span> <span class="o">+</span> <span class="mi">200</span>
+    <span class="n">t</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">c</span> <span class="o">=</span> <span class="n">multiple_spike_trains</span><span class="p">(</span><span class="n">firing_rates</span><span class="o">=</span><span class="n">frs</span><span class="p">,</span> <span class="n">rec_len_secs</span><span class="o">=</span><span class="mi">200</span><span class="p">)</span>
+    <span class="c1"># test negative times, no drift</span>
+    <span class="n">drift</span><span class="p">,</span> <span class="n">ts</span> <span class="o">=</span> <span class="n">electrode_drift</span><span class="o">.</span><span class="n">estimate_drift</span><span class="p">(</span><span class="n">t</span> <span class="o">-</span> <span class="mi">2</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">cells_depth</span><span class="p">[</span><span class="n">c</span><span class="p">])</span>
+    <span class="k">assert</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">drift</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">0.01</span><span class="p">))</span>
+    <span class="c1"># test drift recovery - sinusoid 40 um peak amplitude</span>
+    <span class="n">dcor</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">t</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">t</span><span class="p">)</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="mi">50</span>
+    <span class="n">drift</span><span class="p">,</span> <span class="n">ts</span> <span class="o">=</span> <span class="n">electrode_drift</span><span class="o">.</span><span class="n">estimate_drift</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">cells_depth</span><span class="p">[</span><span class="n">c</span><span class="p">]</span> <span class="o">+</span> <span class="n">dcor</span><span class="p">,</span> <span class="n">display</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">drift_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">ts</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">t</span><span class="p">)</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="mi">50</span>
+    <span class="c1"># import matplotlib.pyplot as plt</span>
+    <span class="c1"># plt.plot(ts, drift_)</span>
+    <span class="c1"># plt.plot(ts, drift)</span>
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">drift</span> <span class="o">-</span> <span class="n">drift_</span><span class="p">)[</span><span class="mi">2</span><span class="p">:]</span> <span class="o">&lt;</span> <span class="mi">4</span><span class="p">)</span></div>
 </pre></div>
 
            </div>

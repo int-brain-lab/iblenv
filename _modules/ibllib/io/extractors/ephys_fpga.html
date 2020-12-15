@@ -104,7 +104,10 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../06_examples.html">Examples</a></li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../../07_developers.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../07_contribution.html">Contribution Statement</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../08_api_reference.html">API Reference</a></li>
 </ul>
 
             
@@ -223,7 +226,9 @@
             <span class="s1">&#39;rotary_encoder_0&#39;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>
             <span class="s1">&#39;rotary_encoder_1&#39;</span><span class="p">:</span> <span class="mi">6</span><span class="p">,</span>
             <span class="s1">&#39;audio&#39;</span><span class="p">:</span> <span class="mi">7</span><span class="p">,</span>
-            <span class="s1">&#39;bpod&#39;</span><span class="p">:</span> <span class="mi">16</span><span class="p">},</span>
+            <span class="s1">&#39;bpod&#39;</span><span class="p">:</span> <span class="mi">16</span><span class="p">,</span>
+            <span class="s1">&#39;laser&#39;</span><span class="p">:</span> <span class="mi">17</span><span class="p">,</span>
+            <span class="s1">&#39;laser_ttl&#39;</span><span class="p">:</span> <span class="mi">18</span><span class="p">},</span>
            <span class="s1">&#39;ap&#39;</span><span class="p">:</span>
            <span class="p">{</span><span class="s1">&#39;imec_sync&#39;</span><span class="p">:</span> <span class="mi">6</span><span class="p">}</span>
            <span class="p">},</span>
@@ -270,14 +275,36 @@
     <span class="c1"># loop over chunks of the raw ephys file</span>
     <span class="n">wg</span> <span class="o">=</span> <span class="n">dsp</span><span class="o">.</span><span class="n">WindowGenerator</span><span class="p">(</span><span class="n">sr</span><span class="o">.</span><span class="n">ns</span><span class="p">,</span> <span class="n">SYNC_BATCH_SIZE_SAMPLES</span><span class="p">,</span> <span class="n">overlap</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
     <span class="n">fid_ftcp</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_ftcp</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span>
-    <span class="k">for</span> <span class="n">sl</span> <span class="ow">in</span> <span class="n">wg</span><span class="o">.</span><span class="n">slice</span><span class="p">:</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">sl</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">wg</span><span class="o">.</span><span class="n">slice</span><span class="p">):</span>
         <span class="n">ss</span> <span class="o">=</span> <span class="n">sr</span><span class="o">.</span><span class="n">read_sync</span><span class="p">(</span><span class="n">sl</span><span class="p">)</span>
-        <span class="n">ind</span><span class="p">,</span> <span class="n">fronts</span> <span class="o">=</span> <span class="n">dsp</span><span class="o">.</span><span class="n">fronts</span><span class="p">(</span><span class="n">ss</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-        <span class="c1"># a = sr.read_sync_analog(sl)</span>
+        <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">ss</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">16</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;here&#39;</span><span class="p">)</span>
+            <span class="c1"># artificially add in initial pulse</span>
+            <span class="n">ss</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">16</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">ind</span><span class="p">,</span> <span class="n">fronts</span> <span class="o">=</span> <span class="n">dsp</span><span class="o">.</span><span class="n">fronts</span><span class="p">(</span><span class="n">ss</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">bpod_first_down</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">fronts</span><span class="p">[</span><span class="n">ind</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span> <span class="o">==</span> <span class="mi">16</span><span class="p">]</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">bpod_down</span> <span class="o">=</span> <span class="n">ind</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">ind</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span> <span class="o">==</span> <span class="mi">16</span><span class="p">][</span><span class="n">bpod_first_down</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+
+            <span class="n">camera_first_down</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">fronts</span><span class="p">[</span><span class="n">ind</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">camera_down</span> <span class="o">=</span> <span class="n">ind</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">ind</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">][</span><span class="n">camera_first_down</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+            <span class="nb">print</span><span class="p">((</span><span class="n">camera_down</span> <span class="o">-</span> <span class="n">bpod_down</span><span class="p">)</span> <span class="o">/</span> <span class="n">sr</span><span class="o">.</span><span class="n">fs</span> <span class="o">*</span> <span class="mf">1e3</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="p">((</span><span class="n">camera_down</span> <span class="o">-</span> <span class="n">bpod_down</span><span class="p">)</span> <span class="o">/</span> <span class="n">sr</span><span class="o">.</span><span class="n">fs</span> <span class="o">*</span> <span class="mf">1e3</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">ind_bad</span><span class="p">,</span> <span class="n">fronts_bad</span> <span class="o">=</span> <span class="n">dsp</span><span class="o">.</span><span class="n">fronts</span><span class="p">(</span><span class="n">ss</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
         <span class="n">sav</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">c_</span><span class="p">[(</span><span class="n">ind</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:]</span> <span class="o">+</span> <span class="n">sl</span><span class="o">.</span><span class="n">start</span><span class="p">)</span> <span class="o">/</span> <span class="n">sr</span><span class="o">.</span><span class="n">fs</span><span class="p">,</span> <span class="n">ind</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">:],</span> <span class="n">fronts</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">double</span><span class="p">)]</span>
         <span class="n">sav</span><span class="o">.</span><span class="n">tofile</span><span class="p">(</span><span class="n">fid_ftcp</span><span class="p">)</span>
         <span class="c1"># print progress</span>
         <span class="n">wg</span><span class="o">.</span><span class="n">print_progress</span><span class="p">()</span>
+
+    <span class="c1">#for sl in wg.slice:</span>
+    <span class="c1">#    ss = sr.read_sync(sl)</span>
+    <span class="c1">#    ind, fronts = dsp.fronts(ss, axis=0)</span>
+    <span class="c1">#    # a = sr.read_sync_analog(sl)</span>
+    <span class="c1">#    sav = np.c_[(ind[0, :] + sl.start) / sr.fs, ind[1, :], fronts.astype(np.double)]</span>
+    <span class="c1">#    sav.tofile(fid_ftcp)</span>
+    <span class="c1">#    # print progress</span>
+    <span class="c1">#    wg.print_progress()</span>
     <span class="c1"># close temp file, read from it and delete</span>
     <span class="n">fid_ftcp</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
     <span class="n">tim_chan_pol</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fromfile</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">file_ftcp</span><span class="p">))</span>

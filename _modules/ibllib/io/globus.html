@@ -104,7 +104,10 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../06_examples.html">Examples</a></li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../07_developers.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../07_contribution.html">Contribution Statement</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../08_api_reference.html">API Reference</a></li>
 </ul>
 
             
@@ -169,8 +172,38 @@
            <div itemprop="articleBody">
             
   <h1>Source code for ibllib.io.globus</h1><div class="highlight"><pre>
-<span></span><span class="kn">import</span> <span class="nn">globus_sdk</span> <span class="k">as</span> <span class="nn">globus</span>
+<span></span><span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+
+<span class="kn">import</span> <span class="nn">globus_sdk</span> <span class="k">as</span> <span class="nn">globus</span>
 <span class="kn">from</span> <span class="nn">ibllib.io</span> <span class="kn">import</span> <span class="n">params</span>
+
+
+<div class="viewcode-block" id="as_globus_path"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.globus.html#ibllib.io.globus.as_globus_path">[docs]</a><span class="k">def</span> <span class="nf">as_globus_path</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Convert a path into one suitable for the Globus TransferClient.</span>
+
+<span class="sd">    :param path: A path str or Path instance</span>
+<span class="sd">    :return: A formatted path string</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        # A Windows path</span>
+<span class="sd">        &gt;&gt;&gt; as_globus_path(&#39;E:\\FlatIron\\integration&#39;)</span>
+<span class="sd">        &gt;&gt;&gt; &#39;/~/E/FlatIron/integration&#39;</span>
+
+<span class="sd">        # A relative POSIX path</span>
+<span class="sd">        &gt;&gt;&gt; as_globus_path(&#39;../data/integration&#39;)</span>
+<span class="sd">        &gt;&gt;&gt; &#39;/~/mnt/data/integration&#39;</span>
+
+<span class="sd">        # A globus path</span>
+<span class="sd">        &gt;&gt;&gt; as_globus_path(&#39;/~/E/FlatIron/integration&#39;)</span>
+<span class="sd">        &gt;&gt;&gt; &#39;/~/E/FlatIron/integration&#39;</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;/~/&#39;</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">path</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">path</span><span class="o">.</span><span class="n">drive</span><span class="p">:</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">as_posix</span><span class="p">()</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;:&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="k">return</span> <span class="s1">&#39;/~/&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">path</span><span class="p">)</span></div>
 
 
 <span class="k">def</span> <span class="nf">_login</span><span class="p">(</span><span class="n">globus_client_id</span><span class="p">,</span> <span class="n">refresh_tokens</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
@@ -209,11 +242,12 @@
 
 <div class="viewcode-block" id="login_auto"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.globus.html#ibllib.io.globus.login_auto">[docs]</a><span class="k">def</span> <span class="nf">login_auto</span><span class="p">(</span><span class="n">globus_client_id</span><span class="p">,</span> <span class="n">str_app</span><span class="o">=</span><span class="s1">&#39;globus&#39;</span><span class="p">):</span>
     <span class="n">token</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">str_app</span><span class="p">)</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">token</span><span class="p">:</span>
+    <span class="n">required_fields</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;refresh_token&#39;</span><span class="p">,</span> <span class="s1">&#39;transfer_token&#39;</span><span class="p">,</span> <span class="s1">&#39;expires_at_s&#39;</span><span class="p">}</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">token</span> <span class="ow">and</span> <span class="n">required_fields</span><span class="o">.</span><span class="n">issubset</span><span class="p">(</span><span class="n">token</span><span class="o">.</span><span class="n">as_dict</span><span class="p">())):</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Token file doesn&#39;t exist, run ibllib.io.globus.setup first&quot;</span><span class="p">)</span>
     <span class="n">client</span> <span class="o">=</span> <span class="n">globus</span><span class="o">.</span><span class="n">NativeAppAuthClient</span><span class="p">(</span><span class="n">globus_client_id</span><span class="p">)</span>
     <span class="n">client</span><span class="o">.</span><span class="n">oauth2_start_flow</span><span class="p">(</span><span class="n">refresh_tokens</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-    <span class="n">authorizer</span> <span class="o">=</span> <span class="n">globus</span><span class="o">.</span><span class="n">RefreshTokenAuthorizer</span><span class="p">(</span><span class="n">token</span><span class="o">.</span><span class="n">transfer_rt</span><span class="p">,</span> <span class="n">client</span><span class="p">)</span>
+    <span class="n">authorizer</span> <span class="o">=</span> <span class="n">globus</span><span class="o">.</span><span class="n">RefreshTokenAuthorizer</span><span class="p">(</span><span class="n">token</span><span class="o">.</span><span class="n">refresh_token</span><span class="p">,</span> <span class="n">client</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">globus</span><span class="o">.</span><span class="n">TransferClient</span><span class="p">(</span><span class="n">authorizer</span><span class="o">=</span><span class="n">authorizer</span><span class="p">)</span></div>
 </pre></div>
 

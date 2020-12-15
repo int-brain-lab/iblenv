@@ -104,7 +104,10 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../06_examples.html">Examples</a></li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../../07_developers.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../07_contribution.html">Contribution Statement</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../08_api_reference.html">API Reference</a></li>
 </ul>
 
             
@@ -169,12 +172,20 @@
            <div itemprop="articleBody">
             
   <h1>Source code for ibllib.io.extractors.base</h1><div class="highlight"><pre>
-<span></span><span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
-<span class="kn">import</span> <span class="nn">abc</span>
+<span></span><span class="kn">import</span> <span class="nn">abc</span>
+<span class="kn">import</span> <span class="nn">json</span>
 <span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">OrderedDict</span>
-<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
 
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">from</span> <span class="nn">alf.io</span> <span class="kn">import</span> <span class="n">get_session_path</span>
 <span class="kn">from</span> <span class="nn">ibllib.io</span> <span class="kn">import</span> <span class="n">raw_data_loaders</span> <span class="k">as</span> <span class="n">raw</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+
+<span class="kn">from</span> <span class="nn">ibllib.io.raw_data_loaders</span> <span class="kn">import</span> <span class="n">load_settings</span><span class="p">,</span> <span class="n">_logger</span>
+
+<span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s2">&quot;ibllib&quot;</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="BaseExtractor"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.base.html#ibllib.io.extractors.base.BaseExtractor">[docs]</a><span class="k">class</span> <span class="nc">BaseExtractor</span><span class="p">(</span><span class="n">abc</span><span class="o">.</span><span class="n">ABC</span><span class="p">):</span>
@@ -184,11 +195,13 @@
 <span class="sd">    :param session_path: Absolute path of session folder</span>
 <span class="sd">    :type session_path: str</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+
     <span class="n">session_path</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">save_names</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="n">default_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s1">&#39;alf&#39;</span><span class="p">)</span>  <span class="c1"># relative to session</span>
+    <span class="n">default_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;alf&quot;</span><span class="p">)</span>  <span class="c1"># relative to session</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_path</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="c1"># If session_path is None Path(session_path) will fail</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
 
 <div class="viewcode-block" id="BaseExtractor.extract"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.base.html#ibllib.io.extractors.base.BaseExtractor.extract">[docs]</a>    <span class="k">def</span> <span class="nf">extract</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">path_out</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
@@ -197,25 +210,48 @@
 <span class="sd">        :rtype: dtype(&#39;float64&#39;)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_extract</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">save</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">out</span><span class="p">,</span> <span class="kc">None</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">files</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_save</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="n">path_out</span><span class="o">=</span><span class="n">path_out</span><span class="p">)</span> <span class="k">if</span> <span class="n">save</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="n">files</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_save</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="n">path_out</span><span class="o">=</span><span class="n">path_out</span><span class="p">)</span> <span class="k">if</span> <span class="n">save</span> <span class="k">else</span> <span class="kc">None</span>
         <span class="k">return</span> <span class="n">out</span><span class="p">,</span> <span class="n">files</span></div>
 
-    <span class="k">def</span> <span class="nf">_save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">out</span><span class="p">,</span> <span class="n">path_out</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">path_out</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="c1"># Chack if self.save_namesis of the same length of out</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">path_out</span><span class="p">:</span>
             <span class="n">path_out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">default_path</span><span class="p">)</span>
         <span class="n">path_out</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="k">def</span> <span class="nf">_write_to_disk</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+            <span class="sd">&quot;&quot;&quot;Implements different save calls depending on file extension&quot;&quot;&quot;</span>
+            <span class="n">csv_separators</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;.csv&quot;</span><span class="p">:</span> <span class="s2">&quot;,&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;.ssv&quot;</span><span class="p">:</span> <span class="s2">&quot; &quot;</span><span class="p">,</span>
+                <span class="s2">&quot;.tsv&quot;</span><span class="p">:</span> <span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="p">}</span>
+            <span class="n">file_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">file_path</span><span class="o">.</span><span class="n">suffix</span> <span class="o">==</span> <span class="s2">&quot;.npy&quot;</span><span class="p">:</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">file_path</span><span class="o">.</span><span class="n">suffix</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;.parquet&quot;</span><span class="p">,</span> <span class="s2">&quot;.pqt&quot;</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">):</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Data is not a panda&#39;s DataFrame object&quot;</span><span class="p">)</span>
+                    <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Data is not a panda&#39;s DataFrame object&quot;</span><span class="p">)</span>
+                <span class="n">data</span><span class="o">.</span><span class="n">to_parquet</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">file_path</span><span class="o">.</span><span class="n">suffix</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;.csv&quot;</span><span class="p">,</span> <span class="s2">&quot;.ssv&quot;</span><span class="p">,</span> <span class="s2">&quot;.tsv&quot;</span><span class="p">]:</span>
+                <span class="n">sep</span> <span class="o">=</span> <span class="n">csv_separators</span><span class="p">[</span><span class="n">file_path</span><span class="o">.</span><span class="n">suffix</span><span class="p">]</span>
+                <span class="n">data</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="n">sep</span><span class="p">)</span>
+                <span class="c1"># np.savetxt(file_path, data, delimiter=sep)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Don&#39;t know how to save </span><span class="si">{</span><span class="n">file_path</span><span class="o">.</span><span class="n">suffix</span><span class="si">}</span><span class="s2"> files yet&quot;</span><span class="p">)</span>
+
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">save_names</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
-            <span class="n">files</span> <span class="o">=</span> <span class="n">path_out</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">save_names</span><span class="p">)</span>
-            <span class="n">np</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">files</span><span class="p">,</span> <span class="n">out</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">files</span> <span class="o">=</span> <span class="p">[]</span>
-            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">fn</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">save_names</span><span class="p">):</span>
-                <span class="n">np</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">path_out</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">fn</span><span class="p">),</span> <span class="n">out</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
-                <span class="n">files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">path_out</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">fn</span><span class="p">))</span>
-        <span class="k">return</span> <span class="n">files</span>
+            <span class="n">file_paths</span> <span class="o">=</span> <span class="n">path_out</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">save_names</span><span class="p">)</span>
+            <span class="n">_write_to_disk</span><span class="p">(</span><span class="n">file_paths</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>  <span class="c1"># Should be list or tuple...</span>
+            <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">save_names</span><span class="p">)</span>
+            <span class="n">file_paths</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">data</span><span class="p">,</span> <span class="n">fn</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">save_names</span><span class="p">):</span>
+                <span class="n">fpath</span> <span class="o">=</span> <span class="n">path_out</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span>
+                <span class="n">_write_to_disk</span><span class="p">(</span><span class="n">fpath</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+                <span class="n">file_paths</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">fpath</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">file_paths</span>
 
     <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
     <span class="k">def</span> <span class="nf">_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -232,6 +268,7 @@
 <span class="sd">    :param bpod_trials</span>
 <span class="sd">    :param settings</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+
     <span class="n">bpod_trials</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">settings</span> <span class="o">=</span> <span class="kc">None</span>
 
@@ -251,9 +288,9 @@
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">settings</span> <span class="o">=</span> <span class="n">raw</span><span class="o">.</span><span class="n">load_settings</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">settings</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">:</span> <span class="s1">&#39;100.0.0&#39;</span><span class="p">}</span>
-        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;&#39;</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;100.0.0&#39;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">settings</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;IBLRIG_VERSION_TAG&quot;</span><span class="p">:</span> <span class="s2">&quot;100.0.0&quot;</span><span class="p">}</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s2">&quot;IBLRIG_VERSION_TAG&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s2">&quot;IBLRIG_VERSION_TAG&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;100.0.0&quot;</span>
         <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">BaseBpodTrialsExtractor</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div></div>
 
 
@@ -287,6 +324,78 @@
                 <span class="n">outputs</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">out</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
     <span class="k">assert</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">files</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">files</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">outputs</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
     <span class="k">return</span> <span class="n">outputs</span><span class="p">,</span> <span class="n">files</span></div>
+
+
+<div class="viewcode-block" id="get_task_extractor_type"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.base.html#ibllib.io.extractors.base.get_task_extractor_type">[docs]</a><span class="k">def</span> <span class="nf">get_task_extractor_type</span><span class="p">(</span><span class="n">task_name</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Splits the task name according to naming convention:</span>
+<span class="sd">    -   ignores everything</span>
+<span class="sd">    _iblrig_tasks_biasedChoiceWorld3.7.0 returns &quot;biased&quot;</span>
+<span class="sd">    _iblrig_tasks_trainingChoiceWorld3.6.0 returns &quot;training&#39;</span>
+<span class="sd">    :param task_name:</span>
+<span class="sd">    :return: one of [&#39;biased&#39;, &#39;habituation&#39;, &#39;training&#39;, &#39;ephys&#39;, &#39;mock_ephys&#39;, &#39;sync_ephys&#39;]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">task_name</span><span class="p">,</span> <span class="n">Path</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">settings</span> <span class="o">=</span> <span class="n">load_settings</span><span class="p">(</span><span class="n">get_session_path</span><span class="p">(</span><span class="n">task_name</span><span class="p">))</span>
+        <span class="k">except</span> <span class="n">json</span><span class="o">.</span><span class="n">decoder</span><span class="o">.</span><span class="n">JSONDecodeError</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="k">if</span> <span class="n">settings</span><span class="p">:</span>
+            <span class="n">task_name</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;PYBPOD_PROTOCOL&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span>
+    <span class="c1"># ephys</span>
+    <span class="k">if</span> <span class="s1">&#39;ephysChoiceWorld&#39;</span> <span class="ow">in</span> <span class="n">task_name</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s1">&#39;ephys&#39;</span>
+    <span class="k">elif</span> <span class="s1">&#39;ephyskarolinaChoiceWorld&#39;</span> <span class="ow">in</span> <span class="n">task_name</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s1">&#39;ephys&#39;</span>
+    <span class="k">elif</span> <span class="s1">&#39;passive_opto&#39;</span> <span class="ow">in</span> <span class="n">task_name</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s1">&#39;ephys&#39;</span>
+    <span class="k">elif</span> <span class="s1">&#39;opto_ephysChoiceWorld&#39;</span> <span class="ow">in</span> <span class="n">task_name</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s1">&#39;ephys&#39;</span>
+    <span class="c1"># biased choice world</span>
+    <span class="k">elif</span> <span class="s1">&#39;_biasedChoiceWorld&#39;</span> <span class="ow">in</span> <span class="n">task_name</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s1">&#39;biased&#39;</span>
+    <span class="k">elif</span> <span class="s1">&#39;biasedScanningChoiceWorld&#39;</span> <span class="ow">in</span> <span class="n">task_name</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s1">&#39;biased&#39;</span>
+    <span class="k">elif</span> <span class="s1">&#39;biasedVisOffChoiceWorld&#39;</span> <span class="ow">in</span> <span class="n">task_name</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s1">&#39;biased&#39;</span>
+    <span class="k">elif</span> <span class="s1">&#39;karolinaChoiceWorld&#39;</span> <span class="ow">in</span> <span class="n">task_name</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s1">&#39;biased&#39;</span>
+    <span class="k">elif</span> <span class="s1">&#39;_iblrig_tasks_opto_biasedChoiceWorld&#39;</span> <span class="ow">in</span> <span class="n">task_name</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s1">&#39;biased&#39;</span>
+    <span class="c1"># habituation</span>
+    <span class="k">elif</span> <span class="s1">&#39;_habituationChoiceWorld&#39;</span> <span class="ow">in</span> <span class="n">task_name</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s1">&#39;habituation&#39;</span>
+    <span class="c1"># training</span>
+    <span class="k">elif</span> <span class="s1">&#39;_trainingChoiceWorld&#39;</span> <span class="ow">in</span> <span class="n">task_name</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s1">&#39;training&#39;</span>
+    <span class="c1"># mock ephys</span>
+    <span class="k">elif</span> <span class="s1">&#39;ephysMockChoiceWorld&#39;</span> <span class="ow">in</span> <span class="n">task_name</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s1">&#39;mock_ephys&#39;</span>
+    <span class="c1"># sync ephys</span>
+    <span class="k">elif</span> <span class="n">task_name</span> <span class="ow">and</span> <span class="n">task_name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;_iblrig_tasks_ephys_certification&#39;</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s1">&#39;sync_ephys&#39;</span></div>
+
+
+<div class="viewcode-block" id="get_session_extractor_type"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.base.html#ibllib.io.extractors.base.get_session_extractor_type">[docs]</a><span class="k">def</span> <span class="nf">get_session_extractor_type</span><span class="p">(</span><span class="n">session_path</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    From a session path, loads the settings file, finds the task and checks if extractors exist</span>
+<span class="sd">    task names examples:</span>
+<span class="sd">    :param session_path:</span>
+<span class="sd">    :return: bool</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">settings</span> <span class="o">=</span> <span class="n">load_settings</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">settings</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;ABORT: No data found in &quot;raw_behavior_data&quot; folder </span><span class="si">{</span><span class="n">session_path</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">False</span>
+    <span class="n">extractor_type</span> <span class="o">=</span> <span class="n">get_task_extractor_type</span><span class="p">(</span><span class="n">settings</span><span class="p">[</span><span class="s1">&#39;PYBPOD_PROTOCOL&#39;</span><span class="p">])</span>
+    <span class="k">if</span> <span class="n">extractor_type</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">extractor_type</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span> <span class="o">+</span>
+                        <span class="sa">f</span><span class="s2">&quot; No extractors were found for </span><span class="si">{</span><span class="n">extractor_type</span><span class="si">}</span><span class="s2"> ChoiceWorld&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">False</span></div>
 </pre></div>
 
            </div>

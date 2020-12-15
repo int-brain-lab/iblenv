@@ -104,7 +104,10 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../06_examples.html">Examples</a></li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../07_developers.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../07_contribution.html">Contribution Statement</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../08_api_reference.html">API Reference</a></li>
 </ul>
 
             
@@ -648,31 +651,31 @@
     <span class="k">return</span> <span class="n">metric</span><span class="p">,</span> <span class="n">passed</span></div>
 
 
-<div class="viewcode-block" id="check_wheel_move_during_closed_loop"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.task_metrics.html#ibllib.qc.task_metrics.check_wheel_move_during_closed_loop">[docs]</a><span class="k">def</span> <span class="nf">check_wheel_move_during_closed_loop</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">wheel_gain</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">_</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot; Check that the wheel moves by at least 35 degrees during the closed-loop period</span>
+<span class="k">def</span> <span class="nf">_wheel_move_during_closed_loop</span><span class="p">(</span><span class="n">re_ts</span><span class="p">,</span> <span class="n">re_pos</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">wheel_gain</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="o">**</span><span class="n">_</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Check that the wheel moves by approximately 35 degrees during the closed-loop period</span>
 <span class="sd">    on trials where a feedback (error sound or valve) is delivered.</span>
 
 <span class="sd">    Metric: M = abs(w_resp - w_t0) - threshold_displacement, where w_resp = position at response</span>
 <span class="sd">        time, w_t0 = position at go cue time, threshold_displacement = displacement required to</span>
 <span class="sd">        move 35 visual degrees</span>
-<span class="sd">    Criterion: displacement &lt; 1 visual degree</span>
+<span class="sd">    Criterion: displacement &lt; tol visual degree</span>
 <span class="sd">    Units: degrees angle of wheel turn</span>
 
-<span class="sd">    :param data: dict of trial data with keys (&#39;wheel_timestamps&#39;, &#39;wheel_position&#39;, &#39;choice&#39;,</span>
-<span class="sd">    &#39;intervals&#39;, &#39;goCueTrigger_times&#39;, &#39;response_times&#39;, &#39;feedback_times&#39;, &#39;position&#39;)</span>
+<span class="sd">    :param re_ts: extarcted wheel timestamps in seconds</span>
+<span class="sd">    :param re_pos: extracted wheel positions in radians</span>
+<span class="sd">    :param data: a dict with the keys (goCueTrigger_times, response_times, feedback_times,</span>
+<span class="sd">    position, choice, intervals)</span>
 <span class="sd">    :param wheel_gain: the &#39;STIM_GAIN&#39; task setting</span>
+<span class="sd">    :param tol: the criterion in visual degrees</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">wheel_gain</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">_log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;No wheel_gain input in function call, returning None&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span>
 
     <span class="c1"># Get tuple of wheel times and positions over each trial&#39;s closed-loop period</span>
-    <span class="n">traces</span> <span class="o">=</span> <span class="n">traces_by_trial</span><span class="p">(</span>
-        <span class="n">data</span><span class="p">[</span><span class="s2">&quot;wheel_timestamps&quot;</span><span class="p">],</span>
-        <span class="n">data</span><span class="p">[</span><span class="s2">&quot;wheel_position&quot;</span><span class="p">],</span>
-        <span class="n">start</span><span class="o">=</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;goCueTrigger_times&quot;</span><span class="p">],</span>
-        <span class="n">end</span><span class="o">=</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;response_times&quot;</span><span class="p">],</span>
-    <span class="p">)</span>
+    <span class="n">traces</span> <span class="o">=</span> <span class="n">traces_by_trial</span><span class="p">(</span><span class="n">re_ts</span><span class="p">,</span> <span class="n">re_pos</span><span class="p">,</span>
+                             <span class="n">start</span><span class="o">=</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;goCueTrigger_times&quot;</span><span class="p">],</span>
+                             <span class="n">end</span><span class="o">=</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;response_times&quot;</span><span class="p">])</span>
 
     <span class="n">metric</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;feedback_times&quot;</span><span class="p">])</span>
     <span class="c1"># For each trial find the absolute displacement</span>
@@ -680,8 +683,8 @@
         <span class="n">t</span><span class="p">,</span> <span class="n">pos</span> <span class="o">=</span> <span class="n">trial</span>
         <span class="k">if</span> <span class="n">pos</span><span class="o">.</span><span class="n">size</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
             <span class="c1"># Find the position of the preceding sample and subtract it</span>
-            <span class="n">idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;wheel_timestamps&quot;</span><span class="p">]</span> <span class="o">-</span> <span class="n">t</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">argmin</span><span class="p">()</span> <span class="o">-</span> <span class="mi">1</span>
-            <span class="n">origin</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;wheel_position&quot;</span><span class="p">][</span><span class="n">idx</span><span class="p">]</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">re_ts</span> <span class="o">-</span> <span class="n">t</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">argmin</span><span class="p">()</span> <span class="o">-</span> <span class="mi">1</span>
+            <span class="n">origin</span> <span class="o">=</span> <span class="n">re_pos</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
             <span class="n">metric</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">pos</span> <span class="o">-</span> <span class="n">origin</span><span class="p">)</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
 
     <span class="c1"># Load wheel_gain and thresholds for each trial</span>
@@ -692,25 +695,68 @@
     <span class="n">criterion</span> <span class="o">=</span> <span class="n">cm_to_rad</span><span class="p">(</span><span class="n">s_mm</span> <span class="o">*</span> <span class="mf">1e-1</span><span class="p">)</span>  <span class="c1"># convert abs displacement to radians (wheel pos is in rad)</span>
     <span class="n">metric</span> <span class="o">=</span> <span class="n">metric</span> <span class="o">-</span> <span class="n">criterion</span>  <span class="c1"># difference should be close to 0</span>
     <span class="n">rad_per_deg</span> <span class="o">=</span> <span class="n">cm_to_rad</span><span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="n">wheel_gain</span> <span class="o">*</span> <span class="mf">1e-1</span><span class="p">)</span>
-    <span class="n">passed</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">metric</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">rad_per_deg</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float</span><span class="p">)</span>  <span class="c1"># less than 1 visual degree off</span>
+    <span class="n">passed</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">metric</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">rad_per_deg</span> <span class="o">*</span> <span class="n">tol</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float</span><span class="p">)</span>  <span class="c1"># less than 1 visual degree off</span>
     <span class="n">metric</span><span class="p">[</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;choice&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">passed</span><span class="p">[</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;choice&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>  <span class="c1"># except no-go trials</span>
     <span class="k">assert</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;intervals&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">metric</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">passed</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">metric</span><span class="p">,</span> <span class="n">passed</span></div>
+    <span class="k">return</span> <span class="n">metric</span><span class="p">,</span> <span class="n">passed</span>
+
+
+<div class="viewcode-block" id="check_wheel_move_during_closed_loop"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.task_metrics.html#ibllib.qc.task_metrics.check_wheel_move_during_closed_loop">[docs]</a><span class="k">def</span> <span class="nf">check_wheel_move_during_closed_loop</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">wheel_gain</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">_</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Check that the wheel moves by approximately 35 degrees during the closed-loop period</span>
+<span class="sd">    on trials where a feedback (error sound or valve) is delivered.</span>
+
+<span class="sd">    Metric: M = abs(w_resp - w_t0) - threshold_displacement, where w_resp = position at response</span>
+<span class="sd">        time, w_t0 = position at go cue time, threshold_displacement = displacement required to</span>
+<span class="sd">        move 35 visual degrees</span>
+<span class="sd">    Criterion: displacement &lt; 3 visual degrees</span>
+<span class="sd">    Units: degrees angle of wheel turn</span>
+
+<span class="sd">    :param data: dict of trial data with keys (&#39;wheel_timestamps&#39;, &#39;wheel_position&#39;, &#39;choice&#39;,</span>
+<span class="sd">    &#39;intervals&#39;, &#39;goCueTrigger_times&#39;, &#39;response_times&#39;, &#39;feedback_times&#39;, &#39;position&#39;)</span>
+<span class="sd">    :param wheel_gain: the &#39;STIM_GAIN&#39; task setting</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Get the Bpod extracted wheel data</span>
+    <span class="n">timestamps</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;wheel_timestamps&#39;</span><span class="p">]</span>
+    <span class="n">position</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;wheel_position&#39;</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">_wheel_move_during_closed_loop</span><span class="p">(</span><span class="n">timestamps</span><span class="p">,</span> <span class="n">position</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">wheel_gain</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="check_wheel_move_during_closed_loop_bpod"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.task_metrics.html#ibllib.qc.task_metrics.check_wheel_move_during_closed_loop_bpod">[docs]</a><span class="k">def</span> <span class="nf">check_wheel_move_during_closed_loop_bpod</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">wheel_gain</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">_</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Check that the wheel moves by approximately 35 degrees during the closed-loop period</span>
+<span class="sd">    on trials where a feedback (error sound or valve) is delivered.  This check uses the Bpod</span>
+<span class="sd">    wheel data (measured at a lower resolution) with a stricter tolerance (1 visual degree).</span>
+
+<span class="sd">    Metric: M = abs(w_resp - w_t0) - threshold_displacement, where w_resp = position at response</span>
+<span class="sd">        time, w_t0 = position at go cue time, threshold_displacement = displacement required to</span>
+<span class="sd">        move 35 visual degrees</span>
+<span class="sd">    Criterion: displacement &lt; 1 visual degree</span>
+<span class="sd">    Units: degrees angle of wheel turn</span>
+
+<span class="sd">    :param data: dict of trial data with keys (&#39;wheel_timestamps(_bpod)&#39;, &#39;wheel_position(_bpod)&#39;,</span>
+<span class="sd">    &#39;choice&#39;, &#39;intervals&#39;, &#39;goCueTrigger_times&#39;, &#39;response_times&#39;, &#39;feedback_times&#39;, &#39;position&#39;)</span>
+<span class="sd">    :param wheel_gain: the &#39;STIM_GAIN&#39; task setting</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Get the Bpod extracted wheel data</span>
+    <span class="n">timestamps</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;wheel_timestamps_bpod&#39;</span><span class="p">,</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;wheel_timestamps&#39;</span><span class="p">])</span>
+    <span class="n">position</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;wheel_position_bpod&#39;</span><span class="p">,</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;wheel_position&#39;</span><span class="p">])</span>
+
+    <span class="k">return</span> <span class="n">_wheel_move_during_closed_loop</span><span class="p">(</span><span class="n">timestamps</span><span class="p">,</span> <span class="n">position</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">wheel_gain</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="check_wheel_freeze_during_quiescence"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.task_metrics.html#ibllib.qc.task_metrics.check_wheel_freeze_during_quiescence">[docs]</a><span class="k">def</span> <span class="nf">check_wheel_freeze_during_quiescence</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="o">**</span><span class="n">_</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot; Check that the wheel does not move more than 2 ticks each direction for at least 0.2 + 0.2-0.6</span>
-<span class="sd">    amount of time (quiescent period; exact value in bpod[&#39;quiescence&#39;]) before the go cue tone.</span>
+    <span class="sd">&quot;&quot;&quot; Check that the wheel does not move more than 2 degrees in each direction during the</span>
+<span class="sd">    quiescence interval before the stimulus appears.</span>
 
 <span class="sd">    Metric: M = |max(W) - min(W)| where W is wheel pos over quiescence interval</span>
-<span class="sd">    interval = [goCueTrigger_time - quiescent_duration, goCueTrigger_time]</span>
+<span class="sd">    interval = [stimOnTrigger_times - quiescent_duration, stimOnTrigger_times]</span>
 <span class="sd">    Criterion: M &lt; 2 degrees</span>
 <span class="sd">    Units: degrees angle of wheel turn</span>
 
 <span class="sd">    :param data: dict of trial data with keys (&#39;wheel_timestamps&#39;, &#39;wheel_position&#39;, &#39;quiescence&#39;,</span>
 <span class="sd">    &#39;intervals&#39;, &#39;stimOnTrigger_times&#39;)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;wheel_timestamps&quot;</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;wheel_timestamps&quot;</span><span class="p">])</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">)</span>
     <span class="k">assert</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;quiescence&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;stimOnTrigger_times&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">size</span>
     <span class="c1"># Get tuple of wheel times and positions over each trial&#39;s quiescence period</span>
     <span class="n">qevt_start_times</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;stimOnTrigger_times&quot;</span><span class="p">]</span> <span class="o">-</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;quiescence&quot;</span><span class="p">]</span>

@@ -104,7 +104,10 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../06_examples.html">Examples</a></li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../07_developers.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../07_contribution.html">Contribution Statement</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../08_api_reference.html">API Reference</a></li>
 </ul>
 
             
@@ -190,24 +193,37 @@
 <span class="sd">&quot;&quot;&quot;</span>
 
 <span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">logging</span>
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">scipy.ndimage.filters</span> <span class="k">as</span> <span class="nn">filters</span>
 <span class="kn">import</span> <span class="nn">scipy.stats</span> <span class="k">as</span> <span class="nn">stats</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
 
+<span class="kn">from</span> <span class="nn">phylib.stats</span> <span class="kn">import</span> <span class="n">correlograms</span>
 <span class="kn">import</span> <span class="nn">brainbox</span> <span class="k">as</span> <span class="nn">bb</span>
 <span class="kn">from</span> <span class="nn">brainbox.core</span> <span class="kn">import</span> <span class="n">Bunch</span>
 <span class="kn">from</span> <span class="nn">brainbox.processing</span> <span class="kn">import</span> <span class="n">bincount2D</span>
 <span class="kn">from</span> <span class="nn">ibllib.io</span> <span class="kn">import</span> <span class="n">spikeglx</span>
 
+<span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;ibllib&#39;</span><span class="p">)</span>
+
 <span class="c1"># Parameters to be used in `quick_unit_metrics`</span>
 <span class="n">METRICS_PARAMS</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s1">&#39;acceptable_contamination&#39;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span>
+    <span class="s1">&#39;bin_size&#39;</span><span class="p">:</span> <span class="mf">0.25</span><span class="p">,</span>
+    <span class="s1">&#39;med_amp_thresh&#39;</span><span class="p">:</span> <span class="mi">50</span><span class="p">,</span>
+    <span class="s1">&#39;min_isi&#39;</span><span class="p">:</span> <span class="mf">0.0001</span><span class="p">,</span>
+    <span class="s1">&#39;min_num_bins_for_missed_spks_est&#39;</span><span class="p">:</span> <span class="mi">50</span><span class="p">,</span>
+    <span class="s1">&#39;nc_bins&#39;</span><span class="p">:</span> <span class="mi">100</span><span class="p">,</span>
+    <span class="s1">&#39;nc_n_low_bins&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+    <span class="s1">&#39;nc_quartile_length&#39;</span><span class="p">:</span> <span class="mf">0.2</span><span class="p">,</span>
+    <span class="s1">&#39;nc_thresh&#39;</span><span class="p">:</span> <span class="mi">20</span><span class="p">,</span>
     <span class="s1">&#39;presence_window&#39;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>
     <span class="s1">&#39;refractory_period&#39;</span><span class="p">:</span> <span class="mf">0.0015</span><span class="p">,</span>
-    <span class="s1">&#39;min_isi&#39;</span><span class="p">:</span> <span class="mf">0.0001</span><span class="p">,</span>
+    <span class="s1">&#39;RPslide_thresh&#39;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span>
     <span class="s1">&#39;spks_per_bin_for_missed_spks_est&#39;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>
     <span class="s1">&#39;std_smoothing_kernel_for_missed_spks_est&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span>
-    <span class="s1">&#39;min_num_bins_for_missed_spks_est&#39;</span><span class="p">:</span> <span class="mi">50</span><span class="p">,</span>
 <span class="p">}</span>
 
 
@@ -308,11 +324,10 @@
     <span class="k">return</span> <span class="n">p_vals_b</span><span class="p">,</span> <span class="n">cv_b</span></div>
 
 
-<div class="viewcode-block" id="missed_spikes_est"><a class="viewcode-back" href="../../../_autosummary/brainbox.metrics.metrics.html#brainbox.metrics.metrics.missed_spikes_est">[docs]</a><span class="k">def</span> <span class="nf">missed_spikes_est</span><span class="p">(</span><span class="n">feat</span><span class="p">,</span> <span class="n">spks_per_bin</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">sigma</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">min_num_bins</span><span class="o">=</span><span class="mi">50</span><span class="p">):</span>
+<div class="viewcode-block" id="missed_spikes_est"><a class="viewcode-back" href="../../../_autosummary/brainbox.metrics.metrics.html#brainbox.metrics.metrics.missed_spikes_est">[docs]</a><span class="k">def</span> <span class="nf">missed_spikes_est</span><span class="p">(</span><span class="n">feat</span><span class="p">,</span> <span class="n">spks_per_bin</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">sigma</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">min_num_bins</span><span class="o">=</span><span class="mi">50</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Computes the approximate fraction of spikes missing (i.e. a pseudo false negative estimate)</span>
-<span class="sd">    from a spike feature distribution for a given unit, assuming the distribution is symmetric.</span>
-
+<span class="sd">    Computes the approximate fraction of spikes missing from a spike feature distribution for a</span>
+<span class="sd">    given unit, assuming the distribution is symmetric.</span>
 <span class="sd">    Inspired by metric described in Hill et al. (2011) J Neurosci 31: 8699-8705.</span>
 
 <span class="sd">    Parameters</span>
@@ -340,21 +355,19 @@
 
 <span class="sd">    See Also</span>
 <span class="sd">    --------</span>
-<span class="sd">    plot.missed_spikes_est</span>
-
+<span class="sd">    plot.feat_cutoff</span>
 <span class="sd">    Examples</span>
 <span class="sd">    --------</span>
 <span class="sd">    1) Determine the fraction of spikes missing from unit 1 based on the recorded unit&#39;s spike</span>
 <span class="sd">    amplitudes, assuming the distribution of the unit&#39;s spike amplitudes is symmetric.</span>
 <span class="sd">        # Get unit 1 amplitudes from a unit bunch, and compute fraction spikes missing.</span>
 <span class="sd">        &gt;&gt;&gt; feat = units_b[&#39;amps&#39;][&#39;1&#39;]</span>
-<span class="sd">        &gt;&gt;&gt; fraction_missing = bb.plot.missed_spikes_est(feat)</span>
+<span class="sd">        &gt;&gt;&gt; fraction_missing = bb.plot.feat_cutoff(feat)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="c1"># Ensure minimum number of spikes requirement is met.</span>
-    <span class="n">error_str</span> <span class="o">=</span> <span class="s1">&#39;The number of spikes in this unit is </span><span class="si">{0}</span><span class="s1">, &#39;</span> \
-                <span class="s1">&#39;but it must be at least </span><span class="si">{1}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">feat</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="n">spks_per_bin</span> <span class="o">*</span> <span class="n">min_num_bins</span><span class="p">)</span>
-    <span class="k">assert</span> <span class="p">(</span><span class="n">feat</span><span class="o">.</span><span class="n">size</span> <span class="o">&gt;</span> <span class="p">(</span><span class="n">spks_per_bin</span> <span class="o">*</span> <span class="n">min_num_bins</span><span class="p">)),</span> <span class="n">error_str</span>
+    <span class="c1"># Ensure minimum number of spikes requirement is met, return Nan otherwise</span>
+    <span class="k">if</span> <span class="n">feat</span><span class="o">.</span><span class="n">size</span> <span class="o">&lt;=</span> <span class="p">(</span><span class="n">spks_per_bin</span> <span class="o">*</span> <span class="n">min_num_bins</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span>
 
     <span class="c1"># compute the spike feature histogram and pdf:</span>
     <span class="n">num_bins</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">int</span><span class="p">(</span><span class="n">feat</span><span class="o">.</span><span class="n">size</span> <span class="o">/</span> <span class="n">spks_per_bin</span><span class="p">)</span>
@@ -453,8 +466,8 @@
     <span class="k">return</span> <span class="n">s</span></div>
 
 
-<div class="viewcode-block" id="firing_rate_cv"><a class="viewcode-back" href="../../../_autosummary/brainbox.metrics.metrics.html#brainbox.metrics.metrics.firing_rate_cv">[docs]</a><span class="k">def</span> <span class="nf">firing_rate_cv</span><span class="p">(</span><span class="n">ts</span><span class="p">,</span> <span class="n">hist_win</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">fr_win</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">n_bins</span><span class="o">=</span><span class="mi">10</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;</span>
+<div class="viewcode-block" id="firing_rate_coeff_var"><a class="viewcode-back" href="../../../_autosummary/brainbox.metrics.metrics.html#brainbox.metrics.metrics.firing_rate_coeff_var">[docs]</a><span class="k">def</span> <span class="nf">firing_rate_coeff_var</span><span class="p">(</span><span class="n">ts</span><span class="p">,</span> <span class="n">hist_win</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">fr_win</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">n_bins</span><span class="o">=</span><span class="mi">10</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    Computes the coefficient of variation of the firing rate: the ratio of the standard</span>
 <span class="sd">    deviation to the mean.</span>
 
@@ -492,9 +505,9 @@
 <span class="sd">        &gt;&gt;&gt; ts_1 = units_b[&#39;times&#39;][&#39;1&#39;]</span>
 <span class="sd">        &gt;&gt;&gt; ts_2 = units_b[&#39;times&#39;][&#39;2&#39;]</span>
 <span class="sd">        &gt;&gt;&gt; ts_2 = np.intersect1d(np.where(ts_2 &gt; 60)[0], np.where(ts_2 &lt; 120)[0])</span>
-<span class="sd">        &gt;&gt;&gt; cv, cvs, fr = bb.metrics.firing_rate_cv(ts_1)</span>
-<span class="sd">        &gt;&gt;&gt; cv_2, cvs_2, fr_2 = bb.metrics.firing_rate_cv(ts_2)</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">        &gt;&gt;&gt; cv, cvs, fr = bb.metrics.firing_rate_coeff_var(ts_1)</span>
+<span class="sd">        &gt;&gt;&gt; cv_2, cvs_2, fr_2 = bb.metrics.firing_rate_coeff_var(ts_2)</span>
+<span class="sd">    &#39;&#39;&#39;</span>
 
     <span class="c1"># Compute overall instantaneous firing rate and firing rate for each bin.</span>
     <span class="n">fr</span> <span class="o">=</span> <span class="n">bb</span><span class="o">.</span><span class="n">singlecell</span><span class="o">.</span><span class="n">firing_rate</span><span class="p">(</span><span class="n">ts</span><span class="p">,</span> <span class="n">hist_win</span><span class="o">=</span><span class="n">hist_win</span><span class="p">,</span> <span class="n">fr_win</span><span class="o">=</span><span class="n">fr_win</span><span class="p">)</span>
@@ -567,77 +580,7 @@
     <span class="k">return</span> <span class="n">ff</span><span class="p">,</span> <span class="n">ffs</span><span class="p">,</span> <span class="n">fr</span></div>
 
 
-<div class="viewcode-block" id="isi_viol"><a class="viewcode-back" href="../../../_autosummary/brainbox.metrics.metrics.html#brainbox.metrics.metrics.isi_viol">[docs]</a><span class="k">def</span> <span class="nf">isi_viol</span><span class="p">(</span><span class="n">ts</span><span class="p">,</span> <span class="n">rp</span><span class="o">=</span><span class="mf">0.002</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Computes the fraction of isi violations for a unit.</span>
-
-<span class="sd">    Parameters</span>
-<span class="sd">    ----------</span>
-<span class="sd">    ts : ndarray</span>
-<span class="sd">        The spike timestamps from which to compute the firing rate.</span>
-<span class="sd">    rp : float (optional)</span>
-<span class="sd">        The refractory period (in s).</span>
-
-<span class="sd">    Returns</span>
-<span class="sd">    -------</span>
-<span class="sd">    frac_isi_viol : float</span>
-<span class="sd">        The fraction of isi violations.</span>
-<span class="sd">    n_isi_viol : int</span>
-<span class="sd">        The number of isi violations.</span>
-<span class="sd">    isis : ndarray</span>
-<span class="sd">        The isis.</span>
-
-<span class="sd">    See Also</span>
-<span class="sd">    --------</span>
-
-<span class="sd">    Examples</span>
-<span class="sd">    --------</span>
-<span class="sd">    1) Get the fraction of isi violations, the total number of isi violations, and the array of</span>
-<span class="sd">    isis for unit 1.</span>
-<span class="sd">        &gt;&gt;&gt; unit_idxs = np.where(spks_b[&#39;clusters&#39;] == 1)[0]</span>
-<span class="sd">        &gt;&gt;&gt; ts = spks_b[&#39;times&#39;][unit_idxs]</span>
-<span class="sd">        &gt;&gt;&gt; frac_isi_viol, n_isi_viol, isi = bb.metrics.isi_viol(ts)</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-
-    <span class="n">isis</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">ts</span><span class="p">)</span>
-    <span class="n">v</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">isis</span> <span class="o">&lt;</span> <span class="n">rp</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>  <span class="c1"># violations</span>
-    <span class="n">frac_isi_viol</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">ts</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">frac_isi_viol</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">v</span><span class="p">),</span> <span class="n">isis</span></div>
-
-
-<div class="viewcode-block" id="max_drift"><a class="viewcode-back" href="../../../_autosummary/brainbox.metrics.metrics.html#brainbox.metrics.metrics.max_drift">[docs]</a><span class="k">def</span> <span class="nf">max_drift</span><span class="p">(</span><span class="n">feat</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Computes the maximum drift (max - min) of a spike feature array.</span>
-
-<span class="sd">    Parameters</span>
-<span class="sd">    ----------</span>
-<span class="sd">    feat : ndarray</span>
-<span class="sd">        The spike feature values from which to compute the maximum drift.</span>
-
-<span class="sd">    Returns</span>
-<span class="sd">    -------</span>
-<span class="sd">    md : float</span>
-<span class="sd">        The maxmimum drift of the unit.</span>
-
-<span class="sd">    See Also</span>
-<span class="sd">    --------</span>
-<span class="sd">    cum_drift</span>
-
-<span class="sd">    Examples</span>
-<span class="sd">    --------</span>
-<span class="sd">    1) Get the maximum depth and amp drift for unit 1.</span>
-<span class="sd">        &gt;&gt;&gt; unit_idxs = np.where(spks_b[&#39;clusters&#39;] == 1)[0]</span>
-<span class="sd">        &gt;&gt;&gt; depths = spks_b[&#39;depths&#39;][unit_idxs]</span>
-<span class="sd">        &gt;&gt;&gt; amps = spks_b[&#39;amps&#39;][unit_idxs]</span>
-<span class="sd">        &gt;&gt;&gt; depth_md = bb.metrics.max_drift(depths)</span>
-<span class="sd">        &gt;&gt;&gt; amp_md = bb.metrics.max_drift(amps)</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-
-    <span class="n">md</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">feat</span><span class="p">)</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">feat</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">md</span></div>
-
-
-<div class="viewcode-block" id="cum_drift"><a class="viewcode-back" href="../../../_autosummary/brainbox.metrics.metrics.html#brainbox.metrics.metrics.cum_drift">[docs]</a><span class="k">def</span> <span class="nf">cum_drift</span><span class="p">(</span><span class="n">feat</span><span class="p">):</span>
+<div class="viewcode-block" id="average_drift"><a class="viewcode-back" href="../../../_autosummary/brainbox.metrics.metrics.html#brainbox.metrics.metrics.average_drift">[docs]</a><span class="k">def</span> <span class="nf">average_drift</span><span class="p">(</span><span class="n">feat</span><span class="p">,</span> <span class="n">times</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Computes the cumulative drift (normalized by the total number of spikes) of a spike feature</span>
 <span class="sd">    array.</span>
@@ -646,6 +589,7 @@
 <span class="sd">    ----------</span>
 <span class="sd">    feat : ndarray</span>
 <span class="sd">        The spike feature values from which to compute the maximum drift.</span>
+<span class="sd">        Usually amplitudes</span>
 
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
@@ -666,7 +610,7 @@
 <span class="sd">        &gt;&gt;&gt; amp_cd = bb.metrics.cum_drift(amps)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="n">cd</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">feat</span><span class="p">)))</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">feat</span><span class="p">)</span>
+    <span class="n">cd</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">feat</span><span class="p">)</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">times</span><span class="p">)))</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">feat</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">cd</span></div>
 
 
@@ -795,7 +739,7 @@
     <span class="k">return</span> <span class="n">ptp_sigma</span></div>
 
 
-<div class="viewcode-block" id="contamination_est"><a class="viewcode-back" href="../../../_autosummary/brainbox.metrics.metrics.html#brainbox.metrics.metrics.contamination_est">[docs]</a><span class="k">def</span> <span class="nf">contamination_est</span><span class="p">(</span><span class="n">ts</span><span class="p">,</span> <span class="n">rp</span><span class="o">=</span><span class="mf">0.002</span><span class="p">):</span>
+<div class="viewcode-block" id="contamination_alt"><a class="viewcode-back" href="../../../_autosummary/brainbox.metrics.metrics.html#brainbox.metrics.metrics.contamination_alt">[docs]</a><span class="k">def</span> <span class="nf">contamination_alt</span><span class="p">(</span><span class="n">ts</span><span class="p">,</span> <span class="n">rp</span><span class="o">=</span><span class="mf">0.002</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    An estimate of the contamination of the unit (i.e. a pseudo false positive measure) based on</span>
 <span class="sd">    the number of spikes, number of isi violations, and time between the first and last spike.</span>
@@ -815,18 +759,18 @@
 
 <span class="sd">    See Also</span>
 <span class="sd">    --------</span>
-<span class="sd">    contamination_est2</span>
+<span class="sd">    contamination_alt</span>
 
 <span class="sd">    Examples</span>
 <span class="sd">    --------</span>
 <span class="sd">    1) Compute contamination estimate for unit 1.</span>
 <span class="sd">        &gt;&gt;&gt; ts = units_b[&#39;times&#39;][&#39;1&#39;]</span>
-<span class="sd">        &gt;&gt;&gt; ce = bb.metrics.contamination_est(ts)</span>
+<span class="sd">        &gt;&gt;&gt; ce = bb.metrics.contamination(ts)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="c1"># Get number of spikes, number of isi violations, and time from first to final spike.</span>
-    <span class="n">n_spks</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">ts</span><span class="p">)</span>
-    <span class="n">n_isi_viol</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">ts</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">rp</span><span class="p">)</span>
+    <span class="n">n_spks</span> <span class="o">=</span> <span class="n">ts</span><span class="o">.</span><span class="n">size</span>
+    <span class="n">n_isi_viol</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">ts</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">rp</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
     <span class="n">t</span> <span class="o">=</span> <span class="n">ts</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">ts</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
     <span class="c1"># `ce` is min of roots of solved quadratic equation.</span>
@@ -835,7 +779,7 @@
     <span class="k">return</span> <span class="n">ce</span></div>
 
 
-<div class="viewcode-block" id="contamination_est2"><a class="viewcode-back" href="../../../_autosummary/brainbox.metrics.metrics.html#brainbox.metrics.metrics.contamination_est2">[docs]</a><span class="k">def</span> <span class="nf">contamination_est2</span><span class="p">(</span><span class="n">ts</span><span class="p">,</span> <span class="n">min_time</span><span class="p">,</span> <span class="n">max_time</span><span class="p">,</span> <span class="n">rp</span><span class="o">=</span><span class="mf">0.002</span><span class="p">,</span> <span class="n">min_isi</span><span class="o">=</span><span class="mf">0.0001</span><span class="p">):</span>
+<div class="viewcode-block" id="contamination"><a class="viewcode-back" href="../../../_autosummary/brainbox.metrics.metrics.html#brainbox.metrics.metrics.contamination">[docs]</a><span class="k">def</span> <span class="nf">contamination</span><span class="p">(</span><span class="n">ts</span><span class="p">,</span> <span class="n">min_time</span><span class="p">,</span> <span class="n">max_time</span><span class="p">,</span> <span class="n">rp</span><span class="o">=</span><span class="mf">0.002</span><span class="p">,</span> <span class="n">min_isi</span><span class="o">=</span><span class="mf">0.0001</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    An estimate of the contamination of the unit (i.e. a pseudo false positive measure) based on</span>
 <span class="sd">    the number of spikes, number of isi violations, and time between the first and last spike.</span>
@@ -868,14 +812,14 @@
 
 <span class="sd">    See Also</span>
 <span class="sd">    --------</span>
-<span class="sd">    contamination_est</span>
+<span class="sd">    contamination</span>
 
 <span class="sd">    Examples</span>
 <span class="sd">    --------</span>
 <span class="sd">    1) Compute contamination estimate for unit 1, with a minimum isi for counting duplicate</span>
 <span class="sd">    spikes of 0.1 ms.</span>
 <span class="sd">        &gt;&gt;&gt; ts = units_b[&#39;times&#39;][&#39;1&#39;]</span>
-<span class="sd">        &gt;&gt;&gt; ce = bb.metrics.contamination_est2(ts, min_isi=0.0001)</span>
+<span class="sd">        &gt;&gt;&gt; ce = bb.metrics.contamination_alt(ts, min_isi=0.0001)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">duplicate_spikes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">ts</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">min_isi</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
@@ -893,25 +837,213 @@
     <span class="k">return</span> <span class="n">ce</span><span class="p">,</span> <span class="n">num_violations</span></div>
 
 
+<span class="k">def</span> <span class="nf">_max_acceptable_cont</span><span class="p">(</span><span class="n">FR</span><span class="p">,</span> <span class="n">RP</span><span class="p">,</span> <span class="n">rec_duration</span><span class="p">,</span> <span class="n">acceptableCont</span><span class="p">,</span> <span class="n">thresh</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Function to compute the maximum acceptable refractory period contamination</span>
+<span class="sd">        called during slidingRP_viol</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">time_for_viol</span> <span class="o">=</span> <span class="n">RP</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">FR</span> <span class="o">*</span> <span class="n">rec_duration</span>
+    <span class="n">expected_count_for_acceptable_limit</span> <span class="o">=</span> <span class="n">acceptableCont</span> <span class="o">*</span> <span class="n">time_for_viol</span>
+    <span class="n">max_acceptable</span> <span class="o">=</span> <span class="n">stats</span><span class="o">.</span><span class="n">poisson</span><span class="o">.</span><span class="n">ppf</span><span class="p">(</span><span class="n">thresh</span><span class="p">,</span> <span class="n">expected_count_for_acceptable_limit</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">max_acceptable</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">stats</span><span class="o">.</span><span class="n">poisson</span><span class="o">.</span><span class="n">pmf</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">expected_count_for_acceptable_limit</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">max_acceptable</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+    <span class="k">return</span> <span class="n">max_acceptable</span>
+
+
+<div class="viewcode-block" id="slidingRP_viol"><a class="viewcode-back" href="../../../_autosummary/brainbox.metrics.metrics.html#brainbox.metrics.metrics.slidingRP_viol">[docs]</a><span class="k">def</span> <span class="nf">slidingRP_viol</span><span class="p">(</span><span class="n">ts</span><span class="p">,</span> <span class="n">bin_size</span><span class="o">=</span><span class="mf">0.25</span><span class="p">,</span> <span class="n">thresh</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">acceptThresh</span><span class="o">=</span><span class="mf">0.1</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A binary metric which determines whether there is an acceptable level of</span>
+<span class="sd">    refractory period violations by using a sliding refractory period:</span>
+
+<span class="sd">    This takes into account the firing rate of the neuron and computes a</span>
+<span class="sd">    maximum acceptable level of contamination at different possible values of</span>
+<span class="sd">    the refractory period. If the unit has less than the maximum contamination</span>
+<span class="sd">    at any of the possible values of the refractory period, the unit passes.</span>
+
+<span class="sd">    A neuron will always fail this metric for very low firing rates, and thus</span>
+<span class="sd">    this metric takes into account both firing rate and refractory period</span>
+<span class="sd">    violations.</span>
+
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    ts : ndarray_like</span>
+<span class="sd">        The timestamps (in s) of the spikes.</span>
+<span class="sd">    bin_size : float</span>
+<span class="sd">        The size of binning for the autocorrelogram.</span>
+<span class="sd">    thresh : float</span>
+<span class="sd">        Spike rate used to generate poisson distribution (to compute maximum</span>
+<span class="sd">              acceptable contamination, see _max_acceptable_cont)</span>
+<span class="sd">    acceptThresh : float</span>
+<span class="sd">        The fraction of contamination we are willing to accept (default value</span>
+<span class="sd">              set to 0.1, or 10% contamination)</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    didpass : int</span>
+<span class="sd">        0 if unit didn&#39;t pass</span>
+<span class="sd">        1 if unit did pass</span>
+
+<span class="sd">    See Also</span>
+<span class="sd">    --------</span>
+<span class="sd">    contamination</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    1) Compute whether a unit has too much refractory period contamination at</span>
+<span class="sd">    any possible value of a refractory period, for a 0.25 ms bin, with a</span>
+<span class="sd">    threshold of 10% acceptable contamination</span>
+<span class="sd">        &gt;&gt;&gt; ts = units_b[&#39;times&#39;][&#39;1&#39;]</span>
+<span class="sd">        &gt;&gt;&gt; didpass = bb.metrics.slidingRP_viol(ts, bin_size=0.25, thresh=0.1,</span>
+<span class="sd">                                                acceptThresh=0.1)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">b</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mf">10.25</span><span class="p">,</span> <span class="n">bin_size</span><span class="p">)</span> <span class="o">/</span> <span class="mi">1000</span> <span class="o">+</span> <span class="mf">1e-6</span>  <span class="c1"># bins in seconds</span>
+    <span class="n">bTestIdx</span> <span class="o">=</span> <span class="p">[</span><span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">14</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">18</span><span class="p">,</span> <span class="mi">20</span><span class="p">,</span> <span class="mi">24</span><span class="p">,</span> <span class="mi">28</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="mi">36</span><span class="p">,</span> <span class="mi">40</span><span class="p">]</span>
+    <span class="n">bTest</span> <span class="o">=</span> <span class="p">[</span><span class="n">b</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">bTestIdx</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">ts</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">ts</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">ts</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>  <span class="c1"># only do this for units with samples</span>
+        <span class="n">recDur</span> <span class="o">=</span> <span class="p">(</span><span class="n">ts</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">ts</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="c1"># compute acg</span>
+        <span class="n">c0</span> <span class="o">=</span> <span class="n">correlograms</span><span class="p">(</span><span class="n">ts</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">ts</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;int8&#39;</span><span class="p">),</span> <span class="n">cluster_ids</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                          <span class="n">bin_size</span><span class="o">=</span><span class="n">bin_size</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">,</span> <span class="n">sample_rate</span><span class="o">=</span><span class="mi">20000</span><span class="p">,</span>
+                          <span class="n">window_size</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+                          <span class="n">symmetrize</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="c1"># cumulative sum of acg, i.e. number of total spikes occuring from 0</span>
+        <span class="c1"># to end of that bin</span>
+        <span class="n">cumsumc0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="n">c0</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">:])</span>
+        <span class="c1"># cumulative sum at each of the testing bins</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">cumsumc0</span><span class="p">[</span><span class="n">bTestIdx</span><span class="p">]</span>
+        <span class="n">total_spike_count</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">ts</span><span class="p">)</span>
+
+        <span class="c1"># divide each bin&#39;s count by the total spike count and the bin size</span>
+        <span class="n">bin_count_normalized</span> <span class="o">=</span> <span class="n">c0</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="n">total_spike_count</span> <span class="o">/</span> <span class="n">bin_size</span> <span class="o">*</span> <span class="mi">1000</span>
+        <span class="n">num_bins_2s</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">c0</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>  <span class="c1"># number of total bins that equal 2 secs</span>
+        <span class="n">num_bins_1s</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">num_bins_2s</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>  <span class="c1"># number of bins that equal 1 sec</span>
+        <span class="c1"># compute fr based on the  mean of bin_count_normalized from 1 to 2 s</span>
+        <span class="c1"># instead of as before (len(ts)/recDur) for a better estimate</span>
+        <span class="n">fr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">bin_count_normalized</span><span class="p">[</span><span class="n">num_bins_1s</span><span class="p">:</span><span class="n">num_bins_2s</span><span class="p">])</span> <span class="o">/</span> <span class="n">num_bins_1s</span>
+        <span class="n">mfunc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vectorize</span><span class="p">(</span><span class="n">_max_acceptable_cont</span><span class="p">)</span>
+        <span class="c1"># compute the maximum allowed number of spikes per testing bin</span>
+        <span class="n">m</span> <span class="o">=</span> <span class="n">mfunc</span><span class="p">(</span><span class="n">fr</span><span class="p">,</span> <span class="n">bTest</span><span class="p">,</span> <span class="n">recDur</span><span class="p">,</span> <span class="n">fr</span> <span class="o">*</span> <span class="n">acceptThresh</span><span class="p">,</span> <span class="n">thresh</span><span class="p">)</span>
+        <span class="c1"># did the unit pass (resulting number of spikes less than maximum</span>
+        <span class="c1"># allowed spikes) at any of the testing bins?</span>
+        <span class="n">didpass</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">less_equal</span><span class="p">(</span><span class="n">res</span><span class="p">,</span> <span class="n">m</span><span class="p">)))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">didpass</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="k">return</span> <span class="n">didpass</span></div>
+
+
+<div class="viewcode-block" id="noise_cutoff"><a class="viewcode-back" href="../../../_autosummary/brainbox.metrics.metrics.html#brainbox.metrics.metrics.noise_cutoff">[docs]</a><span class="k">def</span> <span class="nf">noise_cutoff</span><span class="p">(</span><span class="n">amps</span><span class="p">,</span> <span class="n">quartile_length</span><span class="o">=.</span><span class="mi">2</span><span class="p">,</span> <span class="n">n_bins</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">n_low_bins</span><span class="o">=</span><span class="mi">2</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A metric to determine whether a unit&#39;s amplitude distribution is cut off</span>
+<span class="sd">    (at floor), without assuming a Gaussian distribution.</span>
+
+<span class="sd">    This metric takes the amplitude distribution, computes the mean and std</span>
+<span class="sd">    of an upper quartile of the distribution, and determines how many standard</span>
+<span class="sd">    deviations away from that mean a lower quartile lies.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    amps : ndarray_like</span>
+<span class="sd">        The amplitudes (in uV) of the spikes.</span>
+<span class="sd">    quartile_length : float</span>
+<span class="sd">        The size of the upper quartile of the amplitude distribution.</span>
+<span class="sd">    n_bins : int</span>
+<span class="sd">        The number of bins used to compute a histogram of the amplitude</span>
+<span class="sd">        distribution.</span>
+<span class="sd">    n_low_bins : int</span>
+<span class="sd">        The number of bins used in the lower part of the distribution (where</span>
+<span class="sd">        cutoff is determined).</span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    cutoff : float</span>
+<span class="sd">        Number of standard deviations that the lower mean is outside of the</span>
+<span class="sd">        mean of the upper quartile.</span>
+
+<span class="sd">    See Also</span>
+<span class="sd">    --------</span>
+<span class="sd">    missed_spikes_est</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    1) Compute whether a unit&#39;s amplitude distribution is cut off</span>
+<span class="sd">        &gt;&gt;&gt; amps = spks_b[&#39;amps&#39;][unit_idxs]</span>
+<span class="sd">        &gt;&gt;&gt; cutoff = bb.metrics.noise_cutoff(amps, quartile_length=.2,</span>
+<span class="sd">                                             n_bins=100, n_low_bins=2)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">amps</span><span class="o">.</span><span class="n">size</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">bins_list</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">amps</span><span class="p">),</span> <span class="n">n_bins</span><span class="p">)</span>
+        <span class="n">n</span><span class="p">,</span> <span class="n">bins</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">histogram</span><span class="p">(</span><span class="n">amps</span><span class="p">,</span> <span class="n">bins</span><span class="o">=</span><span class="n">bins_list</span><span class="p">)</span>
+        <span class="n">dx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+        <span class="n">idx_nz</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nonzero</span><span class="p">(</span><span class="n">dx</span><span class="p">)</span>  <span class="c1"># indices of nonzeros</span>
+        <span class="n">idx_peak</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+        <span class="n">length_top_half</span> <span class="o">=</span> <span class="n">idx_nz</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">idx_peak</span>
+        <span class="n">high_quartile</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">quartile_length</span><span class="p">)</span>
+
+        <span class="n">high_quartile_start_ind</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">high_quartile</span> <span class="o">*</span> <span class="n">length_top_half</span> <span class="o">+</span> <span class="n">idx_peak</span><span class="p">))</span>
+        <span class="n">xx</span> <span class="o">=</span> <span class="n">idx_nz</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">idx_nz</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">high_quartile_start_ind</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">n</span><span class="p">[</span><span class="n">xx</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">mean_high_quartile</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">n</span><span class="p">[</span><span class="n">xx</span><span class="p">])</span>
+            <span class="n">std_high_quartile</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">n</span><span class="p">[</span><span class="n">xx</span><span class="p">])</span>
+            <span class="n">first_low_quartile</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">n</span><span class="p">[</span><span class="n">idx_nz</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">:</span><span class="n">n_low_bins</span><span class="p">]])</span>
+            <span class="k">if</span> <span class="n">std_high_quartile</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">cutoff</span> <span class="o">=</span> <span class="p">(</span><span class="n">first_low_quartile</span> <span class="o">-</span> <span class="n">mean_high_quartile</span><span class="p">)</span> <span class="o">/</span> <span class="n">std_high_quartile</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">cutoff</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">cutoff</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">cutoff</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">cutoff</span></div>
+
+
+<div class="viewcode-block" id="spike_sorting_metrics"><a class="viewcode-back" href="../../../_autosummary/brainbox.metrics.metrics.html#brainbox.metrics.metrics.spike_sorting_metrics">[docs]</a><span class="k">def</span> <span class="nf">spike_sorting_metrics</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">clusters</span><span class="p">,</span> <span class="n">amps</span><span class="p">,</span> <span class="n">depths</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Computes:</span>
+<span class="sd">    -   cell level metrics (cf quick_unit_metrics)</span>
+<span class="sd">    -   label the metrics according to quality thresholds</span>
+<span class="sd">    -   estimates drift as a function of time</span>
+<span class="sd">    :param times: vector of spike times</span>
+<span class="sd">    :param clusters:</span>
+<span class="sd">    :param amplitudes:</span>
+<span class="sd">    :param depths:</span>
+<span class="sd">    :return:</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># compute metrics and convert to `DataFrame`</span>
+    <span class="n">df_units</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">quick_unit_metrics</span><span class="p">(</span><span class="n">clusters</span><span class="p">,</span> <span class="n">times</span><span class="p">,</span> <span class="n">amps</span><span class="p">,</span> <span class="n">depths</span><span class="p">))</span>
+    <span class="c1"># compute labels based on metrics</span>
+    <span class="n">df_labels</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">unit_labels</span><span class="p">(</span><span class="n">clusters</span><span class="p">,</span> <span class="n">times</span><span class="p">,</span> <span class="n">depths</span><span class="p">))</span>
+    <span class="n">df_units</span> <span class="o">=</span> <span class="n">df_units</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s1">&#39;cluster_id&#39;</span><span class="p">,</span> <span class="n">drop</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">df_labels</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s1">&#39;cluster_id&#39;</span><span class="p">))</span>
+    <span class="kn">from</span> <span class="nn">brainbox.metrics</span> <span class="kn">import</span> <span class="n">electrode_drift</span>
+    <span class="n">electrode_drift</span><span class="o">.</span><span class="n">estimate_drift</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">amps</span><span class="p">,</span> <span class="n">depths</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">df_units</span><span class="p">,</span> <span class="kc">None</span></div>
+
+
 <div class="viewcode-block" id="quick_unit_metrics"><a class="viewcode-back" href="../../../_autosummary/brainbox.metrics.metrics.html#brainbox.metrics.metrics.quick_unit_metrics">[docs]</a><span class="k">def</span> <span class="nf">quick_unit_metrics</span><span class="p">(</span><span class="n">spike_clusters</span><span class="p">,</span> <span class="n">spike_times</span><span class="p">,</span> <span class="n">spike_amps</span><span class="p">,</span> <span class="n">spike_depths</span><span class="p">,</span>
                        <span class="n">params</span><span class="o">=</span><span class="n">METRICS_PARAMS</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Computes single unit metrics from only the spike times, amplitudes, and depths for a set of</span>
-<span class="sd">    units.</span>
+<span class="sd">    Computes single unit metrics from only the spike times, amplitudes, and</span>
+<span class="sd">    depths for a set of units.</span>
 
 <span class="sd">    Metrics computed:</span>
-<span class="sd">        num_spikes</span>
-<span class="sd">        firing_rate</span>
-<span class="sd">        presence_ratio</span>
-<span class="sd">        presence_ratio_std</span>
-<span class="sd">        frac_isi_viol (see `isi_viol`)</span>
-<span class="sd">        contamination_est (see `contamination_est`)</span>
-<span class="sd">        contamination_est2 (see `contamination_est2`)</span>
-<span class="sd">        missed_spikes_est (see `missed_spikes_est`)</span>
-<span class="sd">        cum_amp_drift (see `cum_drift`)</span>
-<span class="sd">        max_amp_drift (see `max_drift`)</span>
-<span class="sd">        cum_depth_drift (see `cum_drift`)</span>
-<span class="sd">        max_depth_drift (see `max_drift`)</span>
+<span class="sd">        &#39;amp_max&#39;,</span>
+<span class="sd">        &#39;amp_min&#39;,</span>
+<span class="sd">        &#39;amp_median&#39;,</span>
+<span class="sd">        &#39;amp_std_dB&#39;,</span>
+<span class="sd">        &#39;contamination&#39;,</span>
+<span class="sd">        &#39;contamination_alt&#39;,</span>
+<span class="sd">        &#39;drift&#39;,</span>
+<span class="sd">        &#39;missed_spikes_est&#39;,</span>
+<span class="sd">        &#39;noise_cutoff&#39;,</span>
+<span class="sd">        &#39;presence_ratio&#39;,</span>
+<span class="sd">        &#39;presence_ratio_std&#39;,</span>
+<span class="sd">        &#39;slidingRP_viol&#39;,</span>
+<span class="sd">        &#39;spike_count&#39;</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -965,25 +1097,28 @@
 <span class="sd">        &gt;&gt;&gt; r = bb.metrics.quick_unit_metrics(cluster_ids, ts, amps, depths)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="n">cluster_ids</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">spike_clusters</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">cluster_ids</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">spike_clusters</span><span class="p">)</span>
     <span class="n">nclust</span> <span class="o">=</span> <span class="n">cluster_ids</span><span class="o">.</span><span class="n">size</span>
-    <span class="n">r</span> <span class="o">=</span> <span class="n">Bunch</span><span class="p">({</span>
-        <span class="s1">&#39;cluster_id&#39;</span><span class="p">:</span> <span class="n">cluster_ids</span><span class="p">,</span>
-        <span class="s1">&#39;num_spikes&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">nclust</span><span class="p">,),</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">),</span>
-        <span class="s1">&#39;firing_rate&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">nclust</span><span class="p">,),</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">),</span>
-        <span class="s1">&#39;presence_ratio&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">nclust</span><span class="p">,),</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">),</span>
-        <span class="s1">&#39;presence_ratio_std&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">nclust</span><span class="p">,),</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">),</span>
-        <span class="s1">&#39;frac_isi_viol&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">nclust</span><span class="p">,),</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">),</span>
-        <span class="s1">&#39;contamination_est&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">nclust</span><span class="p">,),</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">),</span>
-        <span class="s1">&#39;contamination_est2&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">nclust</span><span class="p">,),</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">),</span>
-        <span class="s1">&#39;missed_spikes_est&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">nclust</span><span class="p">,),</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">),</span>
-        <span class="s1">&#39;cum_amp_drift&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">nclust</span><span class="p">,),</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">),</span>
-        <span class="s1">&#39;max_amp_drift&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">nclust</span><span class="p">,),</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">),</span>
-        <span class="s1">&#39;cum_depth_drift&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">nclust</span><span class="p">,),</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">),</span>
-        <span class="s1">&#39;max_depth_drift&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">nclust</span><span class="p">,),</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">),</span>
-        <span class="c1"># could add &#39;epoch_name&#39; in future:</span>
-        <span class="c1"># &#39;epoch_name&#39;: np.zeros(nclust, dtype=&#39;object&#39;),</span>
-    <span class="p">})</span>
+
+    <span class="n">metrics_list</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="s1">&#39;cluster_id&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;amp_max&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;amp_min&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;amp_median&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;amp_std_dB&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;contamination&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;contamination_alt&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;drift&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;missed_spikes_est&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;noise_cutoff&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;presence_ratio&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;presence_ratio_std&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;slidingRP_viol&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;spike_count&#39;</span>
+    <span class="p">]</span>
+
+    <span class="n">r</span> <span class="o">=</span> <span class="n">Bunch</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">nclust</span><span class="p">,),</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">metrics_list</span><span class="p">})</span>
+    <span class="n">r</span><span class="p">[</span><span class="s1">&#39;cluster_id&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">cluster_ids</span>
 
     <span class="c1"># vectorized computation of basic metrics such as presence ratio and firing rate</span>
     <span class="n">tmin</span> <span class="o">=</span> <span class="n">spike_times</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
@@ -993,8 +1128,18 @@
                                 <span class="n">ybin</span><span class="o">=</span><span class="n">cluster_ids</span><span class="p">,</span> <span class="n">xlim</span><span class="o">=</span><span class="p">[</span><span class="n">tmin</span><span class="p">,</span> <span class="n">tmax</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
     <span class="n">r</span><span class="o">.</span><span class="n">presence_ratio</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">presence_ratio</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="n">presence_ratio</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
     <span class="n">r</span><span class="o">.</span><span class="n">presence_ratio_std</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">presence_ratio</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-    <span class="n">r</span><span class="o">.</span><span class="n">num_spikes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">presence_ratio</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-    <span class="n">r</span><span class="o">.</span><span class="n">firing_rate</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">num_spikes</span> <span class="o">/</span> <span class="p">(</span><span class="n">tmax</span> <span class="o">-</span> <span class="n">tmin</span><span class="p">)</span>
+    <span class="n">r</span><span class="o">.</span><span class="n">spike_count</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">presence_ratio</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">r</span><span class="o">.</span><span class="n">firing_rate</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">spike_count</span> <span class="o">/</span> <span class="p">(</span><span class="n">tmax</span> <span class="o">-</span> <span class="n">tmin</span><span class="p">)</span>
+
+    <span class="c1"># computing amplitude statistical indicators</span>
+    <span class="n">camp</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">c_</span><span class="p">[</span><span class="n">spike_amps</span><span class="p">,</span> <span class="mi">20</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="n">spike_amps</span><span class="p">),</span> <span class="n">spike_clusters</span><span class="p">],</span>
+                        <span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;amps&#39;</span><span class="p">,</span> <span class="s1">&#39;log_amps&#39;</span><span class="p">,</span> <span class="s1">&#39;clusters&#39;</span><span class="p">])</span>
+    <span class="n">camp</span> <span class="o">=</span> <span class="n">camp</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s1">&#39;clusters&#39;</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">camp</span><span class="o">.</span><span class="n">clusters</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span> <span class="o">==</span> <span class="n">r</span><span class="p">[</span><span class="s1">&#39;cluster_id&#39;</span><span class="p">])</span>
+    <span class="n">r</span><span class="o">.</span><span class="n">amp_min</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">camp</span><span class="p">[</span><span class="s1">&#39;amps&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">min</span><span class="p">())</span>
+    <span class="n">r</span><span class="o">.</span><span class="n">amp_max</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">camp</span><span class="p">[</span><span class="s1">&#39;amps&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">())</span>
+    <span class="n">r</span><span class="o">.</span><span class="n">amp_median</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="mi">10</span> <span class="o">**</span> <span class="p">(</span><span class="n">camp</span><span class="p">[</span><span class="s1">&#39;log_amps&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">median</span><span class="p">()</span> <span class="o">/</span> <span class="mi">20</span><span class="p">))</span>  <span class="c1"># this is the geometric median</span>
+    <span class="n">r</span><span class="o">.</span><span class="n">amp_std_dB</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">camp</span><span class="p">[</span><span class="s1">&#39;log_amps&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">std</span><span class="p">())</span>
 
     <span class="c1"># loop over each cluster to compute the rest of the metrics</span>
     <span class="k">for</span> <span class="n">ic</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">nclust</span><span class="p">):</span>
@@ -1007,21 +1152,49 @@
         <span class="n">depths</span> <span class="o">=</span> <span class="n">spike_depths</span><span class="p">[</span><span class="n">ispikes</span><span class="p">]</span>
 
         <span class="c1"># compute metrics</span>
-        <span class="n">r</span><span class="o">.</span><span class="n">frac_isi_viol</span><span class="p">[</span><span class="n">ic</span><span class="p">],</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">isi_viol</span><span class="p">(</span><span class="n">ts</span><span class="p">,</span> <span class="n">rp</span><span class="o">=</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;refractory_period&#39;</span><span class="p">])</span>
-        <span class="n">r</span><span class="o">.</span><span class="n">contamination_est</span><span class="p">[</span><span class="n">ic</span><span class="p">]</span> <span class="o">=</span> <span class="n">contamination_est</span><span class="p">(</span><span class="n">ts</span><span class="p">,</span> <span class="n">rp</span><span class="o">=</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;refractory_period&#39;</span><span class="p">])</span>
-        <span class="n">r</span><span class="o">.</span><span class="n">contamination_est2</span><span class="p">[</span><span class="n">ic</span><span class="p">],</span> <span class="n">_</span> <span class="o">=</span> <span class="n">contamination_est2</span><span class="p">(</span>
+        <span class="n">r</span><span class="o">.</span><span class="n">contamination_ks2</span><span class="p">[</span><span class="n">ic</span><span class="p">]</span> <span class="o">=</span> <span class="n">contamination_alt</span><span class="p">(</span><span class="n">ts</span><span class="p">,</span> <span class="n">rp</span><span class="o">=</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;refractory_period&#39;</span><span class="p">])</span>
+        <span class="n">r</span><span class="o">.</span><span class="n">contamination</span><span class="p">[</span><span class="n">ic</span><span class="p">],</span> <span class="n">_</span> <span class="o">=</span> <span class="n">contamination</span><span class="p">(</span>
             <span class="n">ts</span><span class="p">,</span> <span class="n">tmin</span><span class="p">,</span> <span class="n">tmax</span><span class="p">,</span> <span class="n">rp</span><span class="o">=</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;refractory_period&#39;</span><span class="p">],</span> <span class="n">min_isi</span><span class="o">=</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;min_isi&#39;</span><span class="p">])</span>
-        <span class="k">try</span><span class="p">:</span>  <span class="c1"># this may fail because `missed_spikes_est` requires a min number of spikes</span>
-            <span class="n">r</span><span class="o">.</span><span class="n">missed_spikes_est</span><span class="p">[</span><span class="n">ic</span><span class="p">],</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">missed_spikes_est</span><span class="p">(</span>
-                <span class="n">amps</span><span class="p">,</span> <span class="n">spks_per_bin</span><span class="o">=</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;spks_per_bin_for_missed_spks_est&#39;</span><span class="p">],</span>
-                <span class="n">sigma</span><span class="o">=</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;std_smoothing_kernel_for_missed_spks_est&#39;</span><span class="p">],</span>
-                <span class="n">min_num_bins</span><span class="o">=</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;min_num_bins_for_missed_spks_est&#39;</span><span class="p">])</span>
-        <span class="k">except</span> <span class="ne">AssertionError</span><span class="p">:</span>
-            <span class="k">pass</span>
-        <span class="n">r</span><span class="o">.</span><span class="n">cum_amp_drift</span><span class="p">[</span><span class="n">ic</span><span class="p">]</span> <span class="o">=</span> <span class="n">cum_drift</span><span class="p">(</span><span class="n">amps</span><span class="p">)</span>
-        <span class="n">r</span><span class="o">.</span><span class="n">max_amp_drift</span><span class="p">[</span><span class="n">ic</span><span class="p">]</span> <span class="o">=</span> <span class="n">max_drift</span><span class="p">(</span><span class="n">amps</span><span class="p">)</span>
-        <span class="n">r</span><span class="o">.</span><span class="n">cum_depth_drift</span><span class="p">[</span><span class="n">ic</span><span class="p">]</span> <span class="o">=</span> <span class="n">cum_drift</span><span class="p">(</span><span class="n">depths</span><span class="p">)</span>
-        <span class="n">r</span><span class="o">.</span><span class="n">max_depth_drift</span><span class="p">[</span><span class="n">ic</span><span class="p">]</span> <span class="o">=</span> <span class="n">max_drift</span><span class="p">(</span><span class="n">depths</span><span class="p">)</span>
+        <span class="n">r</span><span class="o">.</span><span class="n">slidingRP_viol</span><span class="p">[</span><span class="n">ic</span><span class="p">]</span> <span class="o">=</span> <span class="n">slidingRP_viol</span><span class="p">(</span><span class="n">ts</span><span class="p">,</span>
+                                              <span class="n">bin_size</span><span class="o">=</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;bin_size&#39;</span><span class="p">],</span>
+                                              <span class="n">thresh</span><span class="o">=</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;RPslide_thresh&#39;</span><span class="p">],</span>
+                                              <span class="n">acceptThresh</span><span class="o">=</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;acceptable_contamination&#39;</span><span class="p">])</span>
+        <span class="n">r</span><span class="o">.</span><span class="n">noise_cutoff</span><span class="p">[</span><span class="n">ic</span><span class="p">]</span> <span class="o">=</span> <span class="n">noise_cutoff</span><span class="p">(</span><span class="n">amps</span><span class="p">,</span>
+                                          <span class="n">quartile_length</span><span class="o">=</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;nc_quartile_length&#39;</span><span class="p">],</span>
+                                          <span class="n">n_bins</span><span class="o">=</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;nc_bins&#39;</span><span class="p">],</span>
+                                          <span class="n">n_low_bins</span><span class="o">=</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;nc_n_low_bins&#39;</span><span class="p">])</span>
+        <span class="n">r</span><span class="o">.</span><span class="n">missed_spikes_est</span><span class="p">[</span><span class="n">ic</span><span class="p">],</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">missed_spikes_est</span><span class="p">(</span>
+            <span class="n">amps</span><span class="p">,</span> <span class="n">spks_per_bin</span><span class="o">=</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;spks_per_bin_for_missed_spks_est&#39;</span><span class="p">],</span>
+            <span class="n">sigma</span><span class="o">=</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;std_smoothing_kernel_for_missed_spks_est&#39;</span><span class="p">],</span>
+            <span class="n">min_num_bins</span><span class="o">=</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;min_num_bins_for_missed_spks_est&#39;</span><span class="p">])</span>
+
+        <span class="c1"># wonder if there is a need to low-cut this</span>
+        <span class="n">r</span><span class="o">.</span><span class="n">drift</span><span class="p">[</span><span class="n">ic</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">depths</span><span class="p">)))</span> <span class="o">/</span> <span class="p">(</span><span class="n">tmax</span> <span class="o">-</span> <span class="n">tmin</span><span class="p">)</span> <span class="o">*</span> <span class="mi">3600</span>
+    <span class="k">return</span> <span class="n">r</span></div>
+
+
+<div class="viewcode-block" id="unit_labels"><a class="viewcode-back" href="../../../_autosummary/brainbox.metrics.metrics.html#brainbox.metrics.metrics.unit_labels">[docs]</a><span class="k">def</span> <span class="nf">unit_labels</span><span class="p">(</span><span class="n">spike_clusters</span><span class="p">,</span> <span class="n">spike_times</span><span class="p">,</span> <span class="n">spike_amps</span><span class="p">,</span>
+                <span class="n">params</span><span class="o">=</span><span class="n">METRICS_PARAMS</span><span class="p">):</span>
+
+    <span class="n">cluster_ids</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">spike_clusters</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">nclust</span> <span class="o">=</span> <span class="n">cluster_ids</span><span class="o">.</span><span class="n">size</span>
+
+    <span class="n">r</span> <span class="o">=</span> <span class="n">Bunch</span><span class="p">({</span>
+        <span class="s1">&#39;cluster_id&#39;</span><span class="p">:</span> <span class="n">cluster_ids</span><span class="p">,</span>
+        <span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">nclust</span><span class="p">,),</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+    <span class="p">})</span>
+
+    <span class="k">for</span> <span class="n">ic</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">nclust</span><span class="p">):</span>
+        <span class="c1"># slice the spike_times array</span>
+        <span class="n">ispikes</span> <span class="o">=</span> <span class="n">spike_clusters</span> <span class="o">==</span> <span class="n">cluster_ids</span><span class="p">[</span><span class="n">ic</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="o">~</span><span class="n">ispikes</span><span class="p">):</span>  <span class="c1"># if this cluster has no spikes, continue</span>
+            <span class="k">continue</span>
+        <span class="n">ts</span> <span class="o">=</span> <span class="n">spike_times</span><span class="p">[</span><span class="n">ispikes</span><span class="p">]</span>
+        <span class="n">amps</span> <span class="o">=</span> <span class="n">spike_amps</span><span class="p">[</span><span class="n">ispikes</span><span class="p">]</span>
+
+    <span class="n">r</span><span class="o">.</span><span class="n">label</span><span class="p">[</span><span class="n">ic</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">slidingRP_viol</span><span class="p">(</span><span class="n">ts</span><span class="p">)</span>
+                      <span class="ow">and</span> <span class="n">noise_cutoff</span><span class="p">(</span><span class="n">amps</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;nc_thresh&#39;</span><span class="p">]</span>
+                      <span class="ow">and</span> <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">amps</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;med_amp_thresh&#39;</span><span class="p">])</span>
 
     <span class="k">return</span> <span class="n">r</span></div>
 </pre></div>

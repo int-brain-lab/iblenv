@@ -1,0 +1,366 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>ibllib.pipes.remote_server &mdash; IBL Library  documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/copybutton.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/css/style.css" type="text/css" />
+
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+        <script src="../../../_static/language_data.js"></script>
+        <script src="../../../_static/clipboard.min.js"></script>
+        <script src="../../../_static/copybutton.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home" alt="Documentation Home"> IBL Library
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../01_overview.html">IBL data structure</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../02_installation.html">Installation</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../03_one.html">ONE</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../04_datajoint.html">Datajoint</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../05_tutorials.html">Tutorials</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../06_examples.html">Examples</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../07_contribution.html">Contribution Statement</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../08_api_reference.html">API Reference</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">IBL Library</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>ibllib.pipes.remote_server</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for ibllib.pipes.remote_server</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span><span class="p">,</span> <span class="n">PosixPath</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">subprocess</span>
+<span class="kn">import</span> <span class="nn">os</span>
+
+<span class="kn">from</span> <span class="nn">ibllib.ephys</span> <span class="kn">import</span> <span class="n">sync_probes</span>
+<span class="kn">from</span> <span class="nn">ibllib.pipes</span> <span class="kn">import</span> <span class="n">ephys_preprocessing</span> <span class="k">as</span> <span class="n">ephys</span>
+<span class="kn">from</span> <span class="nn">oneibl.patcher</span> <span class="kn">import</span> <span class="n">FTPPatcher</span>
+<span class="kn">from</span> <span class="nn">oneibl.one</span> <span class="kn">import</span> <span class="n">ONE</span>
+
+<span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;ibllib&#39;</span><span class="p">)</span>
+
+<span class="n">FLATIRON_HOST</span> <span class="o">=</span> <span class="s1">&#39;ibl.flatironinstitute.org&#39;</span>
+<span class="n">FLATIRON_PORT</span> <span class="o">=</span> <span class="mi">61022</span>
+<span class="n">FLATIRON_USER</span> <span class="o">=</span> <span class="s1">&#39;datauser&#39;</span>
+<span class="n">root_path</span> <span class="o">=</span> <span class="s1">&#39;/mnt/s0/Data/&#39;</span>
+
+
+<span class="k">def</span> <span class="nf">_run_command</span><span class="p">(</span><span class="n">cmd</span><span class="p">):</span>
+    <span class="n">process</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">Popen</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span> <span class="n">shell</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">stdout</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span>
+                               <span class="n">stderr</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">)</span>
+    <span class="n">info</span><span class="p">,</span> <span class="n">error</span> <span class="o">=</span> <span class="n">process</span><span class="o">.</span><span class="n">communicate</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">process</span><span class="o">.</span><span class="n">returncode</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="n">error</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">info</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">(),</span> <span class="kc">None</span>
+
+
+<div class="viewcode-block" id="job_transfer_ks2"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.remote_server.html#ibllib.pipes.remote_server.job_transfer_ks2">[docs]</a><span class="k">def</span> <span class="nf">job_transfer_ks2</span><span class="p">(</span><span class="n">probe_path</span><span class="p">):</span>
+
+    <span class="k">assert</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">probe_path</span><span class="p">,</span> <span class="nb">str</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">_get_volume_usage_percentage</span><span class="p">(</span><span class="n">vol</span><span class="p">):</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;df </span><span class="si">{</span><span class="n">vol</span><span class="si">}</span><span class="s1">&#39;</span>
+        <span class="n">res</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">_run_command</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+        <span class="n">size_list</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39; +&#39;</span><span class="p">,</span> <span class="n">res</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">per_usage</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">size_list</span><span class="p">[</span><span class="mi">4</span><span class="p">][:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">per_usage</span>
+
+    <span class="c1"># First check disk availability</span>
+    <span class="n">space</span> <span class="o">=</span> <span class="n">_get_volume_usage_percentage</span><span class="p">(</span><span class="s1">&#39;/mnt/s0&#39;</span><span class="p">)</span>
+    <span class="c1"># If we are less than 80% full we can transfer more stuff</span>
+    <span class="k">if</span> <span class="n">space</span> <span class="o">&lt;</span> <span class="mi">80</span><span class="p">:</span>
+        <span class="c1"># Transfer data from flatiron to s3</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;ssh -i ~/.ssh/mayo_alyx.pem -p </span><span class="si">{</span><span class="n">FLATIRON_PORT</span><span class="si">}</span><span class="s1"> &#39;</span> \
+              <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">FLATIRON_USER</span><span class="si">}</span><span class="s1">@</span><span class="si">{</span><span class="n">FLATIRON_HOST</span><span class="si">}</span><span class="s1"> ./transfer_to_aws.sh </span><span class="si">{</span><span class="n">probe_path</span><span class="si">}</span><span class="s1">&#39;</span>
+        <span class="n">result</span><span class="p">,</span> <span class="n">error</span> <span class="o">=</span> <span class="n">_run_command</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+
+        <span class="c1"># Check that command has run as expected and output info to logger</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">result</span><span class="p">:</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">probe_path</span><span class="si">}</span><span class="s1">: Could not transfer data from FlatIron to s3 </span><span class="se">\n</span><span class="s1">&#39;</span>
+                          <span class="sa">f</span><span class="s1">&#39;Error: </span><span class="si">{</span><span class="n">error</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="k">return</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">probe_path</span><span class="si">}</span><span class="s1">: Data transferred from FlatIron to s3&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Transfer data from s3 to /mnt/s0/Data on aws</span>
+        <span class="n">session</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">PosixPath</span><span class="p">(</span><span class="n">probe_path</span><span class="p">)</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">parent</span><span class="p">)</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;aws s3 sync s3://ibl-ks2-storage/</span><span class="si">{</span><span class="n">session</span><span class="si">}</span><span class="s1"> &quot;/mnt/s0/Data/</span><span class="si">{</span><span class="n">session</span><span class="si">}</span><span class="s1">&quot;&#39;</span>
+        <span class="n">result</span><span class="p">,</span> <span class="n">error</span> <span class="o">=</span> <span class="n">_run_command</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+
+        <span class="c1"># Check that command has run as expected and output info to logger</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">result</span><span class="p">:</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">probe_path</span><span class="si">}</span><span class="s1">: Could not transfer data from s3 to aws </span><span class="se">\n</span><span class="s1">&#39;</span>
+                          <span class="sa">f</span><span class="s1">&#39;Error: </span><span class="si">{</span><span class="n">error</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="k">return</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">probe_path</span><span class="si">}</span><span class="s1">: Data transferred from s3 to aws&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Rename the files to get rid of eid associated with each dataset</span>
+        <span class="n">session_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">root_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">session</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="n">session_path</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s1">&#39;**/*&#39;</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">file</span><span class="o">.</span><span class="n">stem</span><span class="p">)</span><span class="o">.</span><span class="n">suffix</span><span class="p">)</span> <span class="o">==</span> <span class="mi">37</span><span class="p">:</span>
+                <span class="n">file</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">file</span><span class="o">.</span><span class="n">parent</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">file</span><span class="o">.</span><span class="n">stem</span><span class="p">)</span><span class="o">.</span><span class="n">stem</span><span class="p">)</span> <span class="o">+</span> <span class="n">file</span><span class="o">.</span><span class="n">suffix</span><span class="p">))</span>
+                <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Renamed dataset </span><span class="si">{</span><span class="n">file</span><span class="o">.</span><span class="n">stem</span><span class="si">}</span><span class="s1"> to </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">file</span><span class="o">.</span><span class="n">stem</span><span class="p">)</span><span class="o">.</span><span class="n">stem</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Dataset </span><span class="si">{</span><span class="n">file</span><span class="o">.</span><span class="n">stem</span><span class="si">}</span><span class="s1"> not renamed&#39;</span><span class="p">)</span>
+                <span class="k">continue</span>
+
+        <span class="c1"># Create a sort_me.flag</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;touch /mnt/s0/Data/</span><span class="si">{</span><span class="n">session</span><span class="si">}</span><span class="s1">/sort_me.flag&#39;</span>
+        <span class="n">result</span><span class="p">,</span> <span class="n">error</span> <span class="o">=</span> <span class="n">_run_command</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">session</span><span class="si">}</span><span class="s1">: sort_me.flag created&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Remove files from s3</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;aws s3 rm --recursive s3://ibl-ks2-storage/</span><span class="si">{</span><span class="n">session</span><span class="si">}</span><span class="s1">&#39;</span>
+        <span class="n">result</span><span class="p">,</span> <span class="n">error</span> <span class="o">=</span> <span class="n">_run_command</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">result</span><span class="p">:</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">session</span><span class="si">}</span><span class="s1">: Could not remove data from s3 </span><span class="se">\n</span><span class="s1">&#39;</span>
+                          <span class="sa">f</span><span class="s1">&#39;Error: </span><span class="si">{</span><span class="n">error</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="k">return</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">session</span><span class="si">}</span><span class="s1">: Data removed from s3&#39;</span><span class="p">)</span>
+
+        <span class="k">return</span></div>
+
+
+<div class="viewcode-block" id="job_run_ks2"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.remote_server.html#ibllib.pipes.remote_server.job_run_ks2">[docs]</a><span class="k">def</span> <span class="nf">job_run_ks2</span><span class="p">():</span>
+
+    <span class="c1"># Look for flag files in /mnt/s0/Data and sort them in order of date they were created</span>
+    <span class="n">flag_files</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">root_path</span><span class="p">)</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s1">&#39;**/sort_me.flag&#39;</span><span class="p">))</span>
+    <span class="n">flag_files</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">getmtime</span><span class="p">)</span>
+
+    <span class="c1"># Start with the oldest flag</span>
+    <span class="n">session_path</span> <span class="o">=</span> <span class="n">flag_files</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">parent</span>
+    <span class="n">session</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">PosixPath</span><span class="p">(</span><span class="o">*</span><span class="n">session_path</span><span class="o">.</span><span class="n">parts</span><span class="p">[</span><span class="mi">4</span><span class="p">:]))</span>
+    <span class="n">flag_files</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">unlink</span><span class="p">()</span>
+
+    <span class="c1"># Instantiate one</span>
+    <span class="n">one</span> <span class="o">=</span> <span class="n">ONE</span><span class="p">()</span>
+
+    <span class="c1"># sync the probes</span>
+    <span class="n">status</span><span class="p">,</span> <span class="n">sync_files</span> <span class="o">=</span> <span class="n">sync_probes</span><span class="o">.</span><span class="n">sync</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">status</span><span class="p">:</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">session</span><span class="si">}</span><span class="s1">: Could not sync probes&#39;</span><span class="p">)</span>
+        <span class="k">return</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">session</span><span class="si">}</span><span class="s1">: Probes successfully synced&#39;</span><span class="p">)</span>
+
+    <span class="c1"># run ks2</span>
+    <span class="n">task</span> <span class="o">=</span> <span class="n">ephys</span><span class="o">.</span><span class="n">SpikeSorting_KS2_Matlab</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">)</span>
+    <span class="n">status</span> <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="n">status</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">session</span><span class="si">}</span><span class="s1">: Could not run ks2&#39;</span><span class="p">)</span>
+        <span class="k">return</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">session</span><span class="si">}</span><span class="s1">: ks2 successfully completed&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Run the cell qc</span>
+        <span class="c1"># qc_file = []</span>
+
+        <span class="c1"># Register and upload files to FTP Patcher</span>
+        <span class="n">outfiles</span> <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">outputs</span>
+        <span class="n">ftp_patcher</span> <span class="o">=</span> <span class="n">FTPPatcher</span><span class="p">(</span><span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">)</span>
+        <span class="n">ftp_patcher</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span><span class="n">path</span><span class="o">=</span><span class="n">outfiles</span><span class="p">,</span> <span class="n">created_by</span><span class="o">=</span><span class="n">one</span><span class="o">.</span><span class="n">_par</span><span class="o">.</span><span class="n">ALYX_LOGIN</span><span class="p">)</span></div>
+
+        <span class="c1"># Remove everything apart from alf folder and spike sorter folder</span>
+        <span class="c1"># Don&#39;t do this for now unitl we are sure it works for 3A and 3B!!</span>
+        <span class="c1"># cmd = f&#39;rm -r {session_path}/raw_ephys_data rm -r {session_path}/raw_behavior_data&#39;</span>
+        <span class="c1"># result, error = _run_command(cmd)</span>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        
+        &copy; Copyright 2020, International Brain Laboratory
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

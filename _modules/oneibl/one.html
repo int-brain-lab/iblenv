@@ -104,7 +104,10 @@
 <li class="toctree-l1"><a class="reference internal" href="../../06_examples.html">Examples</a></li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../07_developers.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../07_contribution.html">Contribution Statement</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../08_api_reference.html">API Reference</a></li>
 </ul>
 
             
@@ -178,7 +181,6 @@
 <span class="kn">import</span> <span class="nn">re</span>
 <span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">wraps</span>
 <span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span><span class="p">,</span> <span class="n">PurePath</span>
-<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Dict</span>
 <span class="kn">from</span> <span class="nn">uuid</span> <span class="kn">import</span> <span class="n">UUID</span>
 
@@ -377,6 +379,63 @@
         <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">ismember</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;dataset_type&#39;</span><span class="p">],</span> <span class="n">dataset_types</span><span class="p">)[</span><span class="mi">0</span><span class="p">]]</span>
         <span class="k">return</span> <span class="n">SessionDataInfo</span><span class="o">.</span><span class="n">from_pandas</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_cache_dir</span><span class="p">(</span><span class="n">cache_dir</span><span class="p">))</span>
 
+<div class="viewcode-block" id="OneAbstract.path_from_eid"><a class="viewcode-back" href="../../_autosummary/oneibl.one.html#oneibl.one.OneAbstract.path_from_eid">[docs]</a>    <span class="k">def</span> <span class="nf">path_from_eid</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">eid</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Listable</span><span class="p">(</span><span class="n">Path</span><span class="p">)]:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        From an experiment id or a list of experiment ids, gets the local cache path</span>
+<span class="sd">        :param eid: eid (UUID) or list of UUIDs</span>
+<span class="sd">        :return: eid or list of eids</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># If eid is a list of eIDs recurse through list and return the results</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="n">path_list</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">eid</span><span class="p">:</span>
+                <span class="n">path_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path_from_eid</span><span class="p">(</span><span class="n">p</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">path_list</span>
+        <span class="c1"># If not valid return None</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">alfio</span><span class="o">.</span><span class="n">is_uuid_string</span><span class="p">(</span><span class="n">eid</span><span class="p">):</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="s2">&quot; is not a valid eID/UUID string&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="c1"># load path from cache</span>
+        <span class="n">ic</span> <span class="o">=</span> <span class="n">parquet</span><span class="o">.</span><span class="n">find_first_2d</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="p">[[</span><span class="s1">&#39;eid_0&#39;</span><span class="p">,</span> <span class="s1">&#39;eid_1&#39;</span><span class="p">]]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(),</span> <span class="n">parquet</span><span class="o">.</span><span class="n">str2np</span><span class="p">(</span><span class="n">eid</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">ic</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">ses</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">ic</span><span class="p">]</span>
+            <span class="k">return</span> <span class="n">Path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_par</span><span class="o">.</span><span class="n">CACHE_DIR</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span>
+                <span class="n">ses</span><span class="p">[</span><span class="s1">&#39;lab&#39;</span><span class="p">],</span> <span class="s1">&#39;Subjects&#39;</span><span class="p">,</span> <span class="n">ses</span><span class="p">[</span><span class="s1">&#39;subject&#39;</span><span class="p">],</span> <span class="n">ses</span><span class="p">[</span><span class="s1">&#39;start_time&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">isoformat</span><span class="p">()[:</span><span class="mi">10</span><span class="p">],</span>
+                <span class="nb">str</span><span class="p">(</span><span class="n">ses</span><span class="p">[</span><span class="s1">&#39;number&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">zfill</span><span class="p">(</span><span class="mi">3</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="OneAbstract.eid_from_path"><a class="viewcode-back" href="../../_autosummary/oneibl.one.html#oneibl.one.OneAbstract.eid_from_path">[docs]</a>    <span class="k">def</span> <span class="nf">eid_from_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path_obj</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        From a local path, gets the experiment id</span>
+<span class="sd">        :param path_obj: local path or list of local paths</span>
+<span class="sd">        :return: eid or list of eids</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># If path_obj is a list recurse through it and return a list</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">path_obj</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="n">path_obj</span> <span class="o">=</span> <span class="p">[</span><span class="n">Path</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">path_obj</span><span class="p">]</span>
+            <span class="n">eid_list</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">path_obj</span><span class="p">:</span>
+                <span class="n">eid_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">eid_from_path</span><span class="p">(</span><span class="n">p</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">eid_list</span>
+        <span class="c1"># else ensure the path ends with mouse,date, number</span>
+        <span class="n">path_obj</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path_obj</span><span class="p">)</span>
+        <span class="n">session_path</span> <span class="o">=</span> <span class="n">alfio</span><span class="o">.</span><span class="n">get_session_path</span><span class="p">(</span><span class="n">path_obj</span><span class="p">)</span>
+        <span class="c1"># if path does not have a date and a number, or cache is empty return None</span>
+        <span class="k">if</span> <span class="n">session_path</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="c1"># fetch eid from cache</span>
+        <span class="n">ind</span> <span class="o">=</span> <span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="p">[</span><span class="s1">&#39;subject&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">session_path</span><span class="o">.</span><span class="n">parts</span><span class="p">[</span><span class="o">-</span><span class="mi">3</span><span class="p">])</span> <span class="o">&amp;</span>
+               <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="p">[</span><span class="s1">&#39;start_time&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span>
+                   <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">isoformat</span><span class="p">()[:</span><span class="mi">10</span><span class="p">]</span> <span class="o">==</span> <span class="n">session_path</span><span class="o">.</span><span class="n">parts</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">]))</span> <span class="o">&amp;</span>
+               <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="p">[</span><span class="s1">&#39;number&#39;</span><span class="p">])</span> <span class="o">==</span> <span class="nb">int</span><span class="p">(</span><span class="n">session_path</span><span class="o">.</span><span class="n">parts</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]))</span>
+        <span class="n">ind</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">ind</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">())[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">ind</span><span class="o">.</span><span class="n">size</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">parquet</span><span class="o">.</span><span class="n">np2str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="p">[[</span><span class="s1">&#39;eid_0&#39;</span><span class="p">,</span> <span class="s1">&#39;eid_1&#39;</span><span class="p">]]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">ind</span><span class="p">[</span><span class="mi">0</span><span class="p">]])</span></div>
+
     <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
     <span class="k">def</span> <span class="nf">_make_dataclass</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">eid</span><span class="p">,</span> <span class="n">dataset_types</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">cache_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="k">pass</span>
@@ -450,52 +509,28 @@
         <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;dataset-types&#39;</span><span class="p">,</span> <span class="s1">&#39;read&#39;</span><span class="p">,</span> <span class="n">dataset_type</span><span class="p">)</span>
         <span class="nb">print</span><span class="p">(</span><span class="n">out</span><span class="p">[</span><span class="s1">&#39;description&#39;</span><span class="p">])</span></div>
 
-<div class="viewcode-block" id="OneAlyx.list"><a class="viewcode-back" href="../../_autosummary/oneibl.one.html#oneibl.one.OneAlyx.list">[docs]</a>    <span class="k">def</span> <span class="nf">list</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
-             <span class="n">eid</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">,</span> <span class="n">UUID</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-             <span class="n">keyword</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;dataset-type&#39;</span><span class="p">,</span>
-             <span class="n">details</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">List</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]:</span>
+<div class="viewcode-block" id="OneAlyx.list"><a class="viewcode-back" href="../../_autosummary/oneibl.one.html#oneibl.one.OneAlyx.list">[docs]</a>    <span class="k">def</span> <span class="nf">list</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">eid</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">,</span> <span class="n">UUID</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">details</span><span class="o">=</span><span class="kc">False</span>
+             <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">List</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        From a Session ID, queries Alyx database for datasets related to a session.</span>
 
 <span class="sd">        :param eid: Experiment session uuid str</span>
 <span class="sd">        :type eid: str</span>
 
-<span class="sd">        :param keyword: The attribute to be listed, options include &#39;dataset&#39;, &#39;dataset-type&#39;.</span>
-<span class="sd">        If no eid provided, only dataset-types will be returned.</span>
-<span class="sd">        :type keyword: str</span>
-
-<span class="sd">        :param details: If eid provided returns datasets as a dict with collection names as</span>
-<span class="sd">        keys, if eid is None a list of dataset-type dicts is returned, with a description field.</span>
-<span class="sd">        :type details: bool</span>
+<span class="sd">        :param details: If false returns a list of path, otherwise returns the REST dictionary</span>
+<span class="sd">        :type eid: bool</span>
 
 <span class="sd">        :return: list of strings or dict of lists if details is True</span>
 <span class="sd">        :rtype:  list, dict</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="n">keyword</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;s&#39;</span><span class="p">:</span>
-            <span class="n">keyword</span> <span class="o">=</span> <span class="n">keyword</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>  <span class="c1"># Remove plural</span>
-        <span class="k">if</span> <span class="n">keyword</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;dataset&#39;</span><span class="p">,</span> <span class="s1">&#39;dataset-type&#39;</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;keyword should be either &quot;dataset&quot; or &quot;dataset-type&quot;&#39;</span><span class="p">)</span>
-
         <span class="k">if</span> <span class="ow">not</span> <span class="n">eid</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">keyword</span> <span class="o">!=</span> <span class="s1">&#39;dataset-type&#39;</span><span class="p">:</span>
-                <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Unable to list all datasets, returning dataset types instead&#39;</span><span class="p">)</span>
-            <span class="n">results</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;dataset-types&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">)</span>
-            <span class="k">return</span> <span class="n">results</span> <span class="k">if</span> <span class="n">details</span> <span class="k">else</span> <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">results</span><span class="p">]</span>
+            <span class="k">return</span> <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;dataset-types&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">)]</span>
 
         <span class="c1"># Session specific list</span>
-        <span class="n">results</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;datasets&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span> <span class="n">session</span><span class="o">=</span><span class="n">eid</span><span class="p">)</span>
-        <span class="n">collection</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="n">name</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
-            <span class="n">collection</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">r</span><span class="p">[</span><span class="s1">&#39;collection&#39;</span><span class="p">])</span>
-            <span class="n">name</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">r</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="n">keyword</span> <span class="o">==</span> <span class="s1">&#39;dataset&#39;</span> <span class="k">else</span> <span class="n">r</span><span class="p">[</span><span class="s1">&#39;dataset_type&#39;</span><span class="p">])</span>
-
-        <span class="k">if</span> <span class="n">details</span><span class="p">:</span>  <span class="c1"># Order the datasets by collection</span>
-            <span class="n">out</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span>
-            <span class="p">[</span><span class="n">out</span><span class="p">[</span><span class="n">k</span> <span class="ow">or</span> <span class="s1">&#39;alf&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">collection</span><span class="p">,</span> <span class="n">name</span><span class="p">)]</span>
-            <span class="k">return</span> <span class="n">out</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">name</span></div>
+        <span class="n">dsets</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;datasets&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span> <span class="n">session</span><span class="o">=</span><span class="n">eid</span><span class="p">,</span> <span class="n">exists</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">details</span><span class="p">:</span>
+            <span class="n">dsets</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">([</span><span class="n">Path</span><span class="p">(</span><span class="n">dset</span><span class="p">[</span><span class="s1">&#39;collection&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">dset</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">])</span> <span class="k">for</span> <span class="n">dset</span> <span class="ow">in</span> <span class="n">dsets</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">dsets</span></div>
 
 <div class="viewcode-block" id="OneAlyx.load"><a class="viewcode-back" href="../../_autosummary/oneibl.one.html#oneibl.one.OneAlyx.load">[docs]</a>    <span class="nd">@parse_id</span>
     <span class="k">def</span> <span class="nf">load</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">eid</span><span class="p">,</span> <span class="n">dataset_types</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dclass_output</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">dry_run</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">cache_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
@@ -536,7 +571,7 @@
     <span class="k">def</span> <span class="nf">load_dataset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                      <span class="n">eid</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">,</span> <span class="n">UUID</span><span class="p">],</span>
                      <span class="n">dataset</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-                     <span class="n">collection</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span>
+                     <span class="n">collection</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                      <span class="n">download_only</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Load a single dataset from a Session ID and a dataset type.</span>
@@ -545,6 +580,7 @@
 <span class="sd">        details dict or Path</span>
 <span class="sd">        :param dataset: The ALF dataset to load.  Supports asterisks as wildcards.</span>
 <span class="sd">        :param collection:  The collection to which the object belongs, e.g. &#39;alf/probe01&#39;.</span>
+<span class="sd">        For IBL this is the relative path of the file from the session root.</span>
 <span class="sd">        Supports asterisks as wildcards.</span>
 <span class="sd">        :param download_only: When true the data are downloaded and the file path is returned</span>
 <span class="sd">        :return: dataset or a Path object if download_only is true</span>
@@ -556,9 +592,9 @@
 <span class="sd">            spikes = one.load_dataset(eid &#39;spikes.times.npy&#39;, collection=&#39;alf/probe01&#39;)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">search_str</span> <span class="o">=</span> <span class="s1">&#39;name__regex,&#39;</span> <span class="o">+</span> <span class="n">dataset</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="sa">r</span><span class="s1">&#39;\.&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;*&#39;</span><span class="p">,</span> <span class="s1">&#39;.*&#39;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">collection</span> <span class="ow">and</span> <span class="n">collection</span> <span class="o">!=</span> <span class="s1">&#39;all&#39;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">collection</span><span class="p">:</span>
             <span class="n">search_str</span> <span class="o">+=</span> <span class="s1">&#39;,collection__regex,&#39;</span> <span class="o">+</span> <span class="n">collection</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;*&#39;</span><span class="p">,</span> <span class="s1">&#39;.*&#39;</span><span class="p">)</span>
-        <span class="n">results</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;datasets&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span> <span class="n">session</span><span class="o">=</span><span class="n">eid</span><span class="p">,</span> <span class="n">django</span><span class="o">=</span><span class="n">search_str</span><span class="p">)</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;datasets&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span> <span class="n">session</span><span class="o">=</span><span class="n">eid</span><span class="p">,</span> <span class="n">django</span><span class="o">=</span><span class="n">search_str</span><span class="p">,</span> <span class="n">exists</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
         <span class="c1"># Get filenames of returned ALF files</span>
         <span class="n">collection_set</span> <span class="o">=</span> <span class="p">{</span><span class="n">x</span><span class="p">[</span><span class="s1">&#39;collection&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">results</span><span class="p">}</span>
@@ -873,8 +909,11 @@
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">dset</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
             <span class="n">url</span> <span class="o">=</span> <span class="n">dset</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">url</span> <span class="o">=</span> <span class="nb">next</span><span class="p">((</span><span class="n">fr</span><span class="p">[</span><span class="s1">&#39;data_url&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">fr</span> <span class="ow">in</span> <span class="n">dset</span><span class="p">[</span><span class="s1">&#39;file_records&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="n">fr</span><span class="p">[</span><span class="s1">&#39;data_url&#39;</span><span class="p">]),</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="n">url</span> <span class="o">=</span> <span class="nb">next</span><span class="p">((</span><span class="n">fr</span><span class="p">[</span><span class="s1">&#39;data_url&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">fr</span> <span class="ow">in</span> <span class="n">dset</span><span class="p">[</span><span class="s1">&#39;file_records&#39;</span><span class="p">]</span>
+                        <span class="k">if</span> <span class="n">fr</span><span class="p">[</span><span class="s1">&#39;data_url&#39;</span><span class="p">]</span> <span class="ow">and</span> <span class="n">fr</span><span class="p">[</span><span class="s1">&#39;exists&#39;</span><span class="p">]),</span> <span class="kc">None</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">url</span><span class="p">:</span>
+            <span class="n">str_dset</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">dset</span><span class="p">[</span><span class="s1">&#39;collection&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">dset</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">])</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">str_dset</span><span class="si">}</span><span class="s2"> exist flag or url not found in Alyx&quot;</span><span class="p">)</span>
             <span class="k">return</span>
         <span class="k">assert</span> <span class="n">url</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_par</span><span class="o">.</span><span class="n">HTTP_DATA_SERVER</span><span class="p">),</span> \
             <span class="p">(</span><span class="s1">&#39;remote protocol and/or hostname does not match HTTP_DATA_SERVER parameter:</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">+</span>
@@ -900,7 +939,6 @@
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Downloads a single file from an HTTP webserver</span>
 <span class="sd">        :param url:</span>
-<span class="sd">        :param cache_dir:</span>
 <span class="sd">        :param clobber: (bool: False) overwrites local dataset if any</span>
 <span class="sd">        :param offline:</span>
 <span class="sd">        :param keep_uuid:</span>
@@ -912,7 +950,7 @@
         <span class="n">local_path</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">target_dir</span><span class="p">)</span> <span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">sep</span> <span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">keep_uuid</span><span class="p">:</span>
             <span class="n">local_path</span> <span class="o">=</span> <span class="n">alfio</span><span class="o">.</span><span class="n">remove_uuid_file</span><span class="p">(</span><span class="n">local_path</span><span class="p">,</span> <span class="n">dry</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">Path</span><span class="p">(</span><span class="n">local_path</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">offline</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">Path</span><span class="p">(</span><span class="n">local_path</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
             <span class="c1"># the local file hash doesn&#39;t match the dataset table cached hash</span>
             <span class="n">hash_mismatch</span> <span class="o">=</span> <span class="nb">hash</span> <span class="ow">and</span> <span class="n">hashfile</span><span class="o">.</span><span class="n">md5</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">local_path</span><span class="p">))</span> <span class="o">!=</span> <span class="nb">hash</span>
             <span class="n">file_size_mismatch</span> <span class="o">=</span> <span class="n">file_size</span> <span class="ow">and</span> <span class="n">Path</span><span class="p">(</span><span class="n">local_path</span><span class="p">)</span><span class="o">.</span><span class="n">stat</span><span class="p">()</span><span class="o">.</span><span class="n">st_size</span> <span class="o">!=</span> <span class="n">file_size</span>
@@ -922,11 +960,11 @@
         <span class="c1"># if there is no cached file, download</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">clobber</span> <span class="o">=</span> <span class="kc">True</span>
-        <span class="k">if</span> <span class="n">clobber</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">clobber</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">offline</span><span class="p">:</span>
             <span class="n">local_path</span><span class="p">,</span> <span class="n">md5</span> <span class="o">=</span> <span class="n">wc</span><span class="o">.</span><span class="n">http_download_file</span><span class="p">(</span>
                 <span class="n">url</span><span class="p">,</span> <span class="n">username</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_par</span><span class="o">.</span><span class="n">HTTP_DATA_SERVER_LOGIN</span><span class="p">,</span>
                 <span class="n">password</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_par</span><span class="o">.</span><span class="n">HTTP_DATA_SERVER_PWD</span><span class="p">,</span> <span class="n">cache_dir</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">target_dir</span><span class="p">),</span>
-                <span class="n">clobber</span><span class="o">=</span><span class="n">clobber</span><span class="p">,</span> <span class="n">offline</span><span class="o">=</span><span class="n">offline</span><span class="p">,</span> <span class="n">return_md5</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                <span class="n">clobber</span><span class="o">=</span><span class="n">clobber</span><span class="p">,</span> <span class="n">return_md5</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
             <span class="c1"># post download, if there is a mismatch between Alyx and the newly downloaded file size</span>
             <span class="c1"># or hash flag the offending file record in Alyx for database maintenance</span>
             <span class="n">hash_mismatch</span> <span class="o">=</span> <span class="nb">hash</span> <span class="ow">and</span> <span class="n">md5</span> <span class="o">!=</span> <span class="nb">hash</span>
@@ -965,7 +1003,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">oneibl</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">setup</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="OneAlyx.path_from_eid"><a class="viewcode-back" href="../../_autosummary/oneibl.one.html#oneibl.one.OneAlyx.path_from_eid">[docs]</a>    <span class="k">def</span> <span class="nf">path_from_eid</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">eid</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">use_cache</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+<div class="viewcode-block" id="OneAlyx.path_from_eid"><a class="viewcode-back" href="../../_autosummary/oneibl.one.html#oneibl.one.OneAlyx.path_from_eid">[docs]</a>    <span class="k">def</span> <span class="nf">path_from_eid</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">eid</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">use_cache</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Listable</span><span class="p">(</span><span class="n">Path</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        From an experiment id or a list of experiment ids, gets the local cache path</span>
 <span class="sd">        :param eid: eid (UUID) or list of UUIDs</span>
@@ -985,13 +1023,9 @@
 
         <span class="c1"># first try avoid hitting the database</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="o">.</span><span class="n">size</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">use_cache</span><span class="p">:</span>
-            <span class="n">ic</span> <span class="o">=</span> <span class="n">parquet</span><span class="o">.</span><span class="n">find_first_2d</span><span class="p">(</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="p">[[</span><span class="s1">&#39;eid_0&#39;</span><span class="p">,</span> <span class="s1">&#39;eid_1&#39;</span><span class="p">]]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(),</span> <span class="n">parquet</span><span class="o">.</span><span class="n">str2np</span><span class="p">(</span><span class="n">eid</span><span class="p">))</span>
-            <span class="k">if</span> <span class="n">ic</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">ses</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">ic</span><span class="p">]</span>
-                <span class="k">return</span> <span class="n">Path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_par</span><span class="o">.</span><span class="n">CACHE_DIR</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span>
-                    <span class="n">ses</span><span class="p">[</span><span class="s1">&#39;lab&#39;</span><span class="p">],</span> <span class="s1">&#39;Subjects&#39;</span><span class="p">,</span> <span class="n">ses</span><span class="p">[</span><span class="s1">&#39;subject&#39;</span><span class="p">],</span> <span class="n">ses</span><span class="p">[</span><span class="s1">&#39;start_time&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">isoformat</span><span class="p">()[:</span><span class="mi">10</span><span class="p">],</span>
-                    <span class="nb">str</span><span class="p">(</span><span class="n">ses</span><span class="p">[</span><span class="s1">&#39;number&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">zfill</span><span class="p">(</span><span class="mi">3</span><span class="p">))</span>
+            <span class="n">cache_path</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">path_from_eid</span><span class="p">(</span><span class="n">eid</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">cache_path</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">cache_path</span>
 
         <span class="c1"># if it wasn&#39;t successful, query Alyx</span>
         <span class="n">ses</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;sessions&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span> <span class="n">django</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;pk,</span><span class="si">{</span><span class="n">eid</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
@@ -1002,7 +1036,7 @@
                 <span class="n">ses</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;lab&#39;</span><span class="p">],</span> <span class="s1">&#39;Subjects&#39;</span><span class="p">,</span> <span class="n">ses</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;subject&#39;</span><span class="p">],</span> <span class="n">ses</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;start_time&#39;</span><span class="p">][:</span><span class="mi">10</span><span class="p">],</span>
                 <span class="nb">str</span><span class="p">(</span><span class="n">ses</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;number&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">zfill</span><span class="p">(</span><span class="mi">3</span><span class="p">))</span></div>
 
-<div class="viewcode-block" id="OneAlyx.eid_from_path"><a class="viewcode-back" href="../../_autosummary/oneibl.one.html#oneibl.one.OneAlyx.eid_from_path">[docs]</a>    <span class="k">def</span> <span class="nf">eid_from_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path_obj</span><span class="p">,</span> <span class="n">use_cache</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<div class="viewcode-block" id="OneAlyx.eid_from_path"><a class="viewcode-back" href="../../_autosummary/oneibl.one.html#oneibl.one.OneAlyx.eid_from_path">[docs]</a>    <span class="k">def</span> <span class="nf">eid_from_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path_obj</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span> <span class="n">use_cache</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Listable</span><span class="p">(</span><span class="n">Path</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        From a local path, gets the experiment id</span>
 <span class="sd">        :param path_obj: local path or list of local paths</span>
@@ -1024,14 +1058,9 @@
             <span class="k">return</span> <span class="kc">None</span>
 
         <span class="c1"># try the cached info to possibly avoid hitting database</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="o">.</span><span class="n">size</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">use_cache</span><span class="p">:</span>
-            <span class="n">ind</span> <span class="o">=</span> <span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="p">[</span><span class="s1">&#39;subject&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">session_path</span><span class="o">.</span><span class="n">parts</span><span class="p">[</span><span class="o">-</span><span class="mi">3</span><span class="p">])</span> <span class="o">&amp;</span>
-                   <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="p">[</span><span class="s1">&#39;start_time&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span>
-                       <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">isoformat</span><span class="p">()[:</span><span class="mi">10</span><span class="p">]</span> <span class="o">==</span> <span class="n">session_path</span><span class="o">.</span><span class="n">parts</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">]))</span> <span class="o">&amp;</span>
-                   <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="p">[</span><span class="s1">&#39;number&#39;</span><span class="p">])</span> <span class="o">==</span> <span class="nb">int</span><span class="p">(</span><span class="n">session_path</span><span class="o">.</span><span class="n">parts</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]))</span>
-            <span class="n">ind</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">ind</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">())[</span><span class="mi">0</span><span class="p">]</span>
-            <span class="k">if</span> <span class="n">ind</span><span class="o">.</span><span class="n">size</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="k">return</span> <span class="n">parquet</span><span class="o">.</span><span class="n">np2str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="p">[[</span><span class="s1">&#39;eid_0&#39;</span><span class="p">,</span> <span class="s1">&#39;eid_1&#39;</span><span class="p">]]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">ind</span><span class="p">[</span><span class="mi">0</span><span class="p">]])</span>
+        <span class="n">cache_eid</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">eid_from_path</span><span class="p">(</span><span class="n">path_obj</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">cache_eid</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">cache_eid</span>
 
         <span class="c1"># if not search for subj, date, number XXX: hits the DB</span>
         <span class="n">uuid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">subjects</span><span class="o">=</span><span class="n">session_path</span><span class="o">.</span><span class="n">parts</span><span class="p">[</span><span class="o">-</span><span class="mi">3</span><span class="p">],</span>
@@ -1041,7 +1070,7 @@
         <span class="c1"># Return the uuid if any</span>
         <span class="k">return</span> <span class="n">uuid</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="n">uuid</span> <span class="k">else</span> <span class="kc">None</span></div>
 
-<div class="viewcode-block" id="OneAlyx.get_details"><a class="viewcode-back" href="../../_autosummary/oneibl.one.html#oneibl.one.OneAlyx.get_details">[docs]</a>    <span class="k">def</span> <span class="nf">get_details</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">eid</span><span class="p">,</span> <span class="n">full</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<div class="viewcode-block" id="OneAlyx.get_details"><a class="viewcode-back" href="../../_autosummary/oneibl.one.html#oneibl.one.OneAlyx.get_details">[docs]</a>    <span class="k">def</span> <span class="nf">get_details</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">eid</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">full</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot; Returns details of eid like from one.search, optional return full</span>
 <span class="sd">        session details.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
