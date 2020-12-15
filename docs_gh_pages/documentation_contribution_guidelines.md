@@ -44,12 +44,6 @@ Once this script has completed a preview of the documentation can be viewed by o
 
 Check that all notebooks have run without errors and that your changes have been implemented correctly!
 
-For changes only to the website, one can run:
-```shell
-cd ./docs-gh-pages
-python make_script.py -d -c
-```
-
 ## Pushing changes to gh-pages
 Once you are happy with the built documentation, the changes can be deployed to the website by running the following
 command
