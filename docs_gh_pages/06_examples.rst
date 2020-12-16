@@ -21,6 +21,7 @@ Ephys
    notebooks_external/docs_compute_drift
    notebooks_external/docs_plot_sound_spectrogram_ephysrig
    notebooks_external/docs_load_spike_sorting
+   notebooks_external/docs_raw_data_decompress
 
 ONE
 ###

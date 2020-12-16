@@ -118,7 +118,7 @@ class NotebookConverter(object):
             The path to the executed notebook path, or ``None`` if ``write=False``.
         """
 
-        with open(self.nb_path) as f:
+        with open(self.nb_path, encoding='utf-8') as f:
             nb = nbformat.read(f, as_version=IPYTHON_VERSION)
 
         is_executed = nb['metadata'].get('docs_executed')
@@ -173,7 +173,7 @@ class NotebookConverter(object):
             _logger.warning(f"{self.executed_nb_path} not found, nothing to clean")
             return
 
-        with open(self.executed_nb_path) as f:
+        with open(self.executed_nb_path, encoding='utf-8') as f:
             nb = nbformat.read(f, as_version=IPYTHON_VERSION)
 
         if not remove_gh:
@@ -184,7 +184,7 @@ class NotebookConverter(object):
             clear_executor = ClearOutputPreprocessor()
             clear_executor.preprocess(nb, {})
 
-            with open(self.executed_nb_path, 'w') as f:
+            with open(self.executed_nb_path, 'w', encoding='utf-8') as f:
                 nbformat.write(nb, f)
 
         elif remove_gh:
@@ -200,7 +200,7 @@ class NotebookConverter(object):
                 clear_executor = ClearOutputPreprocessor()
                 clear_executor.preprocess(nb, {})
 
-                with open(self.executed_nb_path, 'w') as f:
+                with open(self.executed_nb_path, 'w', encoding='utf-8') as f:
                     nbformat.write(nb, f)
 
 
@@ -244,17 +244,8 @@ def process_notebooks(nbfile_or_path, execute=True, force=False, link=False, cle
                     else:
                         continue
 
-                if ext == '.py':
-                    if re.search(filename_pattern, name):
-                        ipy_path = sph_nb.replace_py_ipynb(full_path)
-                        if not Path(ipy_path).exists():
-                            full_path = NotebookConverter.py_to_ipynb(full_path)
-                        else:
-                            full_path = ipy_path
-
-                ext_new = Path(full_path).suffix
-
-                if ext_new == '.ipynb':
+                # if file has 'ipynb' extension create the NotebookConverter object
+                if ext == '.ipynb':
                     if re.search(filename_pattern, name):
                         nbc = NotebookConverter(full_path, **kwargs)
                         # Want to create the link file
@@ -266,51 +257,32 @@ def process_notebooks(nbfile_or_path, execute=True, force=False, link=False, cle
                         # If cleanup is true and execute is false unexecute the notebook
                         if cleanup:
                             nbc.unexecute(keep_flag=keep_flag, remove_gh=remove_gh)
-                            if ext == '.py':
+
+                # if file has 'py' extension convert to '.ipynb' and then execute
+                elif ext == '.py':
+                    if re.search(filename_pattern, name):
+                        # See if the ipynb version already exists
+                        ipy_path = sph_nb.replace_py_ipynb(full_path)
+                        if Path(ipy_path).exists():
+                            # If it does and we want to execute, skip as it would have been
+                            # executed above already
+                            if execute:
+                                continue
+                            # If cleanup then we want to delete this file
+                            if cleanup:
+                                os.remove(ipy_path)
+                        else:
+                            # If it doesn't exist, we need to make it
+                            full_path = NotebookConverter.py_to_ipynb(full_path)
+                            nbc = NotebookConverter(full_path, **kwargs)
+                            if link:
+                                nbc.link()
+                            # Execute the notebook
+                            if execute:
+                                nbc.execute(force=force)
+                            # If cleanup then we want to delete this file
+                            if cleanup:
                                 os.remove(full_path)
-
-
-
-
-                # if file has 'ipynb' extension create the NotebookConverter object
-                #if ext == '.ipynb':
-                #    if re.search(filename_pattern, name):
-                #        nbc = NotebookConverter(full_path, **kwargs)
-                #        # Want to create the link file
-                #        if link:
-                #            nbc.link()
-                #        # Execute the notebook
-                #        if execute:
-                #            nbc.execute(force=force)
-                #        # If cleanup is true and execute is false unexecute the notebook
-                #        if cleanup:
-                #            nbc.unexecute(keep_flag=keep_flag, remove_gh=remove_gh)
-#
-                ## if file has 'py' extension convert to '.ipynb' and then execute
-                #elif ext == '.py':
-                #    if re.search(filename_pattern, name):
-                #        # See if the ipynb version already exists
-                #        ipy_path = sph_nb.replace_py_ipynb(full_path)
-                #        if Path(ipy_path).exists():
-                #            # If it does and we want to execute, skip as it would have been
-                #            # executed above already
-                #            if execute:
-                #                continue
-                #            # If cleanup then we want to delete this file
-                #            if cleanup:
-                #                os.remove(ipy_path)
-                #        else:
-                #            # If it doesn't exist, we need to make it
-                #            full_path = NotebookConverter.py_to_ipynb(full_path)
-                #            nbc = NotebookConverter(full_path, **kwargs)
-                #            if link:
-                #                nbc.link()
-                #            # Execute the notebook
-                #            if execute:
-                #                nbc.execute(force=force)
-                #            # If cleanup then we want to delete this file
-                #            if cleanup:
-                #                os.remove(full_path)
 
     else:
         full_path = Path(nbfile_or_path)
@@ -335,38 +307,3 @@ def process_notebooks(nbfile_or_path, execute=True, force=False, link=False, cle
             nbc.unexecute(keep_flag=keep_flag)
             if ext == '.py':
                 os.remove(full_path)
-
-
-        ## if file has 'ipynb' extension create the NotebookConverter object
-        #if ext == '.ipynb':
-        #    nbc = NotebookConverter(full_path, **kwargs)
-        #    # Want to create the link file
-        #    if link:
-        #        nbc.link()
-        #    # Execute the notebook
-        #    if execute:
-        #        nbc.execute(force=force)
-        #    # If cleanup is true and execute is false unexecute the notebook
-        #    if cleanup:
-        #        nbc.unexecute(keep_flag=keep_flag)
-#
-        ## if file has 'py' extension convert to '.ipynb' and then execute
-        #if ext == '.py':
-        #    # See if the ipynb version already exists
-        #    ipy_path = sph_nb.replace_py_ipynb(full_path)
-        #    if Path(ipy_path).exists():
-        #        # If cleanup then we want to delete this file
-        #        if cleanup:
-        #            os.remove(ipy_path)
-        #    else:
-        #        # If it doesn't exist, we need to make it
-        #        full_path = NotebookConverter.py_to_ipynb(full_path)
-        #        nbc = NotebookConverter(full_path, **kwargs)
-        #        if link:
-        #            nbc.link()
-        #        # Execute the notebook
-        #        if execute:
-        #            nbc.execute(force=force)
-        #        # if cleanup remove the file we made (a bit redundant bey heyho)
-        #        if cleanup:
-        #            os.remove(full_path)

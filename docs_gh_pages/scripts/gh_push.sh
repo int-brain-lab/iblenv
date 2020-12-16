@@ -7,7 +7,6 @@ REPO=iblenv
 # Clone the gh-pages branch to local documentation directory
 git clone -b gh-pages "https://github.com/$ORG/$REPO.git" gh-pages
 cd gh-pages
-#rm -r gh-pages
 
 # Copy everything from output of build into gh-pages branch
 cp -R ../_build/html/* ./

@@ -97,13 +97,22 @@ def make_documentation(execute, force, documentation, clean, specific, github, m
             process_notebooks(nb_path_ext, execute=False, cleanup=True,
                               filename_pattern='docs')
 
-        build_path = root.joinpath('_build')
-        if build_path.exists():
-            shutil.rmtree(build_path)
-
-        autosummary_path = root.joinpath('_autosummary')
-        if autosummary_path.exists():
-            shutil.rmtree(autosummary_path)
+        try:
+            build_path = root.joinpath('_build')
+            if build_path.exists():
+                shutil.rmtree(build_path)
+        except Exception as err:
+            print(err)
+            _logger.error('Could not remove _build directory in iblenv/docs_gh_pages, please '
+                          'delete manually')
+        try:
+            autosummary_path = root.joinpath('_autosummary')
+            if autosummary_path.exists():
+                shutil.rmtree(autosummary_path)
+        except Exception as err:
+            print(err)
+            _logger.error('Could not remove _autosummary directory in iblenv/docs_gh_pages, please'
+                          ' delete manually')
 
 
 if __name__ == "__main__":
