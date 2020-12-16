@@ -21,9 +21,10 @@ Ephys
    notebooks_external/docs_compute_drift
    notebooks_external/docs_plot_sound_spectrogram_ephysrig
    notebooks_external/docs_load_spike_sorting
+   notebooks_external/docs_raw_data_decompress
 
-Histology
-#########
+ONE
+###
 .. toctree::
    :maxdepth: 1
 
@@ -41,11 +42,11 @@ Histology
    notebooks_external/docs_visualization3D_subject_channels
 
 Video
-#########
+#####
 .. toctree::
    :maxdepth: 1
 
-    notebooks_external/docs_access_DLC
+   notebooks_external/docs_access_DLC
 
 
 

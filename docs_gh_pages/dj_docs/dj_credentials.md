@@ -90,6 +90,12 @@ credentials into the local config file by typing,
 dj.config.save_local()
 ```
 
+To save the credentials globally so that the config file can be seen from any directory, we can type, 
+ 
+```python 
+dj.config.save_global() 
+``` 
+
 Now that these credentials have been configured, every time you type `import datajoint as dj` it will automatically 
 connect to the correct database and log you in. Let's go to the next session, to get started with using Datajoint with 
 IBL data.
