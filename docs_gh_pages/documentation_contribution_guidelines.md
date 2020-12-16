@@ -6,7 +6,7 @@ https://int-brain-lab.github.io/iblenv/
 The website is generated using
  1. The markdown files in the `./docs-gh-pages` folder
  2. The python or ipython notebooks in the `./docs-gh-pages/notebooks`
- 3. The python or ipython notebooks in the  `./examples` and `./brainbox/examples` folders
+ 3. The python or ipython notebooks in the ibllib repo  `./examples` and `./brainbox/examples` folders
  4. The docstrings in the source code of the `./ibllib`, `./alf`, `./one` and `./brainbox` folders
 
 
@@ -38,7 +38,7 @@ pip install -r ./docs_gh_pages/requirements-docs.txt
 ```
 
 ### Option 1: Only building changes to documentation
-If you have only made changes to the documentation (any of the files with `.md` extenstion), you can build the
+If you have only made changes to the documentation (any of the files with `.md` or `.rst` extenstion), you can build the
 documentation without running the examples. The examples previously updated on the website will remain. To only
 build the documentation, the following command can be used
 
@@ -70,6 +70,7 @@ cd ./docs_gh_pages
 python make_script.py -e
 ```
 
+### Previewing the built documentation
 Once the `make_script.py` has completed a preview of the documentation can be viewed by opening 
 `./docs-gh-pages/_build/html/index.html` in a web browser.
 
@@ -91,6 +92,5 @@ directories and unexecute example notebooks
 ```python
 python make_script.py -c
 ```
-
 
 
