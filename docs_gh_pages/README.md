@@ -6,7 +6,7 @@ https://int-brain-lab.github.io/iblenv/
 The website is generated using
  1. The markdown files in the `./docs-gh-pages` folder
  2. The python or ipython notebooks in the `./docs-gh-pages/notebooks`
- 3. The python or ipython notebooks in the  `./examples` and `./brainbox/examples` folders
+ 3. The python or ipython notebooks in the ibllib repo  `./examples` and `./brainbox/examples` folders
  4. The docstrings in the source code of the `./ibllib`, `./alf`, `./one` and `./brainbox` folders
 
 
