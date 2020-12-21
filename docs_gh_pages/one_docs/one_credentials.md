@@ -30,13 +30,10 @@ You will be prompted to enter information in the following order.
 ALYX_LOGIN:             # Input your Alyx username
 ALYX_URL:               # Change to https://alyx.internationalbrainlab.org
 CACHE_DIR:              # Optionally change or keep default
-FTP_DATA_SERVER:        # Keep default - should be automatically set as: ftp://ibl.flatironinstitute.org
-FTP_DATA_SERVER_LOGIN:	# Keep default - should be automatically set as: iblftp
-HTTP_DATA_SERVER:       # Keep default - should be automatically set as: http://ibl.flatironinstitute.org
+HTTP_DATA_SERVER:       # Keep default - should be automatically set as: https://ibl.flatironinstitute.org
 HTTP_DATA_SERVER_LOGIN: # Keep default - should be automatically set as: iblmember
 Alyx password:          # Input your Alyx password
 FlatIron HTTP password:	# Input FlatIron password
-FlatIron FTP password:	# Input FlatIron password
 ```
 The entries that you will need to change from default are: `ALYX_LOGIN`, `ALYX_URL`, `Alyx password`, 
 `FlatIron HTTP password` and `FlatIron FTP password`. You can also optionally change the `CACHE_DIR` (the local 
