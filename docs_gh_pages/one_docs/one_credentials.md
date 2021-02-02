@@ -35,9 +35,8 @@ HTTP_DATA_SERVER_LOGIN: # Keep default - should be automatically set as: iblmemb
 Alyx password:          # Input your Alyx password
 FlatIron HTTP password:	# Input FlatIron password
 ```
-The entries that you will need to change from default are: `ALYX_LOGIN`, `ALYX_URL`, `Alyx password`, 
-`FlatIron HTTP password` and `FlatIron FTP password`. You can also optionally change the `CACHE_DIR` (the local 
-directory where downloaded files will be saved). For the remaining entries keep the default values by pressing 
+The entries that you will need to change from default are: `ALYX_LOGIN`, `ALYX_URL`, `Alyx password` and `FlatIron HTTP password`. You can also optionally change the `CACHE_DIR` (the local
+directory where downloaded files will be saved). For the remaining entries keep the default values by pressing
 the Enter key.
 
 Once you have completed the setup process the location where the *.one_params* is saved will be printed in the python
@@ -55,9 +54,6 @@ Double check that the file has been created in the correct location and that the
     "ALYX_PWD": "alyx_password",
     "ALYX_URL": "https://alyx.internationalbrainlab.org",
     "CACHE_DIR": "cache directory that you chose",
-    "FTP_DATA_SERVER": "ftp://ibl.flatironinstitute.org",
-    "FTP_DATA_SERVER_LOGIN": "iblftp",
-    "FTP_DATA_SERVER_PWD": "flatiron_password",
     "HTTP_DATA_SERVER": "http://ibl.flatironinstitute.org",
     "HTTP_DATA_SERVER_LOGIN": "iblmember",
     "HTTP_DATA_SERVER_PWD": "flatiron_password",
