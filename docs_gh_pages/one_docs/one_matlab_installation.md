@@ -45,10 +45,7 @@ ALYX_LOGIN 				% Input your IBL user name
 ALYX_PWD				% Input your IBL password
 ALYX_URL:				% Should be automatically set as: https://alyx.internationalbrainlab.org - press ENTER
 CACHE_DIR:				% Local repository, can ammend or press ENTER
-FTP_DATA_SERVER: 		% Should be automatically set as: ftp://ibl.flatironinstitute.org - press ENTER
-FTP_DATA_SERVER_LOGIN:	% Should be automatically set as: iblftp - press ENTER
-FTP_DATA_SERVER_PWD		% Request Password for FTP from Olivier
-HTTP_DATA_SERVER: 		% Should be automatically set as: http://ibl.flatironinstitute.org  - press ENTER 
+HTTP_DATA_SERVER: 		% Should be automatically set as: http://ibl.flatironinstitute.org  - press ENTER
 HTTP_DATA_SERVER_LOGIN: % Should be automatically set as: iblmember  - press ENTER
 HTTP_DATA_SERVER_PWD	% Request Password for HTTP from Olivier
 ```
