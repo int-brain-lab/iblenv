@@ -1,4 +1,5 @@
 import os
+import sys
 import shutil
 import argparse
 import subprocess
@@ -23,29 +24,35 @@ def make_documentation(execute, force, documentation, clean, specific, github, m
     for file in nb_external_files:
         os.remove(file)
 
+    status = 0
     # Case where we want to rebuild all examples
     if execute and not specific:
         # Execute notebooks in docs folder
-        process_notebooks(nb_path, execute=True, force=force)
+        status += process_notebooks(nb_path, execute=True, force=force)
         # Execute notebooks in external folders
         for nb_path_ext in nb_path_external:
-            process_notebooks(nb_path_ext, execute=True, force=force,
-                              link=True, filename_pattern='docs')
+            status += process_notebooks(nb_path_ext, execute=True, force=force,
+                                        link=True, filename_pattern='docs')
         _logger.info("Finished processing notebooks")
 
-        # Now make the documentation
-        _logger.info("Cleaning up previous documentation")
-        os.system("make clean")
-        _logger.info("Making documentation")
-        os.system("make html")
+        if status != 0:
+            # One or more examples returned an error
+            sys.exit(1)
+        else:
+            # If no errors make the documentation
+            _logger.info("Cleaning up previous documentation")
+            os.system("make clean")
+            _logger.info("Making documentation")
+            os.system("make html")
+            sys.exit(0)
 
     # Case where we only want to build specific examples
     if execute and specific:
         for nb in specific:
             if str(nb).startswith(str(root)):
-                process_notebooks(nb, execute=True, force=force)
+                status += process_notebooks(nb, execute=True, force=force)
             else:
-                process_notebooks(nb, execute=True, force=force, link=True)
+                status += process_notebooks(nb, execute=True, force=force, link=True)
             _logger.info("Finished processing notebooks")
 
         # Create the link files for the other notebooks in external paths that we haven't
@@ -53,12 +60,16 @@ def make_documentation(execute, force, documentation, clean, specific, github, m
         for nb_path_ext in nb_path_external:
             process_notebooks(nb_path_ext, execute=False, link=True, filename_pattern='docs')
 
-        # Now make the documentation
-        _logger.info("Cleaning up previous documentation")
-        os.system("make clean")
-        _logger.info("Making documentation")
-        os.system("make html")
-
+        if status != 0:
+            # One or more examples returned an error
+            sys.exit(1)
+        else:
+            # If no errors make the documentation
+            _logger.info("Cleaning up previous documentation")
+            os.system("make clean")
+            _logger.info("Making documentation")
+            os.system("make html")
+            sys.exit(0)
 
     if documentation:
         for nb_path_ext in nb_path_external:
@@ -68,6 +79,7 @@ def make_documentation(execute, force, documentation, clean, specific, github, m
         os.system("make clean")
         _logger.info("Making documentation")
         os.system("make html")
+        sys.exit(0)
 
     if github:
         # clean up for github. In the examples only notebooks with an execute flag=True are kept,
