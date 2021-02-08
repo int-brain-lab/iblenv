@@ -33,6 +33,7 @@ An example implementation can be seen in the `06_examples.rst` file
 
 ## Making documentation
 ### Install dependencies to build the website locally
+Activate your iblenv environment first and install the dependencies on top using pip
 ```shell
 pip install -r ./docs_gh_pages/requirements-docs.txt
 ```
