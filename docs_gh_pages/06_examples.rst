@@ -22,6 +22,8 @@ Ephys
    notebooks_external/docs_plot_sound_spectrogram_ephysrig
    notebooks_external/docs_load_spike_sorting
    notebooks_external/docs_raw_data_decompress
+   notebooks_external/docs_scatter_raster_plot
+   notebooks_external/docs_explore_passive
 
 ONE
 ###
@@ -48,6 +50,7 @@ Video
    :maxdepth: 1
 
    notebooks_external/docs_access_DLC
+   notebooks_external/docs_load_video
 
 
 
