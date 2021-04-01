@@ -349,21 +349,30 @@
         <span class="k">return</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">filc</span>
 
 
-<div class="viewcode-block" id="shift"><a class="viewcode-back" href="../../../_autosummary/ibllib.dsp.fourier.html#ibllib.dsp.fourier.shift">[docs]</a><span class="k">def</span> <span class="nf">shift</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">):</span>
+<div class="viewcode-block" id="fshift"><a class="viewcode-back" href="../../../_autosummary/ibllib.dsp.fourier.html#ibllib.dsp.fourier.fshift">[docs]</a><span class="k">def</span> <span class="nf">fshift</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Shifts a signal in frequency domain, to allow for accurate non-integer shifts</span>
+<span class="sd">    Shifts a 1D or 2D signal in frequency domain, to allow for accurate non-integer shifts</span>
 <span class="sd">    :param w: input signal</span>
 <span class="sd">    :param s: shift in samples, positive shifts forward</span>
-<span class="sd">    :param axis: axis along which to shift</span>
+<span class="sd">    :param axis: axis along which to shift (last axis by default)</span>
 <span class="sd">    :return: w</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># create a vector that contains a 1 sample shift on the axis</span>
     <span class="n">ns</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">w</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">*</span> <span class="mi">0</span> <span class="o">+</span> <span class="mi">1</span>
     <span class="n">ns</span><span class="p">[</span><span class="n">axis</span><span class="p">]</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="n">axis</span><span class="p">]</span>
     <span class="n">dephas</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">ns</span><span class="p">)</span>
     <span class="n">np</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">dephas</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="c1"># fft the data along the axis and the dephas</span>
     <span class="n">W</span> <span class="o">=</span> <span class="n">freduce</span><span class="p">(</span><span class="n">scipy</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">fft</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="n">axis</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="n">axis</span><span class="p">)</span>
     <span class="n">dephas</span> <span class="o">=</span> <span class="n">freduce</span><span class="p">(</span><span class="n">scipy</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">fft</span><span class="p">(</span><span class="n">dephas</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="n">axis</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="n">axis</span><span class="p">)</span>
+    <span class="c1"># if multiple shifts, broadcast along the other dimensions, otherwise keep a single vector</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isscalar</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+        <span class="n">s_shape</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">w</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+        <span class="n">s_shape</span><span class="p">[</span><span class="n">axis</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">s_shape</span><span class="p">)</span>
+    <span class="c1"># apply the shift (s) to the fft angle to get the phase shift</span>
     <span class="n">dephas</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="mi">1</span><span class="n">j</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">angle</span><span class="p">(</span><span class="n">dephas</span><span class="p">)</span> <span class="o">*</span> <span class="n">s</span><span class="p">)</span>
+    <span class="c1"># apply phase shift by broadcasting</span>
     <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">real</span><span class="p">(</span><span class="n">scipy</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">ifft</span><span class="p">(</span><span class="n">fexpand</span><span class="p">(</span><span class="n">W</span> <span class="o">*</span> <span class="n">dephas</span><span class="p">,</span> <span class="n">ns</span><span class="p">[</span><span class="n">axis</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="n">axis</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="n">axis</span><span class="p">))</span></div>
 
 

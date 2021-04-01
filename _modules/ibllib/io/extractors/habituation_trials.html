@@ -184,78 +184,18 @@
 <span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;ibllib&#39;</span><span class="p">)</span>
 
 
-<div class="viewcode-block" id="StimCenterTriggerTimes"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.habituation_trials.html#ibllib.io.extractors.habituation_trials.StimCenterTriggerTimes">[docs]</a><span class="k">class</span> <span class="nc">StimCenterTriggerTimes</span><span class="p">(</span><span class="n">BaseBpodTrialsExtractor</span><span class="p">):</span>
-    <span class="n">save_names</span> <span class="o">=</span> <span class="s1">&#39;_ibl_trials.stimCenterTrigger_times.npy&#39;</span>
-    <span class="n">var_names</span> <span class="o">=</span> <span class="s1">&#39;stimCenterTrigger_times&#39;</span>
-
-    <span class="k">def</span> <span class="nf">_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="c1"># Get the stim_on_state that triggers the onset of the stim</span>
-        <span class="n">stim_center_state</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">tr</span><span class="p">[</span><span class="s1">&#39;behavior_data&#39;</span><span class="p">][</span><span class="s1">&#39;States timestamps&#39;</span><span class="p">]</span>
-                                      <span class="p">[</span><span class="s1">&#39;stim_center&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">])</span>
-        <span class="k">return</span> <span class="n">stim_center_state</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">T</span></div>
-
-
-<div class="viewcode-block" id="StimCenterTimes"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.habituation_trials.html#ibllib.io.extractors.habituation_trials.StimCenterTimes">[docs]</a><span class="k">class</span> <span class="nc">StimCenterTimes</span><span class="p">(</span><span class="n">BaseBpodTrialsExtractor</span><span class="p">):</span>
-    <span class="n">save_names</span> <span class="o">=</span> <span class="s1">&#39;_ibl_trials.stimCenter_times.npy&#39;</span>
-    <span class="n">var_names</span> <span class="o">=</span> <span class="s1">&#39;stimCenter_times&#39;</span>
-
-    <span class="k">def</span> <span class="nf">_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Find the stim sync pulses of each trial.  There should be exactly three TTLs per trial.</span>
-<span class="sd">        stimCenter_times should be the third TTL pulse.</span>
-<span class="sd">        (Stim updates are in BNC1High and BNC1Low - frame2TTL device)</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c1"># Get all stim_sync events detected</span>
-        <span class="n">ttls</span> <span class="o">=</span> <span class="p">[</span><span class="n">raw</span><span class="o">.</span><span class="n">get_port_events</span><span class="p">(</span><span class="n">tr</span><span class="p">,</span> <span class="s1">&#39;BNC1&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">]</span>
-        <span class="n">stim_center_triggers</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">StimCenterTriggerTimes</span><span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">)</span>
-
-        <span class="c1"># StimCenter times</span>
-        <span class="n">stim_center_times</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">stim_center_triggers</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">sync</span><span class="p">,</span> <span class="n">last</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">ttls</span><span class="p">,</span> <span class="n">stim_center_triggers</span><span class="p">)):</span>
-            <span class="sd">&quot;&quot;&quot;We expect there to be 3 pulses per trial; if this is the case, stim center will</span>
-<span class="sd">            be the third pulse. If any pulses are missing, we can only be confident of the correct</span>
-<span class="sd">            one if exactly one pulse occurs after the stim center trigger&quot;&quot;&quot;</span>
-            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">sync</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span> <span class="ow">or</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">sync</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="nb">sum</span><span class="p">(</span><span class="n">pulse</span> <span class="o">&gt;</span> <span class="n">last</span> <span class="k">for</span> <span class="n">pulse</span> <span class="ow">in</span> <span class="n">sync</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">):</span>
-                <span class="n">stim_center_times</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">sync</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
-
-        <span class="k">return</span> <span class="n">stim_center_times</span></div>
-
-
-<div class="viewcode-block" id="StimOffTriggerTimes"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.habituation_trials.html#ibllib.io.extractors.habituation_trials.StimOffTriggerTimes">[docs]</a><span class="k">class</span> <span class="nc">StimOffTriggerTimes</span><span class="p">(</span><span class="n">BaseBpodTrialsExtractor</span><span class="p">):</span>
-    <span class="n">save_names</span> <span class="o">=</span> <span class="s1">&#39;_ibl_trials.stimOffTrigger_times.npy&#39;</span>
-    <span class="n">var_names</span> <span class="o">=</span> <span class="s1">&#39;stimOffTrigger_times&#39;</span>
-
-    <span class="k">def</span> <span class="nf">_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="c1"># StimOff occurs at trial start (ignore the first trial&#39;s state update)</span>
-        <span class="n">stimOffTrigger_times</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
-            <span class="p">[</span><span class="n">tr</span><span class="p">[</span><span class="s2">&quot;behavior_data&quot;</span><span class="p">][</span><span class="s2">&quot;States timestamps&quot;</span><span class="p">]</span>
-             <span class="p">[</span><span class="s2">&quot;trial_start&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">[</span><span class="mi">1</span><span class="p">:]]</span>
-        <span class="p">)</span>
-
-        <span class="k">return</span> <span class="n">stimOffTrigger_times</span></div>
-
-
-<div class="viewcode-block" id="ItiInTimes"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.habituation_trials.html#ibllib.io.extractors.habituation_trials.ItiInTimes">[docs]</a><span class="k">class</span> <span class="nc">ItiInTimes</span><span class="p">(</span><span class="n">BaseBpodTrialsExtractor</span><span class="p">):</span>
-    <span class="n">save_names</span> <span class="o">=</span> <span class="s1">&#39;_ibl_trials.itiIn_times.npy&#39;</span>
-    <span class="n">var_names</span> <span class="o">=</span> <span class="s1">&#39;itiIn_times&#39;</span>
-
-    <span class="k">def</span> <span class="nf">_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="n">iti_in</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
-            <span class="p">[</span><span class="n">tr</span><span class="p">[</span><span class="s2">&quot;behavior_data&quot;</span><span class="p">][</span><span class="s2">&quot;States timestamps&quot;</span><span class="p">]</span>
-             <span class="p">[</span><span class="s2">&quot;iti&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">]</span>
-        <span class="p">)</span>
-        <span class="k">return</span> <span class="n">iti_in</span></div>
-
-
 <div class="viewcode-block" id="HabituationTrials"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.habituation_trials.html#ibllib.io.extractors.habituation_trials.HabituationTrials">[docs]</a><span class="k">class</span> <span class="nc">HabituationTrials</span><span class="p">(</span><span class="n">BaseBpodTrialsExtractor</span><span class="p">):</span>
     <span class="n">var_names</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;feedbackType&#39;</span><span class="p">,</span> <span class="s1">&#39;rewardVolume&#39;</span><span class="p">,</span> <span class="s1">&#39;stimOff_times&#39;</span><span class="p">,</span> <span class="s1">&#39;contrastLeft&#39;</span><span class="p">,</span> <span class="s1">&#39;contrastRight&#39;</span><span class="p">,</span>
                  <span class="s1">&#39;feedback_times&#39;</span><span class="p">,</span> <span class="s1">&#39;stimOn_times&#39;</span><span class="p">,</span> <span class="s1">&#39;stimOnTrigger_times&#39;</span><span class="p">,</span> <span class="s1">&#39;intervals&#39;</span><span class="p">,</span>
-                 <span class="s1">&#39;goCue_times&#39;</span><span class="p">,</span> <span class="s1">&#39;goCueTrigger_times&#39;</span><span class="p">)</span>
+                 <span class="s1">&#39;goCue_times&#39;</span><span class="p">,</span> <span class="s1">&#39;goCueTrigger_times&#39;</span><span class="p">,</span> <span class="s1">&#39;itiIn_times&#39;</span><span class="p">,</span> <span class="s1">&#39;stimOffTrigger_times&#39;</span><span class="p">,</span>
+                 <span class="s1">&#39;stimCenterTrigger_times&#39;</span><span class="p">,</span> <span class="s1">&#39;stimCenter_times&#39;</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">save_names</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">([</span><span class="sa">f</span><span class="s1">&#39;_ibl_trials.</span><span class="si">{</span><span class="n">x</span><span class="si">}</span><span class="s1">.npy&#39;</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">var_names</span><span class="p">])</span>
+        <span class="n">exclude</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;itiIn_times&#39;</span><span class="p">,</span> <span class="s1">&#39;stimOffTrigger_times&#39;</span><span class="p">,</span>
+                   <span class="s1">&#39;stimCenter_times&#39;</span><span class="p">,</span> <span class="s1">&#39;stimCenterTrigger_times&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">save_names</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">([</span><span class="sa">f</span><span class="s1">&#39;_ibl_trials.</span><span class="si">{</span><span class="n">x</span><span class="si">}</span><span class="s1">.npy&#39;</span> <span class="k">if</span> <span class="n">x</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">exclude</span> <span class="k">else</span> <span class="kc">None</span>
+                                 <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">var_names</span><span class="p">])</span>
 
     <span class="k">def</span> <span class="nf">_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="c1"># Extract all trials...</span>
@@ -279,11 +219,25 @@
         <span class="c1"># GoCueTriggerTimes is the same event as StimOnTriggerTimes</span>
         <span class="n">out</span><span class="p">[</span><span class="s1">&#39;goCueTrigger_times&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">out</span><span class="p">[</span><span class="s1">&#39;stimOnTrigger_times&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
 
+        <span class="c1"># StimCenterTrigger times</span>
+        <span class="c1"># Get the stim_on_state that triggers the onset of the stim</span>
+        <span class="n">stim_center_state</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">tr</span><span class="p">[</span><span class="s1">&#39;behavior_data&#39;</span><span class="p">][</span><span class="s1">&#39;States timestamps&#39;</span><span class="p">]</span>
+                                      <span class="p">[</span><span class="s1">&#39;stim_center&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">])</span>
+        <span class="n">out</span><span class="p">[</span><span class="s1">&#39;stimCenterTrigger_times&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">stim_center_state</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">T</span>
+
+        <span class="c1"># StimCenter times</span>
+        <span class="n">stim_center_times</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">out</span><span class="p">[</span><span class="s1">&#39;stimCenterTrigger_times&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">sync</span><span class="p">,</span> <span class="n">last</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">ttls</span><span class="p">,</span> <span class="n">out</span><span class="p">[</span><span class="s1">&#39;stimCenterTrigger_times&#39;</span><span class="p">])):</span>
+            <span class="sd">&quot;&quot;&quot;We expect there to be 3 pulses per trial; if this is the case, stim center will</span>
+<span class="sd">            be the third pulse. If any pulses are missing, we can only be confident of the correct</span>
+<span class="sd">            one if exactly one pulse occurs after the stim center trigger&quot;&quot;&quot;</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">sync</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span> <span class="ow">or</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">sync</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="nb">sum</span><span class="p">(</span><span class="n">pulse</span> <span class="o">&gt;</span> <span class="n">last</span> <span class="k">for</span> <span class="n">pulse</span> <span class="ow">in</span> <span class="n">sync</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">):</span>
+                <span class="n">stim_center_times</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">sync</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">out</span><span class="p">[</span><span class="s1">&#39;stimCenter_times&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">stim_center_times</span>
+
         <span class="c1"># StimOn times</span>
         <span class="n">stimOn_times</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">out</span><span class="p">[</span><span class="s1">&#39;stimOnTrigger_times&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
-        <span class="n">stim_center_triggers</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="p">(</span><span class="n">StimCenterTriggerTimes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
-                                   <span class="o">.</span><span class="n">extract</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">))</span>
-        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">sync</span><span class="p">,</span> <span class="n">last</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">ttls</span><span class="p">,</span> <span class="n">stim_center_triggers</span><span class="p">)):</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">sync</span><span class="p">,</span> <span class="n">last</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">ttls</span><span class="p">,</span> <span class="n">out</span><span class="p">[</span><span class="s1">&#39;stimCenterTrigger_times&#39;</span><span class="p">])):</span>
             <span class="sd">&quot;&quot;&quot;We expect there to be 3 pulses per trial; if this is the case, stim on will be the</span>
 <span class="sd">            second pulse. If 1 pulse is missing, we can only be confident of the correct one if</span>
 <span class="sd">            both pulses occur before the stim center trigger&quot;&quot;&quot;</span>
@@ -295,20 +249,30 @@
         <span class="n">trial_volume</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="s1">&#39;reward_amount&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">]</span>
         <span class="n">out</span><span class="p">[</span><span class="s1">&#39;rewardVolume&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">trial_volume</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
 
-        <span class="c1"># StimOffTrigger times (not saved)</span>
-        <span class="n">stimOffTriggers</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="p">(</span><span class="n">StimOffTriggerTimes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
-                              <span class="o">.</span><span class="n">extract</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">))</span>
+        <span class="c1"># StimOffTrigger times</span>
+        <span class="c1"># StimOff occurs at trial start (ignore the first trial&#39;s state update)</span>
+        <span class="n">out</span><span class="p">[</span><span class="s1">&#39;stimOffTrigger_times&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">tr</span><span class="p">[</span><span class="s2">&quot;behavior_data&quot;</span><span class="p">][</span><span class="s2">&quot;States timestamps&quot;</span><span class="p">]</span>
+             <span class="p">[</span><span class="s2">&quot;trial_start&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">[</span><span class="mi">1</span><span class="p">:]]</span>
+        <span class="p">)</span>
 
         <span class="c1"># StimOff times</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        There should be exactly three TTLs per trial.  stimOff_times should be the first TTL pulse.</span>
 <span class="sd">        If 1 or more pulses are missing, we can not be confident of assigning the correct one.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">trigg</span> <span class="o">=</span> <span class="n">out</span><span class="p">[</span><span class="s1">&#39;stimOffTrigger_times&#39;</span><span class="p">]</span>
         <span class="n">out</span><span class="p">[</span><span class="s1">&#39;stimOff_times&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">sync</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">sync</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span> <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
-                                         <span class="k">for</span> <span class="n">sync</span><span class="p">,</span> <span class="n">off</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">ttls</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="n">stimOffTriggers</span><span class="p">)])</span>
+                                         <span class="k">for</span> <span class="n">sync</span><span class="p">,</span> <span class="n">off</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">ttls</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="n">trigg</span><span class="p">)])</span>
 
         <span class="c1"># FeedbackType is always positive</span>
         <span class="n">out</span><span class="p">[</span><span class="s1">&#39;feedbackType&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">out</span><span class="p">[</span><span class="s1">&#39;feedback_times&#39;</span><span class="p">]),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int8</span><span class="p">)</span>
+
+        <span class="c1"># ItiIn times</span>
+        <span class="n">out</span><span class="p">[</span><span class="s1">&#39;itiIn_times&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">tr</span><span class="p">[</span><span class="s2">&quot;behavior_data&quot;</span><span class="p">][</span><span class="s2">&quot;States timestamps&quot;</span><span class="p">]</span>
+             <span class="p">[</span><span class="s2">&quot;iti&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">]</span>
+        <span class="p">)</span>
 
         <span class="c1"># NB: We lose the last trial because the stim off event occurs at trial_num + 1</span>
         <span class="n">n_trials</span> <span class="o">=</span> <span class="n">out</span><span class="p">[</span><span class="s1">&#39;stimOff_times&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">size</span>
@@ -333,13 +297,6 @@
     <span class="c1"># Standard datasets that may be saved as ALFs</span>
     <span class="n">params</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">session_path</span><span class="o">=</span><span class="n">session_path</span><span class="p">,</span> <span class="n">bpod_trials</span><span class="o">=</span><span class="n">bpod_trials</span><span class="p">,</span> <span class="n">settings</span><span class="o">=</span><span class="n">settings</span><span class="p">)</span>
     <span class="n">out</span><span class="p">,</span> <span class="n">fil</span> <span class="o">=</span> <span class="n">run_extractor_classes</span><span class="p">(</span><span class="n">HabituationTrials</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="n">save</span><span class="p">,</span> <span class="o">**</span><span class="n">params</span><span class="p">)</span>
-    <span class="c1"># The extra datasets</span>
-    <span class="n">non_standard</span> <span class="o">=</span> <span class="p">[</span><span class="n">ItiInTimes</span><span class="p">,</span> <span class="n">StimOffTriggerTimes</span><span class="p">,</span> <span class="n">StimCenterTriggerTimes</span><span class="p">,</span> <span class="n">StimCenterTimes</span><span class="p">]</span>
-    <span class="n">data</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">run_extractor_classes</span><span class="p">(</span><span class="n">non_standard</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">params</span><span class="p">)</span>
-
-    <span class="c1"># Merge the extracted data</span>
-    <span class="n">out</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
-    <span class="n">fil</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="kc">None</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">keys</span><span class="p">()])</span>
     <span class="k">return</span> <span class="n">out</span><span class="p">,</span> <span class="n">fil</span></div>
 </pre></div>
 

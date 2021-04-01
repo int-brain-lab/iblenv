@@ -172,25 +172,32 @@
            <div itemprop="articleBody">
             
   <h1>Source code for ibllib.pipes.ephys_preprocessing</h1><div class="highlight"><pre>
-<span></span><span class="kn">import</span> <span class="nn">re</span>
-<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
-<span class="kn">import</span> <span class="nn">logging</span>
-<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">OrderedDict</span>
-<span class="kn">import</span> <span class="nn">subprocess</span>
+<span></span><span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">re</span>
 <span class="kn">import</span> <span class="nn">shutil</span>
+<span class="kn">import</span> <span class="nn">subprocess</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">OrderedDict</span>
+<span class="kn">import</span> <span class="nn">traceback</span>
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
 
 <span class="kn">import</span> <span class="nn">mtscomp</span>
-
+<span class="kn">import</span> <span class="nn">alf.io</span>
+<span class="kn">from</span> <span class="nn">ibllib.ephys</span> <span class="kn">import</span> <span class="n">ephysqc</span><span class="p">,</span> <span class="n">spikes</span><span class="p">,</span> <span class="n">sync_probes</span>
 <span class="kn">from</span> <span class="nn">ibllib.io</span> <span class="kn">import</span> <span class="n">ffmpeg</span><span class="p">,</span> <span class="n">spikeglx</span>
-<span class="kn">from</span> <span class="nn">ibllib.io.extractors</span> <span class="kn">import</span> <span class="n">ephys_fpga</span>
+<span class="kn">from</span> <span class="nn">ibllib.io.video</span> <span class="kn">import</span> <span class="n">label_from_path</span>
+<span class="kn">from</span> <span class="nn">ibllib.io.extractors</span> <span class="kn">import</span> <span class="n">ephys_fpga</span><span class="p">,</span> <span class="n">ephys_passive</span><span class="p">,</span> <span class="n">camera</span>
 <span class="kn">from</span> <span class="nn">ibllib.pipes</span> <span class="kn">import</span> <span class="n">tasks</span>
-<span class="kn">from</span> <span class="nn">ibllib.ephys</span> <span class="kn">import</span> <span class="n">ephysqc</span><span class="p">,</span> <span class="n">sync_probes</span><span class="p">,</span> <span class="n">spikes</span>
 <span class="kn">from</span> <span class="nn">ibllib.pipes.training_preprocessing</span> <span class="kn">import</span> <span class="n">TrainingRegisterRaw</span> <span class="k">as</span> <span class="n">EphysRegisterRaw</span>
-<span class="kn">from</span> <span class="nn">ibllib.qc.task_metrics</span> <span class="kn">import</span> <span class="n">TaskQC</span>
 <span class="kn">from</span> <span class="nn">ibllib.qc.task_extractors</span> <span class="kn">import</span> <span class="n">TaskQCExtractor</span>
+<span class="kn">from</span> <span class="nn">ibllib.qc.task_metrics</span> <span class="kn">import</span> <span class="n">TaskQC</span>
+<span class="kn">from</span> <span class="nn">ibllib.qc.camera</span> <span class="kn">import</span> <span class="n">run_all_qc</span> <span class="k">as</span> <span class="n">run_camera_qc</span>
+<span class="kn">from</span> <span class="nn">ibllib.dsp</span> <span class="kn">import</span> <span class="n">rms</span>
+<span class="kn">from</span> <span class="nn">oneibl.one</span> <span class="kn">import</span> <span class="n">OneOffline</span>
 
-
-<span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;ibllib&#39;</span><span class="p">)</span>
+<span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s2">&quot;ibllib&quot;</span><span class="p">)</span>
 
 
 <span class="c1">#  level 0</span>
@@ -199,6 +206,7 @@
 <span class="sd">    Extract Pulses from raw electrophysiology data into numpy arrays</span>
 <span class="sd">    Perform the probes synchronisation with nidq (3B) or main probe (3A)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+
     <span class="n">cpu</span> <span class="o">=</span> <span class="mi">2</span>
     <span class="n">io_charge</span> <span class="o">=</span> <span class="mi">30</span>  <span class="c1"># this jobs reads raw ap files</span>
     <span class="n">priority</span> <span class="o">=</span> <span class="mi">90</span>  <span class="c1"># a lot of jobs depend on this one</span>
@@ -218,6 +226,7 @@
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Computes raw electrophysiology QC</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+
     <span class="n">cpu</span> <span class="o">=</span> <span class="mi">2</span>
     <span class="n">io_charge</span> <span class="o">=</span> <span class="mi">30</span>  <span class="c1"># this jobs reads raw ap files</span>
     <span class="n">priority</span> <span class="o">=</span> <span class="mi">10</span>  <span class="c1"># a lot of jobs depend on this one</span>
@@ -232,16 +241,17 @@
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Computes raw electrophysiology QC</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+
     <span class="n">cpu</span> <span class="o">=</span> <span class="mi">2</span>
     <span class="n">priority</span> <span class="o">=</span> <span class="mi">10</span>  <span class="c1"># a lot of jobs depend on this one</span>
     <span class="n">level</span> <span class="o">=</span> <span class="mi">0</span>  <span class="c1"># this job doesn&#39;t depend on anything</span>
 
     <span class="k">def</span> <span class="nf">_run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-        <span class="n">command</span> <span class="o">=</span> <span class="s1">&#39;ffmpeg -i </span><span class="si">{file_in}</span><span class="s1"> -y -nostdin -c:a flac -nostats </span><span class="si">{file_out}</span><span class="s1">&#39;</span>
-        <span class="n">file_in</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="s1">&#39;_iblrig_micData.raw.wav&#39;</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">command</span> <span class="o">=</span> <span class="s2">&quot;ffmpeg -i </span><span class="si">{file_in}</span><span class="s2"> -y -nostdin -c:a flac -nostats </span><span class="si">{file_out}</span><span class="s2">&quot;</span>
+        <span class="n">file_in</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="s2">&quot;_iblrig_micData.raw.wav&quot;</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">file_in</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">return</span>
-        <span class="n">file_out</span> <span class="o">=</span> <span class="n">file_in</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s1">&#39;.flac&#39;</span><span class="p">)</span>
+        <span class="n">file_out</span> <span class="o">=</span> <span class="n">file_in</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s2">&quot;.flac&quot;</span><span class="p">)</span>
         <span class="n">status</span><span class="p">,</span> <span class="n">output_file</span> <span class="o">=</span> <span class="n">ffmpeg</span><span class="o">.</span><span class="n">compress</span><span class="p">(</span><span class="n">file_in</span><span class="o">=</span><span class="n">file_in</span><span class="p">,</span> <span class="n">file_out</span><span class="o">=</span><span class="n">file_out</span><span class="p">,</span> <span class="n">command</span><span class="o">=</span><span class="n">command</span><span class="p">)</span>
         <span class="k">return</span> <span class="p">[</span><span class="n">output_file</span><span class="p">]</span></div>
 
@@ -250,6 +260,7 @@
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Computes raw electrophysiology QC</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+
     <span class="n">gpu</span> <span class="o">=</span> <span class="mi">1</span>
     <span class="n">io_charge</span> <span class="o">=</span> <span class="mi">70</span>  <span class="c1"># this jobs reads raw ap files</span>
     <span class="n">priority</span> <span class="o">=</span> <span class="mi">60</span>
@@ -257,21 +268,24 @@
 
     <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">_sample2v</span><span class="p">(</span><span class="n">ap_file</span><span class="p">):</span>
-        <span class="n">md</span> <span class="o">=</span> <span class="n">spikeglx</span><span class="o">.</span><span class="n">read_meta_data</span><span class="p">(</span><span class="n">ap_file</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s1">&#39;.meta&#39;</span><span class="p">))</span>
+        <span class="n">md</span> <span class="o">=</span> <span class="n">spikeglx</span><span class="o">.</span><span class="n">read_meta_data</span><span class="p">(</span><span class="n">ap_file</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s2">&quot;.meta&quot;</span><span class="p">))</span>
         <span class="n">s2v</span> <span class="o">=</span> <span class="n">spikeglx</span><span class="o">.</span><span class="n">_conversion_sample2v_from_meta</span><span class="p">(</span><span class="n">md</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">s2v</span><span class="p">[</span><span class="s1">&#39;ap&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">s2v</span><span class="p">[</span><span class="s2">&quot;ap&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
 
     <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">_fetch_ks2_commit_hash</span><span class="p">():</span>
-        <span class="n">command2run</span> <span class="o">=</span> <span class="s1">&#39;git --git-dir ~/Documents/MATLAB/Kilosort2/.git rev-parse --verify HEAD&#39;</span>
-        <span class="n">process</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">Popen</span><span class="p">(</span><span class="n">command2run</span><span class="p">,</span> <span class="n">shell</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">stdout</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span>
-                                   <span class="n">stderr</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">)</span>
+        <span class="n">command2run</span> <span class="o">=</span> <span class="s2">&quot;git --git-dir ~/Documents/MATLAB/Kilosort2/.git rev-parse --verify HEAD&quot;</span>
+        <span class="n">process</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">Popen</span><span class="p">(</span>
+            <span class="n">command2run</span><span class="p">,</span> <span class="n">shell</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">stdout</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span> <span class="n">stderr</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span>
+        <span class="p">)</span>
         <span class="n">info</span><span class="p">,</span> <span class="n">error</span> <span class="o">=</span> <span class="n">process</span><span class="o">.</span><span class="n">communicate</span><span class="p">()</span>
         <span class="k">if</span> <span class="n">process</span><span class="o">.</span><span class="n">returncode</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Can&#39;t fetch matlab ks2 commit hash, will still attempt to run </span><span class="se">\n</span><span class="s2">&quot;</span>
-                          <span class="sa">f</span><span class="s2">&quot;Error: </span><span class="si">{</span><span class="n">error</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-            <span class="k">return</span> <span class="s1">&#39;&#39;</span>
-        <span class="k">return</span> <span class="n">info</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Can&#39;t fetch matlab ks2 commit hash, will still attempt to run </span><span class="se">\n</span><span class="s2">&quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;Error: </span><span class="si">{</span><span class="n">error</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="s2">&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">info</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
 
     <span class="k">def</span> <span class="nf">_run_ks2</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ap_file</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -281,54 +295,61 @@
 <span class="sd">        :return: path of the folder containing ks2 spike sorting output</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">label</span> <span class="o">=</span> <span class="n">ap_file</span><span class="o">.</span><span class="n">parts</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span>
-        <span class="k">if</span> <span class="n">ap_file</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;spike_sorting_ks2.log&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
-            <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Already ran: spike_sorting_ks2.log found for </span><span class="si">{</span><span class="n">ap_file</span><span class="si">}</span><span class="s1">, skipping.&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">ap_file</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s2">&quot;spike_sorting_ks2.log&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Already ran: spike_sorting_ks2.log found for </span><span class="si">{</span><span class="n">ap_file</span><span class="si">}</span><span class="s2">, skipping.&quot;</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">ap_file</span><span class="o">.</span><span class="n">parent</span>
-        <span class="n">ks2_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;spike_sorters&#39;</span><span class="p">,</span> <span class="s1">&#39;ks2_matlab&#39;</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">ks2_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;spike_sorting_ks2.log&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
-            <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Already ran: spike_sorting_ks2.log found in </span><span class="si">{</span><span class="n">ks2_dir</span><span class="si">}</span><span class="s1">, skipping.&#39;</span><span class="p">)</span>
+        <span class="n">ks2_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s2">&quot;spike_sorters&quot;</span><span class="p">,</span> <span class="s2">&quot;ks2_matlab&quot;</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">ks2_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s2">&quot;spike_sorting_ks2.log&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Already ran: spike_sorting_ks2.log found in </span><span class="si">{</span><span class="n">ks2_dir</span><span class="si">}</span><span class="s2">, skipping.&quot;</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">ks2_dir</span>
         <span class="c1"># get the scratch drive from the shell script</span>
         <span class="n">SHELL_SCRIPT</span> <span class="o">=</span> <span class="n">Path</span><span class="o">.</span><span class="n">home</span><span class="p">()</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span>
-            <span class="s2">&quot;Documents/PYTHON/iblscripts/deploy/serverpc/kilosort2/task_ks2_matlab.sh&quot;</span><span class="p">)</span>
+            <span class="s2">&quot;Documents/PYTHON/iblscripts/deploy/serverpc/kilosort2/task_ks2_matlab.sh&quot;</span>
+        <span class="p">)</span>
         <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">SHELL_SCRIPT</span><span class="p">)</span> <span class="k">as</span> <span class="n">fid</span><span class="p">:</span>
             <span class="n">lines</span> <span class="o">=</span> <span class="n">fid</span><span class="o">.</span><span class="n">readlines</span><span class="p">()</span>
-        <span class="n">line</span> <span class="o">=</span> <span class="p">[</span><span class="n">line</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">lines</span> <span class="k">if</span> <span class="n">line</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;SCRATCH_DRIVE=&#39;</span><span class="p">)][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">line</span> <span class="o">=</span> <span class="p">[</span><span class="n">line</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">lines</span> <span class="k">if</span> <span class="n">line</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;SCRATCH_DRIVE=&quot;</span><span class="p">)][</span><span class="mi">0</span><span class="p">]</span>
         <span class="n">m</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;\=(.*?)(\#|\n)&quot;</span><span class="p">,</span> <span class="n">line</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
         <span class="n">scratch_drive</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">m</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
-        <span class="k">assert</span> <span class="p">(</span><span class="n">scratch_drive</span><span class="o">.</span><span class="n">exists</span><span class="p">())</span>
+        <span class="k">assert</span> <span class="n">scratch_drive</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span>
 
         <span class="c1"># clean up and create directory, this also checks write permissions</span>
         <span class="c1"># scratch dir has the following shape: ks2m/ZM_3003_2020-07-29_001_probe00</span>
         <span class="c1"># first makes sure the tmp dir is clean</span>
-        <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">scratch_drive</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;ks2m&#39;</span><span class="p">),</span> <span class="n">ignore_errors</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">scratch_drive</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s2">&quot;ks2m&quot;</span><span class="p">),</span> <span class="n">ignore_errors</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="n">scratch_dir</span> <span class="o">=</span> <span class="n">scratch_drive</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span>
-            <span class="s1">&#39;ks2m&#39;</span><span class="p">,</span> <span class="s1">&#39;_&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">parts</span><span class="p">[</span><span class="o">-</span><span class="mi">3</span><span class="p">:])</span> <span class="o">+</span> <span class="p">[</span><span class="n">label</span><span class="p">]))</span>
+            <span class="s2">&quot;ks2m&quot;</span><span class="p">,</span> <span class="s2">&quot;_&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">parts</span><span class="p">[</span><span class="o">-</span><span class="mi">3</span><span class="p">:])</span> <span class="o">+</span> <span class="p">[</span><span class="n">label</span><span class="p">])</span>
+        <span class="p">)</span>
         <span class="k">if</span> <span class="n">scratch_dir</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
             <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">scratch_dir</span><span class="p">,</span> <span class="n">ignore_errors</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="n">scratch_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
         <span class="c1"># decompresses using mtscomp</span>
-        <span class="n">tmp_ap_file</span> <span class="o">=</span> <span class="n">scratch_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">ap_file</span><span class="o">.</span><span class="n">name</span><span class="p">)</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s1">&#39;.bin&#39;</span><span class="p">)</span>
+        <span class="n">tmp_ap_file</span> <span class="o">=</span> <span class="n">scratch_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">ap_file</span><span class="o">.</span><span class="n">name</span><span class="p">)</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s2">&quot;.bin&quot;</span><span class="p">)</span>
         <span class="n">mtscomp</span><span class="o">.</span><span class="n">decompress</span><span class="p">(</span><span class="n">cdata</span><span class="o">=</span><span class="n">ap_file</span><span class="p">,</span> <span class="n">out</span><span class="o">=</span><span class="n">tmp_ap_file</span><span class="p">)</span>
 
         <span class="c1"># run matlab spike sorting: with R2019a, it would be much easier to run with</span>
         <span class="c1"># -batch option as matlab errors are redirected to stderr automatically</span>
         <span class="n">command2run</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">SHELL_SCRIPT</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">scratch_dir</span><span class="si">}</span><span class="s2">&quot;</span>
         <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">command2run</span><span class="p">)</span>
-        <span class="n">process</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">Popen</span><span class="p">(</span><span class="n">command2run</span><span class="p">,</span> <span class="n">shell</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">stdout</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span>
-                                   <span class="n">stderr</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span> <span class="n">executable</span><span class="o">=</span><span class="s2">&quot;/bin/bash&quot;</span><span class="p">)</span>
+        <span class="n">process</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">Popen</span><span class="p">(</span>
+            <span class="n">command2run</span><span class="p">,</span>
+            <span class="n">shell</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">stdout</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span>
+            <span class="n">stderr</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span>
+            <span class="n">executable</span><span class="o">=</span><span class="s2">&quot;/bin/bash&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
         <span class="n">info</span><span class="p">,</span> <span class="n">error</span> <span class="o">=</span> <span class="n">process</span><span class="o">.</span><span class="n">communicate</span><span class="p">()</span>
-        <span class="n">info_str</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="n">info_str</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
         <span class="k">if</span> <span class="n">process</span><span class="o">.</span><span class="n">returncode</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">error</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">))</span>
-        <span class="k">elif</span> <span class="s1">&#39;run_ks2_ibl.m failed&#39;</span> <span class="ow">in</span> <span class="n">info_str</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;Matlab error ks2 log below:&#39;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">error</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">))</span>
+        <span class="k">elif</span> <span class="s2">&quot;run_ks2_ibl.m failed&quot;</span> <span class="ow">in</span> <span class="n">info_str</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Matlab error ks2 log below:&quot;</span><span class="p">)</span>
             <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">info_str</span><span class="p">)</span>
 
         <span class="c1"># clean up and copy: output to session/spike_sorters/ks2_matlab/probeXX (ks2_dir)</span>
         <span class="n">tmp_ap_file</span><span class="o">.</span><span class="n">unlink</span><span class="p">()</span>  <span class="c1"># remove the uncompressed temp binary file</span>
-        <span class="n">scratch_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;temp_wh.dat&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">unlink</span><span class="p">()</span>  <span class="c1"># remove the memmapped pre-processed file</span>
+        <span class="n">scratch_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s2">&quot;temp_wh.dat&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">unlink</span><span class="p">()</span>  <span class="c1"># remove the memmapped pre-processed file</span>
         <span class="n">shutil</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="n">scratch_dir</span><span class="p">,</span> <span class="n">ks2_dir</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">version</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fetch_ks2_commit_hash</span><span class="p">()</span>
@@ -344,23 +365,33 @@
 <span class="sd">        :return: list of files to be registered on database</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">efiles</span> <span class="o">=</span> <span class="n">spikeglx</span><span class="o">.</span><span class="n">glob_ephys_files</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
-        <span class="n">ap_files</span> <span class="o">=</span> <span class="p">[(</span><span class="n">ef</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;ap&#39;</span><span class="p">),</span> <span class="n">ef</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;label&#39;</span><span class="p">))</span> <span class="k">for</span> <span class="n">ef</span> <span class="ow">in</span> <span class="n">efiles</span> <span class="k">if</span> <span class="s1">&#39;ap&#39;</span> <span class="ow">in</span> <span class="n">ef</span><span class="o">.</span><span class="n">keys</span><span class="p">()]</span>
+        <span class="n">ap_files</span> <span class="o">=</span> <span class="p">[(</span><span class="n">ef</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;ap&quot;</span><span class="p">),</span> <span class="n">ef</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;label&quot;</span><span class="p">))</span> <span class="k">for</span> <span class="n">ef</span> <span class="ow">in</span> <span class="n">efiles</span> <span class="k">if</span> <span class="s2">&quot;ap&quot;</span> <span class="ow">in</span> <span class="n">ef</span><span class="o">.</span><span class="n">keys</span><span class="p">()]</span>
         <span class="n">out_files</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">ap_file</span><span class="p">,</span> <span class="n">label</span> <span class="ow">in</span> <span class="n">ap_files</span><span class="p">:</span>
             <span class="k">try</span><span class="p">:</span>
                 <span class="n">ks2_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_ks2</span><span class="p">(</span><span class="n">ap_file</span><span class="p">)</span>  <span class="c1"># runs ks2, skips if it already ran</span>
-                <span class="n">probe_out_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span>
+                <span class="n">probe_out_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s2">&quot;alf&quot;</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span>
                 <span class="n">probe_out_path</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
                 <span class="n">spikes</span><span class="o">.</span><span class="n">ks2_to_alf</span><span class="p">(</span>
-                    <span class="n">ks2_dir</span><span class="p">,</span> <span class="n">bin_path</span><span class="o">=</span><span class="n">ap_file</span><span class="o">.</span><span class="n">parent</span><span class="p">,</span> <span class="n">out_path</span><span class="o">=</span><span class="n">probe_out_path</span><span class="p">,</span>
-                    <span class="n">bin_file</span><span class="o">=</span><span class="n">ap_file</span><span class="p">,</span> <span class="n">ampfactor</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_sample2v</span><span class="p">(</span><span class="n">ap_file</span><span class="p">))</span>
+                    <span class="n">ks2_dir</span><span class="p">,</span>
+                    <span class="n">bin_path</span><span class="o">=</span><span class="n">ap_file</span><span class="o">.</span><span class="n">parent</span><span class="p">,</span>
+                    <span class="n">out_path</span><span class="o">=</span><span class="n">probe_out_path</span><span class="p">,</span>
+                    <span class="n">bin_file</span><span class="o">=</span><span class="n">ap_file</span><span class="p">,</span>
+                    <span class="n">ampfactor</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_sample2v</span><span class="p">(</span><span class="n">ap_file</span><span class="p">),</span>
+                <span class="p">)</span>
                 <span class="n">out</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">spikes</span><span class="o">.</span><span class="n">sync_spike_sorting</span><span class="p">(</span><span class="n">ap_file</span><span class="o">=</span><span class="n">ap_file</span><span class="p">,</span> <span class="n">out_path</span><span class="o">=</span><span class="n">probe_out_path</span><span class="p">)</span>
                 <span class="n">out_files</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
-            <span class="k">except</span> <span class="ne">BaseException</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
-                <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">err</span><span class="p">)</span>
+                <span class="c1"># convert ks2_output into tar file and also register</span>
+                <span class="c1"># Make this in case spike sorting is in old raw_ephys_data folders, for new</span>
+                <span class="c1"># sessions it should already exist</span>
+                <span class="n">tar_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;spike_sorters&#39;</span><span class="p">,</span> <span class="s1">&#39;ks2_matlab&#39;</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span>
+                <span class="n">tar_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                <span class="n">out</span> <span class="o">=</span> <span class="n">spikes</span><span class="o">.</span><span class="n">ks2_to_tar</span><span class="p">(</span><span class="n">ks2_dir</span><span class="p">,</span> <span class="n">tar_dir</span><span class="p">)</span>
+                <span class="n">out_files</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">BaseException</span><span class="p">:</span>
+                <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">())</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
                 <span class="k">continue</span>
-
         <span class="n">probe_files</span> <span class="o">=</span> <span class="n">spikes</span><span class="o">.</span><span class="n">probes_description</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">out_files</span> <span class="o">+</span> <span class="n">probe_files</span></div>
 
@@ -374,8 +405,19 @@
         <span class="n">command</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;ffmpeg -i </span><span class="si">{file_in}</span><span class="s1"> -y -nostdin -codec:v libx264 -preset slow -crf 17 &#39;</span>
                    <span class="s1">&#39;-loglevel 0 -codec:a copy </span><span class="si">{file_out}</span><span class="s1">&#39;</span><span class="p">)</span>
         <span class="n">output_files</span> <span class="o">=</span> <span class="n">ffmpeg</span><span class="o">.</span><span class="n">iblrig_video_compression</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">command</span><span class="p">)</span>
+
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">output_files</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;No compressed videos found; skipping timestamp extraction&#39;</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="n">labels</span> <span class="o">=</span> <span class="p">[</span><span class="n">label_from_path</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">output_files</span><span class="p">]</span>
+        <span class="c1"># Video timestamps extraction</span>
+        <span class="n">data</span><span class="p">,</span> <span class="n">files</span> <span class="o">=</span> <span class="n">camera</span><span class="o">.</span><span class="n">extract_all</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="n">labels</span><span class="p">)</span>
+        <span class="n">output_files</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">files</span><span class="p">)</span>
+
+        <span class="c1"># Video QC</span>
+        <span class="n">run_camera_qc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">update</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">,</span> <span class="n">cameras</span><span class="o">=</span><span class="n">labels</span><span class="p">)</span>
+
         <span class="k">return</span> <span class="n">output_files</span></div>
 
 
@@ -390,30 +432,32 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="kn">import</span> <span class="nn">alf.io</span>
         <span class="kn">from</span> <span class="nn">brainbox.behavior</span> <span class="kn">import</span> <span class="n">training</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>  <span class="c1"># if no instance of Alyx is provided, do not touch any database</span>
-            <span class="k">return</span>
-        <span class="n">trials</span> <span class="o">=</span> <span class="n">alf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;alf&#39;</span><span class="p">),</span> <span class="s1">&#39;trials&#39;</span><span class="p">)</span>
+
+        <span class="n">trials</span> <span class="o">=</span> <span class="n">alf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s2">&quot;alf&quot;</span><span class="p">),</span> <span class="s2">&quot;trials&quot;</span><span class="p">)</span>
         <span class="n">good_enough</span> <span class="o">=</span> <span class="n">training</span><span class="o">.</span><span class="n">criterion_delay</span><span class="p">(</span>
-            <span class="n">n_trials</span><span class="o">=</span><span class="n">trials</span><span class="p">[</span><span class="s1">&#39;intervals&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
-            <span class="n">perf_easy</span><span class="o">=</span><span class="n">training</span><span class="o">.</span><span class="n">compute_performance_easy</span><span class="p">(</span><span class="n">trials</span><span class="p">))</span>
+            <span class="n">n_trials</span><span class="o">=</span><span class="n">trials</span><span class="p">[</span><span class="s2">&quot;intervals&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+            <span class="n">perf_easy</span><span class="o">=</span><span class="n">training</span><span class="o">.</span><span class="n">compute_performance_easy</span><span class="p">(</span><span class="n">trials</span><span class="p">),</span>
+        <span class="p">)</span>
         <span class="n">eid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">eid_from_path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">json_field_update</span><span class="p">(</span>
-            <span class="s1">&#39;sessions&#39;</span><span class="p">,</span> <span class="n">eid</span><span class="p">,</span> <span class="s1">&#39;extended_qc&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;behavior&#39;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">good_enough</span><span class="p">)})</span>
+            <span class="s2">&quot;sessions&quot;</span><span class="p">,</span> <span class="n">eid</span><span class="p">,</span> <span class="s2">&quot;extended_qc&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;behavior&quot;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">good_enough</span><span class="p">)}</span>
+        <span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">dsets</span><span class="p">,</span> <span class="n">out_files</span> <span class="o">=</span> <span class="n">ephys_fpga</span><span class="o">.</span><span class="n">extract_all</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_behaviour_criterion</span><span class="p">()</span>
 
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">,</span> <span class="n">OneOffline</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">out_files</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_behaviour_criterion</span><span class="p">()</span>
         <span class="c1"># Run the task QC</span>
         <span class="n">qc</span> <span class="o">=</span> <span class="n">TaskQC</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">,</span> <span class="n">log</span><span class="o">=</span><span class="n">_logger</span><span class="p">)</span>
         <span class="n">qc</span><span class="o">.</span><span class="n">extractor</span> <span class="o">=</span> <span class="n">TaskQCExtractor</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">lazy</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">qc</span><span class="o">.</span><span class="n">one</span><span class="p">)</span>
         <span class="c1"># Extract extra datasets required for QC</span>
         <span class="n">qc</span><span class="o">.</span><span class="n">extractor</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">dsets</span>
-        <span class="n">qc</span><span class="o">.</span><span class="n">extractor</span><span class="o">.</span><span class="n">extract_data</span><span class="p">(</span><span class="n">partial</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-
+        <span class="n">qc</span><span class="o">.</span><span class="n">extractor</span><span class="o">.</span><span class="n">extract_data</span><span class="p">()</span>
         <span class="c1"># Aggregate and update Alyx QC fields</span>
         <span class="n">qc</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">update</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-
         <span class="k">return</span> <span class="n">out_files</span></div>
 
 
@@ -421,14 +465,81 @@
     <span class="n">priority</span> <span class="o">=</span> <span class="mi">90</span>
     <span class="n">level</span> <span class="o">=</span> <span class="mi">3</span>
 
+    <span class="k">def</span> <span class="nf">_compute_cell_qc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">folder_probe</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Computes the cell QC given an extracted probe alf path</span>
+<span class="sd">        :param folder_probe: folder</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># compute the straight qc</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Computing cluster qc for </span><span class="si">{</span><span class="n">folder_probe</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">spikes</span> <span class="o">=</span> <span class="n">alf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="n">folder_probe</span><span class="p">,</span> <span class="s1">&#39;spikes&#39;</span><span class="p">)</span>
+        <span class="n">clusters</span> <span class="o">=</span> <span class="n">alf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="n">folder_probe</span><span class="p">,</span> <span class="s1">&#39;clusters&#39;</span><span class="p">)</span>
+        <span class="n">df_units</span><span class="p">,</span> <span class="n">drift</span> <span class="o">=</span> <span class="n">ephysqc</span><span class="o">.</span><span class="n">spike_sorting_metrics</span><span class="p">(</span>
+            <span class="n">spikes</span><span class="o">.</span><span class="n">times</span><span class="p">,</span> <span class="n">spikes</span><span class="o">.</span><span class="n">clusters</span><span class="p">,</span> <span class="n">spikes</span><span class="o">.</span><span class="n">amps</span><span class="p">,</span> <span class="n">spikes</span><span class="o">.</span><span class="n">depths</span><span class="p">,</span>
+            <span class="n">cluster_ids</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">clusters</span><span class="o">.</span><span class="n">channels</span><span class="o">.</span><span class="n">size</span><span class="p">))</span>
+        <span class="c1"># if the ks2 labels file exist, load them and add the column</span>
+        <span class="n">file_labels</span> <span class="o">=</span> <span class="n">folder_probe</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;cluster_KSLabel.tsv&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">file_labels</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="n">ks2_labels</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">file_labels</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="n">ks2_labels</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;KSLabel&#39;</span><span class="p">:</span> <span class="s1">&#39;ks2_label&#39;</span><span class="p">},</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">df_units</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span>
+                <span class="p">[</span><span class="n">df_units</span><span class="p">,</span> <span class="n">ks2_labels</span><span class="p">[</span><span class="s1">&#39;ks2_label&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">reindex</span><span class="p">(</span><span class="n">df_units</span><span class="o">.</span><span class="n">index</span><span class="p">)],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="c1"># save as parquet file</span>
+        <span class="n">df_units</span><span class="o">.</span><span class="n">to_parquet</span><span class="p">(</span><span class="n">folder_probe</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s2">&quot;clusters.metrics.pqt&quot;</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">folder_probe</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s2">&quot;clusters.metrics.pqt&quot;</span><span class="p">),</span> <span class="n">df_units</span><span class="p">,</span> <span class="n">drift</span>
+
+    <span class="k">def</span> <span class="nf">_label_probe_qc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">folder_probe</span><span class="p">,</span> <span class="n">df_units</span><span class="p">,</span> <span class="n">drift</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Labels the json field of the alyx corresponding probe insertion</span>
+<span class="sd">        :param folder_probe:</span>
+<span class="sd">        :param df_units:</span>
+<span class="sd">        :param drift:</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">eid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">eid_from_path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="n">pdict</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;insertions&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span> <span class="n">session</span><span class="o">=</span><span class="n">eid</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">folder_probe</span><span class="o">.</span><span class="n">parts</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">pdict</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="n">isok</span> <span class="o">=</span> <span class="n">df_units</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span>
+        <span class="n">qcdict</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;n_units&#39;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">df_units</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span>
+                  <span class="s1">&#39;n_units_qc_pass&#39;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">isok</span><span class="p">)),</span>
+                  <span class="s1">&#39;firing_rate_max&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">df_units</span><span class="p">[</span><span class="s1">&#39;firing_rate&#39;</span><span class="p">][</span><span class="n">isok</span><span class="p">]),</span>
+                  <span class="s1">&#39;firing_rate_median&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">df_units</span><span class="p">[</span><span class="s1">&#39;firing_rate&#39;</span><span class="p">][</span><span class="n">isok</span><span class="p">]),</span>
+                  <span class="s1">&#39;amplitude_max_uV&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">df_units</span><span class="p">[</span><span class="s1">&#39;amp_max&#39;</span><span class="p">][</span><span class="n">isok</span><span class="p">])</span> <span class="o">*</span> <span class="mf">1e6</span><span class="p">,</span>
+                  <span class="s1">&#39;amplitude_median_uV&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">df_units</span><span class="p">[</span><span class="s1">&#39;amp_median&#39;</span><span class="p">][</span><span class="n">isok</span><span class="p">])</span> <span class="o">*</span> <span class="mf">1e6</span><span class="p">,</span>
+                  <span class="s1">&#39;drift_rms_um&#39;</span><span class="p">:</span> <span class="n">rms</span><span class="p">(</span><span class="n">drift</span><span class="p">[</span><span class="s1">&#39;drift_um&#39;</span><span class="p">]),</span>
+                  <span class="p">}</span>
+        <span class="n">file_wm</span> <span class="o">=</span> <span class="n">folder_probe</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;_kilosort_whitening.matrix.npy&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">file_wm</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="n">wm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">file_wm</span><span class="p">)</span>
+            <span class="n">qcdict</span><span class="p">[</span><span class="s1">&#39;whitening_matrix_conditioning&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">cond</span><span class="p">(</span><span class="n">wm</span><span class="p">)</span>
+        <span class="c1"># groom qc dict (this function will eventually go directly into the json field update)</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">qcdict</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">qcdict</span><span class="p">[</span><span class="n">k</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">):</span>
+                <span class="n">qcdict</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">qcdict</span><span class="p">[</span><span class="n">k</span><span class="p">])</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">qcdict</span><span class="p">[</span><span class="n">k</span><span class="p">],</span> <span class="nb">float</span><span class="p">):</span>
+                <span class="n">qcdict</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">qcdict</span><span class="p">[</span><span class="n">k</span><span class="p">],</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">json_field_update</span><span class="p">(</span><span class="s2">&quot;insertions&quot;</span><span class="p">,</span> <span class="n">pdict</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;id&quot;</span><span class="p">],</span> <span class="s2">&quot;json&quot;</span><span class="p">,</span> <span class="n">qcdict</span><span class="p">)</span>
+
     <span class="k">def</span> <span class="nf">_run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Post spike-sorting quality control at the cluster level.</span>
-<span class="sd">        Outputs a QC table in the clusters ALF object</span>
+<span class="sd">        Outputs a QC table in the clusters ALF object and labels corresponding probes in Alyx</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="nb">print</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
-        <span class="n">qc_file</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="k">return</span> <span class="n">qc_file</span></div>
+        <span class="n">files_spikes</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;alf&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="s1">&#39;spikes.times.npy&#39;</span><span class="p">)</span>
+        <span class="n">folder_probes</span> <span class="o">=</span> <span class="p">[</span><span class="n">f</span><span class="o">.</span><span class="n">parent</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">files_spikes</span><span class="p">]</span>
+        <span class="n">out_files</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">folder_probe</span> <span class="ow">in</span> <span class="n">folder_probes</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">qc_file</span><span class="p">,</span> <span class="n">df_units</span><span class="p">,</span> <span class="n">drift</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_cell_qc</span><span class="p">(</span><span class="n">folder_probe</span><span class="p">)</span>
+                <span class="n">out_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">qc_file</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_label_probe_qc</span><span class="p">(</span><span class="n">folder_probe</span><span class="p">,</span> <span class="n">df_units</span><span class="p">,</span> <span class="n">drift</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">BaseException</span><span class="p">:</span>
+                <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">())</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+                <span class="k">continue</span>
+        <span class="k">return</span> <span class="n">out_files</span></div>
 
 
 <div class="viewcode-block" id="EphysMtscomp"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.ephys_preprocessing.html#ibllib.pipes.ephys_preprocessing.EphysMtscomp">[docs]</a><span class="k">class</span> <span class="nc">EphysMtscomp</span><span class="p">(</span><span class="n">tasks</span><span class="o">.</span><span class="n">Task</span><span class="p">):</span>
@@ -437,21 +548,21 @@
 
     <span class="k">def</span> <span class="nf">_run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Compress ephys files looking for `compress_ephys.flag` whithin the probes folder</span>
+<span class="sd">        Compress ephys files looking for `compress_ephys.flag` within the probes folder</span>
 <span class="sd">        Original bin file will be removed</span>
 <span class="sd">        The registration flag created contains targeted file names at the root of the session</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">out_files</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">ephys_files</span> <span class="o">=</span> <span class="n">spikeglx</span><span class="o">.</span><span class="n">glob_ephys_files</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
-        <span class="n">ephys_files</span> <span class="o">+=</span> <span class="n">spikeglx</span><span class="o">.</span><span class="n">glob_ephys_files</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">ext</span><span class="o">=</span><span class="s1">&#39;ch&#39;</span><span class="p">)</span>
-        <span class="n">ephys_files</span> <span class="o">+=</span> <span class="n">spikeglx</span><span class="o">.</span><span class="n">glob_ephys_files</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">ext</span><span class="o">=</span><span class="s1">&#39;meta&#39;</span><span class="p">)</span>
+        <span class="n">ephys_files</span> <span class="o">+=</span> <span class="n">spikeglx</span><span class="o">.</span><span class="n">glob_ephys_files</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">ext</span><span class="o">=</span><span class="s2">&quot;ch&quot;</span><span class="p">)</span>
+        <span class="n">ephys_files</span> <span class="o">+=</span> <span class="n">spikeglx</span><span class="o">.</span><span class="n">glob_ephys_files</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">ext</span><span class="o">=</span><span class="s2">&quot;meta&quot;</span><span class="p">)</span>
 
         <span class="k">for</span> <span class="n">ef</span> <span class="ow">in</span> <span class="n">ephys_files</span><span class="p">:</span>
-            <span class="k">for</span> <span class="n">typ</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;ap&#39;</span><span class="p">,</span> <span class="s1">&#39;lf&#39;</span><span class="p">,</span> <span class="s1">&#39;nidq&#39;</span><span class="p">]:</span>
+            <span class="k">for</span> <span class="n">typ</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;ap&quot;</span><span class="p">,</span> <span class="s2">&quot;lf&quot;</span><span class="p">,</span> <span class="s2">&quot;nidq&quot;</span><span class="p">]:</span>
                 <span class="n">bin_file</span> <span class="o">=</span> <span class="n">ef</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">typ</span><span class="p">)</span>
                 <span class="k">if</span> <span class="ow">not</span> <span class="n">bin_file</span><span class="p">:</span>
                     <span class="k">continue</span>
-                <span class="k">if</span> <span class="n">bin_file</span><span class="o">.</span><span class="n">suffix</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;bin&#39;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">bin_file</span><span class="o">.</span><span class="n">suffix</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;bin&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
                     <span class="n">sr</span> <span class="o">=</span> <span class="n">spikeglx</span><span class="o">.</span><span class="n">Reader</span><span class="p">(</span><span class="n">bin_file</span><span class="p">)</span>
                     <span class="k">if</span> <span class="n">sr</span><span class="o">.</span><span class="n">is_mtscomp</span><span class="p">:</span>
                         <span class="n">out_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">bin_file</span><span class="p">)</span>
@@ -469,11 +580,25 @@
     <span class="n">gpu</span> <span class="o">=</span> <span class="mi">1</span>
     <span class="n">cpu</span> <span class="o">=</span> <span class="mi">4</span>
     <span class="n">io_charge</span> <span class="o">=</span> <span class="mi">90</span>
-    <span class="n">level</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">level</span> <span class="o">=</span> <span class="mi">2</span>
 
     <span class="k">def</span> <span class="nf">_run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;empty placeholder for job creation only&quot;&quot;&quot;</span>
         <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="EphysPassive"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.ephys_preprocessing.html#ibllib.pipes.ephys_preprocessing.EphysPassive">[docs]</a><span class="k">class</span> <span class="nc">EphysPassive</span><span class="p">(</span><span class="n">tasks</span><span class="o">.</span><span class="n">Task</span><span class="p">):</span>
+    <span class="n">cpu</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">io_charge</span> <span class="o">=</span> <span class="mi">90</span>
+    <span class="n">level</span> <span class="o">=</span> <span class="mi">1</span>
+
+    <span class="k">def</span> <span class="nf">_run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;returns a list of pathlib.Paths. &quot;&quot;&quot;</span>
+        <span class="n">data</span><span class="p">,</span> <span class="n">paths</span> <span class="o">=</span> <span class="n">ephys_passive</span><span class="o">.</span><span class="n">PassiveChoiceWorld</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span><span class="n">save</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">any</span><span class="p">([</span><span class="n">x</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">paths</span><span class="p">]):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+        <span class="c1"># Register?</span>
+        <span class="k">return</span> <span class="n">paths</span></div>
 
 
 <div class="viewcode-block" id="EphysExtractionPipeline"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.ephys_preprocessing.html#ibllib.pipes.ephys_preprocessing.EphysExtractionPipeline">[docs]</a><span class="k">class</span> <span class="nc">EphysExtractionPipeline</span><span class="p">(</span><span class="n">tasks</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">):</span>
@@ -484,20 +609,22 @@
         <span class="n">tasks</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span> <span class="o">=</span> <span class="n">session_path</span>
         <span class="c1"># level 0</span>
-        <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;EphysRegisterRaw&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">EphysRegisterRaw</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
-        <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;EphysPulses&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">EphysPulses</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
-        <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;EphysRawQC&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">RawEphysQC</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
-        <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;EphysAudio&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">EphysAudio</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
-        <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;EphysVideoCompress&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">EphysVideoCompress</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
-        <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;EphysMtscomp&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">EphysMtscomp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysRegisterRaw&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">EphysRegisterRaw</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysPulses&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">EphysPulses</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysRawQC&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">RawEphysQC</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysAudio&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">EphysAudio</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysMtscomp&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">EphysMtscomp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
         <span class="c1"># level 1</span>
-        <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;SpikeSorting&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">SpikeSorting_KS2_Matlab</span><span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;EphysMtscomp&#39;</span><span class="p">],</span> <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;EphysPulses&#39;</span><span class="p">]])</span>
-        <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;EphysTrials&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">EphysTrials</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;EphysPulses&#39;</span><span class="p">]])</span>
-        <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;EphysDLC&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">EphysDLC</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;EphysVideoCompress&#39;</span><span class="p">]])</span>
+        <span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;SpikeSorting&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">SpikeSorting_KS2_Matlab</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysMtscomp&quot;</span><span class="p">],</span> <span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysPulses&quot;</span><span class="p">]])</span>
+        <span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysVideoCompress&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">EphysVideoCompress</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysPulses&quot;</span><span class="p">]])</span>
+        <span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysTrials&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">EphysTrials</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysPulses&quot;</span><span class="p">]])</span>
+
+        <span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysPassive&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">EphysPassive</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysPulses&quot;</span><span class="p">]])</span>
         <span class="c1"># level 2</span>
-        <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;EphysCellsQc&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">EphysCellsQc</span><span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;SpikeSorting&#39;</span><span class="p">]])</span>
+        <span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysCellsQc&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">EphysCellsQc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;SpikeSorting&quot;</span><span class="p">]])</span>
+        <span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysDLC&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">EphysDLC</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysVideoCompress&quot;</span><span class="p">]])</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span> <span class="o">=</span> <span class="n">tasks</span></div>
 </pre></div>
 

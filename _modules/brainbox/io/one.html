@@ -174,12 +174,15 @@
   <h1>Source code for brainbox.io.one</h1><div class="highlight"><pre>
 <span></span><span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
 <span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">traceback</span>
+
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
 
 <span class="kn">import</span> <span class="nn">alf.io</span>
 <span class="kn">from</span> <span class="nn">ibllib.io</span> <span class="kn">import</span> <span class="n">spikeglx</span>
-<span class="kn">from</span> <span class="nn">ibllib.atlas</span> <span class="kn">import</span> <span class="n">regions_from_allen_csv</span>
+<span class="kn">from</span> <span class="nn">ibllib.atlas.regions</span> <span class="kn">import</span> <span class="n">BrainRegions</span>
 <span class="kn">from</span> <span class="nn">ibllib.io.extractors.training_wheel</span> <span class="kn">import</span> <span class="n">extract_wheel_moves</span><span class="p">,</span> <span class="n">extract_first_movement_times</span>
 <span class="kn">from</span> <span class="nn">oneibl.one</span> <span class="kn">import</span> <span class="n">ONE</span>
 
@@ -258,7 +261,7 @@
         <span class="n">probe_id</span> <span class="o">=</span> <span class="p">[</span><span class="n">ins</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">ins</span> <span class="ow">in</span> <span class="n">insertions</span><span class="p">]</span>
 
     <span class="n">channels</span> <span class="o">=</span> <span class="n">Bunch</span><span class="p">({})</span>
-    <span class="n">r</span> <span class="o">=</span> <span class="n">regions_from_allen_csv</span><span class="p">()</span>
+    <span class="n">r</span> <span class="o">=</span> <span class="n">BrainRegions</span><span class="p">()</span>
     <span class="k">for</span> <span class="n">label</span><span class="p">,</span> <span class="n">trace</span><span class="p">,</span> <span class="n">resol</span><span class="p">,</span> <span class="n">count</span><span class="p">,</span> <span class="nb">id</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span> <span class="n">tracing</span><span class="p">,</span> <span class="n">resolved</span><span class="p">,</span> <span class="n">counts</span><span class="p">,</span> <span class="n">probe_id</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">trace</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">resol</span><span class="p">:</span>
@@ -267,22 +270,43 @@
                             <span class="sa">f</span><span class="s1">&#39;track.&#39;</span><span class="p">)</span>
                 <span class="c1"># download the data</span>
                 <span class="n">chans</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="s1">&#39;channels&#39;</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;alf/</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-                <span class="n">channels</span><span class="p">[</span><span class="n">label</span><span class="p">]</span> <span class="o">=</span> <span class="n">Bunch</span><span class="p">({</span>
-                    <span class="s1">&#39;atlas_id&#39;</span><span class="p">:</span> <span class="n">chans</span><span class="p">[</span><span class="s1">&#39;brainLocationIds_ccf_2017&#39;</span><span class="p">],</span>
-                    <span class="s1">&#39;acronym&#39;</span><span class="p">:</span> <span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">chans</span><span class="p">[</span><span class="s1">&#39;brainLocationIds_ccf_2017&#39;</span><span class="p">])[</span><span class="s1">&#39;acronym&#39;</span><span class="p">],</span>
-                    <span class="s1">&#39;x&#39;</span><span class="p">:</span> <span class="n">chans</span><span class="p">[</span><span class="s1">&#39;mlapdv&#39;</span><span class="p">][:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="mf">1e6</span><span class="p">,</span>
-                    <span class="s1">&#39;y&#39;</span><span class="p">:</span> <span class="n">chans</span><span class="p">[</span><span class="s1">&#39;mlapdv&#39;</span><span class="p">][:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">/</span> <span class="mf">1e6</span><span class="p">,</span>
-                    <span class="s1">&#39;z&#39;</span><span class="p">:</span> <span class="n">chans</span><span class="p">[</span><span class="s1">&#39;mlapdv&#39;</span><span class="p">][:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">/</span> <span class="mf">1e6</span><span class="p">,</span>
-                    <span class="s1">&#39;axial_um&#39;</span><span class="p">:</span> <span class="n">chans</span><span class="p">[</span><span class="s1">&#39;localCoordinates&#39;</span><span class="p">][:,</span> <span class="mi">1</span><span class="p">],</span>
-                    <span class="s1">&#39;lateral_um&#39;</span><span class="p">:</span> <span class="n">chans</span><span class="p">[</span><span class="s1">&#39;localCoordinates&#39;</span><span class="p">][:,</span> <span class="mi">0</span><span class="p">]</span>
-                <span class="p">})</span>
+
+                <span class="c1"># If we have successfully downloaded the data</span>
+                <span class="k">if</span> <span class="s1">&#39;brainLocationIds_ccf_2017&#39;</span> <span class="ow">in</span> <span class="n">chans</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+
+                    <span class="n">channels</span><span class="p">[</span><span class="n">label</span><span class="p">]</span> <span class="o">=</span> <span class="n">Bunch</span><span class="p">({</span>
+                        <span class="s1">&#39;atlas_id&#39;</span><span class="p">:</span> <span class="n">chans</span><span class="p">[</span><span class="s1">&#39;brainLocationIds_ccf_2017&#39;</span><span class="p">],</span>
+                        <span class="s1">&#39;acronym&#39;</span><span class="p">:</span> <span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">chans</span><span class="p">[</span><span class="s1">&#39;brainLocationIds_ccf_2017&#39;</span><span class="p">])[</span><span class="s1">&#39;acronym&#39;</span><span class="p">],</span>
+                        <span class="s1">&#39;x&#39;</span><span class="p">:</span> <span class="n">chans</span><span class="p">[</span><span class="s1">&#39;mlapdv&#39;</span><span class="p">][:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="mf">1e6</span><span class="p">,</span>
+                        <span class="s1">&#39;y&#39;</span><span class="p">:</span> <span class="n">chans</span><span class="p">[</span><span class="s1">&#39;mlapdv&#39;</span><span class="p">][:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">/</span> <span class="mf">1e6</span><span class="p">,</span>
+                        <span class="s1">&#39;z&#39;</span><span class="p">:</span> <span class="n">chans</span><span class="p">[</span><span class="s1">&#39;mlapdv&#39;</span><span class="p">][:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">/</span> <span class="mf">1e6</span><span class="p">,</span>
+                        <span class="s1">&#39;axial_um&#39;</span><span class="p">:</span> <span class="n">chans</span><span class="p">[</span><span class="s1">&#39;localCoordinates&#39;</span><span class="p">][:,</span> <span class="mi">1</span><span class="p">],</span>
+                        <span class="s1">&#39;lateral_um&#39;</span><span class="p">:</span> <span class="n">chans</span><span class="p">[</span><span class="s1">&#39;localCoordinates&#39;</span><span class="p">][:,</span> <span class="mi">0</span><span class="p">]</span>
+                    <span class="p">})</span>
+                <span class="c1"># Otherwise we just get the channels from alyx. Shouldn&#39;t happen often, only if</span>
+                <span class="c1"># data is still inbetween ftp and flatiron after being resolved</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">traj_id</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;trajectories&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span> <span class="n">session</span><span class="o">=</span><span class="n">eid</span><span class="p">,</span> <span class="n">probe</span><span class="o">=</span><span class="n">label</span><span class="p">,</span>
+                                            <span class="n">provenance</span><span class="o">=</span><span class="s1">&#39;Ephys aligned histology track&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;id&#39;</span><span class="p">]</span>
+                    <span class="n">chans</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;channels&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span> <span class="n">trajectory_estimate</span><span class="o">=</span><span class="n">traj_id</span><span class="p">)</span>
+
+                    <span class="n">channels</span><span class="p">[</span><span class="n">label</span><span class="p">]</span> <span class="o">=</span> <span class="n">Bunch</span><span class="p">({</span>
+                        <span class="s1">&#39;atlas_id&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">ch</span><span class="p">[</span><span class="s1">&#39;brain_region&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">ch</span> <span class="ow">in</span> <span class="n">chans</span><span class="p">]),</span>
+                        <span class="s1">&#39;x&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">ch</span><span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">ch</span> <span class="ow">in</span> <span class="n">chans</span><span class="p">])</span> <span class="o">/</span> <span class="mf">1e6</span><span class="p">,</span>
+                        <span class="s1">&#39;y&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">ch</span><span class="p">[</span><span class="s1">&#39;y&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">ch</span> <span class="ow">in</span> <span class="n">chans</span><span class="p">])</span> <span class="o">/</span> <span class="mf">1e6</span><span class="p">,</span>
+                        <span class="s1">&#39;z&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">ch</span><span class="p">[</span><span class="s1">&#39;z&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">ch</span> <span class="ow">in</span> <span class="n">chans</span><span class="p">])</span> <span class="o">/</span> <span class="mf">1e6</span><span class="p">,</span>
+                        <span class="s1">&#39;axial_um&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">ch</span><span class="p">[</span><span class="s1">&#39;axial&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">ch</span> <span class="ow">in</span> <span class="n">chans</span><span class="p">]),</span>
+                        <span class="s1">&#39;lateral_um&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">ch</span><span class="p">[</span><span class="s1">&#39;lateral&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">ch</span> <span class="ow">in</span> <span class="n">chans</span><span class="p">])</span>
+                    <span class="p">})</span>
+                    <span class="n">channels</span><span class="p">[</span><span class="n">label</span><span class="p">][</span><span class="s1">&#39;acronym&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">channels</span><span class="p">[</span><span class="n">label</span><span class="p">][</span><span class="s1">&#39;atlas_id&#39;</span><span class="p">])[</span><span class="s1">&#39;acronym&#39;</span><span class="p">]</span>
+
             <span class="k">elif</span> <span class="n">count</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">aligned</span><span class="p">:</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Channel locations for </span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1"> have not been &#39;</span>
                             <span class="sa">f</span><span class="s1">&#39;resolved. However, alignment flag set to True so channel and cluster&#39;</span>
                             <span class="sa">f</span><span class="s1">&#39; locations will be obtained from latest available ephys aligned &#39;</span>
                             <span class="sa">f</span><span class="s1">&#39;histology track.&#39;</span><span class="p">)</span>
                 <span class="c1"># get the latest user aligned channels</span>
-                <span class="n">traj_id</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;trajectories&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span> <span class="n">session</span><span class="o">=</span><span class="n">eid</span><span class="p">,</span> <span class="n">probe_name</span><span class="o">=</span><span class="n">label</span><span class="p">,</span>
+                <span class="n">traj_id</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;trajectories&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span> <span class="n">session</span><span class="o">=</span><span class="n">eid</span><span class="p">,</span> <span class="n">probe</span><span class="o">=</span><span class="n">label</span><span class="p">,</span>
                                         <span class="n">provenance</span><span class="o">=</span><span class="s1">&#39;Ephys aligned histology track&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;id&#39;</span><span class="p">]</span>
                 <span class="n">chans</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;channels&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span> <span class="n">trajectory_estimate</span><span class="o">=</span><span class="n">traj_id</span><span class="p">)</span>
 
@@ -299,7 +323,7 @@
                 <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Channel locations for </span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1"> have not been resolved. &#39;</span>
                             <span class="sa">f</span><span class="s1">&#39;Channel and cluster locations obtained from histology track.&#39;</span><span class="p">)</span>
                 <span class="c1"># get the channels from histology tracing</span>
-                <span class="n">traj_id</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;trajectories&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span> <span class="n">session</span><span class="o">=</span><span class="n">eid</span><span class="p">,</span> <span class="n">probe_name</span><span class="o">=</span><span class="n">label</span><span class="p">,</span>
+                <span class="n">traj_id</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;trajectories&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span> <span class="n">session</span><span class="o">=</span><span class="n">eid</span><span class="p">,</span> <span class="n">probe</span><span class="o">=</span><span class="n">label</span><span class="p">,</span>
                                         <span class="n">provenance</span><span class="o">=</span><span class="s1">&#39;Histology track&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;id&#39;</span><span class="p">]</span>
                 <span class="n">chans</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;channels&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span> <span class="n">trajectory_estimate</span><span class="o">=</span><span class="n">traj_id</span><span class="p">)</span>
 
@@ -449,24 +473,30 @@
 <span class="k">def</span> <span class="nf">_load_spike_sorting_local</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">probe</span><span class="p">):</span>
     <span class="c1"># gets clusters and spikes from a local session folder</span>
     <span class="n">probe_path</span> <span class="o">=</span> <span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="n">probe</span><span class="p">)</span>
+
+    <span class="c1"># look for clusters.metrics.csv file, if it exists delete as we now have .pqt file instead</span>
+    <span class="n">cluster_file</span> <span class="o">=</span> <span class="n">probe_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;clusters.metrics.csv&#39;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">cluster_file</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">cluster_file</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Deleting old clusters.metrics.csv file&#39;</span><span class="p">)</span>
+
     <span class="k">try</span><span class="p">:</span>
         <span class="n">spikes</span> <span class="o">=</span> <span class="n">alf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="n">probe_path</span><span class="p">,</span> <span class="nb">object</span><span class="o">=</span><span class="s1">&#39;spikes&#39;</span><span class="p">)</span>
     <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Could not load spikes datasets for session </span><span class="si">{</span><span class="n">session_path</span><span class="si">}</span><span class="s1"> and </span><span class="si">{</span><span class="n">probe</span><span class="si">}</span><span class="s1">. &#39;</span>
-                       <span class="sa">f</span><span class="s1">&#39;Spikes for </span><span class="si">{</span><span class="n">probe</span><span class="si">}</span><span class="s1"> will return an empty dict&#39;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">())</span>
         <span class="n">spikes</span> <span class="o">=</span> <span class="p">{}</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="n">clusters</span> <span class="o">=</span> <span class="n">alf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="n">probe_path</span><span class="p">,</span> <span class="nb">object</span><span class="o">=</span><span class="s1">&#39;clusters&#39;</span><span class="p">)</span>
     <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Could not load clusters datasets for session </span><span class="si">{</span><span class="n">session_path</span><span class="si">}</span><span class="s1"> and </span><span class="si">{</span><span class="n">probe</span><span class="si">}</span><span class="s1">. &#39;</span>
-                       <span class="sa">f</span><span class="s1">&#39;Clusters for </span><span class="si">{</span><span class="n">probe</span><span class="si">}</span><span class="s1"> will return an empty dict&#39;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">())</span>
         <span class="n">clusters</span> <span class="o">=</span> <span class="p">{}</span>
 
     <span class="k">return</span> <span class="n">spikes</span><span class="p">,</span> <span class="n">clusters</span>
 
 
 <div class="viewcode-block" id="merge_clusters_channels"><a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.merge_clusters_channels">[docs]</a><span class="k">def</span> <span class="nf">merge_clusters_channels</span><span class="p">(</span><span class="n">dic_clus</span><span class="p">,</span> <span class="n">channels</span><span class="p">,</span> <span class="n">keys_to_add_extra</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-    <span class="sd">&#39;&#39;&#39;</span>
+    <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Takes (default and any extra) values in given keys from channels and assign them to clusters.</span>
 <span class="sd">    If channels does not contain any data, the new keys are added to clusters but left empty.</span>
 <span class="sd">    :param dic_clus: dict of bunch, 1 bunch per probe, containing cluster information</span>
@@ -474,7 +504,7 @@
 <span class="sd">    :param keys_to_add_extra: Any extra keys contained in channels (will be added to default</span>
 <span class="sd">    [&#39;acronym&#39;, &#39;atlas_id&#39;])</span>
 <span class="sd">    :return: clusters (dict of bunch, 1 bunch per probe), with new keys values.</span>
-<span class="sd">    &#39;&#39;&#39;</span>
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">probe_labels</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">channels</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>  <span class="c1"># Convert dict_keys into list</span>
     <span class="n">keys_to_add_default</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;acronym&#39;</span><span class="p">,</span> <span class="s1">&#39;atlas_id&#39;</span><span class="p">,</span> <span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="s1">&#39;z&#39;</span><span class="p">]</span>
 
@@ -529,6 +559,36 @@
 
     <span class="n">dic_clus</span> <span class="o">=</span> <span class="n">merge_clusters_channels</span><span class="p">(</span><span class="n">dic_clus</span><span class="p">,</span> <span class="n">channels</span><span class="p">,</span> <span class="n">keys_to_add_extra</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">dic_spk_bunch</span><span class="p">,</span> <span class="n">dic_clus</span><span class="p">,</span> <span class="n">channels</span></div>
+
+
+<div class="viewcode-block" id="load_passive_rfmap"><a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.load_passive_rfmap">[docs]</a><span class="k">def</span> <span class="nf">load_passive_rfmap</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    For a given eid load in the passive receptive field mapping protocol data</span>
+<span class="sd">    :param eid: eid or pathlib.Path of the local session</span>
+<span class="sd">    :param one:</span>
+<span class="sd">    :return: rf_map</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">Path</span><span class="p">):</span>
+        <span class="n">alf_path</span> <span class="o">=</span> <span class="n">eid</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;alf&#39;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">one</span> <span class="o">=</span> <span class="n">one</span> <span class="ow">or</span> <span class="n">ONE</span><span class="p">()</span>
+        <span class="n">dtypes</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;_iblrig_RFMapStim.raw&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;_ibl_passiveRFM.times&#39;</span><span class="p">,</span>
+        <span class="p">}</span>
+
+        <span class="n">_</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">dataset_types</span><span class="o">=</span><span class="n">dtypes</span><span class="p">,</span> <span class="n">download_only</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">alf_path</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">path_from_eid</span><span class="p">(</span><span class="n">eid</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;alf&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Load in the receptive field mapping data</span>
+    <span class="n">rf_map</span> <span class="o">=</span> <span class="n">alf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="n">alf_path</span><span class="p">,</span> <span class="nb">object</span><span class="o">=</span><span class="s1">&#39;passiveRFM&#39;</span><span class="p">,</span> <span class="n">namespace</span><span class="o">=</span><span class="s1">&#39;ibl&#39;</span><span class="p">)</span>
+    <span class="n">frames</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fromfile</span><span class="p">(</span><span class="n">alf_path</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;raw_passive_data&#39;</span><span class="p">,</span> <span class="s1">&#39;_iblrig_RFMapStim.raw.bin&#39;</span><span class="p">),</span>
+                         <span class="n">dtype</span><span class="o">=</span><span class="s2">&quot;uint8&quot;</span><span class="p">)</span>
+    <span class="n">y_pix</span><span class="p">,</span> <span class="n">x_pix</span> <span class="o">=</span> <span class="mi">15</span><span class="p">,</span> <span class="mi">15</span>
+    <span class="n">frames</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">frames</span><span class="p">,</span> <span class="p">[</span><span class="n">y_pix</span><span class="p">,</span> <span class="n">x_pix</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">order</span><span class="o">=</span><span class="s2">&quot;F&quot;</span><span class="p">),</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+    <span class="n">rf_map</span><span class="p">[</span><span class="s1">&#39;frames&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">frames</span>
+
+    <span class="k">return</span> <span class="n">rf_map</span></div>
 
 
 <div class="viewcode-block" id="load_wheel_reaction_times"><a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.load_wheel_reaction_times">[docs]</a><span class="k">def</span> <span class="nf">load_wheel_reaction_times</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>

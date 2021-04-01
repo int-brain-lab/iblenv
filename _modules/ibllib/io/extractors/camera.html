@@ -1,0 +1,884 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>ibllib.io.extractors.camera &mdash; IBL Library  documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/copybutton.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/css/style.css" type="text/css" />
+
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
+        <script src="../../../../_static/jquery.js"></script>
+        <script src="../../../../_static/underscore.js"></script>
+        <script src="../../../../_static/doctools.js"></script>
+        <script src="../../../../_static/language_data.js"></script>
+        <script src="../../../../_static/clipboard.min.js"></script>
+        <script src="../../../../_static/copybutton.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    
+    <script type="text/javascript" src="../../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../../index.html" class="icon icon-home" alt="Documentation Home"> IBL Library
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../01_overview.html">IBL data structure</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../02_installation.html">Installation</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../03_one.html">ONE</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../04_datajoint.html">Datajoint</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../05_tutorials.html">Tutorials</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../06_examples.html">Examples</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../07_contribution.html">Contribution Statement</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../08_api_reference.html">API Reference</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">IBL Library</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../../../index.html">Module code</a> &raquo;</li>
+        
+      <li>ibllib.io.extractors.camera</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for ibllib.io.extractors.camera</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot; Camera extractor functions</span>
+<span class="sd">This module handles extraction of camera timestamps for both Bpod and FPGA.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
+
+<span class="kn">import</span> <span class="nn">cv2</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+
+<span class="kn">from</span> <span class="nn">oneibl.stream</span> <span class="kn">import</span> <span class="n">VideoStreamer</span>
+<span class="kn">import</span> <span class="nn">ibllib.dsp.utils</span> <span class="k">as</span> <span class="nn">dsp</span>
+<span class="kn">from</span> <span class="nn">ibllib.plots</span> <span class="kn">import</span> <span class="n">squares</span><span class="p">,</span> <span class="n">vertical_lines</span>
+<span class="kn">from</span> <span class="nn">ibllib.io.video</span> <span class="kn">import</span> <span class="n">assert_valid_label</span>
+<span class="kn">from</span> <span class="nn">brainbox.numerical</span> <span class="kn">import</span> <span class="n">within_ranges</span>
+<span class="kn">from</span> <span class="nn">ibllib.io.extractors.base</span> <span class="kn">import</span> <span class="n">get_session_extractor_type</span>
+<span class="kn">from</span> <span class="nn">ibllib.io.extractors.ephys_fpga</span> <span class="kn">import</span> <span class="n">_get_sync_fronts</span><span class="p">,</span> <span class="n">get_main_probe_sync</span>
+<span class="kn">import</span> <span class="nn">ibllib.io.raw_data_loaders</span> <span class="k">as</span> <span class="nn">raw</span>
+<span class="kn">from</span> <span class="nn">ibllib.io.extractors.base</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">BaseBpodTrialsExtractor</span><span class="p">,</span>
+    <span class="n">BaseExtractor</span><span class="p">,</span>
+    <span class="n">run_extractor_classes</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;ibllib&#39;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="extract_camera_sync"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.camera.html#ibllib.io.extractors.camera.extract_camera_sync">[docs]</a><span class="k">def</span> <span class="nf">extract_camera_sync</span><span class="p">(</span><span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Extract camera timestamps from the sync matrix</span>
+
+<span class="sd">    :param sync: dictionary &#39;times&#39;, &#39;polarities&#39; of fronts detected on sync trace</span>
+<span class="sd">    :param chmap: dictionary containing channel indices. Default to constant.</span>
+<span class="sd">    :return: dictionary containing camera timestamps</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">assert</span><span class="p">(</span><span class="n">chmap</span><span class="p">)</span>
+    <span class="n">sr</span> <span class="o">=</span> <span class="n">_get_sync_fronts</span><span class="p">(</span><span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span><span class="p">[</span><span class="s1">&#39;right_camera&#39;</span><span class="p">])</span>
+    <span class="n">sl</span> <span class="o">=</span> <span class="n">_get_sync_fronts</span><span class="p">(</span><span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span><span class="p">[</span><span class="s1">&#39;left_camera&#39;</span><span class="p">])</span>
+    <span class="n">sb</span> <span class="o">=</span> <span class="n">_get_sync_fronts</span><span class="p">(</span><span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span><span class="p">[</span><span class="s1">&#39;body_camera&#39;</span><span class="p">])</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;right&#39;</span><span class="p">:</span> <span class="n">sr</span><span class="o">.</span><span class="n">times</span><span class="p">[::</span><span class="mi">2</span><span class="p">],</span>
+            <span class="s1">&#39;left&#39;</span><span class="p">:</span> <span class="n">sl</span><span class="o">.</span><span class="n">times</span><span class="p">[::</span><span class="mi">2</span><span class="p">],</span>
+            <span class="s1">&#39;body&#39;</span><span class="p">:</span> <span class="n">sb</span><span class="o">.</span><span class="n">times</span><span class="p">[::</span><span class="mi">2</span><span class="p">]}</span></div>
+
+
+<div class="viewcode-block" id="get_video_length"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.camera.html#ibllib.io.extractors.camera.get_video_length">[docs]</a><span class="k">def</span> <span class="nf">get_video_length</span><span class="p">(</span><span class="n">video_path</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns video length</span>
+<span class="sd">    :param video_path: A path to the video</span>
+<span class="sd">    :return:</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">is_url</span> <span class="o">=</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">video_path</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="n">video_path</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;http&#39;</span><span class="p">)</span>
+    <span class="n">cap</span> <span class="o">=</span> <span class="n">VideoStreamer</span><span class="p">(</span><span class="n">video_path</span><span class="p">)</span><span class="o">.</span><span class="n">cap</span> <span class="k">if</span> <span class="n">is_url</span> <span class="k">else</span> <span class="n">cv2</span><span class="o">.</span><span class="n">VideoCapture</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">video_path</span><span class="p">))</span>
+    <span class="k">assert</span> <span class="n">cap</span><span class="o">.</span><span class="n">isOpened</span><span class="p">(),</span> <span class="sa">f</span><span class="s1">&#39;Failed to open video file </span><span class="si">{</span><span class="n">video_path</span><span class="si">}</span><span class="s1">&#39;</span>
+    <span class="n">length</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">cap</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">cv2</span><span class="o">.</span><span class="n">CAP_PROP_FRAME_COUNT</span><span class="p">))</span>
+    <span class="n">cap</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">length</span></div>
+
+
+<div class="viewcode-block" id="CameraTimestampsFPGA"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.camera.html#ibllib.io.extractors.camera.CameraTimestampsFPGA">[docs]</a><span class="k">class</span> <span class="nc">CameraTimestampsFPGA</span><span class="p">(</span><span class="n">BaseExtractor</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">session_path</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">label</span> <span class="o">=</span> <span class="n">assert_valid_label</span><span class="p">(</span><span class="n">label</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">save_names</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;_ibl_</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">Camera.times.npy&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">var_names</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">_camera_timestamps&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log_level</span> <span class="o">=</span> <span class="n">_logger</span><span class="o">.</span><span class="n">level</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__del__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_log_level</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sync</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">chmap</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">video_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">display</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">extrapolate_missing</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The raw timestamps are taken from the FPGA. These are the times of the camera&#39;s frame TTLs.</span>
+<span class="sd">        If the pin state file exists, these timestamps are aligned to the video frames using the</span>
+<span class="sd">        audio TTLs.  Frames missing from the embedded frame count are removed from the timestamps</span>
+<span class="sd">        array.</span>
+<span class="sd">        If the pin state file does not exist, the left and right camera timestamps may be aligned</span>
+<span class="sd">        using the wheel data.</span>
+<span class="sd">        :param sync: dictionary &#39;times&#39;, &#39;polarities&#39; of fronts detected on sync trace.</span>
+<span class="sd">        :param chmap: dictionary containing channel indices. Default to constant.</span>
+<span class="sd">        :param video_path: an optional path for fetching the number of frames.  If None,</span>
+<span class="sd">        the video is loaded from the session path.  If an int is provided this is taken to be</span>
+<span class="sd">        the total number of frames.</span>
+<span class="sd">        :param display: if True, the audio and GPIO fronts are plotted.</span>
+<span class="sd">        :param extrapolate_missing: if True, any missing timestamps at the beginning and end of</span>
+<span class="sd">        the session are extrapolated based on the median frame rate, otherwise they will be NaNs.</span>
+<span class="sd">        :return: a numpy array of camera timestamps</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">fpga_times</span> <span class="o">=</span> <span class="n">extract_camera_sync</span><span class="p">(</span><span class="n">sync</span><span class="o">=</span><span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span><span class="o">=</span><span class="n">chmap</span><span class="p">)</span>
+        <span class="n">count</span><span class="p">,</span> <span class="p">(</span><span class="o">*</span><span class="n">_</span><span class="p">,</span> <span class="n">gpio</span><span class="p">)</span> <span class="o">=</span> <span class="n">raw</span><span class="o">.</span><span class="n">load_embedded_frame_data</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">gpio</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">gpio</span><span class="p">[</span><span class="s1">&#39;indices&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">size</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Aligning to audio TTLs&#39;</span><span class="p">)</span>
+            <span class="c1"># Extract audio TTLs</span>
+            <span class="n">audio</span> <span class="o">=</span> <span class="n">_get_sync_fronts</span><span class="p">(</span><span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span><span class="p">[</span><span class="s1">&#39;audio&#39;</span><span class="p">])</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">ts</span> <span class="o">=</span> <span class="n">raw</span><span class="o">.</span><span class="n">load_camera_ssv_times</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                NB: Some of the audio TTLs occur very close together, and are therefore not</span>
+<span class="sd">                reflected in the pin state.  This function removes those.  Also converts frame</span>
+<span class="sd">                times to FPGA time.</span>
+<span class="sd">                &quot;&quot;&quot;</span>
+                <span class="n">gpio</span><span class="p">,</span> <span class="n">audio</span><span class="p">,</span> <span class="n">ts</span> <span class="o">=</span> <span class="n">groom_pin_state</span><span class="p">(</span><span class="n">gpio</span><span class="p">,</span> <span class="n">audio</span><span class="p">,</span> <span class="n">ts</span><span class="p">,</span> <span class="n">display</span><span class="o">=</span><span class="n">display</span><span class="p">)</span>
+                <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                The length of the count and pin state are regularly longer than the length of</span>
+<span class="sd">                the video file.  Here we assert that the video is either shorter or the same</span>
+<span class="sd">                length as the arrays, and  we make an assumption that the missing frames are</span>
+<span class="sd">                right at the end of the video.  We therefore simply shorten the arrays to match</span>
+<span class="sd">                the length of the video.</span>
+<span class="sd">                &quot;&quot;&quot;</span>
+                <span class="k">if</span> <span class="n">video_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">filename</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;_iblrig_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="si">}</span><span class="s1">Camera.raw.mp4&#39;</span>
+                    <span class="n">video_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;raw_video_data&#39;</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
+                <span class="c1"># Permit the video path to be the length for development and debugging purposes</span>
+                <span class="n">length</span> <span class="o">=</span> <span class="p">(</span><span class="n">video_path</span>
+                          <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">video_path</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span>
+                          <span class="k">else</span> <span class="n">get_video_length</span><span class="p">(</span><span class="n">video_path</span><span class="p">))</span>
+                <span class="n">_logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Number of video frames = </span><span class="si">{</span><span class="n">length</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">count</span><span class="o">.</span><span class="n">size</span> <span class="o">&gt;</span> <span class="n">length</span><span class="p">:</span>
+                    <span class="n">count</span> <span class="o">=</span> <span class="n">count</span><span class="p">[:</span><span class="n">length</span><span class="p">]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">assert</span> <span class="n">length</span> <span class="o">==</span> <span class="n">count</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="s1">&#39;fewer counts than frames&#39;</span>
+                <span class="n">raw_ts</span> <span class="o">=</span> <span class="n">fpga_times</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">]</span>
+                <span class="k">return</span> <span class="n">align_with_audio</span><span class="p">(</span><span class="n">raw_ts</span><span class="p">,</span> <span class="n">audio</span><span class="p">,</span> <span class="n">gpio</span><span class="p">,</span> <span class="n">count</span><span class="p">,</span>
+                                        <span class="n">display</span><span class="o">=</span><span class="n">display</span><span class="p">,</span>
+                                        <span class="n">extrapolate_missing</span><span class="o">=</span><span class="n">extrapolate_missing</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">AssertionError</span> <span class="k">as</span> <span class="n">ex</span><span class="p">:</span>
+                <span class="n">_logger</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="s1">&#39;Failed to extract using audio: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">ex</span><span class="p">)</span>
+
+        <span class="c1"># If you reach here extracting using audio TTLs was not possible</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Alignment by wheel data not yet implemented&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">fpga_times</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="CameraTimestampsBpod"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.camera.html#ibllib.io.extractors.camera.CameraTimestampsBpod">[docs]</a><span class="k">class</span> <span class="nc">CameraTimestampsBpod</span><span class="p">(</span><span class="n">BaseBpodTrialsExtractor</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Get the camera timestamps from the Bpod</span>
+
+<span class="sd">    The camera events are logged only during the events not in between, so the times need</span>
+<span class="sd">    to be interpolated</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">save_names</span> <span class="o">=</span> <span class="s1">&#39;_ibl_leftCamera.times.npy&#39;</span>
+    <span class="n">var_names</span> <span class="o">=</span> <span class="s1">&#39;left_camera_timestamps&#39;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log_level</span> <span class="o">=</span> <span class="n">_logger</span><span class="o">.</span><span class="n">level</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__del__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_log_level</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">video_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">display</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">extrapolate_missing</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The raw timestamps are taken from the Bpod. These are the times of the camera&#39;s frame TTLs.</span>
+<span class="sd">        If the pin state file exists, these timestamps are aligned to the video frames using the</span>
+<span class="sd">        audio TTLs.  Frames missing from the embedded frame count are removed from the timestamps</span>
+<span class="sd">        array.</span>
+<span class="sd">        If the pin state file does not exist, the left camera timestamps may be aligned using the</span>
+<span class="sd">        wheel data.</span>
+<span class="sd">        :param video_path: an optional path for fetching the number of frames.  If None,</span>
+<span class="sd">        the video is loaded from the session path.  If an int is provided this is taken to be</span>
+<span class="sd">        the total number of frames.</span>
+<span class="sd">        :param display: if True, the audio and GPIO fronts are plotted.</span>
+<span class="sd">        :param extrapolate_missing: if True, any missing timestamps at the beginning and end of</span>
+<span class="sd">        the session are extrapolated based on the median frame rate, otherwise they will be NaNs.</span>
+<span class="sd">        :return: a numpy array of camera timestamps</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">raw_ts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_times_from_bpod</span><span class="p">()</span>
+        <span class="n">count</span><span class="p">,</span> <span class="p">(</span><span class="o">*</span><span class="n">_</span><span class="p">,</span> <span class="n">gpio</span><span class="p">)</span> <span class="o">=</span> <span class="n">raw</span><span class="o">.</span><span class="n">load_embedded_frame_data</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="s1">&#39;left&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">video_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">filename</span> <span class="o">=</span> <span class="s1">&#39;_iblrig_leftCamera.raw.mp4&#39;</span>
+            <span class="n">video_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;raw_video_data&#39;</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
+        <span class="c1"># Permit the video path to be the length for development and debugging purposes</span>
+        <span class="n">length</span> <span class="o">=</span> <span class="n">video_path</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">video_path</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="k">else</span> <span class="n">get_video_length</span><span class="p">(</span><span class="n">video_path</span><span class="p">)</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Number of video frames = </span><span class="si">{</span><span class="n">length</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Check if the GPIO is usable for extraction.  GPIO is None if the file does not exist,</span>
+        <span class="c1"># is empty, or contains only one value (i.e. doesn&#39;t change)</span>
+        <span class="k">if</span> <span class="n">gpio</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">gpio</span><span class="p">[</span><span class="s1">&#39;indices&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">size</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Aligning to audio TTLs&#39;</span><span class="p">)</span>
+            <span class="c1"># Extract audio TTLs</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">audio</span> <span class="o">=</span> <span class="n">raw</span><span class="o">.</span><span class="n">load_bpod_fronts</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">)</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">ts</span> <span class="o">=</span> <span class="n">raw</span><span class="o">.</span><span class="n">load_camera_ssv_times</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="s1">&#39;left&#39;</span><span class="p">)</span>
+            <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            There are many audio TTLs that are for some reason missed by the GPIO.  Conversely</span>
+<span class="sd">            the last GPIO doesn&#39;t often correspond to any audio TTL.  These will be removed.</span>
+<span class="sd">            The drift appears to be less severe than the FPGA, so when assigning TTLs we&#39;ll take</span>
+<span class="sd">            the nearest TTL within 500ms.  The go cue TTLs comprise two short pulses ~3ms apart.</span>
+<span class="sd">            We will fuse any TTLs less than 5ms apart to make assignment more accurate.</span>
+<span class="sd">            &quot;&quot;&quot;</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">gpio</span><span class="p">,</span> <span class="n">audio</span><span class="p">,</span> <span class="n">ts</span> <span class="o">=</span> <span class="n">groom_pin_state</span><span class="p">(</span><span class="n">gpio</span><span class="p">,</span> <span class="n">audio</span><span class="p">,</span> <span class="n">ts</span><span class="p">,</span> <span class="n">take</span><span class="o">=</span><span class="s1">&#39;nearest&#39;</span><span class="p">,</span>
+                                                  <span class="n">tolerance</span><span class="o">=.</span><span class="mi">5</span><span class="p">,</span> <span class="n">min_diff</span><span class="o">=</span><span class="mf">5e-3</span><span class="p">,</span> <span class="n">display</span><span class="o">=</span><span class="n">display</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">count</span><span class="o">.</span><span class="n">size</span> <span class="o">&gt;</span> <span class="n">length</span><span class="p">:</span>
+                    <span class="n">count</span> <span class="o">=</span> <span class="n">count</span><span class="p">[:</span><span class="n">length</span><span class="p">]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">assert</span> <span class="n">length</span> <span class="o">==</span> <span class="n">count</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="s1">&#39;fewer counts than frames&#39;</span>
+
+                <span class="k">return</span> <span class="n">align_with_audio</span><span class="p">(</span><span class="n">raw_ts</span><span class="p">,</span> <span class="n">audio</span><span class="p">,</span> <span class="n">gpio</span><span class="p">,</span> <span class="n">count</span><span class="p">,</span>
+                                        <span class="n">extrapolate_missing</span><span class="p">,</span> <span class="n">display</span><span class="o">=</span><span class="n">display</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">AssertionError</span> <span class="k">as</span> <span class="n">ex</span><span class="p">:</span>
+                <span class="n">_logger</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="s1">&#39;Failed to extract using audio: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">ex</span><span class="p">)</span>
+
+        <span class="c1"># If you reach here extracting using audio TTLs was not possible</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Alignment by wheel data not yet implemented&#39;</span><span class="p">)</span>
+        <span class="c1"># Extrapolate at median frame rate</span>
+        <span class="n">n_missing</span> <span class="o">=</span> <span class="n">length</span> <span class="o">-</span> <span class="n">raw_ts</span><span class="o">.</span><span class="n">size</span>
+        <span class="k">if</span> <span class="n">n_missing</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">n_missing</span><span class="si">}</span><span class="s1"> fewer Bpod timestamps than frames; &#39;</span>
+                            <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="s2">&quot;extrapolating&quot;</span> <span class="k">if</span> <span class="n">extrapolate_missing</span> <span class="k">else</span> <span class="s2">&quot;appending nans&quot;</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="n">frate</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">raw_ts</span><span class="p">))</span>
+            <span class="n">to_app</span> <span class="o">=</span> <span class="p">((</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n_missing</span><span class="p">,</span> <span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="n">frate</span> <span class="o">+</span> <span class="n">raw_ts</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                      <span class="k">if</span> <span class="n">extrapolate_missing</span>
+                      <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">n_missing</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">))</span>
+            <span class="n">raw_ts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="n">raw_ts</span><span class="p">,</span> <span class="n">to_app</span><span class="p">]</span>  <span class="c1"># Append the missing times</span>
+        <span class="k">elif</span> <span class="n">n_missing</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="nb">abs</span><span class="p">(</span><span class="n">n_missing</span><span class="p">)</span><span class="si">}</span><span class="s1"> fewer frames than Bpod timestamps&#39;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">raw_ts</span>
+
+    <span class="k">def</span> <span class="nf">_times_from_bpod</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">ntrials</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">)</span>
+
+        <span class="n">cam_times</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">n_frames</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">n_out_of_sync</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">ind</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">ntrials</span><span class="p">):</span>
+            <span class="c1"># get upgoing and downgoing fronts</span>
+            <span class="n">pin</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">[</span><span class="n">ind</span><span class="p">][</span><span class="s1">&#39;behavior_data&#39;</span><span class="p">]</span>
+                           <span class="p">[</span><span class="s1">&#39;Events timestamps&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;Port1In&#39;</span><span class="p">))</span>
+            <span class="n">pout</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">[</span><span class="n">ind</span><span class="p">][</span><span class="s1">&#39;behavior_data&#39;</span><span class="p">]</span>
+                            <span class="p">[</span><span class="s1">&#39;Events timestamps&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;Port1Out&#39;</span><span class="p">))</span>
+            <span class="c1"># some trials at startup may not have the camera working, discard</span>
+            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">pin</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">_logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;trial </span><span class="si">%i</span><span class="s1"> missing TTL events&#39;</span><span class="p">,</span> <span class="n">ind</span><span class="p">)</span>
+                <span class="k">continue</span>
+            <span class="c1"># if the trial starts in the middle of a square, discard the first downgoing front</span>
+            <span class="k">if</span> <span class="n">pout</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">pin</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="n">pout</span> <span class="o">=</span> <span class="n">pout</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+            <span class="c1"># same if the last sample is during an upgoing front,</span>
+            <span class="c1"># always put size as it happens last</span>
+            <span class="n">pin</span> <span class="o">=</span> <span class="n">pin</span><span class="p">[:</span><span class="n">pout</span><span class="o">.</span><span class="n">size</span><span class="p">]</span>
+            <span class="n">frate</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">pin</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">ind</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                assert that the pulses have the same length and that we don&#39;t miss frames during</span>
+<span class="sd">                the trial, the refresh rate of bpod is 100us</span>
+<span class="sd">                &quot;&quot;&quot;</span>
+                <span class="n">test1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="p">(</span><span class="n">pin</span> <span class="o">-</span> <span class="n">pout</span><span class="p">)</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">pin</span> <span class="o">-</span> <span class="n">pout</span><span class="p">))</span> <span class="o">&lt;</span> <span class="mf">0.1</span><span class="p">)</span>
+                <span class="n">test2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">pin</span><span class="p">)</span> <span class="o">-</span> <span class="n">frate</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="mf">0.00011</span><span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">([</span><span class="n">test1</span><span class="p">,</span> <span class="n">test2</span><span class="p">]):</span>
+                    <span class="n">n_out_of_sync</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="c1"># grow a list of cam times for ech trial</span>
+            <span class="n">cam_times</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pin</span><span class="p">)</span>
+            <span class="n">n_frames</span> <span class="o">+=</span> <span class="n">pin</span><span class="o">.</span><span class="n">size</span>
+
+        <span class="k">if</span> <span class="n">n_out_of_sync</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">n_out_of_sync</span><span class="si">}</span><span class="s2"> trials with bpod camera frame times not within&quot;</span>
+                            <span class="sa">f</span><span class="s2">&quot; 10% of the expected sampling rate&quot;</span><span class="p">)</span>
+
+        <span class="n">t_first_frame</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">c</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">cam_times</span><span class="p">])</span>
+        <span class="n">t_last_frame</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">c</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">cam_times</span><span class="p">])</span>
+        <span class="n">frate</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmedian</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">c</span><span class="p">))</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">cam_times</span><span class="p">]))</span>
+        <span class="n">intertrial_duration</span> <span class="o">=</span> <span class="n">t_first_frame</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="o">-</span> <span class="n">t_last_frame</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">intertrial_missed_frames</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">intertrial_duration</span> <span class="o">*</span> <span class="n">frate</span><span class="p">))</span> <span class="o">-</span> <span class="mi">1</span>
+
+        <span class="c1"># initialize the full times array</span>
+        <span class="n">frame_times</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_frames</span> <span class="o">+</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">intertrial_missed_frames</span><span class="p">)))</span>
+        <span class="n">ii</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">trial</span><span class="p">,</span> <span class="n">cam_time</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">cam_times</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">cam_time</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="c1"># populate first the recovered times within the trials</span>
+                <span class="n">frame_times</span><span class="p">[</span><span class="n">ii</span><span class="p">:</span> <span class="n">ii</span> <span class="o">+</span> <span class="n">cam_time</span><span class="o">.</span><span class="n">size</span><span class="p">]</span> <span class="o">=</span> <span class="n">cam_time</span>
+                <span class="n">ii</span> <span class="o">+=</span> <span class="n">cam_time</span><span class="o">.</span><span class="n">size</span>
+            <span class="k">if</span> <span class="n">trial</span> <span class="o">==</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">cam_times</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+                <span class="k">break</span>
+            <span class="c1"># then extrapolate in-between</span>
+            <span class="n">nmiss</span> <span class="o">=</span> <span class="n">intertrial_missed_frames</span><span class="p">[</span><span class="n">trial</span><span class="p">]</span>
+            <span class="n">frame_times</span><span class="p">[</span><span class="n">ii</span><span class="p">:</span> <span class="n">ii</span> <span class="o">+</span> <span class="n">nmiss</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">cam_time</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">intertrial_duration</span><span class="p">[</span><span class="n">trial</span><span class="p">]</span> <span class="o">/</span>
+                                           <span class="p">(</span><span class="n">nmiss</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">nmiss</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+            <span class="n">ii</span> <span class="o">+=</span> <span class="n">nmiss</span>
+        <span class="k">assert</span> <span class="nb">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">frame_times</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>  <span class="c1"># negative diffs implies a big problem</span>
+        <span class="k">return</span> <span class="n">frame_times</span></div>
+
+
+<div class="viewcode-block" id="align_with_audio"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.camera.html#ibllib.io.extractors.camera.align_with_audio">[docs]</a><span class="k">def</span> <span class="nf">align_with_audio</span><span class="p">(</span><span class="n">timestamps</span><span class="p">,</span> <span class="n">audio</span><span class="p">,</span> <span class="n">pin_state</span><span class="p">,</span> <span class="n">count</span><span class="p">,</span>
+                     <span class="n">extrapolate_missing</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">display</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Groom the raw FPGA or Bpod camera timestamps using the frame embedded audio TTLs and frame</span>
+<span class="sd">    counter.</span>
+<span class="sd">    :param timestamps: An array of raw FPGA or Bpod camera timestamps</span>
+<span class="sd">    :param audio: An array of FPGA or Bpod audio TTL times</span>
+<span class="sd">    :param pin_state: An array of camera pin states</span>
+<span class="sd">    :param count: An array of frame numbers</span>
+<span class="sd">    :param extrapolate_missing: If true and the number of timestamps is fewer than the number of</span>
+<span class="sd">    frame counts, the remaining timestamps are extrapolated based on the frame rate, otherwise</span>
+<span class="sd">    they are NaNs</span>
+<span class="sd">    :param display: Plot the resulting timestamps</span>
+<span class="sd">    :return: The corrected frame timestamps</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Some assertions made on the raw data</span>
+    <span class="c1"># assert count.size == pin_state.size, &#39;frame count and pin state size mismatch&#39;</span>
+    <span class="k">assert</span> <span class="nb">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">count</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">),</span> <span class="s1">&#39;frame count not strictly increasing&#39;</span>
+    <span class="k">assert</span> <span class="nb">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">timestamps</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">),</span> <span class="s1">&#39;FPGA/Bpod camera times not strictly increasing&#39;</span>
+    <span class="n">same_n_ttl</span> <span class="o">=</span> <span class="n">pin_state</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="n">audio</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">size</span>
+    <span class="k">assert</span> <span class="n">same_n_ttl</span><span class="p">,</span> <span class="s1">&#39;more audio TTLs detected on camera than TTLs sent&#39;</span>
+
+    <span class="sd">&quot;&quot;&quot;Here we will ensure that the FPGA camera times match the number of video frames in</span>
+<span class="sd">    length.  We will make the following assumptions:</span>
+
+<span class="sd">    1. The number of FPGA camera times is equal to or greater than the number of video frames.</span>
+<span class="sd">    2. No TTLs were missed between the camera and FPGA.</span>
+<span class="sd">    3. No pin states were missed by Bonsai.</span>
+<span class="sd">    4  No pixel count data was missed by Bonsai.</span>
+
+<span class="sd">    In other words the count and pin state arrays accurately reflect the number of frames</span>
+<span class="sd">    sent by the camera and should therefore be the same length, and the length of the frame</span>
+<span class="sd">    counter should match the number of saved video frames.</span>
+
+<span class="sd">    The missing frame timestamps are removed in three stages:</span>
+
+<span class="sd">    1. Remove any timestamps that occurred before video frame acquisition in Bonsai.</span>
+<span class="sd">    2. Remove any timestamps where the frame counter reported missing frames, i.e. remove the</span>
+<span class="sd">    dropped frames which occurred throughout the session.</span>
+<span class="sd">    3. Remove the trailing timestamps at the end of the session if the camera was turned off</span>
+<span class="sd">    in the wrong order.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Align on first pin state change</span>
+    <span class="n">first_uptick</span> <span class="o">=</span> <span class="n">pin_state</span><span class="p">[</span><span class="s1">&#39;indices&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">first_ttl</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">searchsorted</span><span class="p">(</span><span class="n">timestamps</span><span class="p">,</span> <span class="n">audio</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+    <span class="sd">&quot;&quot;&quot;Here we find up to which index in the FPGA times we discard by taking the difference</span>
+<span class="sd">    between the index of the first pin state change (when the audio TTL was reported by the</span>
+<span class="sd">    camera) and the index of the first audio TTL in FPGA time.  We subtract the difference</span>
+<span class="sd">    between the frame count at the first pin state change and the index to account for any</span>
+<span class="sd">    video frames that were not saved during this period (we will remove those from the</span>
+<span class="sd">    camera FPGA times later).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Minus any frames that were dropped between the start of frame acquisition and the</span>
+    <span class="c1"># first TTL</span>
+    <span class="n">start</span> <span class="o">=</span> <span class="n">first_ttl</span> <span class="o">-</span> <span class="n">first_uptick</span> <span class="o">-</span> <span class="p">(</span><span class="n">count</span><span class="p">[</span><span class="n">first_uptick</span><span class="p">]</span> <span class="o">-</span> <span class="n">first_uptick</span><span class="p">)</span>
+    <span class="c1"># Get approximate frame rate for extrapolating timestamps (if required)</span>
+    <span class="n">frate</span> <span class="o">=</span> <span class="nb">round</span><span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmedian</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">timestamps</span><span class="p">)))</span>
+
+    <span class="k">if</span> <span class="n">start</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">n_missing</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">start</span><span class="p">)</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">n_missing</span><span class="si">}</span><span class="s1"> missing FPGA/Bpod timestamp(s) at start; &#39;</span>
+                        <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="s2">&quot;extrapolating&quot;</span> <span class="k">if</span> <span class="n">extrapolate_missing</span> <span class="k">else</span> <span class="s2">&quot;prepending nans&quot;</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="n">to_app</span> <span class="o">=</span> <span class="p">(</span><span class="n">timestamps</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n_missing</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="n">frate</span>
+                  <span class="k">if</span> <span class="n">extrapolate_missing</span>
+                  <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">n_missing</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">))</span>
+        <span class="n">timestamps</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="n">to_app</span><span class="p">,</span> <span class="n">timestamps</span><span class="p">]</span>  <span class="c1"># Prepend the missing times</span>
+        <span class="n">start</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="c1"># Remove the extraneous timestamps from the beginning and end</span>
+    <span class="n">end</span> <span class="o">=</span> <span class="n">count</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">start</span>
+    <span class="n">ts</span> <span class="o">=</span> <span class="n">timestamps</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">end</span><span class="p">]</span>
+    <span class="n">n_missing</span> <span class="o">=</span> <span class="n">count</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">ts</span><span class="o">.</span><span class="n">size</span> <span class="o">+</span> <span class="mi">1</span>
+    <span class="k">if</span> <span class="n">n_missing</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="c1"># if (n_missing := count[-1] - ts.size + 1) &gt; 0:  # py3.8</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        For ephys sessions there may be fewer FPGA times than frame counts if SpikeGLX is turned</span>
+<span class="sd">        off before the video acquisition workflow.  For Bpod this always occurs because Bpod</span>
+<span class="sd">        finishes before the camera workflow.  For Bpod the times are already extrapolated for</span>
+<span class="sd">        these late frames.&quot;&quot;&quot;</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">n_missing</span><span class="si">}</span><span class="s1"> fewer FPGA/Bpod timestamps than frame counts; &#39;</span>
+                        <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="s2">&quot;extrapolating&quot;</span> <span class="k">if</span> <span class="n">extrapolate_missing</span> <span class="k">else</span> <span class="s2">&quot;appending nans&quot;</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="n">to_app</span> <span class="o">=</span> <span class="p">((</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n_missing</span><span class="p">,</span> <span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="n">frate</span> <span class="o">+</span> <span class="n">ts</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                  <span class="k">if</span> <span class="n">extrapolate_missing</span>
+                  <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">n_missing</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">))</span>
+        <span class="n">ts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="n">ts</span><span class="p">,</span> <span class="n">to_app</span><span class="p">]</span>  <span class="c1"># Append the missing times</span>
+    <span class="k">assert</span> <span class="n">ts</span><span class="o">.</span><span class="n">size</span> <span class="o">&gt;=</span> <span class="n">count</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="s1">&#39;fewer timestamps than frame counts&#39;</span>
+    <span class="k">assert</span> <span class="n">ts</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="n">count</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;more frames recorded in frame count than timestamps &#39;</span>
+
+    <span class="c1"># Remove the rest of the dropped frames</span>
+    <span class="n">ts</span> <span class="o">=</span> <span class="n">ts</span><span class="p">[</span><span class="n">count</span><span class="p">]</span>
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">searchsorted</span><span class="p">(</span><span class="n">ts</span><span class="p">,</span> <span class="n">audio</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span> <span class="o">==</span> <span class="n">first_uptick</span><span class="p">,</span>\
+           <span class="s1">&#39;time of first audio TTL doesn</span><span class="se">\&#39;</span><span class="s1">t match after alignment&#39;</span>
+    <span class="k">if</span> <span class="n">ts</span><span class="o">.</span><span class="n">size</span> <span class="o">!=</span> <span class="n">count</span><span class="o">.</span><span class="n">size</span><span class="p">:</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;number of timestamps and frames don</span><span class="se">\&#39;</span><span class="s1">t match after alignment&#39;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">display</span><span class="p">:</span>
+        <span class="c1"># Plot to check</span>
+        <span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">within_ranges</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">ts</span><span class="o">.</span><span class="n">size</span><span class="p">),</span> <span class="n">pin_state</span><span class="p">[</span><span class="s1">&#39;indices&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
+        <span class="n">y</span> <span class="o">*=</span> <span class="mf">1e-5</span>  <span class="c1"># For scale when zoomed in</span>
+        <span class="n">axes</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">ts</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="s1">&#39;d&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;blue&#39;</span><span class="p">,</span> <span class="n">drawstyle</span><span class="o">=</span><span class="s1">&#39;steps-pre&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;GPIO&#39;</span><span class="p">)</span>
+        <span class="n">axes</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">ts</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">ts</span><span class="p">),</span> <span class="s1">&#39;kx&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;FPGA timestamps&#39;</span><span class="p">)</span>
+        <span class="n">vertical_lines</span><span class="p">(</span><span class="n">audio</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">],</span> <span class="n">ymin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">ymax</span><span class="o">=</span><span class="mf">1e-5</span><span class="p">,</span>
+                       <span class="n">color</span><span class="o">=</span><span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;:&#39;</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;audio TTL&#39;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="n">ts</span></div>
+
+
+<div class="viewcode-block" id="attribute_times"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.camera.html#ibllib.io.extractors.camera.attribute_times">[docs]</a><span class="k">def</span> <span class="nf">attribute_times</span><span class="p">(</span><span class="n">arr</span><span class="p">,</span> <span class="n">events</span><span class="p">,</span> <span class="n">tol</span><span class="o">=.</span><span class="mi">1</span><span class="p">,</span> <span class="n">injective</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">take</span><span class="o">=</span><span class="s1">&#39;first&#39;</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns the values of the first array that correspond to those of the second.</span>
+
+<span class="sd">    Given two arrays of timestamps, the function will return the values of the first array</span>
+<span class="sd">    that most likely correspond to the values of the second.  For each of the values in the</span>
+<span class="sd">    second array, the absolute difference is taken and the index of either the first sufficiently</span>
+<span class="sd">    close value, or simply the closest one, is assigned.</span>
+
+<span class="sd">    If injective is True, once a value has been assigned, to a value it can&#39;t be assigned to</span>
+<span class="sd">    another.  In other words there is a one-to-one mapping between the two arrays.</span>
+
+<span class="sd">    :param arr: An array of event times to attribute to those in `events`</span>
+<span class="sd">    :param events: An array of event times considered a subset of `arr`</span>
+<span class="sd">    :param tol: The max absolute difference between values in order to be considered a match</span>
+<span class="sd">    :param injective: If true, once a value has been assigned it will not be assigned again</span>
+<span class="sd">    :param take: If &#39;first&#39; the first value within tolerance is assigned; if &#39;nearest&#39; the</span>
+<span class="sd">    closest value is assigned</span>
+<span class="sd">    :returns Numpy array the same length as `values`</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">take</span> <span class="o">=</span> <span class="n">take</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">take</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;first&#39;</span><span class="p">,</span> <span class="s1">&#39;nearest&#39;</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Parameter `take` must be either &quot;first&quot; or &quot;nearest&quot;&#39;</span><span class="p">)</span>
+    <span class="n">stack</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">masked_invalid</span><span class="p">(</span><span class="n">arr</span><span class="p">,</span> <span class="n">copy</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">stack</span><span class="o">.</span><span class="n">fill_value</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span>
+    <span class="n">assigned</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">events</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>  <span class="c1"># Initialize output array</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">events</span><span class="p">):</span>
+        <span class="n">dx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">stack</span><span class="o">.</span><span class="n">filled</span><span class="p">()</span> <span class="o">-</span> <span class="n">x</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">dx</span><span class="o">.</span><span class="n">min</span><span class="p">()</span> <span class="o">&lt;</span> <span class="n">tol</span><span class="p">:</span>  <span class="c1"># is any value within tolerance</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">dx</span> <span class="o">&lt;</span> <span class="n">tol</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="n">take</span> <span class="o">==</span> <span class="s1">&#39;first&#39;</span> <span class="k">else</span> <span class="n">dx</span><span class="o">.</span><span class="n">argmin</span><span class="p">()</span>
+            <span class="n">assigned</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">idx</span>
+            <span class="n">stack</span><span class="o">.</span><span class="n">mask</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">injective</span>  <span class="c1"># If one-to-one, remove the assigned value</span>
+    <span class="k">return</span> <span class="n">assigned</span></div>
+
+
+<div class="viewcode-block" id="groom_pin_state"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.camera.html#ibllib.io.extractors.camera.groom_pin_state">[docs]</a><span class="k">def</span> <span class="nf">groom_pin_state</span><span class="p">(</span><span class="n">gpio</span><span class="p">,</span> <span class="n">audio</span><span class="p">,</span> <span class="n">ts</span><span class="p">,</span> <span class="n">tolerance</span><span class="o">=</span><span class="mf">2.</span><span class="p">,</span> <span class="n">display</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">take</span><span class="o">=</span><span class="s1">&#39;first&#39;</span><span class="p">,</span> <span class="n">min_diff</span><span class="o">=</span><span class="mf">0.</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Align the GPIO pin state to the FPGA audio TTLs.  Any audio TTLs not reflected in the pin</span>
+<span class="sd">    state are removed from the dict and the times of the detected fronts are converted to FPGA</span>
+<span class="sd">    time.  At the end of this the number of GPIO fronts should equal the number of audio fronts.</span>
+
+<span class="sd">    Note:</span>
+<span class="sd">      - This function is ultra safe: we probably don&#39;t need assign all the ups and down fronts</span>
+<span class="sd">      separately and could potentially even align the timestamps without removing the missed fronts</span>
+<span class="sd">      - The input gpio and audio dicts may be modified by this function</span>
+<span class="sd">      - For training sessions the frame rate is only 30Hz and the TTLs tend to be broken up by</span>
+<span class="sd">      small gaps.  Setting the min_diff to 5ms helps the timestamp assignment accuracy.</span>
+<span class="sd">    :param gpio: array of GPIO pin state values</span>
+<span class="sd">    :param audio: dict of FPGA audio TTLs (see ibllib.io.extractors.ephys_fpga._get_sync_fronts)</span>
+<span class="sd">    :param ts: camera frame times</span>
+<span class="sd">    :param tolerance: two pulses need to be within this many seconds to be considered related</span>
+<span class="sd">    :param take:  If &#39;first&#39; the first value within tolerance is assigned; if &#39;nearest&#39; the</span>
+<span class="sd">    closest value is assigned</span>
+<span class="sd">    :param display: If true, the resulting timestamps are plotted against the raw audio signal</span>
+<span class="sd">    :param min_diff: Audio TTL fronts less than min_diff seconds apart will be removed</span>
+<span class="sd">    :returns: dict of GPIO FPGA front indices, polarities and FPGA aligned times</span>
+<span class="sd">    :returns: audio times and polarities sans the TTLs not detected in the frame data</span>
+<span class="sd">    :returns: frame times in FPGA time</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Check that the dimensions match</span>
+    <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">gpio</span><span class="p">[</span><span class="s1">&#39;indices&#39;</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">ts</span><span class="o">.</span><span class="n">size</span><span class="p">):</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;GPIO events occurring beyond timestamps array length&#39;</span><span class="p">)</span>
+        <span class="n">keep</span> <span class="o">=</span> <span class="n">gpio</span><span class="p">[</span><span class="s1">&#39;indices&#39;</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">ts</span><span class="o">.</span><span class="n">size</span>
+        <span class="n">gpio</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">gpio</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="n">keep</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">gpio</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+    <span class="k">assert</span> <span class="n">audio</span> <span class="ow">and</span> <span class="n">audio</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">size</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;no audio TTLs for session&#39;</span>
+    <span class="k">assert</span> <span class="n">audio</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="n">audio</span><span class="p">[</span><span class="s1">&#39;polarities&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="s1">&#39;audio data dimension mismatch&#39;</span>
+    <span class="c1"># make sure that there are no 2 consecutive fall or consecutive rise events</span>
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">audio</span><span class="p">[</span><span class="s1">&#39;polarities&#39;</span><span class="p">]))</span> <span class="o">==</span> <span class="mi">2</span><span class="p">),</span> <span class="s1">&#39;consecutive high/low audio events&#39;</span>
+    <span class="c1"># make sure first TTL is high</span>
+    <span class="k">assert</span> <span class="n">audio</span><span class="p">[</span><span class="s1">&#39;polarities&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span>
+    <span class="c1"># make sure audio times in order</span>
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">audio</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="c1"># make sure raw timestamps increase</span>
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">ts</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">),</span> <span class="s1">&#39;timestamps must strictly increase&#39;</span>
+    <span class="c1"># make sure there are state changes</span>
+    <span class="k">assert</span> <span class="n">gpio</span><span class="p">[</span><span class="s1">&#39;indices&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">any</span><span class="p">(),</span> <span class="s1">&#39;no TTLs detected in GPIO&#39;</span>
+    <span class="c1"># # make sure first GPIO state is high</span>
+    <span class="k">assert</span> <span class="n">gpio</span><span class="p">[</span><span class="s1">&#39;polarities&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Some audio TTLs appear to be so short that they are not recorded by the camera.  These can</span>
+<span class="sd">    be as short as a few microseconds.  Applying a cutoff based on framerate was unsuccessful.</span>
+<span class="sd">    Assigning each audio TTL to each pin state change is not easy because some onsets occur very</span>
+<span class="sd">    close together (sometimes &lt; 70ms), on the order of the delay between TTL and frame time.</span>
+<span class="sd">    Also, the two clocks have some degree of drift, so the delay between audio TTL and pin state</span>
+<span class="sd">    change may be zero or even negative.</span>
+
+<span class="sd">    Here we split the events into audio onsets (lo-&gt;hi) and audio offsets (hi-&gt;lo).  For each</span>
+<span class="sd">    uptick in the GPIO pin state, we take the first audio onset time that was within 100ms of it.</span>
+<span class="sd">    We ensure that each audio TTL is assigned only once, so a TTL that is closer to frame 3 than</span>
+<span class="sd">    frame 1 may still be assigned to frame 1.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">ifronts</span> <span class="o">=</span> <span class="n">gpio</span><span class="p">[</span><span class="s1">&#39;indices&#39;</span><span class="p">]</span>  <span class="c1"># The pin state flips</span>
+    <span class="n">audio_times</span> <span class="o">=</span> <span class="n">audio</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">ifronts</span><span class="o">.</span><span class="n">size</span> <span class="o">!=</span> <span class="n">audio</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">size</span><span class="p">:</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;more audio TTLs than GPIO state changes, assigning timestamps&#39;</span><span class="p">)</span>
+        <span class="n">to_remove</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">ifronts</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>  <span class="c1"># unassigned GPIO fronts to remove</span>
+        <span class="n">low2high</span> <span class="o">=</span> <span class="n">ifronts</span><span class="p">[</span><span class="n">gpio</span><span class="p">[</span><span class="s1">&#39;polarities&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="n">high2low</span> <span class="o">=</span> <span class="n">ifronts</span><span class="p">[</span><span class="n">gpio</span><span class="p">[</span><span class="s1">&#39;polarities&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">assert</span> <span class="n">low2high</span><span class="o">.</span><span class="n">size</span> <span class="o">&gt;=</span> <span class="n">high2low</span><span class="o">.</span><span class="n">size</span>
+
+        <span class="c1"># Remove and/or fuse short TTLs</span>
+        <span class="k">if</span> <span class="n">min_diff</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">short</span><span class="p">,</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">audio</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">])</span> <span class="o">&lt;</span> <span class="n">min_diff</span><span class="p">)</span>
+            <span class="n">audio_times</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">audio</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="n">short</span><span class="p">,</span> <span class="n">short</span> <span class="o">+</span> <span class="mi">1</span><span class="p">])</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Removed </span><span class="si">{</span><span class="n">short</span><span class="o">.</span><span class="n">size</span> <span class="o">*</span> <span class="mi">2</span><span class="si">}</span><span class="s1"> fronts TLLs less than &#39;</span>
+                          <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">min_diff</span> <span class="o">*</span> <span class="mf">1e3</span><span class="si">:</span><span class="s1">.0f</span><span class="si">}</span><span class="s1">ms apart&#39;</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="n">audio_times</span><span class="o">.</span><span class="n">size</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;all audio TTLs less than </span><span class="si">{</span><span class="n">min_diff</span><span class="si">}</span><span class="s1">s&#39;</span>
+
+        <span class="c1"># Onsets</span>
+        <span class="n">ups</span> <span class="o">=</span> <span class="n">ts</span><span class="p">[</span><span class="n">low2high</span><span class="p">]</span> <span class="o">-</span> <span class="n">ts</span><span class="p">[</span><span class="n">low2high</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>  <span class="c1"># times relative to first GPIO high</span>
+        <span class="n">onsets</span> <span class="o">=</span> <span class="n">audio_times</span><span class="p">[::</span><span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">audio_times</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>  <span class="c1"># audio times relative to first onset</span>
+        <span class="c1"># assign GPIO fronts to audio onset</span>
+        <span class="n">assigned</span> <span class="o">=</span> <span class="n">attribute_times</span><span class="p">(</span><span class="n">onsets</span><span class="p">,</span> <span class="n">ups</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="n">tolerance</span><span class="p">,</span> <span class="n">take</span><span class="o">=</span><span class="n">take</span><span class="p">)</span>
+        <span class="n">unassigned</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">setdiff1d</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">onsets</span><span class="o">.</span><span class="n">size</span><span class="p">),</span> <span class="n">assigned</span><span class="p">[</span><span class="n">assigned</span> <span class="o">&gt;</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">unassigned</span><span class="o">.</span><span class="n">size</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">unassigned</span><span class="o">.</span><span class="n">size</span><span class="si">}</span><span class="s1"> audio TTL rises were not detected by the camera&#39;</span><span class="p">)</span>
+        <span class="c1"># Check that all pin state upticks could be attributed to an onset TTL</span>
+        <span class="n">missed</span> <span class="o">=</span> <span class="n">assigned</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">missed</span><span class="p">):</span>
+            <span class="c1"># if np.any(missed := assigned == -1):  # py3.8</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="nb">sum</span><span class="p">(</span><span class="n">missed</span><span class="p">)</span><span class="si">}</span><span class="s1"> pin state rises could &#39;</span>
+                            <span class="sa">f</span><span class="s1">&#39;not be attributed to an audio TTL&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">display</span><span class="p">:</span>
+                <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">()</span>
+                <span class="n">vertical_lines</span><span class="p">(</span><span class="n">ups</span><span class="p">[</span><span class="n">assigned</span> <span class="o">&gt;</span> <span class="o">-</span><span class="mi">1</span><span class="p">],</span>
+                               <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;-&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;g&#39;</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span>
+                               <span class="n">label</span><span class="o">=</span><span class="s1">&#39;assigned GPIO up state&#39;</span><span class="p">)</span>
+                <span class="n">vertical_lines</span><span class="p">(</span><span class="n">ups</span><span class="p">[</span><span class="n">missed</span><span class="p">],</span>
+                               <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;-&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span>
+                               <span class="n">label</span><span class="o">=</span><span class="s1">&#39;unassigned GPIO up state&#39;</span><span class="p">)</span>
+                <span class="n">vertical_lines</span><span class="p">(</span><span class="n">onsets</span><span class="p">[</span><span class="n">unassigned</span><span class="p">],</span>
+                               <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;:&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span>
+                               <span class="n">alpha</span><span class="o">=</span><span class="mf">0.3</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;audio onset&#39;</span><span class="p">)</span>
+                <span class="n">vertical_lines</span><span class="p">(</span><span class="n">onsets</span><span class="p">[</span><span class="n">assigned</span><span class="p">],</span>
+                               <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;:&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;b&#39;</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;assigned audio onset&#39;</span><span class="p">)</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+            <span class="c1"># Remove the missed fronts</span>
+            <span class="n">to_remove</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">in1d</span><span class="p">(</span><span class="n">gpio</span><span class="p">[</span><span class="s1">&#39;indices&#39;</span><span class="p">],</span> <span class="n">low2high</span><span class="p">[</span><span class="n">missed</span><span class="p">])</span>
+            <span class="n">assigned</span> <span class="o">=</span> <span class="n">assigned</span><span class="p">[</span><span class="o">~</span><span class="n">missed</span><span class="p">]</span>
+        <span class="n">onsets_</span> <span class="o">=</span> <span class="n">audio_times</span><span class="p">[::</span><span class="mi">2</span><span class="p">][</span><span class="n">assigned</span><span class="p">]</span>
+
+        <span class="c1"># Offsets</span>
+        <span class="n">downs</span> <span class="o">=</span> <span class="n">ts</span><span class="p">[</span><span class="n">high2low</span><span class="p">]</span> <span class="o">-</span> <span class="n">ts</span><span class="p">[</span><span class="n">high2low</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">offsets</span> <span class="o">=</span> <span class="n">audio_times</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">audio_times</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">assigned</span> <span class="o">=</span> <span class="n">attribute_times</span><span class="p">(</span><span class="n">offsets</span><span class="p">,</span> <span class="n">downs</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="n">tolerance</span><span class="p">,</span> <span class="n">take</span><span class="o">=</span><span class="n">take</span><span class="p">)</span>
+        <span class="n">unassigned</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">setdiff1d</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">onsets</span><span class="o">.</span><span class="n">size</span><span class="p">),</span> <span class="n">assigned</span><span class="p">[</span><span class="n">assigned</span> <span class="o">&gt;</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">unassigned</span><span class="o">.</span><span class="n">size</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">unassigned</span><span class="o">.</span><span class="n">size</span><span class="si">}</span><span class="s1"> audio TTL falls were not detected by the camera&#39;</span><span class="p">)</span>
+        <span class="c1"># Check that all pin state downticks could be attributed to an offset TTL</span>
+        <span class="n">missed</span> <span class="o">=</span> <span class="n">assigned</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">missed</span><span class="p">):</span>
+            <span class="c1"># if np.any(missed := assigned == -1):  # py3.8</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="nb">sum</span><span class="p">(</span><span class="n">missed</span><span class="p">)</span><span class="si">}</span><span class="s1"> pin state falls could &#39;</span>
+                            <span class="sa">f</span><span class="s1">&#39;not be attributed to an audio TTL&#39;</span><span class="p">)</span>
+            <span class="c1"># Remove the missed fronts</span>
+            <span class="n">to_remove</span> <span class="o">|=</span> <span class="n">np</span><span class="o">.</span><span class="n">in1d</span><span class="p">(</span><span class="n">gpio</span><span class="p">[</span><span class="s1">&#39;indices&#39;</span><span class="p">],</span> <span class="n">high2low</span><span class="p">[</span><span class="n">missed</span><span class="p">])</span>
+            <span class="n">assigned</span> <span class="o">=</span> <span class="n">assigned</span><span class="p">[</span><span class="o">~</span><span class="n">missed</span><span class="p">]</span>
+        <span class="n">offsets_</span> <span class="o">=</span> <span class="n">audio_times</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">][</span><span class="n">assigned</span><span class="p">]</span>
+
+        <span class="c1"># Audio groomed</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">to_remove</span><span class="p">):</span>
+            <span class="c1"># Check for any orphaned fronts (only one pin state edge was assigned)</span>
+            <span class="n">to_remove</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span><span class="n">to_remove</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">to_remove</span><span class="o">.</span><span class="n">size</span> <span class="o">%</span> <span class="mi">2</span><span class="p">),</span> <span class="s1">&#39;edge&#39;</span><span class="p">)</span>  <span class="c1"># Ensure even size</span>
+            <span class="c1"># Perform xor to find GPIOs where only onset or offset is marked for removal</span>
+            <span class="n">orphaned</span> <span class="o">=</span> <span class="n">to_remove</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+            <span class="k">if</span> <span class="n">orphaned</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+                <span class="sd">&quot;&quot;&quot;If there are orphaned GPIO fronts (i.e. only one edge was assigned to an</span>
+<span class="sd">                audio front), remove the orphaned front its assigned audio TTL. In other words</span>
+<span class="sd">                if both edges cannot be assigned to an audio TTL, we ignore the TTL entirely.</span>
+<span class="sd">                This is a sign that the assignment was bad and extraction may fail.&quot;&quot;&quot;</span>
+                <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Some onsets but not offsets (or vice versa) were not assigned; &#39;</span>
+                                <span class="s1">&#39;this may be a sign of faulty wiring or clock drift&#39;</span><span class="p">)</span>
+                <span class="c1"># Find indices of GPIO upticks where only the downtick was marked for removal</span>
+                <span class="n">orphaned_onsets</span><span class="p">,</span> <span class="o">=</span>  <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="o">~</span><span class="n">to_remove</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">&amp;</span> <span class="n">orphaned</span><span class="p">)</span>
+                <span class="c1"># The onsets_ array already has the other TTLs removed (same size as to_remove ==</span>
+                <span class="c1"># False) so subtract the number of removed elements from index.</span>
+                <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">orphaned_onsets</span><span class="p">):</span>
+                    <span class="n">orphaned_onsets</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">-=</span> <span class="n">to_remove</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)[:</span><span class="n">v</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+                <span class="c1"># Same for offsets...</span>
+                <span class="n">orphaned_offsets</span><span class="p">,</span> <span class="o">=</span>  <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="o">~</span><span class="n">to_remove</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">&amp;</span> <span class="n">orphaned</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">orphaned_offsets</span><span class="p">):</span>
+                    <span class="n">orphaned_offsets</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">-=</span> <span class="n">to_remove</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)[:</span><span class="n">v</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+                <span class="c1"># Remove orphaned audio onsets and offsets</span>
+                <span class="n">onsets_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">onsets_</span><span class="p">,</span> <span class="n">orphaned_onsets</span><span class="p">[</span><span class="n">orphaned_onsets</span> <span class="o">&lt;</span> <span class="n">onsets_</span><span class="o">.</span><span class="n">size</span><span class="p">])</span>
+                <span class="n">offsets_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">offsets_</span><span class="p">,</span> <span class="n">orphaned_offsets</span><span class="p">[</span><span class="n">orphaned_offsets</span> <span class="o">&lt;</span> <span class="n">offsets_</span><span class="o">.</span><span class="n">size</span><span class="p">])</span>
+                <span class="n">_logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">orphaned</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span><span class="si">}</span><span class="s1"> orphaned TTLs removed&#39;</span><span class="p">)</span>
+                <span class="n">to_remove</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)[</span><span class="n">orphaned</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+
+            <span class="c1"># Remove those unassigned GPIOs</span>
+            <span class="n">gpio</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span><span class="p">[</span><span class="o">~</span><span class="n">to_remove</span><span class="p">[:</span><span class="n">v</span><span class="o">.</span><span class="n">size</span><span class="p">]]</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">gpio</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+            <span class="n">ifronts</span> <span class="o">=</span> <span class="n">gpio</span><span class="p">[</span><span class="s1">&#39;indices&#39;</span><span class="p">]</span>
+
+            <span class="c1"># Assert that we&#39;ve removed discrete TTLs</span>
+            <span class="c1"># A failure means e.g. an up-going front of one TTL was missed</span>
+            <span class="c1"># but not the down-going one.</span>
+            <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">gpio</span><span class="p">[</span><span class="s1">&#39;polarities&#39;</span><span class="p">]))</span> <span class="o">==</span> <span class="mi">2</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="n">gpio</span><span class="p">[</span><span class="s1">&#39;polarities&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span>
+
+        <span class="n">audio_</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;times&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">ifronts</span><span class="o">.</span><span class="n">size</span><span class="p">),</span> <span class="s1">&#39;polarities&#39;</span><span class="p">:</span> <span class="n">gpio</span><span class="p">[</span><span class="s1">&#39;polarities&#39;</span><span class="p">]}</span>
+        <span class="n">audio_</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">][::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">onsets_</span>
+        <span class="n">audio_</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">offsets_</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">audio_</span> <span class="o">=</span> <span class="n">audio</span>
+
+    <span class="c1"># Align the frame times to FPGA</span>
+    <span class="n">fcn_a2b</span><span class="p">,</span> <span class="n">drift_ppm</span> <span class="o">=</span> <span class="n">dsp</span><span class="o">.</span><span class="n">sync_timestamps</span><span class="p">(</span><span class="n">ts</span><span class="p">[</span><span class="n">ifronts</span><span class="p">],</span> <span class="n">audio_</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">])</span>
+    <span class="n">_logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;frame audio alignment drift = </span><span class="si">{</span><span class="n">drift_ppm</span><span class="si">:</span><span class="s1">.2f</span><span class="si">}</span><span class="s1">ppm&#39;</span><span class="p">)</span>
+    <span class="c1"># Add times to GPIO dict</span>
+    <span class="n">gpio</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">fcn_a2b</span><span class="p">(</span><span class="n">ts</span><span class="p">[</span><span class="n">ifronts</span><span class="p">])</span>
+
+    <span class="k">if</span> <span class="n">display</span><span class="p">:</span>
+        <span class="c1"># Plot all the onsets and offsets</span>
+        <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">()</span>
+        <span class="c1"># All Audio TTLS</span>
+        <span class="n">squares</span><span class="p">(</span><span class="n">audio</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">],</span> <span class="n">audio</span><span class="p">[</span><span class="s1">&#39;polarities&#39;</span><span class="p">],</span>
+                <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;audio TTLs&#39;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;:&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">,</span> <span class="n">yrange</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.3</span><span class="p">)</span>
+        <span class="c1"># GPIO</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="n">gpio</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">],</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">size</span><span class="p">)</span> <span class="o">%</span> <span class="mi">2</span>
+        <span class="n">squares</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;GPIO&#39;</span><span class="p">)</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">within_ranges</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">ts</span><span class="o">.</span><span class="n">size</span><span class="p">),</span> <span class="n">ifronts</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>  <span class="c1"># 0 or 1 for each frame</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">fcn_a2b</span><span class="p">(</span><span class="n">ts</span><span class="p">),</span> <span class="n">y</span><span class="p">,</span> <span class="s1">&#39;kx&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;cam times&#39;</span><span class="p">)</span>
+        <span class="c1"># Assigned audio</span>
+        <span class="n">squares</span><span class="p">(</span><span class="n">audio_</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">],</span> <span class="n">audio_</span><span class="p">[</span><span class="s1">&#39;polarities&#39;</span><span class="p">],</span>
+                <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;assigned audio TTL&#39;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;:&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;g&#39;</span><span class="p">,</span> <span class="n">yrange</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">&#39;FPGA time (s)&#39;</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_yticks</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s1">&#39;GPIO - audio TTL alignment&#39;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="n">gpio</span><span class="p">,</span> <span class="n">audio_</span><span class="p">,</span> <span class="n">fcn_a2b</span><span class="p">(</span><span class="n">ts</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="extract_all"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.camera.html#ibllib.io.extractors.camera.extract_all">[docs]</a><span class="k">def</span> <span class="nf">extract_all</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">session_type</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    For the IBL ephys task, reads ephys binary file and extract:</span>
+<span class="sd">        -   video time stamps</span>
+<span class="sd">    :param session_path: &#39;/path/to/subject/yyyy-mm-dd/001&#39;</span>
+<span class="sd">    :param session_type: the session type to extract, i.e. &#39;ephys&#39;, &#39;training&#39; or &#39;biased&#39;. If</span>
+<span class="sd">    None the session type is inferred from the settings file.</span>
+<span class="sd">    :param save: Bool, defaults to False</span>
+<span class="sd">    :param kwargs: parameters to pass to the extractor</span>
+<span class="sd">    :return: outputs, files</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">session_type</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">session_type</span> <span class="o">=</span> <span class="n">get_session_extractor_type</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">session_type</span> <span class="o">==</span> <span class="s1">&#39;ephys&#39;</span><span class="p">:</span>
+        <span class="n">labels</span> <span class="o">=</span> <span class="n">assert_valid_label</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;labels&#39;</span><span class="p">,</span> <span class="p">(</span><span class="s1">&#39;left&#39;</span><span class="p">,</span> <span class="s1">&#39;right&#39;</span><span class="p">,</span> <span class="s1">&#39;body&#39;</span><span class="p">)))</span>
+        <span class="n">labels</span> <span class="o">=</span> <span class="p">(</span><span class="n">labels</span><span class="p">,)</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">else</span> <span class="n">labels</span>  <span class="c1"># Ensure list/tuple</span>
+        <span class="n">extractor</span> <span class="o">=</span> <span class="p">[</span><span class="n">partial</span><span class="p">(</span><span class="n">CameraTimestampsFPGA</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span> <span class="k">for</span> <span class="n">label</span> <span class="ow">in</span> <span class="n">labels</span><span class="p">]</span>
+        <span class="k">if</span> <span class="s1">&#39;sync&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+            <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;sync&#39;</span><span class="p">],</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;chmap&#39;</span><span class="p">]</span> <span class="o">=</span> \
+                <span class="n">get_main_probe_sync</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">bin_exists</span><span class="o">=</span><span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;bin_exists&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">))</span>
+    <span class="k">elif</span> <span class="n">session_type</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;biased&#39;</span><span class="p">,</span> <span class="s1">&#39;training&#39;</span><span class="p">,</span> <span class="s1">&#39;habituation&#39;</span><span class="p">]:</span>
+        <span class="k">assert</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;labels&#39;</span><span class="p">,</span> <span class="s1">&#39;left&#39;</span><span class="p">),</span> <span class="s1">&#39;only left camera is currently supported&#39;</span>
+        <span class="n">extractor</span> <span class="o">=</span> <span class="n">CameraTimestampsBpod</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Session type </span><span class="si">{</span><span class="n">session_type</span><span class="si">}</span><span class="s2"> as no matching extractor </span><span class="si">{</span><span class="n">session_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="n">outputs</span><span class="p">,</span> <span class="n">files</span> <span class="o">=</span> <span class="n">run_extractor_classes</span><span class="p">(</span>
+        <span class="n">extractor</span><span class="p">,</span> <span class="n">session_path</span><span class="o">=</span><span class="n">session_path</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="n">save</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">outputs</span><span class="p">,</span> <span class="n">files</span></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        
+        &copy; Copyright 2020, International Brain Laboratory
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

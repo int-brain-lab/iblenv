@@ -182,7 +182,6 @@
 <span class="kn">from</span> <span class="nn">scipy.linalg</span> <span class="kn">import</span> <span class="n">hankel</span>
 <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
 <span class="kn">from</span> <span class="nn">matplotlib.collections</span> <span class="kn">import</span> <span class="n">LineCollection</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">TypeVar</span><span class="p">,</span> <span class="n">Type</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span>
 <span class="c1"># from ibllib.io.extractors.ephys_fpga import WHEEL_TICKS  # FIXME Circular dependencies</span>
 
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;cm_to_deg&#39;</span><span class="p">,</span>
@@ -192,11 +191,7 @@
            <span class="s1">&#39;movements&#39;</span><span class="p">,</span>
            <span class="s1">&#39;samples_to_cm&#39;</span><span class="p">,</span>
            <span class="s1">&#39;traces_by_trial&#39;</span><span class="p">,</span>
-           <span class="s1">&#39;velocity_smoothed&#39;</span><span class="p">,</span>
-           <span class="s1">&#39;within_ranges&#39;</span><span class="p">]</span>
-
-<span class="n">D</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s1">&#39;D&#39;</span><span class="p">,</span> <span class="n">bound</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">generic</span><span class="p">)</span>
-<span class="n">Array</span> <span class="o">=</span> <span class="n">Union</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">]</span>
+           <span class="s1">&#39;velocity_smoothed&#39;</span><span class="p">]</span>
 
 <span class="c1"># Define some constants</span>
 <span class="n">ENC_RES</span> <span class="o">=</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">4</span>  <span class="c1"># Rotary encoder resolution, assumes X4 encoding</span>
@@ -576,151 +571,6 @@
         <span class="n">indices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ind</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">times</span><span class="p">,</span> <span class="n">indices</span>
-
-
-<div class="viewcode-block" id="within_ranges"><a class="viewcode-back" href="../../../_autosummary/brainbox.behavior.wheel.html#brainbox.behavior.wheel.within_ranges">[docs]</a><span class="k">def</span> <span class="nf">within_ranges</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">ranges</span><span class="p">:</span> <span class="n">Array</span><span class="p">,</span> <span class="n">labels</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Array</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-                  <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;vector&#39;</span><span class="p">,</span> <span class="n">dtype</span><span class="p">:</span> <span class="n">Type</span><span class="p">[</span><span class="n">D</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;int8&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Detects which points of the input vector lie within one of the ranges specified in the ranges.</span>
-<span class="sd">    Returns an array the size of x with a 1 if the corresponding point is within a range.</span>
-
-<span class="sd">    The function uses a stable sort algorithm (timsort) to find the edges within the input array.</span>
-<span class="sd">    Edge behaviour is inclusive.</span>
-
-<span class="sd">    Ranges are [(start0, stop0), (start1, stop1), etc.] or n-by-2 numpy array.</span>
-<span class="sd">    The ranges may be optionally assigned a row in &#39;matrix&#39; mode or a numerical label in &#39;vector&#39;</span>
-<span class="sd">    mode. Labels must have a length of n.  Overlapping ranges have a value that is the sum of the</span>
-<span class="sd">    relevant range labels (ones in &#39;matrix&#39; mode).</span>
-
-<span class="sd">    If mode is &#39;matrix&#39; (default) it will give a matrix output where each range is assigned a</span>
-<span class="sd">    particular row index with 1 if the point belongs to that range label.  Multiple ranges can be</span>
-<span class="sd">    assigned to a particular row, e.g. [0, 0,1] would give a 2-by-N matrix with the first two</span>
-<span class="sd">    ranges in the first row.  Points within more than one range are given a value &gt; 1</span>
-<span class="sd">    If mode is &#39;vector&#39; it will give a vector, specifying the range of each point.</span>
-
-<span class="sd">    Parameters</span>
-<span class="sd">    ----------</span>
-<span class="sd">    x : array_like</span>
-<span class="sd">        An array whose points are tested against the ranges.  multi-dimensional arrays are</span>
-<span class="sd">        flattened to 1D</span>
-<span class="sd">    ranges : array_like</span>
-<span class="sd">        A list of tuples or N-by-2 array of ranges to test, where N is the number of ranges,</span>
-<span class="sd">        i.e. [[start0, stop0],</span>
-<span class="sd">        [start1, stop1]]</span>
-<span class="sd">    labels : vector, list</span>
-<span class="sd">        If mode is &#39;vector&#39;; a list of integer labels to demarcate which points lie within each</span>
-<span class="sd">        range.  In &#39;matrix&#39; mode; a list of column indices (ranges can share indices).</span>
-<span class="sd">        The number of labels should match the number of ranges.  If None, ones are used for all</span>
-<span class="sd">        ranges.</span>
-<span class="sd">    mode : {&#39;matrix&#39;, &#39;vector&#39;}</span>
-<span class="sd">        The type of output to return.  If &#39;matrix&#39; (default), an N-by-M matrix is returned where N</span>
-<span class="sd">        is the size of x and M corresponds to the max index in labels, e.g. with labels=[0,1,2],</span>
-<span class="sd">        the output matrix would have 3 columns.  If &#39;vector&#39; a vector the size of x is returned.</span>
-<span class="sd">    dtype : str, numeric or boolean type</span>
-<span class="sd">        The data type of the returned array.  If type is bool, the labels in vector mode will be</span>
-<span class="sd">        ignored.  Default is int8.</span>
-
-
-<span class="sd">    Returns</span>
-<span class="sd">    -------</span>
-<span class="sd">    A vector of size like x where zeros indicate that the points do not lie within ranges (</span>
-<span class="sd">    &#39;vector&#39; mode) or a matrix where out.shape[0] == x.size and out.shape[1] == max(labels) + 1.</span>
-
-<span class="sd">    Examples</span>
-<span class="sd">    -------</span>
-<span class="sd">    # Assert that points in ranges are mutually exclusive</span>
-<span class="sd">    np.all(within_ranges(x, ranges) &lt;= 1)</span>
-
-<span class="sd">    Tests</span>
-<span class="sd">    -------</span>
-<span class="sd">    &gt;&gt;&gt; import numpy as np</span>
-<span class="sd">    &gt;&gt;&gt; within_ranges(np.arange(11), [(1, 2), (5, 8)])</span>
-<span class="sd">    array([0, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0], dtype=int8)</span>
-<span class="sd">    &gt;&gt;&gt; ranges = np.array([[1, 2], [5, 8]])</span>
-<span class="sd">    &gt;&gt;&gt; within_ranges(np.arange(10) + 1, ranges, labels=np.array([0,1]), mode=&#39;matrix&#39;)</span>
-<span class="sd">    array([[1, 1, 0, 0, 0, 0, 0, 0, 0, 0],</span>
-<span class="sd">           [0, 0, 0, 0, 1, 1, 1, 1, 0, 0]], dtype=int8)</span>
-<span class="sd">    &gt;&gt;&gt; within_ranges(np.arange(11), [(1,2), (5,8), (4,6)], labels=[0,1,1], mode=&#39;matrix&#39;)</span>
-<span class="sd">    array([[0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0],</span>
-<span class="sd">           [0, 0, 0, 0, 1, 2, 2, 1, 1, 0, 0]], dtype=int8)</span>
-<span class="sd">    &gt;&gt;&gt; within_ranges(np.arange(10) + 1, ranges, np.array([3,1]), mode=&#39;vector&#39;)</span>
-<span class="sd">    array([3, 3, 0, 0, 1, 1, 1, 1, 0, 0], dtype=int8)</span>
-<span class="sd">    &gt;&gt;&gt; within_ranges(np.arange(11), [(1,2), (5,8), (4,6)], dtype=bool)</span>
-<span class="sd">    array([False,  True,  True, False,  True,  True,  True,  True,  True,</span>
-<span class="sd">           False, False])</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="c1"># Flatten</span>
-    <span class="n">x</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>
-
-    <span class="c1"># Ensure ranges are numpy</span>
-    <span class="n">ranges</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">ranges</span><span class="p">)</span>
-
-    <span class="c1"># Get size info</span>
-    <span class="n">n_points</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">size</span>
-    <span class="n">n_ranges</span> <span class="o">=</span> <span class="n">ranges</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-
-    <span class="k">if</span> <span class="n">labels</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="c1"># In &#39;matrix&#39; mode default row index is 0</span>
-        <span class="n">labels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">n_ranges</span><span class="p">,),</span> <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;uint32&#39;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s1">&#39;vector&#39;</span><span class="p">:</span>  <span class="c1"># Otherwise default numerical label is 1</span>
-            <span class="n">labels</span> <span class="o">+=</span> <span class="mi">1</span>
-    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">labels</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">n_ranges</span><span class="p">,</span> <span class="s1">&#39;range labels do not match number of ranges&#39;</span>
-    <span class="n">n_labels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">labels</span><span class="p">)</span><span class="o">.</span><span class="n">size</span>
-
-    <span class="c1"># If no ranges given, short circuit function and return zeros</span>
-    <span class="k">if</span> <span class="n">n_ranges</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
-
-    <span class="c1"># Check end comes after start in each case</span>
-    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">ranges</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">),</span> <span class="s1">&#39;ranges ends must all be greater than starts&#39;</span>
-
-    <span class="c1"># Make array containing points, starts and finishes</span>
-
-    <span class="c1"># This order means it will be inclusive</span>
-    <span class="n">to_sort</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">ranges</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">x</span><span class="p">,</span> <span class="n">ranges</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]))</span>
-    <span class="c1"># worst case O(n*log(n)) but will be better than  this as most of the array is ordered;</span>
-    <span class="c1"># memory overhead ~n/2</span>
-    <span class="n">idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">to_sort</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="s1">&#39;stable&#39;</span><span class="p">)</span>
-
-    <span class="c1"># Make delta array containing 1 for every start and -1 for every stop</span>
-    <span class="c1"># with one row for each range label</span>
-    <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s1">&#39;matrix&#39;</span><span class="p">:</span>
-        <span class="n">delta_shape</span> <span class="o">=</span> <span class="p">(</span><span class="n">n_labels</span><span class="p">,</span> <span class="n">n_points</span> <span class="o">+</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">n_ranges</span><span class="p">)</span>
-        <span class="n">delta</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">delta_shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;int8&#39;</span><span class="p">)</span>
-
-        <span class="n">delta</span><span class="p">[</span><span class="n">labels</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n_ranges</span><span class="p">)]</span> <span class="o">=</span> <span class="mi">1</span>
-        <span class="n">delta</span><span class="p">[</span><span class="n">labels</span><span class="p">,</span> <span class="n">n_points</span> <span class="o">+</span> <span class="n">n_ranges</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n_ranges</span><span class="p">)]</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
-
-        <span class="c1"># Arrange in order</span>
-        <span class="n">delta_sorted</span> <span class="o">=</span> <span class="n">delta</span><span class="p">[:,</span> <span class="n">idx</span><span class="p">]</span>
-
-        <span class="c1"># Take cumulative sums</span>
-        <span class="n">summed</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="n">delta_sorted</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-
-        <span class="c1"># Reorder back to original order</span>
-        <span class="n">reordered</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">delta_shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
-        <span class="n">reordered</span><span class="p">[:,</span> <span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">summed</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">delta_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">reordered</span><span class="p">[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n_ranges</span><span class="p">,</span> <span class="n">n_points</span> <span class="o">+</span> <span class="n">n_ranges</span><span class="p">)]</span>
-
-    <span class="k">elif</span> <span class="n">mode</span> <span class="o">==</span> <span class="s1">&#39;vector&#39;</span><span class="p">:</span>
-        <span class="n">delta_shape</span> <span class="o">=</span> <span class="p">(</span><span class="n">n_points</span> <span class="o">+</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">n_ranges</span><span class="p">,)</span>
-        <span class="n">r_delta</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">delta_shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;int32&#39;</span><span class="p">)</span>
-        <span class="n">r_delta</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n_ranges</span><span class="p">)]</span> <span class="o">=</span> <span class="n">labels</span>
-        <span class="n">r_delta</span><span class="p">[</span><span class="n">n_points</span> <span class="o">+</span> <span class="n">n_ranges</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n_ranges</span><span class="p">)]</span> <span class="o">=</span> <span class="o">-</span><span class="n">labels</span>
-
-        <span class="c1"># Arrange in order</span>
-        <span class="n">r_delta_sorted</span> <span class="o">=</span> <span class="n">r_delta</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
-
-        <span class="c1"># Take cumulative sum</span>
-        <span class="n">r_summed</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="n">r_delta_sorted</span><span class="p">)</span>
-
-        <span class="c1"># Reorder back to original</span>
-        <span class="n">r_reordered</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">r_summed</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
-        <span class="n">r_reordered</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">r_summed</span>
-
-        <span class="k">return</span> <span class="n">r_reordered</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n_ranges</span><span class="p">,</span> <span class="n">n_points</span> <span class="o">+</span> <span class="n">n_ranges</span><span class="p">)]</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;unknown mode type, options are &quot;matrix&quot; and &quot;vector&quot;&#39;</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="traces_by_trial"><a class="viewcode-back" href="../../../_autosummary/brainbox.behavior.wheel.html#brainbox.behavior.wheel.traces_by_trial">[docs]</a><span class="k">def</span> <span class="nf">traces_by_trial</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">separate</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>

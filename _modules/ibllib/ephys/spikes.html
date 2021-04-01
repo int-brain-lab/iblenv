@@ -176,6 +176,7 @@
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">json</span>
 <span class="kn">import</span> <span class="nn">shutil</span>
+<span class="kn">import</span> <span class="nn">tarfile</span>
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 
@@ -221,6 +222,8 @@
                           <span class="s1">&#39;serial&#39;</span><span class="p">:</span> <span class="n">md</span><span class="o">.</span><span class="n">serial</span><span class="p">,</span> <span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="n">label</span><span class="p">}</span>
         <span class="n">pi</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;insertions&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span> <span class="n">session</span><span class="o">=</span><span class="n">eid</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">label</span><span class="p">)</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">pi</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">qc_dict</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;qc&#39;</span><span class="p">:</span> <span class="s1">&#39;NOT_SET&#39;</span><span class="p">,</span> <span class="s1">&#39;extended_qc&#39;</span><span class="p">:</span> <span class="p">{}}</span>
+            <span class="n">alyx_insertion</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;json&#39;</span><span class="p">:</span> <span class="n">qc_dict</span><span class="p">})</span>
             <span class="n">alyx_insertions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;insertions&#39;</span><span class="p">,</span> <span class="s1">&#39;create&#39;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">alyx_insertion</span><span class="p">))</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">alyx_insertions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
@@ -327,6 +330,58 @@
     <span class="n">m</span> <span class="o">=</span> <span class="n">ephysqc</span><span class="o">.</span><span class="n">phy_model_from_ks2_path</span><span class="p">(</span><span class="n">ks2_path</span><span class="o">=</span><span class="n">ks_path</span><span class="p">,</span> <span class="n">bin_path</span><span class="o">=</span><span class="n">bin_path</span><span class="p">,</span> <span class="n">bin_file</span><span class="o">=</span><span class="n">bin_file</span><span class="p">)</span>
     <span class="n">ac</span> <span class="o">=</span> <span class="n">phylib</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">alf</span><span class="o">.</span><span class="n">EphysAlfCreator</span><span class="p">(</span><span class="n">m</span><span class="p">)</span>
     <span class="n">ac</span><span class="o">.</span><span class="n">convert</span><span class="p">(</span><span class="n">out_path</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="n">label</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="n">force</span><span class="p">,</span> <span class="n">ampfactor</span><span class="o">=</span><span class="n">ampfactor</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ks2_to_tar"><a class="viewcode-back" href="../../../_autosummary/ibllib.ephys.spikes.html#ibllib.ephys.spikes.ks2_to_tar">[docs]</a><span class="k">def</span> <span class="nf">ks2_to_tar</span><span class="p">(</span><span class="n">ks_path</span><span class="p">,</span> <span class="n">out_path</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compress output from kilosort 2 into tar file in order to register to flatiron and move to</span>
+<span class="sd">    spikesorters/ks2_matlab/probexx path. Output file to register</span>
+
+<span class="sd">    :param ks_path: path to kilosort output</span>
+<span class="sd">    :param out_path: path to keep the</span>
+<span class="sd">    :return</span>
+<span class="sd">    path to tar ks output</span>
+
+<span class="sd">    To extract files from the tar file can use this code</span>
+<span class="sd">    Example:</span>
+<span class="sd">        save_path = Path(&#39;folder you want to extract to&#39;)</span>
+<span class="sd">        with tarfile.open(&#39;_kilosort_output.tar&#39;, &#39;r&#39;) as tar_dir:</span>
+<span class="sd">            tar_dir.extractall(path=save_path)</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">ks2_output</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;amplitudes.npy&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;channel_map.npy&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;channel_positions.npy&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;cluster_Amplitude.tsv&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;cluster_ContamPct.tsv&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;cluster_group.tsv&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;cluster_KSLabel.tsv&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;params.py&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;pc_feature_ind.npy&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;pc_features.npy&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;similar_templates.npy&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;spike_clusters.npy&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;spike_sorting_ks2.log&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;spike_templates.npy&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;spike_times.npy&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;template_feature_ind.npy&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;template_features.npy&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;templates.npy&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;templates_ind.npy&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;whitening_mat.npy&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;whitening_mat_inv.npy&#39;</span><span class="p">]</span>
+
+    <span class="n">out_file</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">out_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;_kilosort_raw.output.tar&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">out_file</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Already converted ks2 to tar: for </span><span class="si">{</span><span class="n">ks_path</span><span class="si">}</span><span class="s2">, skipping.&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">out_file</span><span class="p">]</span>
+
+    <span class="k">with</span> <span class="n">tarfile</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">out_file</span><span class="p">,</span> <span class="s1">&#39;x&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">tar_dir</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="n">Path</span><span class="p">(</span><span class="n">ks_path</span><span class="p">)</span><span class="o">.</span><span class="n">iterdir</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">file</span><span class="o">.</span><span class="n">name</span> <span class="ow">in</span> <span class="n">ks2_output</span><span class="p">:</span>
+                <span class="n">tar_dir</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">file</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="p">[</span><span class="n">out_file</span><span class="p">]</span></div>
 </pre></div>
 
            </div>
