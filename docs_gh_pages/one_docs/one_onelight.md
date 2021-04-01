@@ -6,7 +6,7 @@ is hierachically organised into sub-folders and file-names that match the ONE co
 supports data that has been uploaded to a webserver, to figshare (a site offering free hosting of scientific data) or 
 that is stored on a user's local machine. For an example implementation of ONE Light and more information about how to 
 use this interface to automatically upload data to figshare, please refer to this 
-[page](https://github.com/int-brain-lab/ibllib/tree/onelight/).
+[page](https://github.com/int-brain-lab/ibllib/tree/master/oneibl).
 
 The behavioural data associated with the IBL paper: [A standardized and reproducible method to measure decision-making 
 in mice](https://doi.org/10.1101/2020.01.17.909838) has been made available through the ONE Light interface. To get 

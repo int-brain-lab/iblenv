@@ -38,6 +38,7 @@ conda env remove -n iblenv
 
 Install all the repositories in develop mode (the first command can take some time to complete):
 ```
+conda config --set channel_priority false
 conda env create -f ./iblenv/iblenv.yaml
 conda activate iblenv
 conda develop ./ibllib-repo
