@@ -60,13 +60,22 @@ Examples
    06_examples
 
 
+Publically Available Data
+------------------------------------
+
+.. toctree::
+   :maxdepth: 2
+
+   07_public
+
+
 Contribution Statement
 ------------------------------------
 
 .. toctree::
    :maxdepth: 5
 
-   07_contribution
+   08_contribution
 
 
 API
@@ -75,7 +84,7 @@ API
 .. toctree::
    :maxdepth: 2
 
-   08_api_reference.rst
+   09_api_reference.rst
 
 
 * :ref:`genindex`
