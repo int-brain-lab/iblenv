@@ -104,10 +104,13 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../06_examples.html">Examples</a></li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../07_contribution.html">Contribution Statement</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../07_public.html">IBL Public Data</a></li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../08_api_reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../08_contribution.html">Contribution Statement</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../09_api_reference.html">API Reference</a></li>
 </ul>
 
             
@@ -180,9 +183,7 @@
 
 
 <div class="viewcode-block" id="as_dict"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.params.html#ibllib.io.params.as_dict">[docs]</a><span class="k">def</span> <span class="nf">as_dict</span><span class="p">(</span><span class="n">par</span><span class="p">):</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">par</span><span class="p">:</span>
-        <span class="k">return</span> <span class="kc">None</span>
-    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">par</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">par</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">par</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">par</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="k">return</span> <span class="nb">dict</span><span class="p">(</span><span class="n">par</span><span class="o">.</span><span class="n">_asdict</span><span class="p">())</span></div>
@@ -220,36 +221,42 @@
     <span class="k">if</span> <span class="n">sys</span><span class="o">.</span><span class="n">platform</span> <span class="o">==</span> <span class="s1">&#39;win32&#39;</span> <span class="ow">or</span> <span class="n">sys</span><span class="o">.</span><span class="n">platform</span> <span class="o">==</span> <span class="s1">&#39;cygwin&#39;</span><span class="p">:</span>
         <span class="n">pfile</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">PurePath</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;APPDATA&#39;</span><span class="p">],</span> <span class="o">*</span><span class="n">parts</span><span class="p">))</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="n">pfile</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">PurePath</span><span class="p">(</span><span class="n">Path</span><span class="o">.</span><span class="n">home</span><span class="p">(),</span> <span class="o">*</span><span class="n">parts</span><span class="p">))</span>
+        <span class="n">pfile</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">Path</span><span class="o">.</span><span class="n">home</span><span class="p">()</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="o">*</span><span class="n">parts</span><span class="p">))</span>
     <span class="k">return</span> <span class="n">pfile</span></div>
 
 
 <div class="viewcode-block" id="read"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.params.html#ibllib.io.params.read">[docs]</a><span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="n">str_params</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Reads in and parse Json parameter file into dictionary</span>
+<span class="sd">    Reads in and parse Json parameter file into dictionary.  If the parameter file doesn&#39;t</span>
+<span class="sd">    exist and no defaults are provided, a FileNotFound error is raised, otherwise any extra</span>
+<span class="sd">    default parameters will be written into the file.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        # Load parameters, raise error if file not found</span>
+<span class="sd">        par = read(&#39;globus/admin&#39;)</span>
+
+<span class="sd">        # Load with defaults</span>
+<span class="sd">        par = read(&#39;globus/admin&#39;, {&#39;local_endpoint&#39;: None, &#39;remote_endpoint&#39;: None})</span>
+
+<span class="sd">        # Return empty dict if file not found (i.e. touch new param file)</span>
+<span class="sd">        par = read(&#39;new_pars&#39;, {})</span>
 
 <span class="sd">    :param str_params: path to text json file</span>
 <span class="sd">    :param default: default values for missing parameters</span>
 <span class="sd">    :return: named tuple containing parameters</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">pfile</span> <span class="o">=</span> <span class="n">getfile</span><span class="p">(</span><span class="n">str_params</span><span class="p">)</span>
+    <span class="n">par_dict</span> <span class="o">=</span> <span class="n">as_dict</span><span class="p">(</span><span class="n">default</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{}</span>
     <span class="k">if</span> <span class="n">Path</span><span class="p">(</span><span class="n">pfile</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
         <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">pfile</span><span class="p">)</span> <span class="k">as</span> <span class="n">fil</span><span class="p">:</span>
-            <span class="n">par_dict</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">fil</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">par_dict</span> <span class="o">=</span> <span class="n">as_dict</span><span class="p">(</span><span class="n">default</span><span class="p">)</span>
-    <span class="c1"># without default parameters</span>
-    <span class="n">default</span> <span class="o">=</span> <span class="n">as_dict</span><span class="p">(</span><span class="n">default</span><span class="p">)</span>
-    <span class="c1"># TODO : behaviour for non existing file</span>
-    <span class="c1"># tat = params.read(&#39;rijafa&#39;, default={&#39;toto&#39;: &#39;titi&#39;, &#39;tata&#39;: 1})</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">default</span> <span class="ow">or</span> <span class="n">default</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="o">==</span> <span class="n">par_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
-        <span class="k">return</span> <span class="n">from_dict</span><span class="p">(</span><span class="n">par_dict</span><span class="p">)</span>
-    <span class="c1"># if default parameters bring in a new parameter</span>
-    <span class="n">new_keys</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">default</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span><span class="o">.</span><span class="n">difference</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">par_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
-    <span class="k">for</span> <span class="n">nk</span> <span class="ow">in</span> <span class="n">new_keys</span><span class="p">:</span>
-        <span class="n">par_dict</span><span class="p">[</span><span class="n">nk</span><span class="p">]</span> <span class="o">=</span> <span class="n">default</span><span class="p">[</span><span class="n">nk</span><span class="p">]</span>
-    <span class="c1"># write the new parameter file with the extra param</span>
-    <span class="n">write</span><span class="p">(</span><span class="n">str_params</span><span class="p">,</span> <span class="n">par_dict</span><span class="p">)</span>
+            <span class="n">file_pars</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">fil</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+        <span class="n">par_dict</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">file_pars</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">default</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>  <span class="c1"># No defaults provided</span>
+        <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Parameter file </span><span class="si">{</span><span class="n">pfile</span><span class="si">}</span><span class="s1"> not found&#39;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">Path</span><span class="p">(</span><span class="n">pfile</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="ow">or</span> <span class="n">par_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="o">&gt;</span> <span class="n">file_pars</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="c1"># write the new parameter file with the extra param</span>
+        <span class="n">write</span><span class="p">(</span><span class="n">str_params</span><span class="p">,</span> <span class="n">par_dict</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">from_dict</span><span class="p">(</span><span class="n">par_dict</span><span class="p">)</span></div>
 
 

@@ -104,10 +104,13 @@
 <li class="toctree-l1"><a class="reference internal" href="../../06_examples.html">Examples</a></li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../07_contribution.html">Contribution Statement</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../07_public.html">IBL Public Data</a></li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../08_api_reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../08_contribution.html">Contribution Statement</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../09_api_reference.html">API Reference</a></li>
 </ul>
 
             
@@ -181,6 +184,7 @@
 <span class="kn">import</span> <span class="nn">re</span>
 <span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">wraps</span>
 <span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span><span class="p">,</span> <span class="n">PurePath</span>
+<span class="kn">import</span> <span class="nn">shutil</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Dict</span>
 <span class="kn">from</span> <span class="nn">uuid</span> <span class="kn">import</span> <span class="n">UUID</span>
 
@@ -196,7 +200,7 @@
 <span class="c1"># from ibllib.misc.exp_ref import is_exp_ref</span>
 <span class="kn">from</span> <span class="nn">ibllib.exceptions</span> <span class="kn">import</span> \
     <span class="n">ALFMultipleObjectsFound</span><span class="p">,</span> <span class="n">ALFObjectNotFound</span><span class="p">,</span> <span class="n">ALFMultipleCollectionsFound</span>
-<span class="kn">from</span> <span class="nn">ibllib.io</span> <span class="kn">import</span> <span class="n">hashfile</span>
+<span class="kn">from</span> <span class="nn">ibllib.io</span> <span class="kn">import</span> <span class="n">hashfile</span><span class="p">,</span> <span class="n">spikeglx</span>
 <span class="kn">from</span> <span class="nn">ibllib.misc</span> <span class="kn">import</span> <span class="n">pprint</span>
 <span class="kn">from</span> <span class="nn">oneibl.dataclass</span> <span class="kn">import</span> <span class="n">SessionDataInfo</span>
 <span class="kn">from</span> <span class="nn">brainbox.io</span> <span class="kn">import</span> <span class="n">parquet</span>
@@ -1169,32 +1173,44 @@
             <span class="n">parquet</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cache_file</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="p">)</span>
 
 <div class="viewcode-block" id="OneAlyx.download_raw_partial"><a class="viewcode-back" href="../../_autosummary/oneibl.one.html#oneibl.one.OneAlyx.download_raw_partial">[docs]</a>    <span class="k">def</span> <span class="nf">download_raw_partial</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">url_cbin</span><span class="p">,</span> <span class="n">url_ch</span><span class="p">,</span> <span class="n">first_chunk</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">last_chunk</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
-        <span class="k">assert</span> <span class="n">url_cbin</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;.cbin&#39;</span><span class="p">)</span>
-        <span class="k">assert</span> <span class="n">url_ch</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;.ch&#39;</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="nb">str</span><span class="p">(</span><span class="n">url_cbin</span><span class="p">)</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;.cbin&#39;</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="nb">str</span><span class="p">(</span><span class="n">url_ch</span><span class="p">)</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;.ch&#39;</span><span class="p">)</span>
 
         <span class="n">relpath</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">url_cbin</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_par</span><span class="o">.</span><span class="n">HTTP_DATA_SERVER</span><span class="p">,</span> <span class="s1">&#39;.&#39;</span><span class="p">))</span><span class="o">.</span><span class="n">parents</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
         <span class="n">target_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_cache_dir</span><span class="p">(</span><span class="kc">None</span><span class="p">),</span> <span class="n">relpath</span><span class="p">)</span>
         <span class="n">Path</span><span class="p">(</span><span class="n">target_dir</span><span class="p">)</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
-        <span class="c1"># First, download the .ch file.</span>
-        <span class="n">ch_local_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">wc</span><span class="o">.</span><span class="n">http_download_file</span><span class="p">(</span>
-            <span class="n">url_ch</span><span class="p">,</span>
-            <span class="n">username</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_par</span><span class="o">.</span><span class="n">HTTP_DATA_SERVER_LOGIN</span><span class="p">,</span>
-            <span class="n">password</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_par</span><span class="o">.</span><span class="n">HTTP_DATA_SERVER_PWD</span><span class="p">,</span>
-            <span class="n">cache_dir</span><span class="o">=</span><span class="n">target_dir</span><span class="p">,</span> <span class="n">clobber</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">offline</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">return_md5</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
-        <span class="n">ch_local_path</span> <span class="o">=</span> <span class="n">alfio</span><span class="o">.</span><span class="n">remove_uuid_file</span><span class="p">(</span><span class="n">ch_local_path</span><span class="p">)</span>
-        <span class="n">ch_local_path_renamed</span> <span class="o">=</span> <span class="n">ch_local_path</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s1">&#39;.chopped.ch&#39;</span><span class="p">)</span>
-        <span class="n">ch_local_path</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">ch_local_path_renamed</span><span class="p">)</span>
-        <span class="k">assert</span> <span class="n">ch_local_path_renamed</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span>
-        <span class="n">ch_local_path</span> <span class="o">=</span> <span class="n">ch_local_path_renamed</span>
-
+        <span class="c1"># First, download the .ch file if necessary</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">url_ch</span><span class="p">,</span> <span class="n">Path</span><span class="p">):</span>
+            <span class="n">ch_file</span> <span class="o">=</span> <span class="n">url_ch</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">ch_file</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">wc</span><span class="o">.</span><span class="n">http_download_file</span><span class="p">(</span>
+                <span class="n">url_ch</span><span class="p">,</span>
+                <span class="n">username</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_par</span><span class="o">.</span><span class="n">HTTP_DATA_SERVER_LOGIN</span><span class="p">,</span>
+                <span class="n">password</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_par</span><span class="o">.</span><span class="n">HTTP_DATA_SERVER_PWD</span><span class="p">,</span>
+                <span class="n">cache_dir</span><span class="o">=</span><span class="n">target_dir</span><span class="p">,</span> <span class="n">clobber</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">return_md5</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
+            <span class="n">ch_file</span> <span class="o">=</span> <span class="n">alfio</span><span class="o">.</span><span class="n">remove_uuid_file</span><span class="p">(</span><span class="n">ch_file</span><span class="p">)</span>
+        <span class="n">ch_file_stream</span> <span class="o">=</span> <span class="n">ch_file</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s1">&#39;.stream.ch&#39;</span><span class="p">)</span>
         <span class="c1"># Load the .ch file.</span>
-        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">ch_local_path</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">ch_file</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
             <span class="n">cmeta</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
 
         <span class="c1"># Get the first byte and number of bytes to download.</span>
-        <span class="n">total_n_samples</span> <span class="o">=</span> <span class="n">cmeta</span><span class="p">[</span><span class="s1">&#39;chunk_bounds&#39;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
         <span class="n">i0</span> <span class="o">=</span> <span class="n">cmeta</span><span class="p">[</span><span class="s1">&#39;chunk_bounds&#39;</span><span class="p">][</span><span class="n">first_chunk</span><span class="p">]</span>
+        <span class="n">ns_stream</span> <span class="o">=</span> <span class="n">cmeta</span><span class="p">[</span><span class="s1">&#39;chunk_bounds&#39;</span><span class="p">][</span><span class="n">last_chunk</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">i0</span>
+
+        <span class="c1"># if the cached version happens to be the same as the one on disk, just load it</span>
+        <span class="k">if</span> <span class="n">ch_file_stream</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">ch_file_stream</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">cmeta_stream</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">cmeta_stream</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;chopped_first_sample&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="o">==</span> <span class="n">i0</span> <span class="ow">and</span>
+                    <span class="n">cmeta_stream</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;chopped_total_samples&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="o">==</span> <span class="n">ns_stream</span><span class="p">):</span>
+                <span class="k">return</span> <span class="n">spikeglx</span><span class="o">.</span><span class="n">Reader</span><span class="p">(</span><span class="n">ch_file_stream</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s1">&#39;.cbin&#39;</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">ch_file</span><span class="p">,</span> <span class="n">ch_file_stream</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">ch_file_stream</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span>
+
+        <span class="c1"># prepare the metadata file</span>
         <span class="n">cmeta</span><span class="p">[</span><span class="s1">&#39;chunk_bounds&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">cmeta</span><span class="p">[</span><span class="s1">&#39;chunk_bounds&#39;</span><span class="p">][</span><span class="n">first_chunk</span><span class="p">:</span><span class="n">last_chunk</span> <span class="o">+</span> <span class="mi">2</span><span class="p">]</span>
         <span class="n">cmeta</span><span class="p">[</span><span class="s1">&#39;chunk_bounds&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">_</span> <span class="o">-</span> <span class="n">i0</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">cmeta</span><span class="p">[</span><span class="s1">&#39;chunk_bounds&#39;</span><span class="p">]]</span>
         <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">cmeta</span><span class="p">[</span><span class="s1">&#39;chunk_bounds&#39;</span><span class="p">])</span> <span class="o">&gt;=</span> <span class="mi">2</span>
@@ -1213,8 +1229,9 @@
         <span class="n">cmeta</span><span class="p">[</span><span class="s1">&#39;sha1_uncompressed&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="n">cmeta</span><span class="p">[</span><span class="s1">&#39;chopped&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
         <span class="n">cmeta</span><span class="p">[</span><span class="s1">&#39;chopped_first_sample&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">i0</span>
-        <span class="n">cmeta</span><span class="p">[</span><span class="s1">&#39;chopped_total_samples&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">total_n_samples</span>
-        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">ch_local_path</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">cmeta</span><span class="p">[</span><span class="s1">&#39;chopped_total_samples&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">ns_stream</span>
+
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">ch_file_stream</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
             <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">cmeta</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">sort_keys</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
         <span class="c1"># Download the requested chunks</span>
@@ -1222,17 +1239,16 @@
             <span class="n">url_cbin</span><span class="p">,</span>
             <span class="n">username</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_par</span><span class="o">.</span><span class="n">HTTP_DATA_SERVER_LOGIN</span><span class="p">,</span>
             <span class="n">password</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_par</span><span class="o">.</span><span class="n">HTTP_DATA_SERVER_PWD</span><span class="p">,</span>
-            <span class="n">cache_dir</span><span class="o">=</span><span class="n">target_dir</span><span class="p">,</span> <span class="n">clobber</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">offline</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">return_md5</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">cache_dir</span><span class="o">=</span><span class="n">target_dir</span><span class="p">,</span> <span class="n">clobber</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">return_md5</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
             <span class="n">chunks</span><span class="o">=</span><span class="p">(</span><span class="n">first_byte</span><span class="p">,</span> <span class="n">n_bytes</span><span class="p">))</span>
         <span class="n">cbin_local_path</span> <span class="o">=</span> <span class="n">alfio</span><span class="o">.</span><span class="n">remove_uuid_file</span><span class="p">(</span><span class="n">cbin_local_path</span><span class="p">)</span>
-        <span class="n">cbin_local_path_renamed</span> <span class="o">=</span> <span class="n">cbin_local_path</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span>
-            <span class="s1">&#39;.chopped.cbin&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s1">&#39;.chopped.cbin&#39;</span><span class="p">)</span>
+        <span class="n">cbin_local_path_renamed</span> <span class="o">=</span> <span class="n">cbin_local_path</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s1">&#39;.stream.cbin&#39;</span><span class="p">)</span>
         <span class="n">cbin_local_path</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">cbin_local_path_renamed</span><span class="p">)</span>
         <span class="k">assert</span> <span class="n">cbin_local_path_renamed</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span>
-        <span class="n">cbin_local_path</span> <span class="o">=</span> <span class="n">cbin_local_path_renamed</span>
 
-        <span class="kn">import</span> <span class="nn">mtscomp</span>
-        <span class="n">reader</span> <span class="o">=</span> <span class="n">mtscomp</span><span class="o">.</span><span class="n">decompress</span><span class="p">(</span><span class="n">cbin_local_path</span><span class="p">,</span> <span class="n">cmeta</span><span class="o">=</span><span class="n">ch_local_path</span><span class="p">)</span>
+        <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">cbin_local_path</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s1">&#39;.meta&#39;</span><span class="p">),</span>
+                    <span class="n">cbin_local_path_renamed</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s1">&#39;.meta&#39;</span><span class="p">))</span>
+        <span class="n">reader</span> <span class="o">=</span> <span class="n">spikeglx</span><span class="o">.</span><span class="n">Reader</span><span class="p">(</span><span class="n">cbin_local_path_renamed</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">reader</span></div></div>
 
 

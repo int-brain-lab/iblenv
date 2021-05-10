@@ -104,10 +104,13 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../06_examples.html">Examples</a></li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../07_contribution.html">Contribution Statement</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../07_public.html">IBL Public Data</a></li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../08_api_reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../08_contribution.html">Contribution Statement</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../09_api_reference.html">API Reference</a></li>
 </ul>
 
             
@@ -175,6 +178,7 @@
 <span></span><span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
 <span class="kn">import</span> <span class="nn">pickle</span>
 <span class="kn">from</span> <span class="nn">sklearn.naive_bayes</span> <span class="kn">import</span> <span class="n">MultinomialNB</span>
+<span class="kn">from</span> <span class="nn">sklearn.model_selection</span> <span class="kn">import</span> <span class="n">KFold</span>
 <span class="kn">from</span> <span class="nn">brainbox.population.decode</span> <span class="kn">import</span> <span class="p">(</span><span class="n">xcorr</span><span class="p">,</span> <span class="n">classify</span><span class="p">,</span> <span class="n">regress</span><span class="p">,</span> <span class="n">get_spike_counts_in_bins</span><span class="p">,</span>
                                         <span class="n">sigtest_pseudosessions</span><span class="p">,</span> <span class="n">sigtest_linshift</span><span class="p">)</span>
 <span class="kn">import</span> <span class="nn">unittest</span>
@@ -219,11 +223,14 @@
         <span class="n">event_times</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_data</span><span class="p">[</span><span class="s1">&#39;event_times&#39;</span><span class="p">]</span>
         <span class="n">event_groups</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_data</span><span class="p">[</span><span class="s1">&#39;event_groups&#39;</span><span class="p">]</span>
         <span class="n">clf</span> <span class="o">=</span> <span class="n">MultinomialNB</span><span class="p">()</span>
+        <span class="n">cv</span> <span class="o">=</span> <span class="n">KFold</span><span class="p">(</span><span class="n">n_splits</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
         <span class="n">times</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">(((</span><span class="n">event_times</span> <span class="o">-</span> <span class="mf">0.5</span><span class="p">),</span> <span class="p">(</span><span class="n">event_times</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">)))</span>
         <span class="n">counts</span><span class="p">,</span> <span class="n">cluster_ids</span> <span class="o">=</span> <span class="n">get_spike_counts_in_bins</span><span class="p">(</span><span class="n">spike_times</span><span class="p">,</span> <span class="n">spike_clusters</span><span class="p">,</span> <span class="n">times</span><span class="p">)</span>
         <span class="n">counts</span> <span class="o">=</span> <span class="n">counts</span><span class="o">.</span><span class="n">T</span>
-        <span class="n">accuracy</span><span class="p">,</span> <span class="n">pred</span><span class="p">,</span> <span class="n">prob</span> <span class="o">=</span> <span class="n">classify</span><span class="p">(</span><span class="n">counts</span><span class="p">,</span> <span class="n">event_groups</span><span class="p">,</span> <span class="n">clf</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">accuracy</span> <span class="o">==</span> <span class="mf">0.8888888888888888</span><span class="p">)</span>
+        <span class="n">accuracy</span><span class="p">,</span> <span class="n">pred</span><span class="p">,</span> <span class="n">prob</span><span class="p">,</span> <span class="n">acc_training</span> <span class="o">=</span> <span class="n">classify</span><span class="p">(</span><span class="n">counts</span><span class="p">,</span> <span class="n">event_groups</span><span class="p">,</span> <span class="n">clf</span><span class="p">,</span>
+                                                      <span class="n">cross_validation</span><span class="o">=</span><span class="n">cv</span><span class="p">,</span> <span class="n">return_training</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">accuracy</span> <span class="o">==</span> <span class="mf">0.2222222222222222</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">acc_training</span> <span class="o">==</span> <span class="mf">0.9444444444444444</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">pred</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">event_groups</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">prob</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">event_groups</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span></div>
 
@@ -234,11 +241,14 @@
         <span class="n">spike_clusters</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_data</span><span class="p">[</span><span class="s1">&#39;spike_clusters&#39;</span><span class="p">]</span>
         <span class="n">event_times</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_data</span><span class="p">[</span><span class="s1">&#39;event_times&#39;</span><span class="p">]</span>
         <span class="n">event_groups</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_data</span><span class="p">[</span><span class="s1">&#39;event_groups&#39;</span><span class="p">]</span>
+        <span class="n">cv</span> <span class="o">=</span> <span class="n">KFold</span><span class="p">(</span><span class="n">n_splits</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
         <span class="n">times</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">(((</span><span class="n">event_times</span> <span class="o">-</span> <span class="mf">0.5</span><span class="p">),</span> <span class="p">(</span><span class="n">event_times</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">)))</span>
         <span class="n">counts</span><span class="p">,</span> <span class="n">cluster_ids</span> <span class="o">=</span> <span class="n">get_spike_counts_in_bins</span><span class="p">(</span><span class="n">spike_times</span><span class="p">,</span> <span class="n">spike_clusters</span><span class="p">,</span> <span class="n">times</span><span class="p">)</span>
         <span class="n">counts</span> <span class="o">=</span> <span class="n">counts</span><span class="o">.</span><span class="n">T</span>
-        <span class="n">pred</span> <span class="o">=</span> <span class="n">regress</span><span class="p">(</span><span class="n">counts</span><span class="p">,</span> <span class="n">event_groups</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">pred</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">event_groups</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span></div>
+        <span class="n">pred</span><span class="p">,</span> <span class="n">pred_training</span> <span class="o">=</span> <span class="n">regress</span><span class="p">(</span><span class="n">counts</span><span class="p">,</span> <span class="n">event_groups</span><span class="p">,</span> <span class="n">cross_validation</span><span class="o">=</span><span class="n">cv</span><span class="p">,</span>
+                                      <span class="n">return_training</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">pred</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">event_groups</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">pred_training</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">event_groups</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="TestPopulation.test_xcorr_0"><a class="viewcode-back" href="../../../_autosummary/brainbox.tests.test_population.html#brainbox.tests.test_population.TestPopulation.test_xcorr_0">[docs]</a>    <span class="k">def</span> <span class="nf">test_xcorr_0</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="c1"># 0: 0, 10</span>
