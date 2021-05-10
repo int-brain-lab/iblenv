@@ -19,32 +19,13 @@ ipython
 In the python terminal type:
 
 ```python
-from oneibl.one import OneAlyx
-OneAlyx.setup()
-```
-
-You will be prompted to enter information in the following order. 
- 
-  
-```python
-ALYX_LOGIN:             # Input 'iblpublic'
-ALYX_URL:               # Input 'https://public.alyx.internationalbrainlab.org'
-CACHE_DIR:              # Optionally change or keep default
-HTTP_DATA_SERVER:       # Keep default by pressing enter
-HTTP_DATA_SERVER_LOGIN: # Keep default by pressing enter
-Alyx password:          # 'NeuroPhysTest'
-FlatIron HTTP password:	# Keep default by pressing enter
-```
-
-To check that everything has been set up properly type the following
-```python
 from oneibl.one import ONE
-one = ONE()
+one = ONE(silent=True)
 ```
 
-If you successfully entered the credentials above you should see a message in the terminal saying,
+If everything has been installed correctly you should see a message in the terminal saying,
 ```python
-Connected to https://public.alyx.internationalbrainlab.org as iblpublic
+Connected to https://openalyx.internationalbrainlab.org as intbrainlab
 ```
 
 To start exploring the publically available available please proceed to 
