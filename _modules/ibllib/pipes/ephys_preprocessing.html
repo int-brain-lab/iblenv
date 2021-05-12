@@ -263,7 +263,6 @@
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Computes raw electrophysiology QC</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-
     <span class="n">gpu</span> <span class="o">=</span> <span class="mi">1</span>
     <span class="n">io_charge</span> <span class="o">=</span> <span class="mi">70</span>  <span class="c1"># this jobs reads raw ap files</span>
     <span class="n">priority</span> <span class="o">=</span> <span class="mi">60</span>
@@ -327,6 +326,14 @@
             <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">scratch_dir</span><span class="p">,</span> <span class="n">ignore_errors</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="n">scratch_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
+        <span class="c1"># check the nvidia status before decompressing so as to fail quicker</span>
+        <span class="n">process</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">Popen</span><span class="p">(</span><span class="s1">&#39;nvidia-smi&#39;</span><span class="p">,</span> <span class="n">shell</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">stdout</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span>
+                                   <span class="n">stderr</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span> <span class="n">executable</span><span class="o">=</span><span class="s2">&quot;/bin/bash&quot;</span><span class="p">)</span>
+        <span class="n">info</span><span class="p">,</span> <span class="n">error</span> <span class="o">=</span> <span class="n">process</span><span class="o">.</span><span class="n">communicate</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">process</span><span class="o">.</span><span class="n">returncode</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Nvida drivers not ready. </span><span class="se">\n</span><span class="s2"> </span><span class="si">{</span><span class="n">error</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;nvidia-smi command successful&quot;</span><span class="p">)</span>
+
         <span class="c1"># decompresses using mtscomp</span>
         <span class="n">tmp_ap_file</span> <span class="o">=</span> <span class="n">scratch_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">ap_file</span><span class="o">.</span><span class="n">name</span><span class="p">)</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s2">&quot;.bin&quot;</span><span class="p">)</span>
         <span class="n">mtscomp</span><span class="o">.</span><span class="n">decompress</span><span class="p">(</span><span class="n">cdata</span><span class="o">=</span><span class="n">ap_file</span><span class="p">,</span> <span class="n">out</span><span class="o">=</span><span class="n">tmp_ap_file</span><span class="p">)</span>
@@ -347,8 +354,8 @@
         <span class="k">if</span> <span class="n">process</span><span class="o">.</span><span class="n">returncode</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">error</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">))</span>
         <span class="k">elif</span> <span class="s2">&quot;run_ks2_ibl.m failed&quot;</span> <span class="ow">in</span> <span class="n">info_str</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Matlab error ks2 log below:&quot;</span><span class="p">)</span>
             <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">info_str</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Matlab error ks2 log below:&quot;</span><span class="p">)</span>
 
         <span class="c1"># clean up and copy: output to session/spike_sorters/ks2_matlab/probeXX (ks2_dir)</span>
         <span class="n">tmp_ap_file</span><span class="o">.</span><span class="n">unlink</span><span class="p">()</span>  <span class="c1"># remove the uncompressed temp binary file</span>
