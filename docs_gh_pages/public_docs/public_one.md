@@ -2,17 +2,20 @@
 
 To get started you will first need to install python. We recommend installing through 
 [Anaconda](https://www.anaconda.com/products/individual#download-section). Once python is installed
-open a conda terminal and type the following to 1) Create a new conda environment 2) Install ibllib
-
+open a conda terminal and type the following to create a new conda environment. 
+When prompted enter yes.
 ```python
 conda create --name ibllib python=3.8 
+```
+
+We will then activate this new environment and install ibllib
+```python
 conda activate ibllib
 pip install ibllib
 ```
 
-Once installed activate your conda environment and open a python or ipython terminal by typing
+Once installed open a python or ipython terminal by typing
 ```
-conda activate ibllib
 ipython
 ```
 
