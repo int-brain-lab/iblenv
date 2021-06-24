@@ -1,0 +1,48 @@
+# ONE installation and setup
+
+## Installation
+ONE can be installed as a standalone package with python 3.8 or later by running,
+```python
+pip install ONE-api
+```
+
+```{note}
+If you have installed the unified IBL environment, ONE will already have been automatically 
+installed, so you can skip this step!
+```
+
+## Setup
+To start using ONE, we must first configure some settings that tell ONE whether it should connect to a database or 
+use a local file system
+
+### Connect to IBL Public database
+By default ONE is configured to connect to the public IBL database, this can be setup by typing the following
+```python
+from one.api import ONE
+one = ONE(silent=True)
+```
+
+### Connecting to specific database
+To connect to a specific database, for example the internal IBL Alyx database, a base-url argument must be given
+```python
+from one.api import ONE
+one = ONE(base_url='http://alyx.internationalbrainlab.org')
+```
+
+When connecting to the IBL internal database you will be prompted to enter credentials, please follow 
+[these instructions](one_credentials.md) for help on configuring your credentials 
+
+```{Warning}
+The internal IBL database is only open to IBL members, please connect to our public database to access our publically
+available data
+```
+
+### Using local folder structure
+ONE can also be used independently of a database by using a local cache directory. This can be setup in the following way 
+
+```python
+from one.api import One
+one = One(cache_dir='/home/user/downlaods/ONE/behavior_paper')
+```
+
+For more information about using ONE with a local cache directory please refer to this section.

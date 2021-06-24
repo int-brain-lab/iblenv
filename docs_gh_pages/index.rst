@@ -32,6 +32,13 @@ Using ONE to access IBL Data
 
    03_one
 
+Alf and all
+------------------------------------
+
+.. toctree::
+   :maxdepth: 2
+
+   04_alf
 
 Using Datajoint to access IBL Data
 ------------------------------------
@@ -39,7 +46,7 @@ Using Datajoint to access IBL Data
 .. toctree::
    :maxdepth: 2
 
-   04_datajoint
+   05_datajoint
 
 
 Tutorials
@@ -48,7 +55,7 @@ Tutorials
 .. toctree::
    :maxdepth: 1
 
-   05_tutorials
+   06_examples
 
 
 Examples
@@ -57,7 +64,7 @@ Examples
 .. toctree::
    :maxdepth: 2
 
-   06_examples
+   07_tutorials
 
 
 Publically Available Data
@@ -66,7 +73,7 @@ Publically Available Data
 .. toctree::
    :maxdepth: 2
 
-   07_public
+   08_public
 
 
 Contribution Statement
@@ -75,7 +82,7 @@ Contribution Statement
 .. toctree::
    :maxdepth: 5
 
-   08_contribution
+   09_contribution
 
 
 API
@@ -84,7 +91,7 @@ API
 .. toctree::
    :maxdepth: 2
 
-   09_api_reference.rst
+   010_api_reference.rst
 
 
 * :ref:`genindex`
