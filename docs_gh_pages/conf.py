@@ -183,6 +183,19 @@ autodoc_default_options = {
 }
 
 
+def autodoc_skip_member_handler(app, what, name, obj, skip, options):
+    # Basic approach; you might want a regex instead
+    # TODO still makes the folder structure, need to figure out how not to do that
+    if 'test' in name.lower():
+        return True
+    else:
+        return False
+
+# Automatically called by sphinx at startup
+def setup(app):
+    # Connect the autodoc-skip-member event from apidoc to the callback
+    app.connect('autodoc-skip-member', autodoc_skip_member_handler)
+
 # -- Options for nbsphinx ------------------------------------
 
 # Only use nbsphinx for formatting the notebooks i.e never execute
@@ -200,20 +213,20 @@ plot_formats = [('png', 512)]
 
 # Add extra prolog to beginning of each .ipynb file
 # Add option to download notebook and link to github page
-nbsphinx_prolog = r"""
-
-{% if env.metadata[env.docname]['nbsphinx-link-target'] %}
-{% set nb_path = env.metadata[env.docname]['nbsphinx-link-target'] | dirname %}
-{% set nb_name = env.metadata[env.docname]['nbsphinx-link-target'] | basename %}
-{% else %}
-{% set nb_name = env.doc2path(env.docname, base=None) | basename %}
-{% set nb_path = env.doc2path(env.docname, base=None) | dirname %}
-{% endif %}
-
-.. raw:: html
-
-      <a href="{{ nb_name }}"><button id="download">Download tutorial notebook</button></a>
-      <a href="https://github.com/int-brain-lab/ibllib/tree/docsMayo/docs_gh_pages/{{ nb_path }}/
-      {{ nb_name }}"><button id="github">Github link</button></a>
-
-"""
+# nbsphinx_prolog = r"""
+#
+# {% if env.metadata[env.docname]['nbsphinx-link-target'] %}
+# {% set nb_path = env.metadata[env.docname]['nbsphinx-link-target'] | dirname %}
+# {% set nb_name = env.metadata[env.docname]['nbsphinx-link-target'] | basename %}
+# {% else %}
+# {% set nb_name = env.doc2path(env.docname, base=None) | basename %}
+# {% set nb_path = env.doc2path(env.docname, base=None) | dirname %}
+# {% endif %}
+#
+# .. raw:: html
+#
+#       <a href="{{ nb_name }}"><button id="download">Download tutorial notebook</button></a>
+#       <a href="https://github.com/int-brain-lab/ibllib/tree/docsMayo/docs_gh_pages/{{ nb_path }}/
+#       {{ nb_name }}"><button id="github">Github link</button></a>
+#
+# """

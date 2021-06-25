@@ -11,7 +11,7 @@ API Reference
    :template: custom-module-template.rst
    :recursive:
 
-   alf
+   one
 
 .. autosummary::
    :toctree: _autosummary
@@ -19,13 +19,6 @@ API Reference
    :recursive:
 
    ibllib
-
-.. autosummary::
-   :toctree: _autosummary
-   :template: custom-module-template.rst
-   :recursive:
-
-   oneibl
 
 .. autosummary::
    :toctree: _autosummary

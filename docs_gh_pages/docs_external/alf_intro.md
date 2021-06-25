@@ -1,3 +1,2 @@
-```
-{include} ../../../ONE/one/alf/README.md
+```{include} ../../../ONE/one/alf/README.md
 ```

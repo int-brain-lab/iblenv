@@ -19,7 +19,7 @@ one = ONE(base_url='https://alyx.internationalbrainlab.org')
 You will then be prompted to enter information in the following order. 
  
   
-```python
+```
 ALYX_LOGIN:             # Input your Alyx username
 HTTP_DATA_SERVER:       # Keep default - should be automatically set as: https://ibl.flatironinstitute.org
 HTTP_DATA_SERVER_LOGIN: # Input FlatIron username
@@ -28,6 +28,7 @@ FlatIron HTTP password:	# Input FlatIron password
 Location of download cache: # Keep default
 Would you like to set URL as defualt one?: # Enter y
 ```
+
 The entries that you will need to change from default are: `ALYX_LOGIN`, `Alyx password`, `HTTP_DATA_SERVER_LOGIN` and 
 `FlatIron HTTP password`. For the remaining entries keep the default values by pressing
 the Enter key.

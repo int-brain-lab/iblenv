@@ -22,13 +22,13 @@ ipython
 In the python terminal type:
 
 ```python
-from oneibl.one import ONE
+from one.api import ONE
 one = ONE(silent=True)
 ```
 
 If everything has been installed correctly you should see a message in the terminal saying,
 ```python
-Connected to https://openalyx.internationalbrainlab.org as intbrainlab
+Connected to https://openalyx.internationalbrainlab.org
 ```
 
 To start exploring the publically available available please proceed to 
