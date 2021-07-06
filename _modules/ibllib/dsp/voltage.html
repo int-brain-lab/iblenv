@@ -95,22 +95,25 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../03_one.html">ONE</a></li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../04_datajoint.html">Datajoint</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../04_alf.html">Alyx Files (ALF)</a></li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../05_tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../05_datajoint.html">Datajoint</a></li>
 </ul>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../06_examples.html">Examples</a></li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../07_public.html">IBL Public Data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../07_tutorials.html">Tutorials</a></li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../08_contribution.html">Contribution Statement</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../08_public.html">IBL Public Data</a></li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../09_api_reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../09_contribution.html">Contribution Statement</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../010_api_reference.html">API Reference</a></li>
 </ul>
 
             
@@ -178,11 +181,15 @@
 <span></span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">Module to work with raw voltage traces. Spike sorting pre-processing functions.</span>
 <span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">scipy.signal</span>
+<span class="kn">from</span> <span class="nn">tqdm</span> <span class="kn">import</span> <span class="n">tqdm</span>
 
+<span class="kn">from</span> <span class="nn">ibllib.io</span> <span class="kn">import</span> <span class="n">spikeglx</span>
 <span class="kn">import</span> <span class="nn">ibllib.dsp.fourier</span> <span class="k">as</span> <span class="nn">fdsp</span>
-<span class="kn">from</span> <span class="nn">ibllib.dsp</span> <span class="kn">import</span> <span class="n">fshift</span><span class="p">,</span> <span class="n">voltage</span>
+<span class="kn">from</span> <span class="nn">ibllib.dsp</span> <span class="kn">import</span> <span class="n">fshift</span>
 <span class="kn">from</span> <span class="nn">ibllib.ephys</span> <span class="kn">import</span> <span class="n">neuropixel</span>
 
 
@@ -303,7 +310,56 @@
     <span class="k">return</span> <span class="n">xf</span> <span class="o">/</span> <span class="n">gain</span></div>
 
 
-<div class="viewcode-block" id="destripe"><a class="viewcode-back" href="../../../_autosummary/ibllib.dsp.voltage.html#ibllib.dsp.voltage.destripe">[docs]</a><span class="k">def</span> <span class="nf">destripe</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">fs</span><span class="p">,</span> <span class="n">tr_sel</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">neuropixel_version</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">butter_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fk_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="kfilt"><a class="viewcode-back" href="../../../_autosummary/ibllib.dsp.voltage.html#ibllib.dsp.voltage.kfilt">[docs]</a><span class="k">def</span> <span class="nf">kfilt</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ntr_pad</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">ntr_tap</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">lagc</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span> <span class="n">butter_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Applies a butterworth filter on the 0-axis with tapering / padding</span>
+<span class="sd">    :param x: the input array to be filtered. dimension, the filtering is considering</span>
+<span class="sd">    axis=0: spatial dimension, axis=1 temporal dimension. (ntraces, ns)</span>
+<span class="sd">    :param collection:</span>
+<span class="sd">    :param ntr_pad: traces added to each side (mirrored)</span>
+<span class="sd">    :param ntr_tap: n traces for apodizatin on each side</span>
+<span class="sd">    :param lagc: window size for time domain automatic gain control (no agc otherwise)</span>
+<span class="sd">    :param butter_kwargs: filtering parameters: defaults: {&#39;N&#39;: 3, &#39;Wn&#39;: 0.1, &#39;btype&#39;: &#39;highpass&#39;}</span>
+<span class="sd">    :return:</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">butter_kwargs</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">butter_kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;N&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;Wn&#39;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span> <span class="s1">&#39;btype&#39;</span><span class="p">:</span> <span class="s1">&#39;highpass&#39;</span><span class="p">}</span>
+    <span class="k">if</span> <span class="n">collection</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">xout</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">collection</span><span class="p">):</span>
+            <span class="n">sel</span> <span class="o">=</span> <span class="n">collection</span> <span class="o">==</span> <span class="n">c</span>
+            <span class="n">xout</span><span class="p">[</span><span class="n">sel</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">kfilt</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">[</span><span class="n">sel</span><span class="p">,</span> <span class="p">:],</span> <span class="n">ntr_pad</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">ntr_tap</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                                 <span class="n">butter_kwargs</span><span class="o">=</span><span class="n">butter_kwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">xout</span>
+    <span class="n">nx</span><span class="p">,</span> <span class="n">nt</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">shape</span>
+
+    <span class="c1"># lateral padding left and right</span>
+    <span class="n">ntr_pad</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">ntr_pad</span><span class="p">)</span>
+    <span class="n">ntr_tap</span> <span class="o">=</span> <span class="n">ntr_pad</span> <span class="k">if</span> <span class="n">ntr_tap</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">ntr_tap</span>
+    <span class="n">nxp</span> <span class="o">=</span> <span class="n">nx</span> <span class="o">+</span> <span class="n">ntr_pad</span> <span class="o">*</span> <span class="mi">2</span>
+
+    <span class="c1"># apply agc and keep the gain in handy</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">lagc</span><span class="p">:</span>
+        <span class="n">xf</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">gain</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">xf</span><span class="p">,</span> <span class="n">gain</span> <span class="o">=</span> <span class="n">agc</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">wl</span><span class="o">=</span><span class="n">lagc</span><span class="p">,</span> <span class="n">si</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">ntr_pad</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="c1"># pad the array with a mirrored version of itself and apply a cosine taper</span>
+        <span class="n">xf</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">flipud</span><span class="p">(</span><span class="n">xf</span><span class="p">[:</span><span class="n">ntr_pad</span><span class="p">]),</span> <span class="n">xf</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">flipud</span><span class="p">(</span><span class="n">xf</span><span class="p">[</span><span class="o">-</span><span class="n">ntr_pad</span><span class="p">:])]</span>
+    <span class="k">if</span> <span class="n">ntr_tap</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">taper</span> <span class="o">=</span> <span class="n">fdsp</span><span class="o">.</span><span class="n">fcn_cosine</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="n">ntr_tap</span><span class="p">])(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">nxp</span><span class="p">))</span>  <span class="c1"># taper up</span>
+        <span class="n">taper</span> <span class="o">*=</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">fdsp</span><span class="o">.</span><span class="n">fcn_cosine</span><span class="p">([</span><span class="n">nxp</span> <span class="o">-</span> <span class="n">ntr_tap</span><span class="p">,</span> <span class="n">nxp</span><span class="p">])(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">nxp</span><span class="p">))</span>   <span class="c1"># taper down</span>
+        <span class="n">xf</span> <span class="o">=</span> <span class="n">xf</span> <span class="o">*</span> <span class="n">taper</span><span class="p">[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
+    <span class="n">sos</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">signal</span><span class="o">.</span><span class="n">butter</span><span class="p">(</span><span class="o">**</span><span class="n">butter_kwargs</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="s1">&#39;sos&#39;</span><span class="p">)</span>
+    <span class="n">xf</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">signal</span><span class="o">.</span><span class="n">sosfiltfilt</span><span class="p">(</span><span class="n">sos</span><span class="p">,</span> <span class="n">xf</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">ntr_pad</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">xf</span> <span class="o">=</span> <span class="n">xf</span><span class="p">[</span><span class="n">ntr_pad</span><span class="p">:</span><span class="o">-</span><span class="n">ntr_pad</span><span class="p">,</span> <span class="p">:]</span>
+    <span class="k">return</span> <span class="n">xf</span> <span class="o">/</span> <span class="n">gain</span></div>
+
+
+<div class="viewcode-block" id="destripe"><a class="viewcode-back" href="../../../_autosummary/ibllib.dsp.voltage.html#ibllib.dsp.voltage.destripe">[docs]</a><span class="k">def</span> <span class="nf">destripe</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">fs</span><span class="p">,</span> <span class="n">tr_sel</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">neuropixel_version</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">butter_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">k_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Super Car (super slow also...) - far from being set in stone but a good workflow example</span>
 <span class="sd">    :param x: demultiplexed array (ntraces, nsample)</span>
 <span class="sd">    :param fs: sampling frequency</span>
@@ -314,14 +370,14 @@
 <span class="sd">     selection. If None, and estimation is done using only the current batch is provided for</span>
 <span class="sd">     convenience but should be avoided in production.</span>
 <span class="sd">    :param butter_kwargs: (optional, None) butterworth params, see the code for the defaults dict</span>
-<span class="sd">    :param fk_kwargs: (optional, None) FK params, see the code for the defaults dict</span>
+<span class="sd">    :param k_kwargs: (optional, None) K-filter params, see the code for the defaults dict</span>
 <span class="sd">    :return: x, filtered array</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">butter_kwargs</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">butter_kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;N&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;Wn&#39;</span><span class="p">:</span> <span class="mi">300</span> <span class="o">/</span> <span class="n">fs</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;btype&#39;</span><span class="p">:</span> <span class="s1">&#39;highpass&#39;</span><span class="p">}</span>
-    <span class="k">if</span> <span class="n">fk_kwargs</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">fk_kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;dx&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;vbounds&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mf">1e6</span><span class="p">],</span> <span class="s1">&#39;ntr_pad&#39;</span><span class="p">:</span> <span class="mi">60</span><span class="p">,</span> <span class="s1">&#39;ntr_tap&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
-                     <span class="s1">&#39;lagc&#39;</span><span class="p">:</span> <span class="o">.</span><span class="mi">01</span><span class="p">,</span> <span class="s1">&#39;btype&#39;</span><span class="p">:</span> <span class="s1">&#39;lowpass&#39;</span><span class="p">}</span>
+    <span class="k">if</span> <span class="n">k_kwargs</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">k_kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;ntr_pad&#39;</span><span class="p">:</span> <span class="mi">60</span><span class="p">,</span> <span class="s1">&#39;ntr_tap&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;lagc&#39;</span><span class="p">:</span> <span class="mi">3000</span><span class="p">,</span>
+                    <span class="s1">&#39;butter_kwargs&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;N&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;Wn&#39;</span><span class="p">:</span> <span class="mf">0.01</span><span class="p">,</span> <span class="s1">&#39;btype&#39;</span><span class="p">:</span> <span class="s1">&#39;highpass&#39;</span><span class="p">}}</span>
     <span class="n">h</span> <span class="o">=</span> <span class="n">neuropixel</span><span class="o">.</span><span class="n">trace_header</span><span class="p">(</span><span class="n">version</span><span class="o">=</span><span class="n">neuropixel_version</span><span class="p">)</span>
     <span class="c1"># butterworth</span>
     <span class="n">sos</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">signal</span><span class="o">.</span><span class="n">butter</span><span class="p">(</span><span class="o">**</span><span class="n">butter_kwargs</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="s1">&#39;sos&#39;</span><span class="p">)</span>
@@ -329,14 +385,81 @@
     <span class="c1"># apply ADC shift</span>
     <span class="k">if</span> <span class="n">neuropixel_version</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">x</span> <span class="o">=</span> <span class="n">fshift</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">h</span><span class="p">[</span><span class="s1">&#39;sample_shift&#39;</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-    <span class="c1"># detect faulty channels if single batch</span>
-    <span class="k">if</span> <span class="n">tr_sel</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">reject_channel_kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;butt_kwargs&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;N&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span> <span class="s1">&#39;Wn&#39;</span><span class="p">:</span> <span class="mf">0.05</span><span class="p">,</span> <span class="s1">&#39;btype&#39;</span><span class="p">:</span> <span class="s1">&#39;lp&#39;</span><span class="p">},</span> <span class="s1">&#39;trx&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">}</span>
-        <span class="n">tr_sel</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">reject_channels</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">fs</span><span class="p">,</span> <span class="o">**</span><span class="n">reject_channel_kwargs</span><span class="p">)</span>
     <span class="c1"># apply spatial filter on good channel selection only</span>
-    <span class="n">x_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-    <span class="n">x_</span><span class="p">[</span><span class="n">tr_sel</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">voltage</span><span class="o">.</span><span class="n">fk</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="n">tr_sel</span><span class="p">,</span> <span class="p">:],</span> <span class="n">si</span><span class="o">=</span><span class="mi">1</span> <span class="o">/</span> <span class="n">fs</span><span class="p">,</span> <span class="o">**</span><span class="n">fk_kwargs</span><span class="p">)</span>
+    <span class="n">x_</span> <span class="o">=</span> <span class="n">kfilt</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="o">**</span><span class="n">k_kwargs</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">x_</span></div>
+
+
+<div class="viewcode-block" id="decompress_destripe_cbin"><a class="viewcode-back" href="../../../_autosummary/ibllib.dsp.voltage.html#ibllib.dsp.voltage.decompress_destripe_cbin">[docs]</a><span class="k">def</span> <span class="nf">decompress_destripe_cbin</span><span class="p">(</span><span class="n">sr</span><span class="p">,</span> <span class="n">output_file</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">h</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    From a spikeglx Reader object, decompresses and apply ADC</span>
+<span class="sd">    Production version with optimized FFTs - requires pyfftw</span>
+<span class="sd">    :param sr: seismic reader object (spikeglx.Reader)</span>
+<span class="sd">    :param output_file: (optional, defaults to .bin extension of the compressed bin file)</span>
+<span class="sd">    :param h: (optional)</span>
+<span class="sd">    :return:</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">import</span> <span class="nn">pyfftw</span>
+
+    <span class="n">SAMPLES_TAPER</span> <span class="o">=</span> <span class="mi">128</span>
+    <span class="n">NBATCH</span> <span class="o">=</span> <span class="mi">65536</span>
+    <span class="c1"># handles input parameters</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">sr</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">sr</span><span class="p">,</span> <span class="n">Path</span><span class="p">):</span>
+        <span class="n">sr</span> <span class="o">=</span> <span class="n">spikeglx</span><span class="o">.</span><span class="n">Reader</span><span class="p">(</span><span class="n">sr</span><span class="p">,</span> <span class="nb">open</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">butter_kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;N&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;Wn&#39;</span><span class="p">:</span> <span class="mi">300</span> <span class="o">/</span> <span class="n">sr</span><span class="o">.</span><span class="n">fs</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;btype&#39;</span><span class="p">:</span> <span class="s1">&#39;highpass&#39;</span><span class="p">}</span>
+    <span class="n">k_kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;ntr_pad&#39;</span><span class="p">:</span> <span class="mi">60</span><span class="p">,</span> <span class="s1">&#39;ntr_tap&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;lagc&#39;</span><span class="p">:</span> <span class="mi">3000</span><span class="p">,</span>
+                <span class="s1">&#39;butter_kwargs&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;N&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;Wn&#39;</span><span class="p">:</span> <span class="mf">0.01</span><span class="p">,</span> <span class="s1">&#39;btype&#39;</span><span class="p">:</span> <span class="s1">&#39;highpass&#39;</span><span class="p">}}</span>
+    <span class="n">h</span> <span class="o">=</span> <span class="n">neuropixel</span><span class="o">.</span><span class="n">trace_header</span><span class="p">(</span><span class="n">version</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="k">if</span> <span class="n">h</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">h</span>
+    <span class="n">output_file</span> <span class="o">=</span> <span class="n">sr</span><span class="o">.</span><span class="n">file_bin</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s1">&#39;.bin&#39;</span><span class="p">)</span> <span class="k">if</span> <span class="n">output_file</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">output_file</span>
+    <span class="k">assert</span> <span class="n">output_file</span> <span class="o">!=</span> <span class="n">sr</span><span class="o">.</span><span class="n">file_bin</span>
+    <span class="n">taper</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">scipy</span><span class="o">.</span><span class="n">signal</span><span class="o">.</span><span class="n">windows</span><span class="o">.</span><span class="n">cosine</span><span class="p">((</span><span class="n">SAMPLES_TAPER</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="mi">2</span><span class="p">),</span> <span class="mi">0</span><span class="p">]</span>
+    <span class="c1"># create the FFT stencils</span>
+    <span class="n">ncv</span> <span class="o">=</span> <span class="n">h</span><span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">size</span>  <span class="c1"># number of channels</span>
+    <span class="c1"># compute LP filter coefficients</span>
+    <span class="n">sos</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">signal</span><span class="o">.</span><span class="n">butter</span><span class="p">(</span><span class="o">**</span><span class="n">butter_kwargs</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="s1">&#39;sos&#39;</span><span class="p">)</span>
+    <span class="c1"># compute fft stencil for batchsize</span>
+    <span class="n">win</span> <span class="o">=</span> <span class="n">pyfftw</span><span class="o">.</span><span class="n">empty_aligned</span><span class="p">((</span><span class="n">ncv</span><span class="p">,</span> <span class="n">NBATCH</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;float32&#39;</span><span class="p">)</span>
+    <span class="n">WIN</span> <span class="o">=</span> <span class="n">pyfftw</span><span class="o">.</span><span class="n">empty_aligned</span><span class="p">((</span><span class="n">ncv</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">NBATCH</span> <span class="o">/</span> <span class="mi">2</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)),</span> <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;complex64&#39;</span><span class="p">)</span>
+    <span class="n">fft_object</span> <span class="o">=</span> <span class="n">pyfftw</span><span class="o">.</span><span class="n">FFTW</span><span class="p">(</span><span class="n">win</span><span class="p">,</span> <span class="n">WIN</span><span class="p">,</span> <span class="n">axes</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,),</span> <span class="n">direction</span><span class="o">=</span><span class="s1">&#39;FFTW_FORWARD&#39;</span><span class="p">,</span> <span class="n">threads</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+    <span class="n">ifft_object</span> <span class="o">=</span> <span class="n">pyfftw</span><span class="o">.</span><span class="n">FFTW</span><span class="p">(</span><span class="n">WIN</span><span class="p">,</span> <span class="n">win</span><span class="p">,</span> <span class="n">axes</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,),</span> <span class="n">direction</span><span class="o">=</span><span class="s1">&#39;FFTW_BACKWARD&#39;</span><span class="p">,</span> <span class="n">threads</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+    <span class="n">dephas</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">ncv</span><span class="p">,</span> <span class="n">NBATCH</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="n">dephas</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.</span>
+    <span class="n">DEPHAS</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="mi">1</span><span class="n">j</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">angle</span><span class="p">(</span><span class="n">fft_object</span><span class="p">(</span><span class="n">dephas</span><span class="p">))</span> <span class="o">*</span> <span class="n">h</span><span class="p">[</span><span class="s1">&#39;sample_shift&#39;</span><span class="p">][:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">])</span>
+
+    <span class="n">pbar</span> <span class="o">=</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">total</span><span class="o">=</span><span class="n">sr</span><span class="o">.</span><span class="n">ns</span> <span class="o">/</span> <span class="n">sr</span><span class="o">.</span><span class="n">fs</span><span class="p">)</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">output_file</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fid</span><span class="p">:</span>
+        <span class="n">first_s</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="n">last_s</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">NBATCH</span> <span class="o">+</span> <span class="n">first_s</span><span class="p">,</span> <span class="n">sr</span><span class="o">.</span><span class="n">ns</span><span class="p">)</span>
+            <span class="c1"># transpose to get faster processing for all trace based process</span>
+            <span class="n">chunk</span> <span class="o">=</span> <span class="n">sr</span><span class="p">[</span><span class="n">first_s</span><span class="p">:</span><span class="n">last_s</span><span class="p">,</span> <span class="p">:</span><span class="n">ncv</span><span class="p">]</span><span class="o">.</span><span class="n">T</span>
+            <span class="n">chunk</span><span class="p">[:,</span> <span class="p">:</span><span class="n">SAMPLES_TAPER</span><span class="p">]</span> <span class="o">*=</span> <span class="n">taper</span><span class="p">[:</span><span class="n">SAMPLES_TAPER</span><span class="p">]</span>
+            <span class="n">chunk</span><span class="p">[:,</span> <span class="o">-</span><span class="n">SAMPLES_TAPER</span><span class="p">:]</span> <span class="o">*=</span> <span class="n">taper</span><span class="p">[</span><span class="n">SAMPLES_TAPER</span><span class="p">:]</span>
+            <span class="c1"># apply butterworth</span>
+            <span class="n">chunk</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">signal</span><span class="o">.</span><span class="n">sosfiltfilt</span><span class="p">(</span><span class="n">sos</span><span class="p">,</span> <span class="n">chunk</span><span class="p">)</span>
+            <span class="c1"># apply adc</span>
+            <span class="n">ind2save</span> <span class="o">=</span> <span class="p">[</span><span class="n">SAMPLES_TAPER</span><span class="p">,</span> <span class="n">NBATCH</span> <span class="o">-</span> <span class="n">SAMPLES_TAPER</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">last_s</span> <span class="o">==</span> <span class="n">sr</span><span class="o">.</span><span class="n">ns</span><span class="p">:</span>
+                <span class="c1"># for the last batch just use the normal fft as the stencil doesn&#39;t fit</span>
+                <span class="n">chunk</span> <span class="o">=</span> <span class="n">fshift</span><span class="p">(</span><span class="n">chunk</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="n">h</span><span class="p">[</span><span class="s1">&#39;sample_shift&#39;</span><span class="p">])</span>
+                <span class="n">ind2save</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">NBATCH</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># apply precomputed fshift of the proper length</span>
+                <span class="n">chunk</span> <span class="o">=</span> <span class="n">ifft_object</span><span class="p">(</span><span class="n">fft_object</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span> <span class="o">*</span> <span class="n">DEPHAS</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">first_s</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="c1"># for the first batch save the start with taper applied</span>
+                <span class="n">ind2save</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="c1"># apply K-filter</span>
+            <span class="n">chunk</span> <span class="o">=</span> <span class="n">kfilt</span><span class="p">(</span><span class="n">chunk</span><span class="p">,</span> <span class="o">**</span><span class="n">k_kwargs</span><span class="p">)</span>
+            <span class="c1"># add back sync trace and save</span>
+            <span class="n">chunk</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="n">chunk</span><span class="p">,</span> <span class="n">sr</span><span class="p">[</span><span class="n">first_s</span><span class="p">:</span><span class="n">last_s</span><span class="p">,</span> <span class="n">ncv</span><span class="p">:]</span><span class="o">.</span><span class="n">T</span><span class="p">]</span><span class="o">.</span><span class="n">T</span>
+            <span class="p">(</span><span class="n">chunk</span><span class="p">[</span><span class="nb">slice</span><span class="p">(</span><span class="o">*</span><span class="n">ind2save</span><span class="p">),</span> <span class="p">:]</span> <span class="o">/</span> <span class="n">sr</span><span class="o">.</span><span class="n">channel_conversion_sample2v</span><span class="p">[</span><span class="s1">&#39;ap&#39;</span><span class="p">]</span>
+             <span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int16</span><span class="p">)</span><span class="o">.</span><span class="n">tofile</span><span class="p">(</span><span class="n">fid</span><span class="p">)</span>
+            <span class="n">first_s</span> <span class="o">+=</span> <span class="n">NBATCH</span> <span class="o">-</span> <span class="n">SAMPLES_TAPER</span> <span class="o">*</span> <span class="mi">2</span>
+            <span class="n">pbar</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">NBATCH</span> <span class="o">/</span> <span class="n">sr</span><span class="o">.</span><span class="n">fs</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">last_s</span> <span class="o">==</span> <span class="n">sr</span><span class="o">.</span><span class="n">ns</span><span class="p">:</span>
+                <span class="k">break</span>
+    <span class="n">pbar</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
 </pre></div>
 
            </div>

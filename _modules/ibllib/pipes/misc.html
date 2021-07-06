@@ -95,22 +95,25 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../03_one.html">ONE</a></li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../04_datajoint.html">Datajoint</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../04_alf.html">Alyx Files (ALF)</a></li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../05_tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../05_datajoint.html">Datajoint</a></li>
 </ul>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../06_examples.html">Examples</a></li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../07_public.html">IBL Public Data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../07_tutorials.html">Tutorials</a></li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../08_contribution.html">Contribution Statement</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../08_public.html">IBL Public Data</a></li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../09_api_reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../09_contribution.html">Contribution Statement</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../010_api_reference.html">API Reference</a></li>
 </ul>
 
             
@@ -179,23 +182,29 @@
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">shutil</span>
 <span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">import</span> <span class="nn">re</span>
 
-<span class="kn">import</span> <span class="nn">alf.folders</span> <span class="k">as</span> <span class="nn">folders</span>
+<span class="kn">import</span> <span class="nn">iblutil.io.params</span> <span class="k">as</span> <span class="nn">params</span>
+<span class="kn">import</span> <span class="nn">one.alf.folders</span> <span class="k">as</span> <span class="nn">folders</span>
+<span class="kn">from</span> <span class="nn">one.alf.io</span> <span class="kn">import</span> <span class="n">is_uuid_string</span><span class="p">,</span> <span class="n">is_session_path</span><span class="p">,</span> <span class="n">get_session_path</span>
+<span class="kn">from</span> <span class="nn">one.api</span> <span class="kn">import</span> <span class="n">ONE</span>
+
 <span class="kn">import</span> <span class="nn">ibllib.io.flags</span> <span class="k">as</span> <span class="nn">flags</span>
-<span class="kn">import</span> <span class="nn">ibllib.io.params</span> <span class="k">as</span> <span class="nn">params</span>
 <span class="kn">import</span> <span class="nn">ibllib.io.raw_data_loaders</span> <span class="k">as</span> <span class="nn">raw</span>
 <span class="kn">import</span> <span class="nn">ibllib.io.spikeglx</span> <span class="k">as</span> <span class="nn">spikeglx</span>
-<span class="kn">from</span> <span class="nn">alf.io</span> <span class="kn">import</span> <span class="n">is_uuid_string</span>
-<span class="kn">from</span> <span class="nn">oneibl.one</span> <span class="kn">import</span> <span class="n">ONE</span>
+<span class="kn">from</span> <span class="nn">ibllib.io.misc</span> <span class="kn">import</span> <span class="n">delete_empty_folders</span>
 
 <span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s2">&quot;ibllib&quot;</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="cli_ask_default"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.misc.html#ibllib.pipes.misc.cli_ask_default">[docs]</a><span class="k">def</span> <span class="nf">cli_ask_default</span><span class="p">(</span><span class="n">prompt</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
-    <span class="n">dflt</span> <span class="o">=</span> <span class="s2">&quot; [default: </span><span class="si">{}</span><span class="s2">]: &quot;</span>
-    <span class="n">dflt</span> <span class="o">=</span> <span class="n">dflt</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">default</span><span class="p">)</span>
-    <span class="n">ans</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="n">prompt</span> <span class="o">+</span> <span class="n">dflt</span><span class="p">)</span> <span class="ow">or</span> <span class="n">default</span>
-    <span class="k">return</span> <span class="n">ans</span></div>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Prompt the user for input, display the default option and return user input or default</span>
+<span class="sd">    :param prompt: String to display to user</span>
+<span class="sd">    :param default: The default value to return if user doesn&#39;t enter anything</span>
+<span class="sd">    :return: User input or default</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="nb">input</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">prompt</span><span class="si">}</span><span class="s1"> [default: </span><span class="si">{</span><span class="n">default</span><span class="si">}</span><span class="s1">]: &#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">default</span></div>
 
 
 <div class="viewcode-block" id="cli_ask_options"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.misc.html#ibllib.pipes.misc.cli_ask_options">[docs]</a><span class="k">def</span> <span class="nf">cli_ask_options</span><span class="p">(</span><span class="n">prompt</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">options</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">default_idx</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
@@ -209,7 +218,7 @@
     <span class="k">return</span> <span class="n">ans</span></div>
 
 
-<div class="viewcode-block" id="behavior_exists"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.misc.html#ibllib.pipes.misc.behavior_exists">[docs]</a><span class="k">def</span> <span class="nf">behavior_exists</span><span class="p">(</span><span class="n">session_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>  <span class="c1"># testOK</span>
+<div class="viewcode-block" id="behavior_exists"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.misc.html#ibllib.pipes.misc.behavior_exists">[docs]</a><span class="k">def</span> <span class="nf">behavior_exists</span><span class="p">(</span><span class="n">session_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
     <span class="n">session_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
     <span class="n">behavior_path</span> <span class="o">=</span> <span class="n">session_path</span> <span class="o">/</span> <span class="s2">&quot;raw_behavior_data&quot;</span>
     <span class="k">if</span> <span class="n">behavior_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
@@ -218,27 +227,38 @@
 
 
 <div class="viewcode-block" id="check_transfer"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.misc.html#ibllib.pipes.misc.check_transfer">[docs]</a><span class="k">def</span> <span class="nf">check_transfer</span><span class="p">(</span><span class="n">src_session_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">dst_session_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
-    <span class="c1"># missing fail test</span>
-    <span class="n">src_files</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">([</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">Path</span><span class="p">(</span><span class="n">src_session_path</span><span class="p">)</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="s2">&quot;*&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">is_file</span><span class="p">()])</span>
-    <span class="n">dst_files</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">([</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">Path</span><span class="p">(</span><span class="n">dst_session_path</span><span class="p">)</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="s2">&quot;*&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">is_file</span><span class="p">()])</span>
-    <span class="n">assert_msg</span> <span class="o">=</span> <span class="s2">&quot;src_files != dst_files&quot;</span>
-    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">src_files</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">dst_files</span><span class="p">),</span> <span class="n">assert_msg</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Check all the files in the source directory match those in the destination directory.</span>
+<span class="sd">    :param src_session_path: The source directory that was copied</span>
+<span class="sd">    :param dst_session_path: The copy target directory</span>
+<span class="sd">    :return:</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">src_files</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">([</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">Path</span><span class="p">(</span><span class="n">src_session_path</span><span class="p">)</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="s1">&#39;*&#39;</span><span class="p">)</span> <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">is_file</span><span class="p">()])</span>
+    <span class="n">dst_files</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">([</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">Path</span><span class="p">(</span><span class="n">dst_session_path</span><span class="p">)</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="s1">&#39;*&#39;</span><span class="p">)</span> <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">is_file</span><span class="p">()])</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">src_files</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">dst_files</span><span class="p">),</span> <span class="s1">&#39;Not all files transferred&#39;</span>
     <span class="k">for</span> <span class="n">s</span><span class="p">,</span> <span class="n">d</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">src_files</span><span class="p">,</span> <span class="n">dst_files</span><span class="p">):</span>
-        <span class="k">assert</span> <span class="n">s</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="n">d</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">assert_msg</span>
-        <span class="k">assert</span> <span class="n">s</span><span class="o">.</span><span class="n">stat</span><span class="p">()</span><span class="o">.</span><span class="n">st_size</span> <span class="o">==</span> <span class="n">d</span><span class="o">.</span><span class="n">stat</span><span class="p">()</span><span class="o">.</span><span class="n">st_size</span><span class="p">,</span> <span class="n">assert_msg</span></div>
+        <span class="k">assert</span> <span class="n">s</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="n">d</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s1">&#39;file name mismatch&#39;</span>
+        <span class="k">assert</span> <span class="n">s</span><span class="o">.</span><span class="n">stat</span><span class="p">()</span><span class="o">.</span><span class="n">st_size</span> <span class="o">==</span> <span class="n">d</span><span class="o">.</span><span class="n">stat</span><span class="p">()</span><span class="o">.</span><span class="n">st_size</span><span class="p">,</span> <span class="s1">&#39;file size mismatch&#39;</span></div>
 
 
 <div class="viewcode-block" id="rename_session"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.misc.html#ibllib.pipes.misc.rename_session">[docs]</a><span class="k">def</span> <span class="nf">rename_session</span><span class="p">(</span><span class="n">session_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
-    <span class="n">session_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">folders</span><span class="o">.</span><span class="n">session_path</span><span class="p">(</span><span class="n">session_path</span><span class="p">))</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Rename a session.  Prompts the user for the new subject name, data and number then moves</span>
+<span class="sd">    session path to new session path.</span>
+<span class="sd">    :param session_path: A session path to rename</span>
+<span class="sd">    :return: The renamed session path</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">session_path</span> <span class="o">=</span> <span class="n">get_session_path</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">session_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">return</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Session path not valid ALF session folder&#39;</span><span class="p">)</span>
     <span class="n">mouse</span> <span class="o">=</span> <span class="n">session_path</span><span class="o">.</span><span class="n">parts</span><span class="p">[</span><span class="o">-</span><span class="mi">3</span><span class="p">]</span>
     <span class="n">date</span> <span class="o">=</span> <span class="n">session_path</span><span class="o">.</span><span class="n">parts</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span>
     <span class="n">sess</span> <span class="o">=</span> <span class="n">session_path</span><span class="o">.</span><span class="n">parts</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
-    <span class="n">new_mouse</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Please insert mouse NAME [current value: </span><span class="si">{</span><span class="n">mouse</span><span class="si">}</span><span class="s2">]&gt; &quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">mouse</span>
+    <span class="n">new_mouse</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Please insert subject NAME [current value: </span><span class="si">{</span><span class="n">mouse</span><span class="si">}</span><span class="s2">]&gt; &quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">mouse</span>
     <span class="n">new_date</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Please insert new session DATE [current value: </span><span class="si">{</span><span class="n">date</span><span class="si">}</span><span class="s2">]&gt; &quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">date</span>
     <span class="n">new_sess</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Please insert new session NUMBER [current value: </span><span class="si">{</span><span class="n">sess</span><span class="si">}</span><span class="s2">]&gt; &quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">sess</span>
-    <span class="n">new_session_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="o">*</span><span class="n">session_path</span><span class="o">.</span><span class="n">parts</span><span class="p">[:</span><span class="o">-</span><span class="mi">3</span><span class="p">])</span> <span class="o">/</span> <span class="n">new_mouse</span> <span class="o">/</span> <span class="n">new_date</span> <span class="o">/</span> <span class="n">new_sess</span>
+    <span class="n">new_session_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="o">*</span><span class="n">session_path</span><span class="o">.</span><span class="n">parts</span><span class="p">[:</span><span class="o">-</span><span class="mi">3</span><span class="p">])</span> <span class="o">/</span> <span class="n">new_mouse</span> <span class="o">/</span> <span class="n">new_date</span> <span class="o">/</span> <span class="n">new_sess</span><span class="o">.</span><span class="n">zfill</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">is_session_path</span><span class="p">(</span><span class="n">new_session_path</span><span class="p">),</span> <span class="s1">&#39;invalid subject, date or number&#39;</span>
 
     <span class="n">shutil</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">session_path</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">new_session_path</span><span class="p">))</span>
     <span class="nb">print</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="s2">&quot;--&gt; renamed to:&quot;</span><span class="p">)</span>
@@ -324,8 +344,7 @@
     <span class="k">if</span> <span class="n">silent</span><span class="p">:</span>
         <span class="n">data_folder_path</span> <span class="o">=</span> <span class="sa">r</span><span class="s2">&quot;D:\iblrig_data\Subjects&quot;</span>
         <span class="n">remote_data_folder_path</span> <span class="o">=</span> <span class="sa">r</span><span class="s2">&quot;</span><span class="se">\\</span><span class="s2">iblserver.champalimaud.pt\ibldata\Subjects&quot;</span>
-        <span class="n">probe_type_00</span> <span class="o">=</span> <span class="s2">&quot;3A&quot;</span>
-        <span class="n">probe_type_01</span> <span class="o">=</span> <span class="s2">&quot;3B&quot;</span>
+        <span class="n">probe_types</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;PROBE_TYPE_00&quot;</span><span class="p">:</span> <span class="s2">&quot;3A&quot;</span><span class="p">,</span> <span class="s2">&quot;PROBE_TYPE_01&quot;</span><span class="p">:</span> <span class="s2">&quot;3B&quot;</span><span class="p">}</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">data_folder_path</span> <span class="o">=</span> <span class="n">cli_ask_default</span><span class="p">(</span>
             <span class="sa">r</span><span class="s2">&quot;Where&#39;s your LOCAL &#39;Subjects&#39; data folder?&quot;</span><span class="p">,</span> <span class="sa">r</span><span class="s2">&quot;D:\iblrig_data\Subjects&quot;</span>
@@ -334,13 +353,16 @@
             <span class="sa">r</span><span class="s2">&quot;Where&#39;s your REMOTE &#39;Subjects&#39; data folder?&quot;</span><span class="p">,</span>
             <span class="sa">r</span><span class="s2">&quot;</span><span class="se">\\</span><span class="s2">iblserver.champalimaud.pt\ibldata\Subjects&quot;</span><span class="p">,</span>
         <span class="p">)</span>
-        <span class="n">probe_type_00</span> <span class="o">=</span> <span class="n">cli_ask_options</span><span class="p">(</span><span class="s2">&quot;What&#39;s the type of PROBE 00?&quot;</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;3A&quot;</span><span class="p">,</span> <span class="s2">&quot;3B&quot;</span><span class="p">])</span>
-        <span class="n">probe_type_01</span> <span class="o">=</span> <span class="n">cli_ask_options</span><span class="p">(</span><span class="s2">&quot;What&#39;s the type of PROBE 01?&quot;</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;3A&quot;</span><span class="p">,</span> <span class="s2">&quot;3B&quot;</span><span class="p">])</span>
+        <span class="n">n_probes</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">cli_ask_default</span><span class="p">(</span><span class="s2">&quot;How many probes are you using?&quot;</span><span class="p">,</span> <span class="s1">&#39;2&#39;</span><span class="p">))</span>
+        <span class="k">assert</span> <span class="mi">100</span> <span class="o">&gt;</span> <span class="n">n_probes</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;Please enter number between 1, 99 inclusive&#39;</span>
+        <span class="n">probe_types</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_probes</span><span class="p">):</span>
+            <span class="n">probe_types</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;PROBE_TYPE_</span><span class="si">{</span><span class="n">i</span><span class="si">:</span><span class="s1">02</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">cli_ask_options</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;What&#39;s the type of PROBE </span><span class="si">{</span><span class="n">i</span><span class="si">:</span><span class="s2">02</span><span class="si">}</span><span class="s2">?&quot;</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;3A&quot;</span><span class="p">,</span> <span class="s2">&quot;3B&quot;</span><span class="p">])</span>
     <span class="n">param_dict</span> <span class="o">=</span> <span class="p">{</span>
         <span class="s2">&quot;DATA_FOLDER_PATH&quot;</span><span class="p">:</span> <span class="n">data_folder_path</span><span class="p">,</span>
         <span class="s2">&quot;REMOTE_DATA_FOLDER_PATH&quot;</span><span class="p">:</span> <span class="n">remote_data_folder_path</span><span class="p">,</span>
-        <span class="s2">&quot;PROBE_TYPE_00&quot;</span><span class="p">:</span> <span class="n">probe_type_00</span><span class="p">,</span>
-        <span class="s2">&quot;PROBE_TYPE_01&quot;</span><span class="p">:</span> <span class="n">probe_type_01</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">probe_types</span>
     <span class="p">}</span>
     <span class="n">params</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;ephyspc_params&quot;</span><span class="p">,</span> <span class="n">param_dict</span><span class="p">)</span>
     <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Created </span><span class="si">{</span><span class="n">params</span><span class="o">.</span><span class="n">getfile</span><span class="p">(</span><span class="s1">&#39;ephyspc_params&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
@@ -488,11 +510,8 @@
     <span class="n">labels</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">):</span>
     <span class="k">if</span> <span class="n">one</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">one</span> <span class="o">=</span> <span class="n">ONE</span><span class="p">()</span>
-    <span class="k">if</span> <span class="n">is_uuid_string</span><span class="p">(</span><span class="n">session_path</span><span class="p">):</span>
-        <span class="n">eid</span> <span class="o">=</span> <span class="n">session_path</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">eid</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">eid_from_path</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="n">one</span> <span class="o">=</span> <span class="n">ONE</span><span class="p">(</span><span class="n">cache_rest</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+    <span class="n">eid</span> <span class="o">=</span> <span class="n">session_path</span> <span class="k">if</span> <span class="n">is_uuid_string</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span> <span class="k">else</span> <span class="n">one</span><span class="o">.</span><span class="n">eid_from_path</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">eid</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Session not found on Alyx: please create session before creating insertions&quot;</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">model</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -516,12 +535,11 @@
     <span class="n">qc_dict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;extended_qc&quot;</span><span class="p">:</span> <span class="p">{}})</span>
 
     <span class="c1"># create the dictionary</span>
+    <span class="n">insertions</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="k">for</span> <span class="n">plabel</span> <span class="ow">in</span> <span class="n">probe_labels</span><span class="p">:</span>
         <span class="n">insdict</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;session&quot;</span><span class="p">:</span> <span class="n">eid</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">plabel</span><span class="p">,</span> <span class="s2">&quot;model&quot;</span><span class="p">:</span> <span class="n">pmodel</span><span class="p">,</span> <span class="s2">&quot;json&quot;</span><span class="p">:</span> <span class="n">qc_dict</span><span class="p">}</span>
         <span class="c1"># search for the corresponding insertion in Alyx</span>
-        <span class="n">alyx_insertion</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span>
-            <span class="s2">&quot;insertions&quot;</span><span class="p">,</span> <span class="s2">&quot;list&quot;</span><span class="p">,</span> <span class="n">session</span><span class="o">=</span><span class="n">insdict</span><span class="p">[</span><span class="s2">&quot;session&quot;</span><span class="p">],</span> <span class="n">name</span><span class="o">=</span><span class="n">insdict</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]</span>
-        <span class="p">)</span>
+        <span class="n">alyx_insertion</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;/insertions?&amp;session=</span><span class="si">{</span><span class="n">eid</span><span class="si">}</span><span class="s1">&amp;name=</span><span class="si">{</span><span class="n">plabel</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">clobber</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="c1"># if it doesn&#39;t exist, create it</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">alyx_insertion</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
             <span class="n">alyx_insertion</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s2">&quot;insertions&quot;</span><span class="p">,</span> <span class="s2">&quot;create&quot;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">insdict</span><span class="p">)</span>
@@ -530,17 +548,22 @@
             <span class="k">if</span> <span class="n">force</span><span class="p">:</span>
                 <span class="n">alyx_insertion</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s2">&quot;insertions&quot;</span><span class="p">,</span> <span class="s2">&quot;update&quot;</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">iid</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">insdict</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="n">alyx_insertion</span> <span class="o">=</span> <span class="n">alyx_insertion</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span></div>
+                <span class="n">alyx_insertion</span> <span class="o">=</span> <span class="n">alyx_insertion</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">insertions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">alyx_insertion</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">insertions</span></div>
 
 
 <div class="viewcode-block" id="create_ephys_flags"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.misc.html#ibllib.pipes.misc.create_ephys_flags">[docs]</a><span class="k">def</span> <span class="nf">create_ephys_flags</span><span class="p">(</span><span class="n">session_folder</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Create flags for processing an ephys session.  Should be called after move_ephys_files</span>
+<span class="sd">    :param session_folder: A path to an ephys session</span>
+<span class="sd">    :return:</span>
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">session_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">session_folder</span><span class="p">)</span>
     <span class="n">flags</span><span class="o">.</span><span class="n">write_flag_file</span><span class="p">(</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s2">&quot;extract_ephys.flag&quot;</span><span class="p">))</span>
     <span class="n">flags</span><span class="o">.</span><span class="n">write_flag_file</span><span class="p">(</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s2">&quot;raw_ephys_qc.flag&quot;</span><span class="p">))</span>
-    <span class="n">probe00_path</span> <span class="o">=</span> <span class="n">session_path</span> <span class="o">/</span> <span class="s2">&quot;raw_ephys_data&quot;</span> <span class="o">/</span> <span class="s2">&quot;probe00&quot;</span>
-    <span class="n">probe01_path</span> <span class="o">=</span> <span class="n">session_path</span> <span class="o">/</span> <span class="s2">&quot;raw_ephys_data&quot;</span> <span class="o">/</span> <span class="s2">&quot;probe01&quot;</span>
-    <span class="n">flags</span><span class="o">.</span><span class="n">write_flag_file</span><span class="p">(</span><span class="n">probe00_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s2">&quot;spike_sorting.flag&quot;</span><span class="p">))</span>
-    <span class="n">flags</span><span class="o">.</span><span class="n">write_flag_file</span><span class="p">(</span><span class="n">probe01_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s2">&quot;spike_sorting.flag&quot;</span><span class="p">))</span></div>
+    <span class="k">for</span> <span class="n">probe_path</span> <span class="ow">in</span> <span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;raw_ephys_data&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s1">&#39;probe*&#39;</span><span class="p">):</span>
+        <span class="n">flags</span><span class="o">.</span><span class="n">write_flag_file</span><span class="p">(</span><span class="n">probe_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s2">&quot;spike_sorting.flag&quot;</span><span class="p">))</span></div>
 
 
 <div class="viewcode-block" id="create_ephys_transfer_done_flag"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.misc.html#ibllib.pipes.misc.create_ephys_transfer_done_flag">[docs]</a><span class="k">def</span> <span class="nf">create_ephys_transfer_done_flag</span><span class="p">(</span><span class="n">session_folder</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
@@ -599,53 +622,22 @@
         <span class="n">shutil</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">nidqf</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">nidqf</span><span class="o">.</span><span class="n">parent</span> <span class="o">/</span> <span class="n">new_filename</span><span class="p">))</span></div>
 
 
-<div class="viewcode-block" id="get_new_filename"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.misc.html#ibllib.pipes.misc.get_new_filename">[docs]</a><span class="k">def</span> <span class="nf">get_new_filename</span><span class="p">(</span><span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>  <span class="c1"># testOK</span>
+<div class="viewcode-block" id="get_new_filename"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.misc.html#ibllib.pipes.misc.get_new_filename">[docs]</a><span class="k">def</span> <span class="nf">get_new_filename</span><span class="p">(</span><span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;get_new_filename is system agnostic (3A, 3B1, 3B2).</span>
 <span class="sd">    Gets an alyx compatible filename from any spikeglx ephys file.</span>
 
 <span class="sd">    :param filename: Name of an ephys file</span>
-<span class="sd">    :type filename: str</span>
 <span class="sd">    :return: New name for ephys file</span>
-<span class="sd">    :rtype: str</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">root</span> <span class="o">=</span> <span class="s2">&quot;_spikeglx_ephysData&quot;</span>
-    <span class="c1"># gt = &#39;_g0_t0&#39; or &#39;error</span>
-    <span class="n">gt</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">):</span>
-        <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">):</span>
-            <span class="k">if</span> <span class="sa">f</span><span class="s2">&quot;_g</span><span class="si">{</span><span class="n">g</span><span class="si">}</span><span class="s2">_t</span><span class="si">{</span><span class="n">t</span><span class="si">}</span><span class="s2">&quot;</span> <span class="ow">in</span> <span class="n">filename</span><span class="p">:</span>
-                <span class="n">gt</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;_g</span><span class="si">{</span><span class="n">g</span><span class="si">}</span><span class="s2">_t</span><span class="si">{</span><span class="n">t</span><span class="si">}</span><span class="s2">&quot;</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">gt</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;Can not parse </span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2"> as an ephys file with gX_tY where&quot;</span>
-                <span class="sa">f</span><span class="s2">&quot;XY are single digits&quot;</span>
-            <span class="p">)</span>
-
-    <span class="c1"># ext = &#39;bin&#39; or &#39;meta&#39;</span>
-    <span class="k">if</span> <span class="s2">&quot;.bin&quot;</span> <span class="ow">in</span> <span class="n">filename</span><span class="p">:</span>
-        <span class="n">ext</span> <span class="o">=</span> <span class="s2">&quot;bin&quot;</span>
-    <span class="k">elif</span> <span class="s2">&quot;.meta&quot;</span> <span class="ow">in</span> <span class="n">filename</span><span class="p">:</span>
-        <span class="n">ext</span> <span class="o">=</span> <span class="s2">&quot;meta&quot;</span>
-
-    <span class="k">if</span> <span class="s2">&quot;.nidq.&quot;</span> <span class="ow">in</span> <span class="n">filename</span><span class="p">:</span>
-        <span class="k">return</span> <span class="s2">&quot;.&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">root</span> <span class="o">+</span> <span class="n">gt</span><span class="p">,</span> <span class="s2">&quot;nidq&quot;</span><span class="p">,</span> <span class="n">ext</span><span class="p">])</span>
-
-    <span class="c1"># probe = &#39;imec0&#39; or &#39;imec1&#39;</span>
-    <span class="k">if</span> <span class="s2">&quot;.imec0.&quot;</span> <span class="ow">in</span> <span class="n">filename</span><span class="p">:</span>
-        <span class="n">probe</span> <span class="o">=</span> <span class="s2">&quot;imec0&quot;</span>
-    <span class="k">elif</span> <span class="s2">&quot;.imec1.&quot;</span> <span class="ow">in</span> <span class="n">filename</span><span class="p">:</span>
-        <span class="n">probe</span> <span class="o">=</span> <span class="s2">&quot;imec1&quot;</span>
-    <span class="k">elif</span> <span class="s2">&quot;.imec.&quot;</span> <span class="ow">in</span> <span class="n">filename</span><span class="p">:</span>
-        <span class="n">probe</span> <span class="o">=</span> <span class="s2">&quot;imec&quot;</span>
-
-    <span class="c1"># freq = &#39;ap&#39; or &#39;lf&#39;</span>
-    <span class="k">if</span> <span class="s2">&quot;.ap.&quot;</span> <span class="ow">in</span> <span class="n">filename</span><span class="p">:</span>
-        <span class="n">freq</span> <span class="o">=</span> <span class="s2">&quot;ap&quot;</span>
-    <span class="k">elif</span> <span class="s2">&quot;.lf.&quot;</span> <span class="ow">in</span> <span class="n">filename</span><span class="p">:</span>
-        <span class="n">freq</span> <span class="o">=</span> <span class="s2">&quot;lf&quot;</span>
-
-    <span class="k">return</span> <span class="s2">&quot;.&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">root</span> <span class="o">+</span> <span class="n">gt</span><span class="p">,</span> <span class="n">probe</span><span class="p">,</span> <span class="n">freq</span><span class="p">,</span> <span class="n">ext</span><span class="p">])</span></div>
+    <span class="n">parts</span> <span class="o">=</span> <span class="n">filename</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">fr</span><span class="s1">&#39;unrecognized filename &quot;</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s1">&quot;&#39;</span><span class="p">)</span>
+    <span class="n">pattern</span> <span class="o">=</span> <span class="sa">r</span><span class="s1">&#39;.*(?P&lt;gt&gt;_g\d+_t\d+)&#39;</span>
+    <span class="n">match</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">pattern</span><span class="p">,</span> <span class="n">parts</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">match</span><span class="p">:</span>  <span class="c1"># py 3.8</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">fr</span><span class="s1">&#39;unrecognized filename &quot;</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s1">&quot;&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="s1">&#39;.&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">root</span> <span class="o">+</span> <span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="o">*</span><span class="n">parts</span><span class="p">[</span><span class="mi">1</span><span class="p">:]])</span></div>
 
 
 <div class="viewcode-block" id="move_ephys_files"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.misc.html#ibllib.pipes.misc.move_ephys_files">[docs]</a><span class="k">def</span> <span class="nf">move_ephys_files</span><span class="p">(</span><span class="n">session_folder</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
@@ -661,64 +653,51 @@
     <span class="n">session_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">session_folder</span><span class="p">)</span>
     <span class="n">raw_ephys_data_path</span> <span class="o">=</span> <span class="n">session_path</span> <span class="o">/</span> <span class="s2">&quot;raw_ephys_data&quot;</span>
 
-    <span class="n">probe00_path</span> <span class="o">=</span> <span class="n">raw_ephys_data_path</span> <span class="o">/</span> <span class="s2">&quot;probe00&quot;</span>
-    <span class="n">probe01_path</span> <span class="o">=</span> <span class="n">raw_ephys_data_path</span> <span class="o">/</span> <span class="s2">&quot;probe01&quot;</span>
-    <span class="c1"># 3A system imec only</span>
-    <span class="n">imec_files</span> <span class="o">=</span> <span class="n">session_path</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="s2">&quot;*.imec.*&quot;</span><span class="p">)</span>
+    <span class="n">imec_files</span> <span class="o">=</span> <span class="n">session_path</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="s2">&quot;*.imec*&quot;</span><span class="p">)</span>
     <span class="k">for</span> <span class="n">imf</span> <span class="ow">in</span> <span class="n">imec_files</span><span class="p">:</span>
-        <span class="k">if</span> <span class="s2">&quot;probe00&quot;</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="n">imf</span><span class="p">):</span>
-            <span class="n">shutil</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">imf</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">probe00_path</span> <span class="o">/</span> <span class="n">imf</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
-        <span class="k">elif</span> <span class="s2">&quot;probe01&quot;</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="n">imf</span><span class="p">):</span>
-            <span class="n">shutil</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">imf</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">probe01_path</span> <span class="o">/</span> <span class="n">imf</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
-    <span class="c1"># 3B system</span>
-    <span class="n">imec0_files</span> <span class="o">=</span> <span class="n">session_path</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="s2">&quot;*.imec0.*&quot;</span><span class="p">)</span>
-    <span class="n">imec1_files</span> <span class="o">=</span> <span class="n">session_path</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="s2">&quot;*.imec1.*&quot;</span><span class="p">)</span>
-    <span class="n">nidq_files</span> <span class="o">=</span> <span class="n">session_path</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="s2">&quot;*.nidq.*&quot;</span><span class="p">)</span>
-    <span class="c1"># All imec 0 in probe00 folder</span>
-    <span class="k">for</span> <span class="n">i0f</span> <span class="ow">in</span> <span class="n">imec0_files</span><span class="p">:</span>
-        <span class="n">shutil</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">i0f</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">probe00_path</span> <span class="o">/</span> <span class="n">i0f</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
-    <span class="c1"># All imec 1 in probe01 folder</span>
-    <span class="k">for</span> <span class="n">i1f</span> <span class="ow">in</span> <span class="n">imec1_files</span><span class="p">:</span>
-        <span class="n">shutil</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">i1f</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">probe01_path</span> <span class="o">/</span> <span class="n">i1f</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
-    <span class="c1"># NIDAq files</span>
+        <span class="c1"># For 3B system probe0x == imecx</span>
+        <span class="n">probe_number</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;_spikeglx_ephysData_g\d_t\d.imec(\d+).*&#39;</span><span class="p">,</span> <span class="n">imf</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">probe_number</span><span class="p">:</span>
+            <span class="c1"># For 3A system imec files must be in a &#39;probexx&#39; folder</span>
+            <span class="n">probe_label</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;probe\d+&#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">imf</span><span class="p">))</span>
+            <span class="k">assert</span> <span class="n">probe_label</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;Cannot assign probe number to file </span><span class="si">{</span><span class="n">imf</span><span class="si">}</span><span class="s1">&#39;</span>
+            <span class="n">probe_label</span> <span class="o">=</span> <span class="n">probe_label</span><span class="o">.</span><span class="n">group</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">probe_number</span><span class="p">,</span> <span class="o">=</span> <span class="n">probe_number</span><span class="o">.</span><span class="n">groups</span><span class="p">()</span>
+            <span class="n">probe_label</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;probe</span><span class="si">{</span><span class="n">probe_number</span><span class="o">.</span><span class="n">zfill</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span>
+        <span class="n">raw_ephys_data_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">probe_label</span><span class="p">)</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">shutil</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="n">imf</span><span class="p">,</span> <span class="n">raw_ephys_data_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">probe_label</span><span class="p">,</span> <span class="n">imf</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
+
+    <span class="c1"># NIDAq files (3B system only)</span>
     <span class="n">nidq_files</span> <span class="o">=</span> <span class="n">session_path</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="s2">&quot;*.nidq.*&quot;</span><span class="p">)</span>
     <span class="k">for</span> <span class="n">nidqf</span> <span class="ow">in</span> <span class="n">nidq_files</span><span class="p">:</span>
         <span class="n">shutil</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">nidqf</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">raw_ephys_data_path</span> <span class="o">/</span> <span class="n">nidqf</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
     <span class="c1"># Delete all empty folders recursively</span>
-    <span class="kn">from</span> <span class="nn">ibllib.io.misc</span> <span class="kn">import</span> <span class="n">delete_empty_folders</span>
-
     <span class="n">delete_empty_folders</span><span class="p">(</span><span class="n">raw_ephys_data_path</span><span class="p">,</span> <span class="n">dry</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">recursive</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="create_custom_ephys_wirings"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.misc.html#ibllib.pipes.misc.create_custom_ephys_wirings">[docs]</a><span class="k">def</span> <span class="nf">create_custom_ephys_wirings</span><span class="p">(</span><span class="n">iblscripts_folder</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
     <span class="n">iblscripts_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">iblscripts_folder</span><span class="p">)</span>
     <span class="n">PARAMS</span> <span class="o">=</span> <span class="n">load_ephyspc_params</span><span class="p">()</span>
-    <span class="k">if</span> <span class="n">PARAMS</span><span class="p">[</span><span class="s2">&quot;PROBE_TYPE_00&quot;</span><span class="p">]</span> <span class="o">!=</span> <span class="n">PARAMS</span><span class="p">[</span><span class="s2">&quot;PROBE_TYPE_01&quot;</span><span class="p">]:</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Having different probe types not supported&quot;</span><span class="p">)</span>
-        <span class="k">raise</span> <span class="p">(</span><span class="ne">NotImplementedError</span><span class="p">)</span>
+    <span class="n">probe_set</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">PARAMS</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;PROBE_TYPE&#39;</span><span class="p">))</span>
 
     <span class="n">params_path</span> <span class="o">=</span> <span class="n">iblscripts_path</span><span class="o">.</span><span class="n">parent</span> <span class="o">/</span> <span class="s2">&quot;iblscripts_params&quot;</span>
     <span class="n">params_path</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="n">wirings_path</span> <span class="o">=</span> <span class="n">iblscripts_path</span> <span class="o">/</span> <span class="s2">&quot;deploy&quot;</span> <span class="o">/</span> <span class="s2">&quot;ephyspc&quot;</span> <span class="o">/</span> <span class="s2">&quot;wirings&quot;</span>
-    <span class="k">if</span> <span class="s2">&quot;3A&quot;</span> <span class="ow">in</span> <span class="n">PARAMS</span><span class="p">[</span><span class="s2">&quot;PROBE_TYPE_00&quot;</span><span class="p">]:</span>
+    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">PARAMS</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">k</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;PROBE_TYPE_&#39;</span><span class="p">):</span>
+            <span class="k">continue</span>
+        <span class="n">probe_label</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;probe</span><span class="si">{</span><span class="n">k</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">:]</span><span class="si">}</span><span class="s1">&#39;</span>
+        <span class="k">if</span> <span class="n">v</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;3A&#39;</span><span class="p">,</span> <span class="s1">&#39;3B&#39;</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Unsupported probe type &quot;</span><span class="si">{</span><span class="n">v</span><span class="si">}</span><span class="s1">&quot;&#39;</span><span class="p">)</span>
         <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span>
-            <span class="nb">str</span><span class="p">(</span><span class="n">wirings_path</span> <span class="o">/</span> <span class="s2">&quot;3A.wiring.json&quot;</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">params_path</span> <span class="o">/</span> <span class="s2">&quot;3A_probe00.wiring.json&quot;</span><span class="p">)</span>
+            <span class="n">wirings_path</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">v</span><span class="si">}</span><span class="s2">.wiring.json&quot;</span><span class="p">,</span> <span class="n">params_path</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">v</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">probe_label</span><span class="si">}</span><span class="s2">.wiring.json&quot;</span>
         <span class="p">)</span>
-        <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span>
-            <span class="nb">str</span><span class="p">(</span><span class="n">wirings_path</span> <span class="o">/</span> <span class="s2">&quot;3A.wiring.json&quot;</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">params_path</span> <span class="o">/</span> <span class="s2">&quot;3A_probe01.wiring.json&quot;</span><span class="p">)</span>
-        <span class="p">)</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Created 3A.wiring.json in </span><span class="si">{</span><span class="n">params_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-    <span class="k">if</span> <span class="s2">&quot;3B&quot;</span> <span class="ow">in</span> <span class="n">PARAMS</span><span class="p">[</span><span class="s2">&quot;PROBE_TYPE_00&quot;</span><span class="p">]:</span>
-        <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span>
-            <span class="nb">str</span><span class="p">(</span><span class="n">wirings_path</span> <span class="o">/</span> <span class="s2">&quot;3B.wiring.json&quot;</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">params_path</span> <span class="o">/</span> <span class="s2">&quot;3B_probe00.wiring.json&quot;</span><span class="p">)</span>
-        <span class="p">)</span>
-        <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span>
-            <span class="nb">str</span><span class="p">(</span><span class="n">wirings_path</span> <span class="o">/</span> <span class="s2">&quot;3B.wiring.json&quot;</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">params_path</span> <span class="o">/</span> <span class="s2">&quot;3B_probe01.wiring.json&quot;</span><span class="p">)</span>
-        <span class="p">)</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Created 3B.wiring.json in </span><span class="si">{</span><span class="n">params_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">wirings_path</span> <span class="o">/</span> <span class="s2">&quot;nidq.wiring.json&quot;</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">params_path</span> <span class="o">/</span> <span class="s2">&quot;nidq.wiring.json&quot;</span><span class="p">))</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Created </span><span class="si">{</span><span class="n">v</span><span class="si">}</span><span class="s2">.wiring.json in </span><span class="si">{</span><span class="n">params_path</span><span class="si">}</span><span class="s2"> for </span><span class="si">{</span><span class="n">probe_label</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="s2">&quot;3B&quot;</span> <span class="ow">in</span> <span class="n">probe_set</span><span class="p">:</span>
+        <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">wirings_path</span> <span class="o">/</span> <span class="s2">&quot;nidq.wiring.json&quot;</span><span class="p">,</span> <span class="n">params_path</span> <span class="o">/</span> <span class="s2">&quot;nidq.wiring.json&quot;</span><span class="p">)</span>
         <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Created nidq.wiring.json in </span><span class="si">{</span><span class="n">params_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">You can now modify your wirings files from folder </span><span class="si">{</span><span class="n">params_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">You can now modify your wiring files from folder </span><span class="si">{</span><span class="n">params_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="get_iblscripts_folder"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.misc.html#ibllib.pipes.misc.get_iblscripts_folder">[docs]</a><span class="k">def</span> <span class="nf">get_iblscripts_folder</span><span class="p">():</span>
@@ -730,27 +709,17 @@
     <span class="n">PARAMS</span> <span class="o">=</span> <span class="n">load_ephyspc_params</span><span class="p">()</span>
     <span class="k">if</span> <span class="n">PARAMS</span><span class="p">[</span><span class="s2">&quot;PROBE_TYPE_00&quot;</span><span class="p">]</span> <span class="o">!=</span> <span class="n">PARAMS</span><span class="p">[</span><span class="s2">&quot;PROBE_TYPE_01&quot;</span><span class="p">]:</span>
         <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Having different probe types is not supported&quot;</span><span class="p">)</span>
-        <span class="k">raise</span> <span class="p">(</span><span class="ne">NotImplementedError</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">()</span>
     <span class="n">session_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">session_folder</span><span class="p">)</span>
     <span class="n">iblscripts_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">iblscripts_folder</span><span class="p">)</span>
     <span class="n">iblscripts_params_path</span> <span class="o">=</span> <span class="n">iblscripts_path</span><span class="o">.</span><span class="n">parent</span> <span class="o">/</span> <span class="s2">&quot;iblscripts_params&quot;</span>
     <span class="n">wirings_path</span> <span class="o">=</span> <span class="n">iblscripts_path</span> <span class="o">/</span> <span class="s2">&quot;deploy&quot;</span> <span class="o">/</span> <span class="s2">&quot;ephyspc&quot;</span> <span class="o">/</span> <span class="s2">&quot;wirings&quot;</span>
-    <span class="n">probe00_path</span> <span class="o">=</span> <span class="n">session_path</span> <span class="o">/</span> <span class="s2">&quot;raw_ephys_data&quot;</span> <span class="o">/</span> <span class="s2">&quot;probe00&quot;</span>
-    <span class="n">probe01_path</span> <span class="o">=</span> <span class="n">session_path</span> <span class="o">/</span> <span class="s2">&quot;raw_ephys_data&quot;</span> <span class="o">/</span> <span class="s2">&quot;probe01&quot;</span>
-    <span class="n">termination</span> <span class="o">=</span> <span class="s2">&quot;.wiring.json&quot;</span>
-    <span class="c1"># Determine if custom wiring applies</span>
-    <span class="n">custom</span> <span class="o">=</span> <span class="kc">True</span> <span class="k">if</span> <span class="n">iblscripts_params_path</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="k">else</span> <span class="kc">False</span>
+    <span class="n">termination</span> <span class="o">=</span> <span class="s1">&#39;.wiring.json&#39;</span>
     <span class="c1"># Determine system</span>
     <span class="n">ephys_system</span> <span class="o">=</span> <span class="n">PARAMS</span><span class="p">[</span><span class="s2">&quot;PROBE_TYPE_00&quot;</span><span class="p">]</span>
-    <span class="c1"># Define where to get the files from</span>
-    <span class="k">if</span> <span class="n">custom</span><span class="p">:</span>
-        <span class="n">src_wiring_path</span> <span class="o">=</span> <span class="n">iblscripts_params_path</span>
-        <span class="n">probe00_wiring_file_path</span> <span class="o">=</span> <span class="n">src_wiring_path</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">ephys_system</span><span class="si">}</span><span class="s2">_probe00.wiring.json&quot;</span>
-        <span class="n">probe01_wiring_file_path</span> <span class="o">=</span> <span class="n">src_wiring_path</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">ephys_system</span><span class="si">}</span><span class="s2">_probe01.wiring.json&quot;</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">src_wiring_path</span> <span class="o">=</span> <span class="n">wirings_path</span>
-        <span class="n">probe00_wiring_file_path</span> <span class="o">=</span> <span class="n">src_wiring_path</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">ephys_system</span><span class="si">}</span><span class="s2">.wiring.json&quot;</span>
-        <span class="n">probe01_wiring_file_path</span> <span class="o">=</span> <span class="n">src_wiring_path</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">ephys_system</span><span class="si">}</span><span class="s2">.wiring.json&quot;</span>
+    <span class="c1"># Define where to get the files from (determine if custom wiring applies)</span>
+    <span class="n">src_wiring_path</span> <span class="o">=</span> <span class="n">iblscripts_params_path</span> <span class="k">if</span> <span class="n">iblscripts_params_path</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="k">else</span> <span class="n">wirings_path</span>
+    <span class="n">probe_wiring_file_path</span> <span class="o">=</span> <span class="n">src_wiring_path</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">ephys_system</span><span class="si">}{</span><span class="n">termination</span><span class="si">}</span><span class="s2">&quot;</span>
 
     <span class="k">if</span> <span class="n">ephys_system</span> <span class="o">==</span> <span class="s2">&quot;3B&quot;</span><span class="p">:</span>
         <span class="c1"># Copy nidq file</span>
@@ -758,16 +727,16 @@
         <span class="k">for</span> <span class="n">nidqf</span> <span class="ow">in</span> <span class="n">nidq_files</span><span class="p">:</span>
             <span class="n">nidq_wiring_name</span> <span class="o">=</span> <span class="s2">&quot;.&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">nidqf</span><span class="o">.</span><span class="n">name</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span> <span class="o">+</span> <span class="n">termination</span>
             <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span>
-                <span class="nb">str</span><span class="p">(</span><span class="n">src_wiring_path</span> <span class="o">/</span> <span class="s2">&quot;nidq.wiring.json&quot;</span><span class="p">),</span>
+                <span class="nb">str</span><span class="p">(</span><span class="n">src_wiring_path</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;nidq</span><span class="si">{</span><span class="n">termination</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">),</span>
                 <span class="nb">str</span><span class="p">(</span><span class="n">session_path</span> <span class="o">/</span> <span class="s2">&quot;raw_ephys_data&quot;</span> <span class="o">/</span> <span class="n">nidq_wiring_name</span><span class="p">),</span>
             <span class="p">)</span>
     <span class="c1"># If system is either (3A OR 3B) copy a wiring file for each ap.bin file</span>
     <span class="k">for</span> <span class="n">binf</span> <span class="ow">in</span> <span class="n">session_path</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="s2">&quot;*.ap.bin&quot;</span><span class="p">):</span>
-        <span class="n">wiring_name</span> <span class="o">=</span> <span class="s2">&quot;.&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">binf</span><span class="o">.</span><span class="n">name</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[:</span><span class="o">-</span><span class="mi">2</span><span class="p">])</span> <span class="o">+</span> <span class="n">termination</span>
-        <span class="k">if</span> <span class="s2">&quot;probe00&quot;</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="n">binf</span><span class="p">):</span>
-            <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">probe00_wiring_file_path</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">probe00_path</span> <span class="o">/</span> <span class="n">wiring_name</span><span class="p">))</span>
-        <span class="k">if</span> <span class="s2">&quot;probe01&quot;</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="n">binf</span><span class="p">):</span>
-            <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">probe01_wiring_file_path</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">probe01_path</span> <span class="o">/</span> <span class="n">wiring_name</span><span class="p">))</span></div>
+        <span class="n">probe_label</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;probe\d+&#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">binf</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">probe_label</span><span class="p">:</span>
+            <span class="n">wiring_name</span> <span class="o">=</span> <span class="s2">&quot;.&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">binf</span><span class="o">.</span><span class="n">name</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[:</span><span class="o">-</span><span class="mi">2</span><span class="p">])</span> <span class="o">+</span> <span class="n">termination</span>
+            <span class="n">dst_path</span> <span class="o">=</span> <span class="n">session_path</span> <span class="o">/</span> <span class="s2">&quot;raw_ephys_data&quot;</span> <span class="o">/</span> <span class="n">probe_label</span><span class="o">.</span><span class="n">group</span><span class="p">()</span> <span class="o">/</span> <span class="n">wiring_name</span>
+            <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">probe_wiring_file_path</span><span class="p">,</span> <span class="n">dst_path</span><span class="p">)</span></div>
 </pre></div>
 
            </div>

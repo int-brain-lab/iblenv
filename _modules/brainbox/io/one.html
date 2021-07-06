@@ -95,22 +95,25 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../03_one.html">ONE</a></li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../04_datajoint.html">Datajoint</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../04_alf.html">Alyx Files (ALF)</a></li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../05_tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../05_datajoint.html">Datajoint</a></li>
 </ul>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../06_examples.html">Examples</a></li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../07_public.html">IBL Public Data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../07_tutorials.html">Tutorials</a></li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../08_contribution.html">Contribution Statement</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../08_public.html">IBL Public Data</a></li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../09_api_reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../09_contribution.html">Contribution Statement</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../010_api_reference.html">API Reference</a></li>
 </ul>
 
             
@@ -178,40 +181,48 @@
 <span></span><span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">os</span>
-<span class="kn">import</span> <span class="nn">traceback</span>
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">from</span> <span class="nn">iblutil.util</span> <span class="kn">import</span> <span class="n">Bunch</span>
 
-<span class="kn">import</span> <span class="nn">alf.io</span>
+<span class="kn">import</span> <span class="nn">one.alf.io</span> <span class="k">as</span> <span class="nn">alfio</span>
+<span class="kn">import</span> <span class="nn">one.alf.exceptions</span> <span class="k">as</span> <span class="nn">alferr</span>
+<span class="kn">from</span> <span class="nn">one.api</span> <span class="kn">import</span> <span class="n">ONE</span><span class="p">,</span> <span class="n">One</span><span class="p">,</span> <span class="n">OneAlyx</span>
+
 <span class="kn">from</span> <span class="nn">ibllib.io</span> <span class="kn">import</span> <span class="n">spikeglx</span>
-<span class="kn">from</span> <span class="nn">ibllib.atlas.regions</span> <span class="kn">import</span> <span class="n">BrainRegions</span>
 <span class="kn">from</span> <span class="nn">ibllib.io.extractors.training_wheel</span> <span class="kn">import</span> <span class="n">extract_wheel_moves</span><span class="p">,</span> <span class="n">extract_first_movement_times</span>
-<span class="kn">from</span> <span class="nn">oneibl.one</span> <span class="kn">import</span> <span class="n">ONE</span>
+<span class="kn">from</span> <span class="nn">ibllib.ephys.neuropixel</span> <span class="kn">import</span> <span class="n">SITES_COORDINATES</span><span class="p">,</span> <span class="n">TIP_SIZE_UM</span>
+<span class="kn">from</span> <span class="nn">ibllib.atlas</span> <span class="kn">import</span> <span class="n">atlas</span>
+<span class="kn">from</span> <span class="nn">ibllib.atlas.regions</span> <span class="kn">import</span> <span class="n">BrainRegions</span>
+<span class="kn">from</span> <span class="nn">ibllib.pipes</span> <span class="kn">import</span> <span class="n">histology</span>
+<span class="kn">from</span> <span class="nn">ibllib.pipes.ephys_alignment</span> <span class="kn">import</span> <span class="n">EphysAlignment</span>
 
-<span class="kn">from</span> <span class="nn">brainbox.core</span> <span class="kn">import</span> <span class="n">Bunch</span><span class="p">,</span> <span class="n">TimeSeries</span>
+<span class="kn">from</span> <span class="nn">brainbox.core</span> <span class="kn">import</span> <span class="n">TimeSeries</span>
 <span class="kn">from</span> <span class="nn">brainbox.processing</span> <span class="kn">import</span> <span class="n">sync</span>
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;ibllib&#39;</span><span class="p">)</span>
 
 
-<div class="viewcode-block" id="load_lfp"><a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.load_lfp">[docs]</a><span class="k">def</span> <span class="nf">load_lfp</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dataset_types</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="load_lfp"><a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.load_lfp">[docs]</a><span class="k">def</span> <span class="nf">load_lfp</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dataset_types</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    TODO Verify works</span>
 <span class="sd">    From an eid, hits the Alyx database and downloads the standard set of datasets</span>
 <span class="sd">    needed for LFP</span>
 <span class="sd">    :param eid:</span>
 <span class="sd">    :param dataset_types: additional dataset types to add to the list</span>
+<span class="sd">    :param open: if True, spikeglx readers are opened</span>
 <span class="sd">    :return: spikeglx.Reader</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">dataset_types</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">dataset_types</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="n">dtypes</span> <span class="o">=</span> <span class="n">dataset_types</span> <span class="o">+</span> <span class="p">[</span><span class="s1">&#39;ephysData.raw.lf&#39;</span><span class="p">,</span> <span class="s1">&#39;ephysData.raw.meta&#39;</span><span class="p">,</span> <span class="s1">&#39;ephysData.raw.ch&#39;</span><span class="p">]</span>
-    <span class="n">one</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">dataset_types</span><span class="o">=</span><span class="n">dtypes</span><span class="p">,</span> <span class="n">download_only</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-    <span class="n">session_path</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">path_from_eid</span><span class="p">(</span><span class="n">eid</span><span class="p">)</span>
+    <span class="p">[</span><span class="n">one</span><span class="o">.</span><span class="n">load_session_dataset</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">dset</span><span class="p">,</span> <span class="n">download_only</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="k">for</span> <span class="n">dset</span> <span class="ow">in</span> <span class="n">dtypes</span><span class="p">]</span>
+    <span class="n">session_path</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">eid2path</span><span class="p">(</span><span class="n">eid</span><span class="p">)</span>
 
     <span class="n">efiles</span> <span class="o">=</span> <span class="p">[</span><span class="n">ef</span> <span class="k">for</span> <span class="n">ef</span> <span class="ow">in</span> <span class="n">spikeglx</span><span class="o">.</span><span class="n">glob_ephys_files</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">bin_exists</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
               <span class="k">if</span> <span class="n">ef</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;lf&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)]</span>
-    <span class="k">return</span> <span class="p">[</span><span class="n">spikeglx</span><span class="o">.</span><span class="n">Reader</span><span class="p">(</span><span class="n">ef</span><span class="p">[</span><span class="s1">&#39;lf&#39;</span><span class="p">])</span> <span class="k">for</span> <span class="n">ef</span> <span class="ow">in</span> <span class="n">efiles</span><span class="p">]</span></div>
+    <span class="k">return</span> <span class="p">[</span><span class="n">spikeglx</span><span class="o">.</span><span class="n">Reader</span><span class="p">(</span><span class="n">ef</span><span class="p">[</span><span class="s1">&#39;lf&#39;</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="k">for</span> <span class="n">ef</span> <span class="ow">in</span> <span class="n">efiles</span><span class="p">]</span></div>
 
 
 <div class="viewcode-block" id="load_channel_locations"><a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.load_channel_locations">[docs]</a><span class="k">def</span> <span class="nf">load_channel_locations</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">probe</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">aligned</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
@@ -219,14 +230,21 @@
 <span class="sd">    From an eid, get brain locations from Alyx database</span>
 <span class="sd">    analysis.</span>
 <span class="sd">    :param eid: session eid or dictionary returned by one.alyx.rest(&#39;sessions&#39;, &#39;read&#39;, id=eid)</span>
-<span class="sd">    :param dataset_types: additional spikes/clusters objects to add to the standard list</span>
 <span class="sd">    :return: channels</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">one</span> <span class="o">=</span> <span class="n">one</span> <span class="ow">or</span> <span class="n">ONE</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">one</span><span class="p">,</span> <span class="n">One</span><span class="p">):</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;ONE instance deprecated; use one.api instead of oneibl.one&#39;</span><span class="p">)</span>
+        <span class="kn">from</span> <span class="nn">.deprecated</span> <span class="kn">import</span> <span class="n">one</span> <span class="k">as</span> <span class="n">old</span>
+        <span class="k">return</span> <span class="n">old</span><span class="o">.</span><span class="n">load_channel_locations</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">,</span> <span class="n">probe</span><span class="o">=</span><span class="n">probe</span><span class="p">,</span> <span class="n">aligned</span><span class="o">=</span><span class="n">aligned</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">one</span><span class="p">,</span> <span class="n">OneAlyx</span><span class="p">),</span> <span class="s1">&#39;ONE much be in remote mode&#39;</span>
+
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
         <span class="n">ses</span> <span class="o">=</span> <span class="n">eid</span>
         <span class="n">eid</span> <span class="o">=</span> <span class="n">ses</span><span class="p">[</span><span class="s1">&#39;url&#39;</span><span class="p">][</span><span class="o">-</span><span class="mi">36</span><span class="p">:]</span>
-
-    <span class="n">one</span> <span class="o">=</span> <span class="n">one</span> <span class="ow">or</span> <span class="n">ONE</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">eid</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">to_eid</span><span class="p">(</span><span class="n">eid</span><span class="p">)</span>  <span class="c1"># Ensure eid</span>
 
     <span class="c1"># When a specific probe has been requested</span>
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">probe</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
@@ -257,9 +275,9 @@
             <span class="n">counts</span> <span class="o">=</span> <span class="p">[</span><span class="n">ins</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;json&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;temp&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;extended_qc&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;temp&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">})</span><span class="o">.</span>
                       <span class="n">get</span><span class="p">(</span><span class="s1">&#39;alignment_count&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="k">for</span> <span class="n">ins</span> <span class="ow">in</span> <span class="n">insertions</span><span class="p">]</span>
         <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
-            <span class="n">tracing</span> <span class="o">=</span> <span class="p">[</span><span class="kc">False</span> <span class="k">for</span> <span class="n">ins</span> <span class="ow">in</span> <span class="n">insertions</span><span class="p">]</span>
-            <span class="n">resolved</span> <span class="o">=</span> <span class="p">[</span><span class="kc">False</span> <span class="k">for</span> <span class="n">ins</span> <span class="ow">in</span> <span class="n">insertions</span><span class="p">]</span>
-            <span class="n">counts</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span> <span class="k">for</span> <span class="n">ins</span> <span class="ow">in</span> <span class="n">insertions</span><span class="p">]</span>
+            <span class="n">tracing</span> <span class="o">=</span> <span class="p">[</span><span class="kc">False</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">insertions</span><span class="p">)</span>
+            <span class="n">resolved</span> <span class="o">=</span> <span class="p">[</span><span class="kc">False</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">insertions</span><span class="p">)</span>
+            <span class="n">counts</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">insertions</span><span class="p">)</span>
 
         <span class="n">probe_id</span> <span class="o">=</span> <span class="p">[</span><span class="n">ins</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">ins</span> <span class="ow">in</span> <span class="n">insertions</span><span class="p">]</span>
 
@@ -346,7 +364,7 @@
     <span class="k">return</span> <span class="n">channels</span></div>
 
 
-<div class="viewcode-block" id="load_ephys_session"><a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.load_ephys_session">[docs]</a><span class="k">def</span> <span class="nf">load_ephys_session</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dataset_types</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="load_ephys_session"><a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.load_ephys_session">[docs]</a><span class="k">def</span> <span class="nf">load_ephys_session</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    From an eid, hits the Alyx database and downloads a standard default set of dataset types</span>
 <span class="sd">    From a local session Path (pathlib.Path), loads a standard default set of dataset types</span>
@@ -359,24 +377,25 @@
 <span class="sd">        &#39;probes.description&#39;</span>
 <span class="sd">    :param eid: experiment UUID or pathlib.Path of the local session</span>
 <span class="sd">    :param one: one instance</span>
-<span class="sd">    :param dataset_types: additional spikes/clusters objects to add to the standard default list</span>
 <span class="sd">    :return: spikes, clusters, trials (dict of bunch, 1 bunch per probe)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">assert</span> <span class="n">one</span>
-    <span class="n">spikes</span><span class="p">,</span> <span class="n">clusters</span> <span class="o">=</span> <span class="n">load_spike_sorting</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">,</span> <span class="n">dataset_types</span><span class="o">=</span><span class="n">dataset_types</span><span class="p">)</span>
-    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">Path</span><span class="p">):</span>
-        <span class="n">trials</span> <span class="o">=</span> <span class="n">alf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="n">eid</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;alf&#39;</span><span class="p">),</span> <span class="nb">object</span><span class="o">=</span><span class="s1">&#39;trials&#39;</span><span class="p">)</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">trials</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">obj</span><span class="o">=</span><span class="s1">&#39;trials&#39;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">one</span><span class="p">,</span> <span class="n">One</span><span class="p">):</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;ONE instance deprecated; use one.api instead of oneibl.one&#39;</span><span class="p">)</span>
+        <span class="kn">from</span> <span class="nn">.deprecated</span> <span class="kn">import</span> <span class="n">one</span> <span class="k">as</span> <span class="n">old</span>
+        <span class="k">return</span> <span class="n">old</span><span class="o">.</span><span class="n">load_ephys_session</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">)</span>
+
+    <span class="n">spikes</span><span class="p">,</span> <span class="n">clusters</span> <span class="o">=</span> <span class="n">load_spike_sorting</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">)</span>
+    <span class="n">trials</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="s1">&#39;trials&#39;</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">spikes</span><span class="p">,</span> <span class="n">clusters</span><span class="p">,</span> <span class="n">trials</span></div>
 
 
-<div class="viewcode-block" id="load_spike_sorting"><a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.load_spike_sorting">[docs]</a><span class="k">def</span> <span class="nf">load_spike_sorting</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">probe</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dataset_types</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<div class="viewcode-block" id="load_spike_sorting"><a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.load_spike_sorting">[docs]</a><span class="k">def</span> <span class="nf">load_spike_sorting</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">probe</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dataset_types</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    From an eid, hits the Alyx database and downloads a standard default set of dataset types</span>
-<span class="sd">    From a local session Path (pathlib.Path), loads a standard default set of dataset types</span>
-<span class="sd">     to perform analysis:</span>
+<span class="sd">    From an eid, loads spikes and clusters for all probes</span>
+<span class="sd">    The following set of dataset types are loaded:</span>
 <span class="sd">        &#39;clusters.channels&#39;,</span>
 <span class="sd">        &#39;clusters.depths&#39;,</span>
 <span class="sd">        &#39;clusters.metrics&#39;,</span>
@@ -384,96 +403,69 @@
 <span class="sd">        &#39;spikes.times&#39;,</span>
 <span class="sd">        &#39;probes.description&#39;</span>
 <span class="sd">    :param eid: experiment UUID or pathlib.Path of the local session</span>
-<span class="sd">    :param one:</span>
+<span class="sd">    :param one: an instance of OneAlyx</span>
 <span class="sd">    :param probe: name of probe to load in, if not given all probes for session will be loaded</span>
 <span class="sd">    :param dataset_types: additional spikes/clusters objects to add to the standard default list</span>
-<span class="sd">    :param force: by default function looks for data on local computer and loads this in. If you</span>
-<span class="sd">    want to connect to database and make sure files are still the same set force=True</span>
 <span class="sd">    :return: spikes, clusters (dict of bunch, 1 bunch per probe)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">Path</span><span class="p">):</span>
-        <span class="c1"># Do everything locally without ONE</span>
-        <span class="n">session_path</span> <span class="o">=</span> <span class="n">eid</span>
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">probe</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
-            <span class="n">labels</span> <span class="o">=</span> <span class="p">[</span><span class="n">probe</span><span class="p">]</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">probes</span> <span class="o">=</span> <span class="n">alf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;alf&#39;</span><span class="p">),</span> <span class="s1">&#39;probes&#39;</span><span class="p">)</span>
-            <span class="n">labels</span> <span class="o">=</span> <span class="p">[</span><span class="n">pr</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">pr</span> <span class="ow">in</span> <span class="n">probes</span><span class="p">[</span><span class="s1">&#39;description&#39;</span><span class="p">]]</span>
-        <span class="n">spikes</span> <span class="o">=</span> <span class="n">Bunch</span><span class="p">({})</span>
-        <span class="n">clusters</span> <span class="o">=</span> <span class="n">Bunch</span><span class="p">({})</span>
-        <span class="k">for</span> <span class="n">label</span> <span class="ow">in</span> <span class="n">labels</span><span class="p">:</span>
-            <span class="n">_spikes</span><span class="p">,</span> <span class="n">_clusters</span> <span class="o">=</span> <span class="n">_load_spike_sorting_local</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span>
-            <span class="n">spikes</span><span class="p">[</span><span class="n">label</span><span class="p">]</span> <span class="o">=</span> <span class="n">_spikes</span>
-            <span class="n">clusters</span><span class="p">[</span><span class="n">label</span><span class="p">]</span> <span class="o">=</span> <span class="n">_clusters</span>
+    <span class="n">one</span> <span class="o">=</span> <span class="n">one</span> <span class="ow">or</span> <span class="n">ONE</span><span class="p">()</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">one</span><span class="p">,</span> <span class="n">One</span><span class="p">):</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;ONE instance deprecated; use one.api instead of oneibl.one&#39;</span><span class="p">)</span>
+        <span class="kn">from</span> <span class="nn">.deprecated</span> <span class="kn">import</span> <span class="n">one</span> <span class="k">as</span> <span class="n">old</span>
+        <span class="k">return</span> <span class="n">old</span><span class="o">.</span><span class="n">load_spike_sorting</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">,</span> <span class="n">probe</span><span class="o">=</span><span class="n">probe</span><span class="p">)</span>
 
-        <span class="k">return</span> <span class="n">spikes</span><span class="p">,</span> <span class="n">clusters</span>
-
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">probe</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="n">labels</span> <span class="o">=</span> <span class="p">[</span><span class="n">probe</span><span class="p">]</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="n">session_path</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">path_from_eid</span><span class="p">(</span><span class="n">eid</span><span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">session_path</span><span class="p">:</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Session not found&#39;</span><span class="p">)</span>
-            <span class="k">return</span> <span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span> <span class="s1">&#39;no session path&#39;</span>
-
-        <span class="n">one</span> <span class="o">=</span> <span class="n">one</span> <span class="ow">or</span> <span class="n">ONE</span><span class="p">()</span>
-        <span class="n">dtypes_default</span> <span class="o">=</span> <span class="p">[</span>
-            <span class="s1">&#39;clusters.channels&#39;</span><span class="p">,</span>
-            <span class="s1">&#39;clusters.depths&#39;</span><span class="p">,</span>
-            <span class="s1">&#39;clusters.metrics&#39;</span><span class="p">,</span>
-            <span class="s1">&#39;spikes.clusters&#39;</span><span class="p">,</span>
-            <span class="s1">&#39;spikes.times&#39;</span><span class="p">,</span>
-            <span class="s1">&#39;probes.description&#39;</span>
-        <span class="p">]</span>
-        <span class="k">if</span> <span class="n">dataset_types</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">dtypes</span> <span class="o">=</span> <span class="n">dtypes_default</span>
+        <span class="k">if</span> <span class="n">one</span><span class="o">.</span><span class="n">offline</span><span class="p">:</span>
+            <span class="n">probes</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="s1">&#39;probes&#39;</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="s1">&#39;alf&#39;</span><span class="p">)</span>
+            <span class="n">labels</span> <span class="o">=</span> <span class="p">[</span><span class="n">pr</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">pr</span> <span class="ow">in</span> <span class="n">probes</span><span class="p">[</span><span class="s1">&#39;description&#39;</span><span class="p">]]</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="c1"># Append extra optional DS</span>
-            <span class="n">dtypes</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">dataset_types</span> <span class="o">+</span> <span class="n">dtypes_default</span><span class="p">))</span>
-
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">probe</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
-            <span class="n">labels</span> <span class="o">=</span> <span class="p">[</span><span class="n">probe</span><span class="p">]</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">insertions</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;insertions&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span> <span class="n">session</span><span class="o">=</span><span class="n">eid</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">one</span><span class="p">,</span> <span class="n">OneAlyx</span><span class="p">),</span> <span class="s1">&#39;ONE must be in remote mode&#39;</span>
+            <span class="n">insertions</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;insertions&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span> <span class="n">session</span><span class="o">=</span><span class="n">one</span><span class="o">.</span><span class="n">to_eid</span><span class="p">(</span><span class="n">eid</span><span class="p">))</span>
             <span class="n">labels</span> <span class="o">=</span> <span class="p">[</span><span class="n">ins</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">ins</span> <span class="ow">in</span> <span class="n">insertions</span><span class="p">]</span>
 
-        <span class="n">spikes</span> <span class="o">=</span> <span class="n">Bunch</span><span class="p">({})</span>
-        <span class="n">clusters</span> <span class="o">=</span> <span class="n">Bunch</span><span class="p">({})</span>
-        <span class="k">for</span> <span class="n">label</span> <span class="ow">in</span> <span class="n">labels</span><span class="p">:</span>
-            <span class="n">_spikes</span><span class="p">,</span> <span class="n">_clusters</span> <span class="o">=</span> <span class="n">_load_spike_sorting_local</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span>
-            <span class="n">spike_dtypes</span> <span class="o">=</span> <span class="p">[</span><span class="n">sp</span> <span class="k">for</span> <span class="n">sp</span> <span class="ow">in</span> <span class="n">dtypes</span> <span class="k">if</span> <span class="s1">&#39;spikes.&#39;</span> <span class="ow">in</span> <span class="n">sp</span><span class="p">]</span>
-            <span class="n">spike_local</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;spikes.&#39;</span> <span class="o">+</span> <span class="n">sp</span> <span class="k">for</span> <span class="n">sp</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">_spikes</span><span class="o">.</span><span class="n">keys</span><span class="p">())]</span>
-            <span class="n">spike_exists</span> <span class="o">=</span> <span class="nb">all</span><span class="p">([</span><span class="n">sp</span> <span class="ow">in</span> <span class="n">spike_local</span> <span class="k">for</span> <span class="n">sp</span> <span class="ow">in</span> <span class="n">spike_dtypes</span><span class="p">])</span>
-            <span class="n">cluster_dtypes</span> <span class="o">=</span> <span class="p">[</span><span class="n">cl</span> <span class="k">for</span> <span class="n">cl</span> <span class="ow">in</span> <span class="n">dtypes</span> <span class="k">if</span> <span class="s1">&#39;clusters.&#39;</span> <span class="ow">in</span> <span class="n">cl</span><span class="p">]</span>
-            <span class="n">cluster_local</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;clusters.&#39;</span> <span class="o">+</span> <span class="n">cl</span> <span class="k">for</span> <span class="n">cl</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">_clusters</span><span class="o">.</span><span class="n">keys</span><span class="p">())]</span>
-            <span class="n">cluster_exists</span> <span class="o">=</span> <span class="nb">all</span><span class="p">([</span><span class="n">cl</span> <span class="ow">in</span> <span class="n">cluster_local</span> <span class="k">for</span> <span class="n">cl</span> <span class="ow">in</span> <span class="n">cluster_dtypes</span><span class="p">])</span>
+    <span class="n">spikes</span> <span class="o">=</span> <span class="n">Bunch</span><span class="o">.</span><span class="n">fromkeys</span><span class="p">(</span><span class="n">labels</span><span class="p">)</span>
+    <span class="n">clusters</span> <span class="o">=</span> <span class="n">Bunch</span><span class="o">.</span><span class="n">fromkeys</span><span class="p">(</span><span class="n">labels</span><span class="p">)</span>
+    <span class="n">dtypes_default</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="s1">&#39;clusters.channels&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;clusters.depths&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;clusters.metrics&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;spikes.clusters&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;spikes.times&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;probes.description&#39;</span>
+    <span class="p">]</span>
+    <span class="k">if</span> <span class="n">dataset_types</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">dtypes</span> <span class="o">=</span> <span class="n">dtypes_default</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># Append extra optional DS</span>
+        <span class="n">dtypes</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">dataset_types</span> <span class="o">+</span> <span class="n">dtypes_default</span><span class="p">))</span>
 
-            <span class="k">if</span> <span class="ow">not</span> <span class="n">spike_exists</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">cluster_exists</span> <span class="ow">or</span> <span class="n">force</span><span class="p">:</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Did not find local files for spikes and clusters for </span><span class="si">{</span><span class="n">session_path</span><span class="si">}</span><span class="s1"> &#39;</span>
-                            <span class="sa">f</span><span class="s1">&#39;and </span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">. Downloading....&#39;</span><span class="p">)</span>
-                <span class="n">one</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">dataset_types</span><span class="o">=</span><span class="n">dtypes</span><span class="p">,</span> <span class="n">download_only</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-                <span class="n">_spikes</span><span class="p">,</span> <span class="n">_clusters</span> <span class="o">=</span> <span class="n">_load_spike_sorting_local</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span>
-                <span class="k">if</span> <span class="ow">not</span> <span class="n">_spikes</span><span class="p">:</span>
-                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
-                        <span class="sa">f</span><span class="s1">&#39;Could not load spikes datasets for session </span><span class="si">{</span><span class="n">session_path</span><span class="si">}</span><span class="s1"> and </span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">. &#39;</span>
-                        <span class="sa">f</span><span class="s1">&#39;Spikes for </span><span class="si">{</span><span class="n">probe</span><span class="si">}</span><span class="s1"> will return an empty dict&#39;</span><span class="p">)</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="n">spikes</span><span class="p">[</span><span class="n">label</span><span class="p">]</span> <span class="o">=</span> <span class="n">_spikes</span>
-                <span class="k">if</span> <span class="ow">not</span> <span class="n">_clusters</span><span class="p">:</span>
-                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
-                        <span class="sa">f</span><span class="s1">&#39;Could not load clusters datasets for session </span><span class="si">{</span><span class="n">session_path</span><span class="si">}</span><span class="s1"> and </span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">.&#39;</span>
-                        <span class="sa">f</span><span class="s1">&#39; Clusters for </span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1"> will return an empty dict&#39;</span><span class="p">)</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="n">clusters</span><span class="p">[</span><span class="n">label</span><span class="p">]</span> <span class="o">=</span> <span class="n">_clusters</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Local files for spikes and clusters for </span><span class="si">{</span><span class="n">session_path</span><span class="si">}</span><span class="s1"> &#39;</span>
-                            <span class="sa">f</span><span class="s1">&#39;and </span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1"> found. To re-download set force=True&#39;</span><span class="p">)</span>
+    <span class="n">spike_attributes</span> <span class="o">=</span> <span class="s1">&#39;|&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">sp</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">sp</span> <span class="ow">in</span> <span class="n">dtypes</span> <span class="k">if</span> <span class="s1">&#39;spikes.&#39;</span> <span class="ow">in</span> <span class="n">sp</span><span class="p">])</span>
+    <span class="n">cluster_attributes</span> <span class="o">=</span> <span class="s1">&#39;|&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">cl</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">cl</span> <span class="ow">in</span> <span class="n">dtypes</span> <span class="k">if</span> <span class="s1">&#39;clusters.&#39;</span> <span class="ow">in</span> <span class="n">cl</span><span class="p">])</span>
 
-                <span class="n">spikes</span><span class="p">[</span><span class="n">label</span><span class="p">]</span> <span class="o">=</span> <span class="n">_spikes</span>
-                <span class="n">clusters</span><span class="p">[</span><span class="n">label</span><span class="p">]</span> <span class="o">=</span> <span class="n">_clusters</span>
+    <span class="k">for</span> <span class="n">label</span> <span class="ow">in</span> <span class="n">labels</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">spikes</span><span class="p">[</span><span class="n">label</span><span class="p">]</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="s1">&#39;spikes&#39;</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;alf/</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span>
+                                            <span class="n">attribute</span><span class="o">=</span><span class="n">spike_attributes</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">alferr</span><span class="o">.</span><span class="n">ALFError</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s1">&#39;Could not load spikes datasets for session </span><span class="si">{</span><span class="n">eid</span><span class="si">}</span><span class="s1">. &#39;</span>
+                <span class="sa">f</span><span class="s1">&#39;Spikes for </span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1"> will return an empty dict&#39;</span><span class="p">)</span>
 
-        <span class="k">return</span> <span class="n">spikes</span><span class="p">,</span> <span class="n">clusters</span></div>
+        <span class="n">session_path</span> <span class="o">=</span> <span class="n">eid</span> <span class="k">if</span> <span class="n">alfio</span><span class="o">.</span><span class="n">is_session_path</span><span class="p">(</span><span class="n">eid</span><span class="p">)</span> <span class="k">else</span> <span class="n">one</span><span class="o">.</span><span class="n">eid2path</span><span class="p">(</span><span class="n">one</span><span class="o">.</span><span class="n">to_eid</span><span class="p">(</span><span class="n">eid</span><span class="p">))</span>
+        <span class="n">_remove_old_clusters</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">clusters</span><span class="p">[</span><span class="n">label</span><span class="p">]</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="s1">&#39;clusters&#39;</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;alf/</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span>
+                                              <span class="n">attribute</span><span class="o">=</span><span class="n">cluster_attributes</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">alferr</span><span class="o">.</span><span class="n">ALFError</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s1">&#39;Could not load clusters datasets for session </span><span class="si">{</span><span class="n">eid</span><span class="si">}</span><span class="s1">. &#39;</span>
+                <span class="sa">f</span><span class="s1">&#39;Clusters for </span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1"> will return an empty dict&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">spikes</span><span class="p">,</span> <span class="n">clusters</span></div>
 
 
-<span class="k">def</span> <span class="nf">_load_spike_sorting_local</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">probe</span><span class="p">):</span>
+<div class="viewcode-block" id="_remove_old_clusters"><a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one._remove_old_clusters">[docs]</a><span class="k">def</span> <span class="nf">_remove_old_clusters</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">probe</span><span class="p">):</span>
     <span class="c1"># gets clusters and spikes from a local session folder</span>
     <span class="n">probe_path</span> <span class="o">=</span> <span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="n">probe</span><span class="p">)</span>
 
@@ -482,20 +474,7 @@
 
     <span class="k">if</span> <span class="n">cluster_file</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
         <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">cluster_file</span><span class="p">)</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Deleting old clusters.metrics.csv file&#39;</span><span class="p">)</span>
-
-    <span class="k">try</span><span class="p">:</span>
-        <span class="n">spikes</span> <span class="o">=</span> <span class="n">alf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="n">probe_path</span><span class="p">,</span> <span class="nb">object</span><span class="o">=</span><span class="s1">&#39;spikes&#39;</span><span class="p">)</span>
-    <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">())</span>
-        <span class="n">spikes</span> <span class="o">=</span> <span class="p">{}</span>
-    <span class="k">try</span><span class="p">:</span>
-        <span class="n">clusters</span> <span class="o">=</span> <span class="n">alf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="n">probe_path</span><span class="p">,</span> <span class="nb">object</span><span class="o">=</span><span class="s1">&#39;clusters&#39;</span><span class="p">)</span>
-    <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">())</span>
-        <span class="n">clusters</span> <span class="o">=</span> <span class="p">{}</span>
-
-    <span class="k">return</span> <span class="n">spikes</span><span class="p">,</span> <span class="n">clusters</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Deleting old clusters.metrics.csv file&#39;</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="merge_clusters_channels"><a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.merge_clusters_channels">[docs]</a><span class="k">def</span> <span class="nf">merge_clusters_channels</span><span class="p">(</span><span class="n">dic_clus</span><span class="p">,</span> <span class="n">channels</span><span class="p">,</span> <span class="n">keys_to_add_extra</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
@@ -541,22 +520,27 @@
     <span class="k">return</span> <span class="n">dic_clus</span></div>
 
 
-<div class="viewcode-block" id="load_spike_sorting_with_channel"><a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.load_spike_sorting_with_channel">[docs]</a><span class="k">def</span> <span class="nf">load_spike_sorting_with_channel</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">probe</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dataset_types</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">aligned</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                                    <span class="n">force</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<div class="viewcode-block" id="load_spike_sorting_with_channel"><a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.load_spike_sorting_with_channel">[docs]</a><span class="k">def</span> <span class="nf">load_spike_sorting_with_channel</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">probe</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">aligned</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">dataset_types</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    For a given eid, get spikes, clusters and channels information, and merges clusters</span>
 <span class="sd">    and channels information before returning all three variables.</span>
 <span class="sd">    :param eid:</span>
 <span class="sd">    :param one:</span>
-<span class="sd">    :param dataset_types: additional dataset_types to load</span>
 <span class="sd">    :param aligned: whether to get the latest user aligned channel when not resolved or use</span>
 <span class="sd">    histology track</span>
+<span class="sd">    :param dataset_types: additional spikes/clusters objects to add to the standard default list</span>
 <span class="sd">    :return: spikes, clusters, channels (dict of bunch, 1 bunch per probe)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="c1"># --- Get spikes and clusters data</span>
     <span class="n">one</span> <span class="o">=</span> <span class="n">one</span> <span class="ow">or</span> <span class="n">ONE</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">one</span><span class="p">,</span> <span class="n">One</span><span class="p">):</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;ONE instance deprecated; use one.api instead of oneibl.one&#39;</span><span class="p">)</span>
+        <span class="kn">from</span> <span class="nn">.deprecated</span> <span class="kn">import</span> <span class="n">one</span> <span class="k">as</span> <span class="n">old</span>
+        <span class="k">return</span> <span class="n">old</span><span class="o">.</span><span class="n">load_spike_sorting_with_channel</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">,</span> <span class="n">probe</span><span class="o">=</span><span class="n">probe</span><span class="p">,</span> <span class="n">aligned</span><span class="o">=</span><span class="n">aligned</span><span class="p">)</span>
+
     <span class="n">dic_spk_bunch</span><span class="p">,</span> <span class="n">dic_clus</span> <span class="o">=</span> <span class="n">load_spike_sorting</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">,</span> <span class="n">probe</span><span class="o">=</span><span class="n">probe</span><span class="p">,</span>
-                                                 <span class="n">dataset_types</span><span class="o">=</span><span class="n">dataset_types</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="n">force</span><span class="p">)</span>
+                                                 <span class="n">dataset_types</span><span class="o">=</span><span class="n">dataset_types</span><span class="p">)</span>
     <span class="c1"># -- Get brain regions and assign to clusters</span>
     <span class="n">channels</span> <span class="o">=</span> <span class="n">load_channel_locations</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">,</span> <span class="n">probe</span><span class="o">=</span><span class="n">probe</span><span class="p">,</span> <span class="n">aligned</span><span class="o">=</span><span class="n">aligned</span><span class="p">)</span>
 
@@ -566,6 +550,7 @@
 
 <div class="viewcode-block" id="load_passive_rfmap"><a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.load_passive_rfmap">[docs]</a><span class="k">def</span> <span class="nf">load_passive_rfmap</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    TODO Update for new ONE</span>
 <span class="sd">    For a given eid load in the passive receptive field mapping protocol data</span>
 <span class="sd">    :param eid: eid or pathlib.Path of the local session</span>
 <span class="sd">    :param one:</span>
@@ -576,15 +561,15 @@
     <span class="k">else</span><span class="p">:</span>
         <span class="n">one</span> <span class="o">=</span> <span class="n">one</span> <span class="ow">or</span> <span class="n">ONE</span><span class="p">()</span>
         <span class="n">dtypes</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="s1">&#39;_iblrig_RFMapStim.raw&#39;</span><span class="p">,</span>
-            <span class="s1">&#39;_ibl_passiveRFM.times&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;_iblrig_RFMapStim.raw.bin&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;_ibl_passiveRFM.times.npy&#39;</span><span class="p">,</span>
         <span class="p">}</span>
 
-        <span class="n">_</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">dataset_types</span><span class="o">=</span><span class="n">dtypes</span><span class="p">,</span> <span class="n">download_only</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">_</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">load_datasets</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">datasets</span><span class="o">=</span><span class="n">dtypes</span><span class="p">,</span> <span class="n">download_only</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="n">alf_path</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">path_from_eid</span><span class="p">(</span><span class="n">eid</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;alf&#39;</span><span class="p">)</span>
 
     <span class="c1"># Load in the receptive field mapping data</span>
-    <span class="n">rf_map</span> <span class="o">=</span> <span class="n">alf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="n">alf_path</span><span class="p">,</span> <span class="nb">object</span><span class="o">=</span><span class="s1">&#39;passiveRFM&#39;</span><span class="p">,</span> <span class="n">namespace</span><span class="o">=</span><span class="s1">&#39;ibl&#39;</span><span class="p">)</span>
+    <span class="n">rf_map</span> <span class="o">=</span> <span class="n">alfio</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="n">alf_path</span><span class="p">,</span> <span class="nb">object</span><span class="o">=</span><span class="s1">&#39;passiveRFM&#39;</span><span class="p">,</span> <span class="n">namespace</span><span class="o">=</span><span class="s1">&#39;ibl&#39;</span><span class="p">)</span>
     <span class="n">frames</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fromfile</span><span class="p">(</span><span class="n">alf_path</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;raw_passive_data&#39;</span><span class="p">,</span> <span class="s1">&#39;_iblrig_RFMapStim.raw.bin&#39;</span><span class="p">),</span>
                          <span class="n">dtype</span><span class="o">=</span><span class="s2">&quot;uint8&quot;</span><span class="p">)</span>
     <span class="n">y_pix</span><span class="p">,</span> <span class="n">x_pix</span> <span class="o">=</span> <span class="mi">15</span><span class="p">,</span> <span class="mi">15</span>
@@ -636,8 +621,9 @@
 
 
 <div class="viewcode-block" id="load_trials_df"><a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.load_trials_df">[docs]</a><span class="k">def</span> <span class="nf">load_trials_df</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">maxlen</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">t_before</span><span class="o">=</span><span class="mf">0.</span><span class="p">,</span> <span class="n">t_after</span><span class="o">=</span><span class="mf">0.</span><span class="p">,</span> <span class="n">ret_wheel</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                   <span class="n">ret_abswheel</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">wheel_binsize</span><span class="o">=</span><span class="mf">0.02</span><span class="p">):</span>
+                   <span class="n">ret_abswheel</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">wheel_binsize</span><span class="o">=</span><span class="mf">0.02</span><span class="p">,</span> <span class="n">addtl_types</span><span class="o">=</span><span class="p">()):</span>
     <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    TODO Test this with new ONE</span>
 <span class="sd">    Generate a pandas dataframe of per-trial timing information about a given session.</span>
 <span class="sd">    Each row in the frame will correspond to a single trial, with timing values indicating timing</span>
 <span class="sd">    session-wide (i.e. time in seconds since session start). Can optionally return a resampled</span>
@@ -668,6 +654,9 @@
 <span class="sd">        Whether to return the time-resampled absolute wheel velocity trace, by default False</span>
 <span class="sd">    wheel_binsize : float, optional</span>
 <span class="sd">        Time bins to resample wheel velocity to, by default 0.02</span>
+<span class="sd">    addtl_types : list, optional</span>
+<span class="sd">        List of additional types from an ONE trials object to include in the dataframe. Must be</span>
+<span class="sd">        valid keys to the dict produced by one.load_object(eid, &#39;trials&#39;), by default empty.</span>
 
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
@@ -684,14 +673,15 @@
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;ret_wheel and ret_abswheel cannot both be true.&#39;</span><span class="p">)</span>
 
     <span class="c1"># Define which datatypes we want to pull out</span>
-    <span class="n">trialstypes</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;trials.choice&#39;</span><span class="p">,</span>
-                   <span class="s1">&#39;trials.probabilityLeft&#39;</span><span class="p">,</span>
-                   <span class="s1">&#39;trials.feedbackType&#39;</span><span class="p">,</span>
-                   <span class="s1">&#39;trials.feedback_times&#39;</span><span class="p">,</span>
-                   <span class="s1">&#39;trials.contrastLeft&#39;</span><span class="p">,</span>
-                   <span class="s1">&#39;trials.contrastRight&#39;</span><span class="p">,</span>
-                   <span class="s1">&#39;trials.goCue_times&#39;</span><span class="p">,</span>
-                   <span class="s1">&#39;trials.stimOn_times&#39;</span><span class="p">,</span> <span class="p">]</span>
+    <span class="n">trialstypes</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;choice&#39;</span><span class="p">,</span>
+                   <span class="s1">&#39;probabilityLeft&#39;</span><span class="p">,</span>
+                   <span class="s1">&#39;feedbackType&#39;</span><span class="p">,</span>
+                   <span class="s1">&#39;feedback_times&#39;</span><span class="p">,</span>
+                   <span class="s1">&#39;contrastLeft&#39;</span><span class="p">,</span>
+                   <span class="s1">&#39;contrastRight&#39;</span><span class="p">,</span>
+                   <span class="s1">&#39;goCue_times&#39;</span><span class="p">,</span>
+                   <span class="s1">&#39;stimOn_times&#39;</span><span class="p">]</span>
+    <span class="n">trialstypes</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">addtl_types</span><span class="p">)</span>
 
     <span class="c1"># A quick function to remap probabilities in those sessions where it was not computed correctly</span>
     <span class="k">def</span> <span class="nf">remap_trialp</span><span class="p">(</span><span class="n">probs</span><span class="p">):</span>
@@ -701,16 +691,17 @@
         <span class="n">maps</span> <span class="o">=</span> <span class="n">diffs</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">validvals</span><span class="p">[</span><span class="n">maps</span><span class="p">]</span>
 
-    <span class="n">starttimes</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">dataset_types</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;trials.stimOn_times&#39;</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
-    <span class="n">endtimes</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">dataset_types</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;trials.feedback_times&#39;</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
-    <span class="n">tmp</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">dataset_types</span><span class="o">=</span><span class="n">trialstypes</span><span class="p">)</span>
+    <span class="n">trials</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="s1">&#39;trials&#39;</span><span class="p">)</span>
+    <span class="n">starttimes</span> <span class="o">=</span> <span class="n">trials</span><span class="o">.</span><span class="n">stimOn_times</span>
+    <span class="n">endtimes</span> <span class="o">=</span> <span class="n">trials</span><span class="o">.</span><span class="n">feedback_times</span>
+    <span class="n">tmp</span> <span class="o">=</span> <span class="p">{</span><span class="n">key</span><span class="p">:</span> <span class="n">value</span> <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">trials</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">trialstypes</span><span class="p">}</span>
 
     <span class="k">if</span> <span class="n">maxlen</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">with</span> <span class="n">np</span><span class="o">.</span><span class="n">errstate</span><span class="p">(</span><span class="n">invalid</span><span class="o">=</span><span class="s1">&#39;ignore&#39;</span><span class="p">):</span>
             <span class="n">keeptrials</span> <span class="o">=</span> <span class="p">(</span><span class="n">endtimes</span> <span class="o">-</span> <span class="n">starttimes</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">maxlen</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">keeptrials</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">starttimes</span><span class="p">))</span>
-    <span class="n">trialdata</span> <span class="o">=</span> <span class="p">{</span><span class="n">x</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]:</span> <span class="n">tmp</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">keeptrials</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">trialstypes</span><span class="p">)}</span>
+    <span class="n">trialdata</span> <span class="o">=</span> <span class="p">{</span><span class="n">x</span><span class="p">:</span> <span class="n">tmp</span><span class="p">[</span><span class="n">x</span><span class="p">][</span><span class="n">keeptrials</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">trialstypes</span><span class="p">}</span>
     <span class="n">trialdata</span><span class="p">[</span><span class="s1">&#39;probabilityLeft&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">remap_trialp</span><span class="p">(</span><span class="n">trialdata</span><span class="p">[</span><span class="s1">&#39;probabilityLeft&#39;</span><span class="p">])</span>
     <span class="n">trialsdf</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">trialdata</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">maxlen</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -719,8 +710,8 @@
     <span class="n">trialsdf</span><span class="p">[</span><span class="s1">&#39;trial_end&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">trialsdf</span><span class="p">[</span><span class="s1">&#39;feedback_times&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="n">t_after</span>
     <span class="n">tdiffs</span> <span class="o">=</span> <span class="n">trialsdf</span><span class="p">[</span><span class="s1">&#39;trial_end&#39;</span><span class="p">]</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">roll</span><span class="p">(</span><span class="n">trialsdf</span><span class="p">[</span><span class="s1">&#39;trial_start&#39;</span><span class="p">],</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">tdiffs</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">):</span>
-        <span class="n">logging</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="nb">sum</span><span class="p">(</span><span class="n">tdiffs</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span><span class="si">}</span><span class="s1"> trials overlapping due to t_before and t_after &#39;</span>
-                     <span class="s1">&#39;values. Try reducing one or both!&#39;</span><span class="p">)</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="nb">sum</span><span class="p">(</span><span class="n">tdiffs</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span><span class="si">}</span><span class="s1"> trials overlapping due to t_before and t_after &#39;</span>
+                        <span class="s1">&#39;values. Try reducing one or both!&#39;</span><span class="p">)</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">ret_wheel</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">ret_abswheel</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">trialsdf</span>
 
@@ -752,6 +743,46 @@
             <span class="n">trials</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">whlvel</span><span class="p">))</span>
     <span class="n">trialsdf</span><span class="p">[</span><span class="s1">&#39;wheel_velocity&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">trials</span>
     <span class="k">return</span> <span class="n">trialsdf</span></div>
+
+
+<div class="viewcode-block" id="load_channels_from_insertion"><a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.load_channels_from_insertion">[docs]</a><span class="k">def</span> <span class="nf">load_channels_from_insertion</span><span class="p">(</span><span class="n">ins</span><span class="p">,</span> <span class="n">depths</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ba</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+
+    <span class="n">PROV_2_VAL</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;Resolved&#39;</span><span class="p">:</span> <span class="mi">90</span><span class="p">,</span>
+        <span class="s1">&#39;Ephys aligned histology track&#39;</span><span class="p">:</span> <span class="mi">70</span><span class="p">,</span>
+        <span class="s1">&#39;Histology track&#39;</span><span class="p">:</span> <span class="mi">50</span><span class="p">,</span>
+        <span class="s1">&#39;Micro-manipulator&#39;</span><span class="p">:</span> <span class="mi">30</span><span class="p">,</span>
+        <span class="s1">&#39;Planned&#39;</span><span class="p">:</span> <span class="mi">10</span><span class="p">}</span>
+
+    <span class="n">one</span> <span class="o">=</span> <span class="n">one</span> <span class="ow">or</span> <span class="n">ONE</span><span class="p">()</span>
+    <span class="n">ba</span> <span class="o">=</span> <span class="n">ba</span> <span class="ow">or</span> <span class="n">atlas</span><span class="o">.</span><span class="n">AllenAtlas</span><span class="p">()</span>
+    <span class="n">traj</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;trajectories&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span> <span class="n">probe_insertion</span><span class="o">=</span><span class="n">ins</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">])</span>
+    <span class="n">val</span> <span class="o">=</span> <span class="p">[</span><span class="n">PROV_2_VAL</span><span class="p">[</span><span class="n">tr</span><span class="p">[</span><span class="s1">&#39;provenance&#39;</span><span class="p">]]</span> <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="n">traj</span><span class="p">]</span>
+    <span class="n">idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+    <span class="n">traj</span> <span class="o">=</span> <span class="n">traj</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">depths</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">depths</span> <span class="o">=</span> <span class="n">SITES_COORDINATES</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">traj</span><span class="p">[</span><span class="s1">&#39;provenance&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;Planned&#39;</span> <span class="ow">or</span> <span class="n">traj</span><span class="p">[</span><span class="s1">&#39;provenance&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;Micro-manipulator&#39;</span><span class="p">:</span>
+        <span class="n">ins</span> <span class="o">=</span> <span class="n">atlas</span><span class="o">.</span><span class="n">Insertion</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">traj</span><span class="p">)</span>
+        <span class="c1"># Deepest coordinate first</span>
+        <span class="n">xyz</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">c_</span><span class="p">[</span><span class="n">ins</span><span class="o">.</span><span class="n">tip</span><span class="p">,</span> <span class="n">ins</span><span class="o">.</span><span class="n">entry</span><span class="p">]</span><span class="o">.</span><span class="n">T</span>
+        <span class="n">xyz_channels</span> <span class="o">=</span> <span class="n">histology</span><span class="o">.</span><span class="n">interpolate_along_track</span><span class="p">(</span><span class="n">xyz</span><span class="p">,</span> <span class="p">(</span><span class="n">depths</span> <span class="o">+</span>
+                                                               <span class="n">TIP_SIZE_UM</span><span class="p">)</span> <span class="o">/</span> <span class="mf">1e6</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">xyz</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">ins</span><span class="p">[</span><span class="s1">&#39;json&#39;</span><span class="p">][</span><span class="s1">&#39;xyz_picks&#39;</span><span class="p">])</span> <span class="o">/</span> <span class="mf">1e6</span>
+        <span class="k">if</span> <span class="n">traj</span><span class="p">[</span><span class="s1">&#39;provenance&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;Histology track&#39;</span><span class="p">:</span>
+            <span class="n">xyz</span> <span class="o">=</span> <span class="n">xyz</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">xyz</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]),</span> <span class="p">:]</span>
+            <span class="n">xyz_channels</span> <span class="o">=</span> <span class="n">histology</span><span class="o">.</span><span class="n">interpolate_along_track</span><span class="p">(</span><span class="n">xyz</span><span class="p">,</span> <span class="p">(</span><span class="n">depths</span> <span class="o">+</span>
+                                                                   <span class="n">TIP_SIZE_UM</span><span class="p">)</span> <span class="o">/</span> <span class="mf">1e6</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">align_key</span> <span class="o">=</span> <span class="n">ins</span><span class="p">[</span><span class="s1">&#39;json&#39;</span><span class="p">][</span><span class="s1">&#39;extended_qc&#39;</span><span class="p">][</span><span class="s1">&#39;alignment_stored&#39;</span><span class="p">]</span>
+            <span class="n">feature</span> <span class="o">=</span> <span class="n">traj</span><span class="p">[</span><span class="s1">&#39;json&#39;</span><span class="p">][</span><span class="n">align_key</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">track</span> <span class="o">=</span> <span class="n">traj</span><span class="p">[</span><span class="s1">&#39;json&#39;</span><span class="p">][</span><span class="n">align_key</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">ephysalign</span> <span class="o">=</span> <span class="n">EphysAlignment</span><span class="p">(</span><span class="n">xyz</span><span class="p">,</span> <span class="n">depths</span><span class="p">,</span> <span class="n">track_prev</span><span class="o">=</span><span class="n">track</span><span class="p">,</span>
+                                        <span class="n">feature_prev</span><span class="o">=</span><span class="n">feature</span><span class="p">,</span>
+                                        <span class="n">brain_atlas</span><span class="o">=</span><span class="n">ba</span><span class="p">,</span> <span class="n">speedy</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">xyz_channels</span> <span class="o">=</span> <span class="n">ephysalign</span><span class="o">.</span><span class="n">get_channel_locations</span><span class="p">(</span><span class="n">feature</span><span class="p">,</span> <span class="n">track</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">xyz_channels</span></div>
 </pre></div>
 
            </div>

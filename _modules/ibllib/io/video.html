@@ -95,22 +95,25 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../03_one.html">ONE</a></li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../04_datajoint.html">Datajoint</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../04_alf.html">Alyx Files (ALF)</a></li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../05_tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../05_datajoint.html">Datajoint</a></li>
 </ul>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../06_examples.html">Examples</a></li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../07_public.html">IBL Public Data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../07_tutorials.html">Tutorials</a></li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../08_contribution.html">Contribution Statement</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../08_public.html">IBL Public Data</a></li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../09_api_reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../09_contribution.html">Contribution Statement</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../010_api_reference.html">API Reference</a></li>
 </ul>
 
             
@@ -184,11 +187,41 @@
 <span class="kn">import</span> <span class="nn">cv2</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 
-<span class="kn">from</span> <span class="nn">brainbox.core</span> <span class="kn">import</span> <span class="n">Bunch</span>
-<span class="kn">from</span> <span class="nn">oneibl.stream</span> <span class="kn">import</span> <span class="n">VideoStreamer</span>
-<span class="kn">from</span> <span class="nn">oneibl.one</span> <span class="kn">import</span> <span class="n">ONE</span>
+<span class="kn">from</span> <span class="nn">iblutil.util</span> <span class="kn">import</span> <span class="n">Bunch</span>
+<span class="kn">from</span> <span class="nn">one.api</span> <span class="kn">import</span> <span class="n">ONE</span><span class="p">,</span> <span class="n">One</span>
+<span class="kn">from</span> <span class="nn">one</span> <span class="kn">import</span> <span class="n">params</span>
 
 <span class="n">VIDEO_LABELS</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;left&#39;</span><span class="p">,</span> <span class="s1">&#39;right&#39;</span><span class="p">,</span> <span class="s1">&#39;body&#39;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="VideoStreamer"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.video.html#ibllib.io.video.VideoStreamer">[docs]</a><span class="k">class</span> <span class="nc">VideoStreamer</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Provides a wrapper to stream a video from a password protected HTTP server using opencv</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="VideoStreamer.__init__"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.video.html#ibllib.io.video.VideoStreamer.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">url_vid</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        TODO Allow auth as input</span>
+<span class="sd">        :param url_vid: full url of the video or dataset dictionary as output by alyx rest datasets</span>
+<span class="sd">        :returns cv2.VideoCapture object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># pop the data url from the dataset record if the input is a dictionary</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">url_vid</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="n">url_vid</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">fr</span><span class="p">[</span><span class="s1">&#39;data_url&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">fr</span> <span class="ow">in</span> <span class="n">url_vid</span><span class="p">[</span><span class="s1">&#39;file_records&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="n">fr</span><span class="p">[</span><span class="s1">&#39;data_url&#39;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">url</span> <span class="o">=</span> <span class="n">url_vid</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_par</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">silent</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cap</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">VideoCapture</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_url</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">total_frames</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cap</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">cv2</span><span class="o">.</span><span class="n">CAP_PROP_FRAME_COUNT</span><span class="p">))</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">_url</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">username</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_par</span><span class="o">.</span><span class="n">HTTP_DATA_SERVER_LOGIN</span>
+        <span class="n">password</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_par</span><span class="o">.</span><span class="n">HTTP_DATA_SERVER_PWD</span>
+        <span class="k">return</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;(^https?://)&#39;</span><span class="p">,</span> <span class="sa">r</span><span class="s1">&#39;\1&#39;</span> <span class="o">+</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">username</span><span class="si">}</span><span class="s1">:</span><span class="si">{</span><span class="n">password</span><span class="si">}</span><span class="s1">@&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">url</span><span class="p">)</span>
+
+<div class="viewcode-block" id="VideoStreamer.get_frame"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.video.html#ibllib.io.video.VideoStreamer.get_frame">[docs]</a>    <span class="k">def</span> <span class="nf">get_frame</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">frame_index</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cap</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">cv2</span><span class="o">.</span><span class="n">CAP_PROP_POS_FRAMES</span><span class="p">,</span> <span class="n">frame_index</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cap</span><span class="o">.</span><span class="n">read</span><span class="p">()</span></div></div>
 
 
 <div class="viewcode-block" id="get_video_frame"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.video.html#ibllib.io.video.get_video_frame">[docs]</a><span class="k">def</span> <span class="nf">get_video_frame</span><span class="p">(</span><span class="n">video_path</span><span class="p">,</span> <span class="n">frame_number</span><span class="p">):</span>
@@ -271,6 +304,9 @@
 <span class="sd">    :param one: An instance of ONE</span>
 <span class="sd">    :return: A Bunch of video mata data</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">one</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">one</span><span class="p">,</span> <span class="n">One</span><span class="p">):</span>
+        <span class="kn">import</span> <span class="nn">ibllib.io.deprecated.video</span> <span class="k">as</span> <span class="nn">video_legacy</span>
+        <span class="k">return</span> <span class="n">video_legacy</span><span class="o">.</span><span class="n">get_video_meta</span><span class="p">(</span><span class="n">video_path</span><span class="p">,</span> <span class="n">one</span><span class="p">)</span>
     <span class="n">is_url</span> <span class="o">=</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">video_path</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="n">video_path</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;http&#39;</span><span class="p">)</span>
     <span class="n">cap</span> <span class="o">=</span> <span class="n">VideoStreamer</span><span class="p">(</span><span class="n">video_path</span><span class="p">)</span><span class="o">.</span><span class="n">cap</span> <span class="k">if</span> <span class="n">is_url</span> <span class="k">else</span> <span class="n">cv2</span><span class="o">.</span><span class="n">VideoCapture</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">video_path</span><span class="p">))</span>
     <span class="k">assert</span> <span class="n">cap</span><span class="o">.</span><span class="n">isOpened</span><span class="p">(),</span> <span class="sa">f</span><span class="s1">&#39;Failed to open video file </span><span class="si">{</span><span class="n">video_path</span><span class="si">}</span><span class="s1">&#39;</span>
@@ -283,10 +319,12 @@
     <span class="n">meta</span><span class="o">.</span><span class="n">height</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">cap</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">cv2</span><span class="o">.</span><span class="n">CAP_PROP_FRAME_HEIGHT</span><span class="p">))</span>
     <span class="n">meta</span><span class="o">.</span><span class="n">duration</span> <span class="o">=</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">seconds</span><span class="o">=</span><span class="n">meta</span><span class="o">.</span><span class="n">length</span> <span class="o">/</span> <span class="n">meta</span><span class="o">.</span><span class="n">fps</span><span class="p">)</span> <span class="k">if</span> <span class="n">meta</span><span class="o">.</span><span class="n">fps</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">0</span>
     <span class="k">if</span> <span class="n">is_url</span> <span class="ow">and</span> <span class="n">one</span><span class="p">:</span>
-        <span class="n">eid</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">eid_from_path</span><span class="p">(</span><span class="n">video_path</span><span class="p">)</span>
-        <span class="n">name</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;.*(_iblrig_[a-z]+Camera\.raw\.)(?:[\w-]</span><span class="si">{36}</span><span class="s1">\.)?(mp4)$&#39;</span><span class="p">,</span> <span class="n">video_path</span><span class="p">)</span>
-        <span class="n">det</span><span class="p">,</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;datasets&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span> <span class="n">session</span><span class="o">=</span><span class="n">eid</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">name</span><span class="o">.</span><span class="n">groups</span><span class="p">()))</span>
-        <span class="n">meta</span><span class="o">.</span><span class="n">size</span> <span class="o">=</span> <span class="n">det</span><span class="p">[</span><span class="s1">&#39;file_size&#39;</span><span class="p">]</span>
+        <span class="n">eid</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">path2eid</span><span class="p">(</span><span class="n">video_path</span><span class="p">)</span>
+        <span class="n">datasets</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">list_datasets</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">details</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">label</span> <span class="o">=</span> <span class="n">label_from_path</span><span class="p">(</span><span class="n">video_path</span><span class="p">)</span>
+        <span class="n">record</span> <span class="o">=</span> <span class="n">datasets</span><span class="p">[</span><span class="n">datasets</span><span class="p">[</span><span class="s1">&#39;rel_path&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;_iblrig_</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">Camera.raw&#39;</span><span class="p">)]</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">record</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+        <span class="n">meta</span><span class="o">.</span><span class="n">size</span> <span class="o">=</span> <span class="n">record</span><span class="p">[</span><span class="s1">&#39;file_size&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
     <span class="k">elif</span> <span class="n">is_url</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">one</span><span class="p">:</span>
         <span class="n">meta</span><span class="o">.</span><span class="n">size</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="k">else</span><span class="p">:</span>
@@ -307,18 +345,25 @@
     <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">label</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="p">(</span><span class="s1">&#39;left&#39;</span><span class="p">,</span> <span class="s1">&#39;right&#39;</span><span class="p">,</span> <span class="s1">&#39;body&#39;</span><span class="p">))</span><span class="o">.</span><span class="n">all</span><span class="p">()):</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;labels must be one of (&quot;</span><span class="si">%s</span><span class="s1">&quot;)&#39;</span> <span class="o">%</span> <span class="s1">&#39;&quot;, &quot;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">valid_labels</span><span class="p">))</span>
     <span class="n">one</span> <span class="o">=</span> <span class="n">one</span> <span class="ow">or</span> <span class="n">ONE</span><span class="p">()</span>
-    <span class="n">datasets</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">list</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">details</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">one</span><span class="p">,</span> <span class="n">One</span><span class="p">):</span>
+        <span class="kn">import</span> <span class="nn">ibllib.io.deprecated.video</span> <span class="k">as</span> <span class="nn">video_legacy</span>
+        <span class="k">return</span> <span class="n">video_legacy</span><span class="o">.</span><span class="n">url_from_eid</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">one</span><span class="p">)</span>
+    <span class="n">session_path</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">eid2path</span><span class="p">(</span><span class="n">one</span><span class="o">.</span><span class="n">to_eid</span><span class="p">(</span><span class="n">eid</span><span class="p">))</span>
 
+    <span class="c1"># Filter the video files</span>
     <span class="k">def</span> <span class="nf">match</span><span class="p">(</span><span class="n">dataset</span><span class="p">):</span>
-        <span class="k">if</span> <span class="n">dataset</span><span class="p">[</span><span class="s1">&#39;dataset_type&#39;</span><span class="p">]</span> <span class="o">!=</span> <span class="s1">&#39;_iblrig_Camera.raw&#39;</span><span class="p">:</span>
-            <span class="k">return</span> <span class="kc">False</span>
-        <span class="k">if</span> <span class="n">label</span><span class="p">:</span>
-            <span class="n">name</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;(?:_iblrig_)([a-z]+)(?=Camera.raw.mp4$)&#39;</span><span class="p">,</span> <span class="n">dataset</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
-            <span class="k">return</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">label</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="kc">True</span>
-    <span class="n">datasets</span> <span class="o">=</span> <span class="p">[</span><span class="n">ds</span> <span class="k">for</span> <span class="n">ds</span> <span class="ow">in</span> <span class="n">datasets</span> <span class="k">if</span> <span class="n">match</span><span class="p">(</span><span class="n">ds</span><span class="p">)]</span>
-    <span class="n">urls</span> <span class="o">=</span> <span class="p">[</span><span class="nb">next</span><span class="p">(</span><span class="n">r</span><span class="p">[</span><span class="s1">&#39;data_url&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">ds</span><span class="p">[</span><span class="s1">&#39;file_records&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="n">r</span><span class="p">[</span><span class="s1">&#39;data_url&#39;</span><span class="p">])</span> <span class="k">for</span> <span class="n">ds</span> <span class="ow">in</span> <span class="n">datasets</span><span class="p">]</span>
+        <span class="n">matched</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;(?:_iblrig_)([a-z]+)(?=Camera.raw.mp4$)&#39;</span><span class="p">,</span> <span class="n">dataset</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">matched</span> <span class="ow">and</span> <span class="n">matched</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="ow">in</span> <span class="p">(</span><span class="n">label</span> <span class="ow">or</span> <span class="n">valid_labels</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">one</span><span class="o">.</span><span class="n">mode</span> <span class="o">!=</span> <span class="s1">&#39;remote&#39;</span><span class="p">:</span>
+        <span class="n">datasets</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">list_datasets</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">details</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">datasets</span> <span class="o">=</span> <span class="p">[</span><span class="n">ds</span> <span class="k">for</span> <span class="n">ds</span> <span class="ow">in</span> <span class="n">datasets</span> <span class="k">if</span> <span class="n">match</span><span class="p">(</span><span class="n">ds</span><span class="p">)]</span>
+        <span class="n">urls</span> <span class="o">=</span> <span class="p">[</span><span class="n">one</span><span class="o">.</span><span class="n">path2url</span><span class="p">(</span><span class="n">session_path</span> <span class="o">/</span> <span class="n">ds</span><span class="p">)</span> <span class="k">for</span> <span class="n">ds</span> <span class="ow">in</span> <span class="n">datasets</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">datasets</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">get_details</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">full</span><span class="o">=</span><span class="kc">True</span><span class="p">)[</span><span class="s1">&#39;data_dataset_session_related&#39;</span><span class="p">]</span>
+        <span class="n">urls</span> <span class="o">=</span> <span class="p">[</span><span class="n">ds</span><span class="p">[</span><span class="s1">&#39;data_url&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">ds</span> <span class="ow">in</span> <span class="n">datasets</span>
+                <span class="k">if</span> <span class="n">ds</span><span class="p">[</span><span class="s1">&#39;dataset_type&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;_iblrig_Camera.raw&#39;</span> <span class="ow">and</span> <span class="n">match</span><span class="p">(</span><span class="n">ds</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">])]</span>
+
     <span class="c1"># If one label specified, return the url, otherwise return a dict</span>
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">urls</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>

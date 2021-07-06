@@ -95,22 +95,25 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../03_one.html">ONE</a></li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../../04_datajoint.html">Datajoint</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../04_alf.html">Alyx Files (ALF)</a></li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../../05_tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../05_datajoint.html">Datajoint</a></li>
 </ul>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../../06_examples.html">Examples</a></li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../../07_public.html">IBL Public Data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../07_tutorials.html">Tutorials</a></li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../../08_contribution.html">Contribution Statement</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../08_public.html">IBL Public Data</a></li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../../09_api_reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../09_contribution.html">Contribution Statement</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../010_api_reference.html">API Reference</a></li>
 </ul>
 
             
@@ -191,10 +194,31 @@
     <span class="n">save_names</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;_ibl_trials.laser_stimulation.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;_ibl_trials.laser_probability.npy&#39;</span><span class="p">)</span>
     <span class="n">var_names</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;laser_stimulation&#39;</span><span class="p">,</span> <span class="s1">&#39;laser_probability&#39;</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<div class="viewcode-block" id="LaserBool._extract"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.opto_trials.html#ibllib.io.extractors.opto_trials.LaserBool._extract">[docs]</a>    <span class="k">def</span> <span class="nf">_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Extracting laser datasets&#39;</span><span class="p">)</span>
+        <span class="c1"># reference pybpod implementation</span>
         <span class="n">lstim</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="nb">float</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;laser_stimulation&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">NaN</span><span class="p">))</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">])</span>
         <span class="n">lprob</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="nb">float</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;laser_probability&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">NaN</span><span class="p">))</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">])</span>
-        <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Extracting laser datasets&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Karolina&#39;s choice world legacy implementation - from Slack message:</span>
+        <span class="c1"># it is possible that some versions I have used:</span>
+        <span class="c1"># 1) opto_ON_time (NaN - no laser or some number-laser)</span>
+        <span class="c1"># opto_ON_time=~isnan(opto_ON_time)</span>
+        <span class="c1"># laserON_trials=(opto_ON_time==1);</span>
+        <span class="c1"># laserOFF_trials=(opto_ON_time==0);</span>
+        <span class="c1"># 2) optoOUT (0 - no laser or 255 - laser):</span>
+        <span class="c1"># laserON_trials=(optoOUT ==255);</span>
+        <span class="c1"># laserOFF_trials=(optoOUT ==0);</span>
+        <span class="k">if</span> <span class="s1">&#39;PROBABILITY_OPTO&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="ow">and</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">lstim</span><span class="p">)):</span>
+            <span class="n">lprob</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">lprob</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s1">&#39;PROBABILITY_OPTO&#39;</span><span class="p">]</span>
+            <span class="n">lstim</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="nb">float</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;opto_ON_time&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">NaN</span><span class="p">))</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">])</span>
+            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">lstim</span><span class="p">)):</span>
+                <span class="n">lstim</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="nb">float</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;optoOUT&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">NaN</span><span class="p">))</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">])</span>
+                <span class="n">lstim</span><span class="p">[</span><span class="n">lstim</span> <span class="o">==</span> <span class="mi">255</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">lstim</span><span class="p">[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">lstim</span><span class="p">)]</span> <span class="o">=</span> <span class="mi">1</span>
+                <span class="n">lstim</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">lstim</span><span class="p">)]</span> <span class="o">=</span> <span class="mi">0</span>
+
         <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">lprob</span><span class="p">)):</span>
             <span class="c1"># this prevents the file from being saved when no data</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">save_names</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;_ibl_trials.laser_stimulation.npy&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
@@ -203,7 +227,7 @@
             <span class="c1"># this prevents the file from being saved when no data</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">save_names</span> <span class="o">=</span> <span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;_ibl_trials.laser_probability.npy&#39;</span><span class="p">)</span>
             <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;No laser stimulation found in bpod data&#39;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">lstim</span><span class="p">,</span> <span class="n">lprob</span></div>
+        <span class="k">return</span> <span class="n">lstim</span><span class="p">,</span> <span class="n">lprob</span></div></div>
 
 
 <div class="viewcode-block" id="extract_all"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.opto_trials.html#ibllib.io.extractors.opto_trials.extract_all">[docs]</a><span class="k">def</span> <span class="nf">extract_all</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">extra_classes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
