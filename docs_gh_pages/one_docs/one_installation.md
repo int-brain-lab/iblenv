@@ -26,7 +26,7 @@ one = ONE(silent=True)
 To connect to a specific database, for example the internal IBL Alyx database, a base-url argument must be given
 ```python
 from one.api import ONE
-one = ONE(base_url='http://alyx.internationalbrainlab.org')
+one = ONE(base_url='https://alyx.internationalbrainlab.org')
 ```
 
 When connecting to the IBL internal database you will be prompted to enter credentials, please follow 
@@ -58,6 +58,6 @@ one = ONE()
 To change your default database, you can use the following
 ```python
 from one.api import OneAlyx, ONE
-OneAlyx.setup(client='http://test.alyx.internationalbrainlab.org', make_default=True)
-one = ONE()  # Connected to http://test.alyx.internationalbrainlab.org
+OneAlyx.setup(client='https://test.alyx.internationalbrainlab.org', make_default=True)
+one = ONE()  # Connected to https://test.alyx.internationalbrainlab.org
 ```
