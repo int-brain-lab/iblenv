@@ -283,16 +283,74 @@
     <span class="k">return</span> <span class="n">data</span></div>
 
 
+<div class="viewcode-block" id="load_camera_frameData"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.raw_data_loaders.html#ibllib.io.raw_data_loaders.load_camera_frameData">[docs]</a><span class="k">def</span> <span class="nf">load_camera_frameData</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">camera</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;left&#39;</span><span class="p">,</span> <span class="n">raw</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot; Loads binary frame data from Bonsai camera recording workflow.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        session_path (StrPath): Path to session folder</span>
+<span class="sd">        camera (str, optional): Load FramsData for specific camera. Defaults to &#39;left&#39;.</span>
+<span class="sd">        raw (bool, optional): Whether to return raw or parsed data. Defaults to False.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        parsed: (raw=False, Default)</span>
+<span class="sd">        pandas.DataFrame: 4 int64 columns: {</span>
+<span class="sd">                Timestamp,              # float64 (seconds from session start)</span>
+<span class="sd">                embeddedTimeStamp,      # float64 (seconds from session start)</span>
+<span class="sd">                embeddedFrameCounter,   # int64 (Frame number from session start)</span>
+<span class="sd">                embeddedGPIOPinState    # object (State of each of the 4 GPIO pins as a</span>
+<span class="sd">                                        # list of numpy boolean arrays</span>
+<span class="sd">                                        # e.g. np.array([True, False, False, False])</span>
+<span class="sd">            }</span>
+<span class="sd">        raw:</span>
+<span class="sd">            pandas.DataFrame: 4 int64 columns: {</span>
+<span class="sd">                Timestamp,              # UTC ticks from BehaviorPC</span>
+<span class="sd">                                        # (100&#39;s of ns since midnight 1/1/0001)</span>
+<span class="sd">                embeddedTimeStamp,      # Camera timestamp (Needs unclycling and conversion)</span>
+<span class="sd">                embeddedFrameCounter,   # Frame counter (int)</span>
+<span class="sd">                embeddedGPIOPinState    # GPIO pin state integer representation of 4 pins</span>
+<span class="sd">            }</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">camera</span> <span class="o">=</span> <span class="n">assert_valid_label</span><span class="p">(</span><span class="n">camera</span><span class="p">)</span>
+    <span class="n">fpath</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s2">&quot;raw_video_data&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;_iblrig_</span><span class="si">{</span><span class="n">camera</span><span class="si">}</span><span class="s2">Camera.frameData.bin&quot;</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">fpath</span><span class="o">.</span><span class="n">exists</span><span class="p">(),</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">fpath</span><span class="si">}</span><span class="se">\n</span><span class="s2">File not Found: Could not find bin file for cam &lt;</span><span class="si">{</span><span class="n">camera</span><span class="si">}</span><span class="s2">&gt;&quot;</span>
+    <span class="n">rdata</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fromfile</span><span class="p">(</span><span class="n">fpath</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">rdata</span><span class="p">)</span> <span class="o">%</span> <span class="mi">4</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;Dimension mismatch: bin file length is not mod 4&quot;</span>
+    <span class="n">rows</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">rdata</span><span class="p">)</span> <span class="o">/</span> <span class="mi">4</span><span class="p">)</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">rdata</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">),</span> <span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="mi">4</span><span class="p">))</span>
+    <span class="n">df_dict</span> <span class="o">=</span> <span class="nb">dict</span><span class="o">.</span><span class="n">fromkeys</span><span class="p">(</span>
+        <span class="p">[</span><span class="s2">&quot;Timestamp&quot;</span><span class="p">,</span> <span class="s2">&quot;embeddedTimeStamp&quot;</span><span class="p">,</span> <span class="s2">&quot;embeddedFrameCounter&quot;</span><span class="p">,</span> <span class="s2">&quot;embeddedGPIOPinState&quot;</span><span class="p">]</span>
+    <span class="p">)</span>
+    <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="n">df_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+    <span class="k">if</span> <span class="n">raw</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">df</span>
+
+    <span class="n">df_dict</span><span class="p">[</span><span class="s2">&quot;Timestamp&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">data</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span> <span class="o">/</span> <span class="mi">10_000_000</span>  <span class="c1"># in seconds from first frame</span>
+    <span class="n">camerats</span> <span class="o">=</span> <span class="n">uncycle_pgts</span><span class="p">(</span><span class="n">convert_pgts</span><span class="p">(</span><span class="n">data</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]))</span>
+    <span class="n">df_dict</span><span class="p">[</span><span class="s2">&quot;embeddedTimeStamp&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">camerats</span> <span class="o">-</span> <span class="n">camerats</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>  <span class="c1"># in seconds from first frame</span>
+    <span class="n">df_dict</span><span class="p">[</span><span class="s2">&quot;embeddedFrameCounter&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span>  <span class="c1"># from start</span>
+    <span class="n">gpio</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">right_shift</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">tile</span><span class="p">(</span><span class="n">data</span><span class="p">[:,</span> <span class="mi">3</span><span class="p">],</span> <span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">31</span><span class="p">,</span> <span class="mi">27</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">))</span> <span class="o">&amp;</span> <span class="mh">0x1</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+    <span class="n">df_dict</span><span class="p">[</span><span class="s2">&quot;embeddedGPIOPinState&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">gpio</span><span class="o">.</span><span class="n">tolist</span><span class="p">()]</span>
+
+    <span class="n">parsed_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">df_dict</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">parsed_df</span></div>
+
+
 <div class="viewcode-block" id="load_camera_ssv_times"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.raw_data_loaders.html#ibllib.io.raw_data_loaders.load_camera_ssv_times">[docs]</a><span class="k">def</span> <span class="nf">load_camera_ssv_times</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">camera</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Load the bonsai frame and camera timestamps from Camera.timestamps.ssv</span>
 
 <span class="sd">    NB: For some sessions the frame times are in the first column, in others the order is reversed.</span>
-
+<span class="sd">    NB: If using the new bin file the bonsai_times is a float in seconds since first frame</span>
 <span class="sd">    :param session_path: Absolute path of session folder</span>
 <span class="sd">    :param camera: Name of the camera to load, e.g. &#39;left&#39;</span>
 <span class="sd">    :return: array of datetimes, array of frame times in seconds</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">newfile</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span> <span class="o">/</span> <span class="s1">&#39;raw_video_data&#39;</span> <span class="o">/</span> \
+        <span class="sa">f</span><span class="s1">&#39;_iblrig_</span><span class="si">{</span><span class="n">camera</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="si">}</span><span class="s1">Camera.frameData.bin&#39;</span>
+    <span class="k">if</span> <span class="n">newfile</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">load_camera_frameData</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">camera</span><span class="o">=</span><span class="n">camera</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">df</span><span class="p">[</span><span class="s1">&#39;Timestamp&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">df</span><span class="p">[</span><span class="s1">&#39;embeddedTimeStamp&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+
     <span class="n">camera</span> <span class="o">=</span> <span class="n">assert_valid_label</span><span class="p">(</span><span class="n">camera</span><span class="p">)</span>
     <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span> <span class="o">/</span> <span class="s1">&#39;raw_video_data&#39;</span>
     <span class="n">file</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;_iblrig_</span><span class="si">{</span><span class="n">camera</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="si">}</span><span class="s1">Camera.timestamps*.ssv&#39;</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
@@ -346,6 +404,12 @@
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">session_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">return</span>
+    <span class="n">newfile</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span> <span class="o">/</span> <span class="s1">&#39;raw_video_data&#39;</span> <span class="o">/</span> \
+        <span class="sa">f</span><span class="s1">&#39;_iblrig_</span><span class="si">{</span><span class="n">label</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="si">}</span><span class="s1">Camera.frameData.bin&#39;</span>
+    <span class="k">if</span> <span class="n">newfile</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">load_camera_frameData</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">camera</span><span class="o">=</span><span class="n">label</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">df</span><span class="p">[</span><span class="s1">&#39;embeddedFrameCounter&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+
     <span class="n">raw_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;raw_video_data&#39;</span><span class="p">)</span>
 
     <span class="c1"># Load frame count</span>
@@ -378,19 +442,28 @@
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">session_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">return</span>
+
     <span class="n">raw_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;raw_video_data&#39;</span><span class="p">)</span>
 
     <span class="c1"># Load pin state</span>
-    <span class="n">GPIO_file</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">raw_path</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;_iblrig_</span><span class="si">{</span><span class="n">assert_valid_label</span><span class="p">(</span><span class="n">label</span><span class="p">)</span><span class="si">}</span><span class="s1">Camera.GPIO*.bin&#39;</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
-    <span class="c1"># This deals with missing and empty files the same</span>
-    <span class="n">gpio</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fromfile</span><span class="p">(</span><span class="n">GPIO_file</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint32</span><span class="p">)</span> <span class="k">if</span> <span class="n">GPIO_file</span> <span class="k">else</span> <span class="p">[]</span>
+    <span class="n">GPIO_file</span> <span class="o">=</span> <span class="n">raw_path</span> <span class="o">/</span> <span class="sa">f</span><span class="s1">&#39;_iblrig_</span><span class="si">{</span><span class="n">assert_valid_label</span><span class="p">(</span><span class="n">label</span><span class="p">)</span><span class="si">}</span><span class="s1">Camera.GPIO.bin&#39;</span>
+    <span class="n">newfile</span> <span class="o">=</span> <span class="n">raw_path</span> <span class="o">/</span> <span class="sa">f</span><span class="s1">&#39;_iblrig_</span><span class="si">{</span><span class="n">label</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="si">}</span><span class="s1">Camera.frameData.bin&#39;</span>
+    <span class="n">gpio</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">if</span> <span class="n">GPIO_file</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+        <span class="c1"># This deals with missing and empty files the same</span>
+        <span class="n">gpio</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fromfile</span><span class="p">(</span><span class="n">GPIO_file</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">uint32</span><span class="p">)</span>
+        <span class="c1"># Check values make sense (4 pins = 16 possible values)</span>
+        <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">gpio</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">left_shift</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">2</span> <span class="o">**</span> <span class="mi">4</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint32</span><span class="p">),</span> <span class="mi">32</span> <span class="o">-</span> <span class="mi">4</span><span class="p">))</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+        <span class="c1"># 4 pins represented as uint32. For each pin, shift its bit to the end</span>
+        <span class="c1"># and check the bit is set</span>
+        <span class="n">gpio</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">right_shift</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">tile</span><span class="p">(</span><span class="n">gpio</span><span class="p">,</span> <span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">31</span><span class="p">,</span> <span class="mi">27</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">))</span> <span class="o">&amp;</span> <span class="mh">0x1</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+    <span class="k">elif</span> <span class="n">newfile</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">load_camera_frameData</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">camera</span><span class="o">=</span><span class="n">label</span><span class="p">,</span> <span class="n">raw</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">gpio</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">df</span><span class="p">[</span><span class="s1">&#39;embeddedGPIOPinState&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">])</span>
+
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">gpio</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
         <span class="k">return</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="mi">4</span> <span class="k">if</span> <span class="n">as_dicts</span> <span class="k">else</span> <span class="kc">None</span>
-
-    <span class="c1"># Check values make sense (4 pins = 16 possible values)</span>
-    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">gpio</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">left_shift</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">2</span> <span class="o">**</span> <span class="mi">4</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint32</span><span class="p">),</span> <span class="mi">32</span> <span class="o">-</span> <span class="mi">4</span><span class="p">))</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
-    <span class="c1"># 4 pins represented as uint32. For each pin, shift its bit to the end and check the bit is set</span>
-    <span class="n">gpio</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">right_shift</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">tile</span><span class="p">(</span><span class="n">gpio</span><span class="p">,</span> <span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">31</span><span class="p">,</span> <span class="mi">27</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">))</span> <span class="o">&amp;</span> <span class="mh">0x1</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
 
     <span class="k">if</span> <span class="n">as_dicts</span><span class="p">:</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">gpio</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
