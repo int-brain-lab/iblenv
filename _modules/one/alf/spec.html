@@ -183,9 +183,13 @@
   <h1>Source code for one.alf.spec</h1><div class="highlight"><pre>
 <span></span><span class="sd">&quot;&quot;&quot;The complete AlF specification descriptors and validators</span>
 <span class="sd">TODO Currently extensions are not optional</span>
+<span class="sd">TODO Make Subjects an optional requirement with lab, i.e. lab/Subjects/subject/date/num OR</span>
+<span class="sd"> subject/date/num but NOT lab/subject/date/num</span>
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="kn">import</span> <span class="nn">re</span>
 <span class="kn">import</span> <span class="nn">textwrap</span>
+<span class="kn">from</span> <span class="nn">uuid</span> <span class="kn">import</span> <span class="n">UUID</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Union</span>
 
 <span class="kn">from</span> <span class="nn">iblutil.util</span> <span class="kn">import</span> <span class="n">flatten</span>
 
@@ -270,14 +274,10 @@
 
 <span class="sd">&quot;&quot;&quot;The following are the specifications and patterns for ALFs&quot;&quot;&quot;</span>
 <span class="n">SESSION_SPEC</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">{lab}</span><span class="s1">/(Subjects/)?</span><span class="si">{subject}</span><span class="s1">/</span><span class="si">{date}</span><span class="s1">/</span><span class="si">{number}</span><span class="s1">&#39;</span>
-<span class="c1"># COLLECTION_SPEC = r&#39;{collection}(/#{revision}#)?&#39;</span>
-<span class="c1"># COLLECTION_SPEC = r&#39;({collection}(/#{revision}#)?/)?&#39;</span>
 <span class="n">COLLECTION_SPEC</span> <span class="o">=</span> <span class="sa">r</span><span class="s1">&#39;(</span><span class="si">{collection}</span><span class="s1">/)?(#</span><span class="si">{revision}</span><span class="s1">#/)?&#39;</span>
-<span class="c1"># COLLECTION_SPEC = r&#39;(/{collection})?(/#{revision}#)?&#39;</span>
 <span class="n">FILE_SPEC</span> <span class="o">=</span> <span class="sa">r</span><span class="s1">&#39;_?</span><span class="si">{namespace}</span><span class="s1">?_?</span><span class="si">{object}</span><span class="s1">\.</span><span class="si">{attribute}</span><span class="s1">_?</span><span class="si">{timescale}</span><span class="s1">*\.?</span><span class="si">{extra}</span><span class="s1">*\.</span><span class="si">{extension}</span><span class="s1">$&#39;</span>
-<span class="c1"># FULL_SPEC = f&#39;{SESSION_SPEC}/({COLLECTION_SPEC}/)?{FILE_SPEC}&#39;</span>
-<span class="n">FULL_SPEC</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">SESSION_SPEC</span><span class="si">}</span><span class="s1">/</span><span class="si">{</span><span class="n">COLLECTION_SPEC</span><span class="si">}{</span><span class="n">FILE_SPEC</span><span class="si">}</span><span class="s1">&#39;</span>
-<span class="c1"># FULL_SPEC = f&#39;{SESSION_SPEC}{COLLECTION_SPEC}/{FILE_SPEC}&#39;</span>
+<span class="n">REL_PATH_SPEC</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">COLLECTION_SPEC</span><span class="si">}{</span><span class="n">FILE_SPEC</span><span class="si">}</span><span class="s1">&#39;</span>
+<span class="n">FULL_SPEC</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">SESSION_SPEC</span><span class="si">}</span><span class="s1">/</span><span class="si">{</span><span class="n">REL_PATH_SPEC</span><span class="si">}</span><span class="s1">&#39;</span>
 
 <span class="n">_DEFAULT</span> <span class="o">=</span> <span class="p">(</span>
     <span class="p">(</span><span class="s1">&#39;lab&#39;</span><span class="p">,</span> <span class="sa">r</span><span class="s1">&#39;\w+&#39;</span><span class="p">),</span>
@@ -286,9 +286,12 @@
     <span class="p">(</span><span class="s1">&#39;number&#39;</span><span class="p">,</span> <span class="sa">r</span><span class="s1">&#39;\d{1,3}&#39;</span><span class="p">),</span>
     <span class="p">(</span><span class="s1">&#39;collection&#39;</span><span class="p">,</span> <span class="sa">r</span><span class="s1">&#39;[\w/]+&#39;</span><span class="p">),</span>
     <span class="p">(</span><span class="s1">&#39;revision&#39;</span><span class="p">,</span> <span class="sa">r</span><span class="s1">&#39;[\w-]+&#39;</span><span class="p">),</span>  <span class="c1"># brackets</span>
+    <span class="c1"># to include underscores: r&#39;(?P&lt;namespace&gt;(?:^_)\w+(?:_))?&#39;</span>
     <span class="p">(</span><span class="s1">&#39;namespace&#39;</span><span class="p">,</span> <span class="s1">&#39;(?&lt;=_)[a-zA-Z0-9]+&#39;</span><span class="p">),</span>  <span class="c1"># brackets</span>
     <span class="p">(</span><span class="s1">&#39;object&#39;</span><span class="p">,</span> <span class="sa">r</span><span class="s1">&#39;\w+&#39;</span><span class="p">),</span>
-    <span class="p">(</span><span class="s1">&#39;attribute&#39;</span><span class="p">,</span> <span class="sa">r</span><span class="s1">&#39;[a-zA-Z0-9]+(?:_times(?=[_\b.])|_intervals(?=[_\b.]))?&#39;</span><span class="p">),</span>  <span class="c1"># brackets</span>
+    <span class="c1"># to treat _times and _intervals as timescale: (?P&lt;attribute&gt;[a-zA-Z]+)_?</span>
+    <span class="c1"># (?:_[a-z]+_)? allows attribute level namespaces (deprecated)</span>
+    <span class="p">(</span><span class="s1">&#39;attribute&#39;</span><span class="p">,</span> <span class="sa">r</span><span class="s1">&#39;(?:_[a-z]+_)?[a-zA-Z0-9]+(?:_times(?=[_.])|_intervals(?=[_.]))?&#39;</span><span class="p">),</span>  <span class="c1"># brackets</span>
     <span class="p">(</span><span class="s1">&#39;timescale&#39;</span><span class="p">,</span> <span class="sa">r</span><span class="s1">&#39;(?:_?)\w+&#39;</span><span class="p">),</span>  <span class="c1"># brackets</span>
     <span class="p">(</span><span class="s1">&#39;extra&#39;</span><span class="p">,</span> <span class="sa">r</span><span class="s1">&#39;[.\w-]+&#39;</span><span class="p">),</span>  <span class="c1"># brackets</span>
     <span class="p">(</span><span class="s1">&#39;extension&#39;</span><span class="p">,</span> <span class="sa">r</span><span class="s1">&#39;\w+&#39;</span><span class="p">)</span>
@@ -375,61 +378,108 @@
     <span class="k">return</span> <span class="sa">f</span><span class="s1">&#39;(?P&lt;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">&gt;</span><span class="si">{</span><span class="n">pattern</span><span class="si">}</span><span class="s1">)&#39;</span>
 
 
-<div class="viewcode-block" id="regex"><a class="viewcode-back" href="../../../_autosummary/one.alf.spec.html#one.alf.spec.regex">[docs]</a><span class="k">def</span> <span class="nf">regex</span><span class="p">(</span><span class="n">spec</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">FULL_SPEC</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<div class="viewcode-block" id="regex"><a class="viewcode-back" href="../../../_autosummary/one.alf.spec.html#one.alf.spec.regex">[docs]</a><span class="k">def</span> <span class="nf">regex</span><span class="p">(</span><span class="n">spec</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">FULL_SPEC</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">re</span><span class="o">.</span><span class="n">Pattern</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Construct a regular expression pattern for parsing or validating an ALF</span>
 
-<span class="sd">    Examples:</span>
-<span class="sd">        # Regex for a filename</span>
-<span class="sd">        pattern = regex(spec=FILE_SPEC)</span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    spec : str</span>
+<span class="sd">        The spec string to construct the regular expression from</span>
+<span class="sd">    kwargs : dict[str]</span>
+<span class="sd">        Optional patterns to replace the defaults</span>
 
-<span class="sd">        # Regex for a complete path (including root)</span>
-<span class="sd">        pattern = &#39;.*&#39; + regex(spec=FULL_SPEC)</span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    A regular expression Pattern object</span>
 
-<span class="sd">        # Regex pattern for specific object name</span>
-<span class="sd">        pattern = regex(object=&#39;trials)</span>
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    # Regex for a filename</span>
+<span class="sd">    pattern = regex(spec=FILE_SPEC)</span>
 
-<span class="sd">    :param spec: The spec string to construct the regular expression from</span>
-<span class="sd">    :param kwargs: Optional patterns to replace the defaults</span>
-<span class="sd">    :return: A regular expression pattern string</span>
+<span class="sd">    # Regex for a complete path (including root)</span>
+<span class="sd">    pattern = &#39;.*&#39; + regex(spec=FULL_SPEC)</span>
+
+<span class="sd">    # Regex pattern for specific object name</span>
+<span class="sd">    pattern = regex(object=&#39;trials)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">fields</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">_DEFAULT</span><span class="p">)</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">fields</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="o">&gt;=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
         <span class="n">unknown</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">fields</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
         <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Unknown field &quot;</span><span class="si">{</span><span class="n">unknown</span><span class="si">}</span><span class="s1">&quot;&#39;</span><span class="p">)</span>
     <span class="n">fields</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">v</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">})</span>
-    <span class="k">return</span> <span class="n">spec</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">**</span><span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">_named</span><span class="p">(</span><span class="n">fields</span><span class="p">[</span><span class="n">k</span><span class="p">],</span> <span class="n">k</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;(?&lt;={)\w+&#39;</span><span class="p">,</span> <span class="n">spec</span><span class="p">)})</span></div>
+    <span class="n">spec_str</span> <span class="o">=</span> <span class="n">spec</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">**</span><span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">_named</span><span class="p">(</span><span class="n">fields</span><span class="p">[</span><span class="n">k</span><span class="p">],</span> <span class="n">k</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;(?&lt;={)\w+&#39;</span><span class="p">,</span> <span class="n">spec</span><span class="p">)})</span>
+    <span class="k">return</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">spec_str</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="is_valid"><a class="viewcode-back" href="../../../_autosummary/one.alf.spec.html#one.alf.spec.is_valid">[docs]</a><span class="k">def</span> <span class="nf">is_valid</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Returns a True for a given file name if it is an ALF file, otherwise returns False</span>
 
-<span class="sd">    Examples:</span>
-<span class="sd">        &gt;&gt;&gt; is_valid(&#39;trials.feedbackType.npy&#39;)</span>
-<span class="sd">        True</span>
-<span class="sd">        &gt;&gt;&gt; is_valid(&#39;_ns_obj.attr1.2622b17c-9408-4910-99cb-abf16d9225b9.metadata.json&#39;)</span>
-<span class="sd">        True</span>
-<span class="sd">        &gt;&gt;&gt; is_valid(&#39;spike_train.npy&#39;)</span>
-<span class="sd">        False</span>
-<span class="sd">        &gt;&gt;&gt; is_valid(&#39;channels._phy_ids.csv&#39;)</span>
-<span class="sd">        False</span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    filename : str</span>
+<span class="sd">        The name of the file to evaluate</span>
 
-<span class="sd">    Args:</span>
-<span class="sd">        filename (str): The name of the file</span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    True if filename is valid ALF</span>
 
-<span class="sd">    Returns:</span>
-<span class="sd">        bool</span>
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; is_valid(&#39;trials.feedbackType.npy&#39;)</span>
+<span class="sd">    True</span>
+<span class="sd">    &gt;&gt;&gt; is_valid(&#39;_ns_obj.attr1.2622b17c-9408-4910-99cb-abf16d9225b9.metadata.json&#39;)</span>
+<span class="sd">    True</span>
+<span class="sd">    &gt;&gt;&gt; is_valid(&#39;spike_train.npy&#39;)</span>
+<span class="sd">    False</span>
+<span class="sd">    &gt;&gt;&gt; is_valid(&#39;channels._phy_ids.csv&#39;)  # WARNING: attribute level namespaces are deprecated</span>
+<span class="sd">    True</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="c1"># FIXME Use FULL_SPEC</span>
-    <span class="n">ALF_EXP</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span>
-        <span class="sa">r</span><span class="s1">&#39;^_?(?P&lt;namespace&gt;(?&lt;=_)[a-zA-Z0-9]+)?_?&#39;</span>
-        <span class="sa">r</span><span class="s1">&#39;(?P&lt;object&gt;\w+)\.&#39;</span>
-        <span class="sa">r</span><span class="s1">&#39;(?P&lt;attribute&gt;[a-zA-Z0-9]+(?:_times(?=[_\b.])|_intervals(?=[_\b.]))?)_?&#39;</span>
-        <span class="sa">r</span><span class="s1">&#39;(?P&lt;timescale&gt;(?:_?)\w+)*\.?&#39;</span>
-        <span class="sa">r</span><span class="s1">&#39;(?P&lt;extra&gt;[.\w-]+)*\.&#39;</span>
-        <span class="sa">r</span><span class="s1">&#39;(?P&lt;extension&gt;\w+$)&#39;</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">ALF_EXP</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span></div>
+    <span class="k">return</span> <span class="n">regex</span><span class="p">(</span><span class="n">FILE_SPEC</span><span class="p">)</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="is_session_path"><a class="viewcode-back" href="../../../_autosummary/one.alf.spec.html#one.alf.spec.is_session_path">[docs]</a><span class="k">def</span> <span class="nf">is_session_path</span><span class="p">(</span><span class="n">path_object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Checks if the syntax corresponds to a session path. Note that there is no physical check</span>
+<span class="sd">    about existence nor contents</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    path_object : str, pathlib.Path</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    True if session path a valid ALF session path</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">session_spec</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">regex</span><span class="p">(</span><span class="n">SESSION_SPEC</span><span class="p">)</span><span class="o">.</span><span class="n">pattern</span> <span class="o">+</span> <span class="s1">&#39;$&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">path_object</span><span class="p">,</span> <span class="s1">&#39;as_posix&#39;</span><span class="p">):</span>
+        <span class="n">path_object</span> <span class="o">=</span> <span class="n">path_object</span><span class="o">.</span><span class="n">as_posix</span><span class="p">()</span>
+    <span class="n">path_object</span> <span class="o">=</span> <span class="n">path_object</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">session_spec</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">path_object</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="is_uuid_string"><a class="viewcode-back" href="../../../_autosummary/one.alf.spec.html#one.alf.spec.is_uuid_string">[docs]</a><span class="k">def</span> <span class="nf">is_uuid_string</span><span class="p">(</span><span class="n">string</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Bool test for randomly generated hexadecimal uuid validity</span>
+<span class="sd">    NB: unlike is_uuid, is_uuid_string checks that uuid is correctly hyphen separated</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">string</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="n">is_uuid</span><span class="p">(</span><span class="n">string</span><span class="p">,</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">))</span> <span class="ow">and</span> <span class="nb">str</span><span class="p">(</span><span class="n">UUID</span><span class="p">(</span><span class="n">string</span><span class="p">))</span> <span class="o">==</span> <span class="n">string</span></div>
+
+
+<div class="viewcode-block" id="is_uuid"><a class="viewcode-back" href="../../../_autosummary/one.alf.spec.html#one.alf.spec.is_uuid">[docs]</a><span class="k">def</span> <span class="nf">is_uuid</span><span class="p">(</span><span class="n">uuid</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">,</span> <span class="n">UUID</span><span class="p">],</span> <span class="n">versions</span><span class="o">=</span><span class="p">(</span><span class="mi">4</span><span class="p">,))</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Bool test for randomly generated hexadecimal uuid validity</span>
+<span class="sd">    Unlike `is_uuid_string`, this function accepts UUID objects</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">uuid</span><span class="p">,</span> <span class="p">(</span><span class="n">UUID</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">,</span> <span class="nb">int</span><span class="p">)):</span>
+        <span class="k">return</span> <span class="kc">False</span>
+    <span class="k">elif</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">uuid</span><span class="p">,</span> <span class="n">UUID</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">uuid</span> <span class="o">=</span> <span class="n">UUID</span><span class="p">(</span><span class="n">uuid</span><span class="p">)</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">uuid</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">else</span> <span class="n">UUID</span><span class="p">(</span><span class="o">**</span><span class="p">{</span><span class="nb">type</span><span class="p">(</span><span class="n">uuid</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="p">:</span> <span class="n">uuid</span><span class="p">})</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+    <span class="k">return</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">uuid</span><span class="p">,</span> <span class="n">UUID</span><span class="p">)</span> <span class="ow">and</span> <span class="n">uuid</span><span class="o">.</span><span class="n">version</span> <span class="ow">in</span> <span class="n">versions</span></div>
 
 
 <div class="viewcode-block" id="to_alf"><a class="viewcode-back" href="../../../_autosummary/one.alf.spec.html#one.alf.spec.to_alf">[docs]</a><span class="k">def</span> <span class="nf">to_alf</span><span class="p">(</span><span class="nb">object</span><span class="p">,</span> <span class="n">attribute</span><span class="p">,</span> <span class="n">extension</span><span class="p">,</span> <span class="n">namespace</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">timescale</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">extra</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
@@ -437,18 +487,27 @@
 <span class="sd">    Given a set of ALF file parts, return a valid ALF file name.  Essential periods and</span>
 <span class="sd">    underscores are added by the function.</span>
 
-<span class="sd">    Args:</span>
-<span class="sd">        object (str): The ALF object name</span>
-<span class="sd">        attribute (str): The ALF object attribute name</span>
-<span class="sd">        extension (str): The file extension</span>
-<span class="sd">        namespace (str): An optional namespace</span>
-<span class="sd">        timescale (str): An optional timescale</span>
-<span class="sd">        extra (str, tuple): One or more optional extra ALF attributes</span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    object : str</span>
+<span class="sd">        The ALF object name</span>
+<span class="sd">    attribute : str</span>
+<span class="sd">        The ALF object attribute name</span>
+<span class="sd">    extension : str</span>
+<span class="sd">        The file extension</span>
+<span class="sd">    namespace : str</span>
+<span class="sd">        An optional namespace</span>
+<span class="sd">    timescale : str</span>
+<span class="sd">        An optional timescale</span>
+<span class="sd">    extra : str, tuple</span>
+<span class="sd">        One or more optional extra ALF attributes</span>
 
-<span class="sd">    Returns:</span>
-<span class="sd">        filename (str): a file name string built from the ALF parts</span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    A file name string built from the ALF parts</span>
 
-<span class="sd">    Examples:</span>
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
 <span class="sd">    &gt;&gt;&gt; to_alf(&#39;spikes&#39;, &#39;times&#39;, &#39;ssv&#39;)</span>
 <span class="sd">    &#39;spikes.times.ssv&#39;</span>
 <span class="sd">    &gt;&gt;&gt; to_alf(&#39;spikes&#39;, &#39;times&#39;, &#39;ssv&#39;, namespace=&#39;ibl&#39;)</span>

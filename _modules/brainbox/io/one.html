@@ -188,7 +188,7 @@
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
 <span class="kn">from</span> <span class="nn">iblutil.util</span> <span class="kn">import</span> <span class="n">Bunch</span>
 
-<span class="kn">import</span> <span class="nn">one.alf.io</span> <span class="k">as</span> <span class="nn">alfio</span>
+<span class="kn">from</span> <span class="nn">one.alf.spec</span> <span class="kn">import</span> <span class="n">is_session_path</span>
 <span class="kn">import</span> <span class="nn">one.alf.exceptions</span> <span class="k">as</span> <span class="nn">alferr</span>
 <span class="kn">from</span> <span class="nn">one.api</span> <span class="kn">import</span> <span class="n">ONE</span><span class="p">,</span> <span class="n">One</span><span class="p">,</span> <span class="n">OneAlyx</span>
 
@@ -394,7 +394,7 @@
     <span class="k">return</span> <span class="n">spikes</span><span class="p">,</span> <span class="n">clusters</span><span class="p">,</span> <span class="n">trials</span></div>
 
 
-<div class="viewcode-block" id="load_spike_sorting"><a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.load_spike_sorting">[docs]</a><span class="k">def</span> <span class="nf">load_spike_sorting</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">probe</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dataset_types</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="load_spike_sorting"><a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.load_spike_sorting">[docs]</a><span class="k">def</span> <span class="nf">load_spike_sorting</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">probe</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dataset_types</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">spike_sorter</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    From an eid, loads spikes and clusters for all probes</span>
 <span class="sd">    The following set of dataset types are loaded:</span>
@@ -408,6 +408,7 @@
 <span class="sd">    :param one: an instance of OneAlyx</span>
 <span class="sd">    :param probe: name of probe to load in, if not given all probes for session will be loaded</span>
 <span class="sd">    :param dataset_types: additional spikes/clusters objects to add to the standard default list</span>
+<span class="sd">    :param spike_sorter: name of the spike sorting you want to load</span>
 <span class="sd">    :return: spikes, clusters (dict of bunch, 1 bunch per probe)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">one</span> <span class="o">=</span> <span class="n">one</span> <span class="ow">or</span> <span class="n">ONE</span><span class="p">()</span>
@@ -443,22 +444,28 @@
         <span class="c1"># Append extra optional DS</span>
         <span class="n">dtypes</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">dataset_types</span> <span class="o">+</span> <span class="n">dtypes_default</span><span class="p">))</span>
 
-    <span class="n">spike_attributes</span> <span class="o">=</span> <span class="s1">&#39;|&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">sp</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">sp</span> <span class="ow">in</span> <span class="n">dtypes</span> <span class="k">if</span> <span class="s1">&#39;spikes.&#39;</span> <span class="ow">in</span> <span class="n">sp</span><span class="p">])</span>
-    <span class="n">cluster_attributes</span> <span class="o">=</span> <span class="s1">&#39;|&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">cl</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">cl</span> <span class="ow">in</span> <span class="n">dtypes</span> <span class="k">if</span> <span class="s1">&#39;clusters.&#39;</span> <span class="ow">in</span> <span class="n">cl</span><span class="p">])</span>
+    <span class="n">spike_attributes</span> <span class="o">=</span> <span class="p">[</span><span class="n">sp</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">sp</span> <span class="ow">in</span> <span class="n">dtypes</span> <span class="k">if</span> <span class="s1">&#39;spikes.&#39;</span> <span class="ow">in</span> <span class="n">sp</span><span class="p">]</span>
+    <span class="n">cluster_attributes</span> <span class="o">=</span> <span class="p">[</span><span class="n">cl</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">cl</span> <span class="ow">in</span> <span class="n">dtypes</span> <span class="k">if</span> <span class="s1">&#39;clusters.&#39;</span> <span class="ow">in</span> <span class="n">cl</span><span class="p">]</span>
 
     <span class="k">for</span> <span class="n">label</span> <span class="ow">in</span> <span class="n">labels</span><span class="p">:</span>
+
+        <span class="k">if</span> <span class="n">spike_sorter</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">collection</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;alf/</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">&#39;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">collection</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;alf/</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">/</span><span class="si">{</span><span class="n">spike_sorter</span><span class="si">}</span><span class="s1">&#39;</span>
+
         <span class="k">try</span><span class="p">:</span>
-            <span class="n">spikes</span><span class="p">[</span><span class="n">label</span><span class="p">]</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="s1">&#39;spikes&#39;</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;alf/</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span>
+            <span class="n">spikes</span><span class="p">[</span><span class="n">label</span><span class="p">]</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="s1">&#39;spikes&#39;</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="n">collection</span><span class="p">,</span>
                                             <span class="n">attribute</span><span class="o">=</span><span class="n">spike_attributes</span><span class="p">)</span>
         <span class="k">except</span> <span class="n">alferr</span><span class="o">.</span><span class="n">ALFError</span><span class="p">:</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
                 <span class="sa">f</span><span class="s1">&#39;Could not load spikes datasets for session </span><span class="si">{</span><span class="n">eid</span><span class="si">}</span><span class="s1">. &#39;</span>
                 <span class="sa">f</span><span class="s1">&#39;Spikes for </span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1"> will return an empty dict&#39;</span><span class="p">)</span>
 
-        <span class="n">session_path</span> <span class="o">=</span> <span class="n">eid</span> <span class="k">if</span> <span class="n">alfio</span><span class="o">.</span><span class="n">is_session_path</span><span class="p">(</span><span class="n">eid</span><span class="p">)</span> <span class="k">else</span> <span class="n">one</span><span class="o">.</span><span class="n">eid2path</span><span class="p">(</span><span class="n">one</span><span class="o">.</span><span class="n">to_eid</span><span class="p">(</span><span class="n">eid</span><span class="p">))</span>
+        <span class="n">session_path</span> <span class="o">=</span> <span class="n">eid</span> <span class="k">if</span> <span class="n">is_session_path</span><span class="p">(</span><span class="n">eid</span><span class="p">)</span> <span class="k">else</span> <span class="n">one</span><span class="o">.</span><span class="n">eid2path</span><span class="p">(</span><span class="n">one</span><span class="o">.</span><span class="n">to_eid</span><span class="p">(</span><span class="n">eid</span><span class="p">))</span>
         <span class="n">_remove_old_clusters</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="n">clusters</span><span class="p">[</span><span class="n">label</span><span class="p">]</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="s1">&#39;clusters&#39;</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;alf/</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span>
+            <span class="n">clusters</span><span class="p">[</span><span class="n">label</span><span class="p">]</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="s1">&#39;clusters&#39;</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="n">collection</span><span class="p">,</span>
                                               <span class="n">attribute</span><span class="o">=</span><span class="n">cluster_attributes</span><span class="p">)</span>
         <span class="k">except</span> <span class="n">alferr</span><span class="o">.</span><span class="n">ALFError</span><span class="p">:</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
@@ -522,7 +529,8 @@
     <span class="k">return</span> <span class="n">dic_clus</span></div>
 
 
-<div class="viewcode-block" id="load_spike_sorting_with_channel"><a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.load_spike_sorting_with_channel">[docs]</a><span class="k">def</span> <span class="nf">load_spike_sorting_with_channel</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">probe</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">aligned</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">dataset_types</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="load_spike_sorting_with_channel"><a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.load_spike_sorting_with_channel">[docs]</a><span class="k">def</span> <span class="nf">load_spike_sorting_with_channel</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">probe</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">aligned</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">dataset_types</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                                    <span class="n">spike_sorter</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    For a given eid, get spikes, clusters and channels information, and merges clusters</span>
 <span class="sd">    and channels information before returning all three variables.</span>
@@ -531,6 +539,7 @@
 <span class="sd">    :param aligned: whether to get the latest user aligned channel when not resolved or use</span>
 <span class="sd">    histology track</span>
 <span class="sd">    :param dataset_types: additional spikes/clusters objects to add to the standard default list</span>
+<span class="sd">    :param spike_sorter: name of the spike sorting you want to load</span>
 <span class="sd">    :return: spikes, clusters, channels (dict of bunch, 1 bunch per probe)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="c1"># --- Get spikes and clusters data</span>
@@ -542,7 +551,8 @@
         <span class="k">return</span> <span class="n">old</span><span class="o">.</span><span class="n">load_spike_sorting_with_channel</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">,</span> <span class="n">probe</span><span class="o">=</span><span class="n">probe</span><span class="p">,</span> <span class="n">aligned</span><span class="o">=</span><span class="n">aligned</span><span class="p">)</span>
 
     <span class="n">dic_spk_bunch</span><span class="p">,</span> <span class="n">dic_clus</span> <span class="o">=</span> <span class="n">load_spike_sorting</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">,</span> <span class="n">probe</span><span class="o">=</span><span class="n">probe</span><span class="p">,</span>
-                                                 <span class="n">dataset_types</span><span class="o">=</span><span class="n">dataset_types</span><span class="p">)</span>
+                                                 <span class="n">dataset_types</span><span class="o">=</span><span class="n">dataset_types</span><span class="p">,</span>
+                                                 <span class="n">spike_sorter</span><span class="o">=</span><span class="n">spike_sorter</span><span class="p">)</span>
     <span class="c1"># -- Get brain regions and assign to clusters</span>
     <span class="n">channels</span> <span class="o">=</span> <span class="n">load_channel_locations</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">,</span> <span class="n">probe</span><span class="o">=</span><span class="n">probe</span><span class="p">,</span> <span class="n">aligned</span><span class="o">=</span><span class="n">aligned</span><span class="p">)</span>
 

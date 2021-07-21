@@ -969,6 +969,8 @@
                 <span class="n">query_params</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="s1">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">ensure_list</span><span class="p">(</span><span class="n">v</span><span class="p">)))</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
                 <span class="n">url</span> <span class="o">=</span> <span class="n">update_url_params</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">query_params</span><span class="p">)</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;/&#39;</span> <span class="o">+</span> <span class="n">url</span><span class="p">,</span> <span class="o">**</span><span class="n">cache_args</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="nb">id</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="nb">id</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="nb">id</span><span class="p">)</span>  <span class="c1"># e.g. may be uuid.UUID</span>
         <span class="k">if</span> <span class="n">action</span> <span class="o">==</span> <span class="s1">&#39;read&#39;</span><span class="p">:</span>
             <span class="k">assert</span> <span class="p">(</span><span class="n">endpoint_scheme</span><span class="p">[</span><span class="n">action</span><span class="p">][</span><span class="s1">&#39;action&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;get&#39;</span><span class="p">)</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;/&#39;</span> <span class="o">+</span> <span class="n">endpoint</span> <span class="o">+</span> <span class="s1">&#39;/&#39;</span> <span class="o">+</span> <span class="nb">id</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="o">**</span><span class="n">cache_args</span><span class="p">)</span>
@@ -987,7 +989,7 @@
 
     <span class="c1"># JSON field interface convenience methods</span>
     <span class="k">def</span> <span class="nf">_check_inputs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">endpoint</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="c1"># make sure the queryied endpoint exists, if not throw an informative error</span>
+        <span class="c1"># make sure the queried endpoint exists, if not throw an informative error</span>
         <span class="k">if</span> <span class="n">endpoint</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">rest_schemes</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
             <span class="n">av</span> <span class="o">=</span> <span class="p">[</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">rest_schemes</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">k</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">k</span><span class="p">]</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;REST endpoint &quot;&#39;</span> <span class="o">+</span> <span class="n">endpoint</span> <span class="o">+</span> <span class="s1">&#39;&quot; does not exist. Available &#39;</span> <span class="o">+</span>
@@ -1005,16 +1007,20 @@
 <span class="sd">        Write data to WILL NOT CHECK IF DATA EXISTS</span>
 <span class="sd">        NOTE: Destructive write!</span>
 
-<span class="sd">        :param endpoint: Valid alyx endpoint, defaults to None</span>
-<span class="sd">        :type endpoint: str, optional</span>
-<span class="sd">        :param uuid: uuid or lookup name for endpoint</span>
-<span class="sd">        :type uuid: str, optional</span>
-<span class="sd">        :param field_name: Valid json field name, defaults to None</span>
-<span class="sd">        :type field_name: str, optional</span>
-<span class="sd">        :param data: data to write to json field, defaults to None</span>
-<span class="sd">        :type data: dict, optional</span>
-<span class="sd">        :return: Written data dict</span>
-<span class="sd">        :rtype: dict</span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        endpoint : str, None</span>
+<span class="sd">            Valid alyx endpoint, defaults to None</span>
+<span class="sd">        uuid : str, uuid.UUID, None</span>
+<span class="sd">            UUID or lookup name for endpoint</span>
+<span class="sd">        field_name : str, None</span>
+<span class="sd">            Valid json field name, defaults to None</span>
+<span class="sd">        data : dict, None</span>
+<span class="sd">            Data to write to json field, defaults to None</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        Written data dict</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_check_inputs</span><span class="p">(</span><span class="n">endpoint</span><span class="p">)</span>
         <span class="c1"># Prepare data to patch</span>
@@ -1036,19 +1042,24 @@
 <span class="sd">        If data has keys with the same name of existing keys it will squash the old</span>
 <span class="sd">        values (uses the dict.update() method)</span>
 
-<span class="sd">        Example:</span>
-<span class="sd">        one.alyx.json_field_update(&quot;sessions&quot;, &quot;eid_str&quot;, &quot;extended_qc&quot;, {&quot;key&quot;: value})</span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        endpoint : str</span>
+<span class="sd">            Alyx REST endpoint to hit</span>
+<span class="sd">        uuid : str, uuid.UUID</span>
+<span class="sd">            UUID or lookup name of object</span>
+<span class="sd">        field_name : str</span>
+<span class="sd">            Name of the json field</span>
+<span class="sd">        data : dict</span>
+<span class="sd">            A dictionary with fields to be updated</span>
 
-<span class="sd">        :param endpoint: endpoint to hit</span>
-<span class="sd">        :type endpoint: str</span>
-<span class="sd">        :param uuid: uuid or lookup name of object</span>
-<span class="sd">        :type uuid: str</span>
-<span class="sd">        :param field_name: name of the json field</span>
-<span class="sd">        :type field_name: str</span>
-<span class="sd">        :param data: dictionary with fields to be updated</span>
-<span class="sd">        :type data: dict</span>
-<span class="sd">        :return: new patched json field contents</span>
-<span class="sd">        :rtype: dict</span>
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        New patched json field contents as dict</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        one.alyx.json_field_update(&quot;sessions&quot;, &quot;eid_str&quot;, &quot;extended_qc&quot;, {&quot;key&quot;: value})</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_check_inputs</span><span class="p">(</span><span class="n">endpoint</span><span class="p">)</span>
         <span class="c1"># Load current json field contents</span>
