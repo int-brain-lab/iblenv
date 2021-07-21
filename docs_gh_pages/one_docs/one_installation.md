@@ -15,14 +15,7 @@ installed, so you can skip this step!
 To start using ONE, we must first configure some settings that tell ONE whether it should connect to a database or 
 use a local file system
 
-### Connect to IBL Public database
-By default ONE is configured to connect to the public IBL database, this can be setup by typing the following
-```python
-from one.api import ONE
-one = ONE(silent=True)
-```
-
-### Connecting to specific database
+### Connecting to specific database (relevant for IBL users)
 To connect to a specific database, for example the internal IBL Alyx database, a base-url argument must be given
 ```python
 from one.api import ONE
@@ -35,6 +28,13 @@ When connecting to the IBL internal database you will be prompted to enter crede
 ```{Warning}
 The internal IBL database is only open to IBL members, please connect to our public database to access our publically
 available data
+```
+
+### Connect to IBL Public database
+By default ONE is configured to connect to the public IBL database, this can be setup by typing the following
+```python
+from one.api import ONE
+one = ONE(silent=True)
 ```
 
 ### Using local folder structure

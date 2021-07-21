@@ -183,18 +183,32 @@ autodoc_default_options = {
 }
 
 
-def autodoc_skip_member_handler(app, what, name, obj, skip, options):
-    # Basic approach; you might want a regex instead
-    # TODO still makes the folder structure, need to figure out how not to do that
-    if 'test' in name.lower():
-        return True
-    else:
-        return False
+def param_line_break(app, what, name, obj, options, lines):
+    first_param = next((i for i, j in enumerate(lines) if ':param' in j), -1)
+    if first_param != -1:
+        # if the first param is not preceded by a line break add one in
+        if lines[first_param - 1] != '':
+            lines.insert(first_param, '')
+    return
 
-# Automatically called by sphinx at startup
+
 def setup(app):
     # Connect the autodoc-skip-member event from apidoc to the callback
-    app.connect('autodoc-skip-member', autodoc_skip_member_handler)
+    app.connect('autodoc-process-docstring', param_line_break)
+
+#   def autodoc_skip_member_handler(app, what, name, obj, skip, options):
+#       # Basic approach; you might want a regex instead
+#       # TODO still makes the folder structure, need to figure out how not to do that also makes
+        # all the private methods which we don't want
+#       if 'test' in name.lower():
+#           return True
+#       else:
+#           return False
+#
+#   # Automatically called by sphinx at startup
+#   def setup(app):
+#       # Connect the autodoc-skip-member event from apidoc to the callback
+#       app.connect('autodoc-skip-member', autodoc_skip_member_handler)
 
 # -- Options for nbsphinx ------------------------------------
 

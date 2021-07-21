@@ -55,7 +55,7 @@ Tutorials
 .. toctree::
    :maxdepth: 1
 
-   06_examples
+   07_tutorials
 
 
 Examples
@@ -64,7 +64,7 @@ Examples
 .. toctree::
    :maxdepth: 2
 
-   07_tutorials
+   06_examples
 
 
 Publically Available Data
@@ -74,6 +74,15 @@ Publically Available Data
    :maxdepth: 2
 
    08_public
+
+
+Visualisation tools
+------------------------------------
+
+.. toctree::
+   :maxdepth: 2
+
+   011_ibl_viewer
 
 
 Contribution Statement
