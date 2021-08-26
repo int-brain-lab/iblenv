@@ -11,7 +11,7 @@ API Reference
    :template: custom-module-template.rst
    :recursive:
 
-   alf
+   one
 
 .. autosummary::
    :toctree: _autosummary
@@ -25,11 +25,12 @@ API Reference
    :template: custom-module-template.rst
    :recursive:
 
-   oneibl
+   brainbox
 
 .. autosummary::
    :toctree: _autosummary
    :template: custom-module-template.rst
    :recursive:
 
-   brainbox
+   iblviewer
+
