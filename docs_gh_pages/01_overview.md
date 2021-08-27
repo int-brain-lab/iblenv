@@ -7,10 +7,12 @@ This challenge is met by the IBL data architecture, described briefly below; a t
 Once acquired on a Rig, the data is first registered by the local server associated to that Rig onto two databases:
 - [**Alyx**](https://github.com/cortex-lab/alyx), that stores **meta-data** (e.g. information on the mouse) in a relational manner
 - [**Flatiron**](https://www.simonsfoundation.org/flatiron/), that stores **bulky raw data** (e.g. raw electrophysiology and video data) as well as processed data (e.g. output of spike sorting, output of video segmentation). This database is accessible through HTTP, FTP and Globus.
+
 The Alyx database points to the files on the Flatiron server.
 
-Lightweight, processed data (e.g. events on trials, spike times), **not raw data**, are then transferred onto a third database that enables further scientific analysis:
-- [Datajoint](https://datajoint.io)
+A specific set of lightweight, processed data (e.g. events on trials, spike times), **not raw data**, are then transferred onto a third database that enables further scientific analysis:
+- [Datajoint](https://datajoint.io), that stores specific *processed, lightweight data* commonly used in analysis
+
 An example of such analysis is to compute a subject's behavioral performance on a given day.
 
 ## How to access the data
