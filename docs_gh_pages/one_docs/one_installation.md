@@ -27,8 +27,10 @@ When connecting to the IBL internal database you will be prompted to enter crede
 
 ```{Warning}
 The internal IBL database is only open to IBL members, please connect to our public database to access our publically
-available data
+available datasets
 ```
+If you are interested in accessing these publicly available datasets,
+please visit this [section](../../08_public.html) for instructions.
 
 ### Connect to IBL Public database
 By default ONE is configured to connect to the public IBL database, this can be setup by typing the following

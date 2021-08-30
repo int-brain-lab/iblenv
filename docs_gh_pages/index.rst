@@ -15,6 +15,16 @@ Overview of Data Architecture
    01_overview
 
 
+Introduction to IBL data structure
+------------------------------------
+
+.. toctree::
+   :maxdepth: 2
+
+   02_ibl_data_intro
+   04_alf
+
+
 Installation
 ------------------------------------
 
@@ -22,6 +32,15 @@ Installation
    :maxdepth: 2
 
    02_installation
+
+
+Publically Available Data
+------------------------------------
+
+.. toctree::
+   :maxdepth: 2
+
+   08_public
 
 
 Using ONE to access IBL Data
@@ -32,13 +51,6 @@ Using ONE to access IBL Data
 
    03_one
 
-Alf and all
-------------------------------------
-
-.. toctree::
-   :maxdepth: 2
-
-   04_alf
 
 Using Datajoint to access IBL Data
 ------------------------------------
@@ -65,15 +77,6 @@ Examples
    :maxdepth: 2
 
    06_examples
-
-
-Publically Available Data
-------------------------------------
-
-.. toctree::
-   :maxdepth: 2
-
-   08_public
 
 
 Visualisation tools

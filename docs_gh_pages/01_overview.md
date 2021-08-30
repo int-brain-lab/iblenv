@@ -1,4 +1,4 @@
-# IBL data architecture
+# Introduction to the IBL data architecture
 [Alyx data structure](./_static/IBL_data.png)
 
 In the IBL, data is acquired in various laboratories spread across countries, and needs to be centralized into a common database accessible to all from anywhere in the world, at all times.
@@ -17,11 +17,9 @@ A specific set of lightweight, processed data (e.g. events on trials, spike time
 An example of such analysis is to compute a subject's behavioral performance on a given day.
 
 The Flatiron and Datajoint databases each have a dedicated public portion, onto which are stored datasets that can be accessed by anyone.
-If you are interested in accessing these publicly available datasets, please visit this page TODO LINK.
+If you are interested in accessing these publicly available datasets, please visit this [section](../../08_public.html).
 
 ## Summary of tools to access the data
 There are two main ways to access the data; using either:
--   **ONE**: a set of normalized functions that queries the Alyx database and downloads the (raw and pre-processed) data files from the FlatIron.
--   **Datajoint**: a framework to access and analyse the (lightweight, commonly-used) data stored into the Datajoint database.
-
-TODO link to the relevant sections
+-   [**ONE**](../../03_one.html): a set of normalized functions that queries the Alyx database and downloads the (raw and pre-processed) data files from the FlatIron.
+-   [**Datajoint**](../../05_datajoint.html): a framework to access and analyse the (lightweight, commonly-used) data stored into the Datajoint database.
