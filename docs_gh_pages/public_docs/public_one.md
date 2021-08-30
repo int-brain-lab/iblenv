@@ -1,4 +1,4 @@
-# Accessing public data with ONE
+# Accessing the public data with ONE
 
 To get started you will first need to install python. We recommend installing through 
 [Anaconda](https://www.anaconda.com/products/individual#download-section). Once python is installed
