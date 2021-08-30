@@ -8,15 +8,18 @@ Once acquired on a Rig, the data is first registered by the local server associa
 - [**Alyx**](https://github.com/cortex-lab/alyx), that stores **meta-data** (e.g. information on the mouse) in a relational manner.
 - [**Flatiron**](https://www.simonsfoundation.org/flatiron/), that stores **bulky raw data** (e.g. raw electrophysiology and video data) as well as *pre-processed data* (e.g. output of spike sorting, output of video segmentation). This database is accessible through HTTP, FTP and Globus.
 
-The Alyx database points to the files on the Flatiron server. These files are in the ALF format.
-TODO ref to ALF
+The Alyx database points to the files on the Flatiron server.
+These files are in the [ALF](../../04_alf.html) format.
 
 A specific set of lightweight, processed data (e.g. events on trials, spike times), **not raw data**, are then transferred onto a third database that enables further scientific analysis:
-- [Datajoint database](https://datajoint.io), that stores specific *processed, lightweight data* commonly used in analysis
+- [Datajoint database](https://datajoint.io), that stores specific *processed, lightweight data* commonly used in analysis.
 
 An example of such analysis is to compute a subject's behavioral performance on a given day.
 
-## Tools to access the data
+The Flatiron and Datajoint databases each have a dedicated public portion, onto which are stored datasets that can be accessed by anyone.
+If you are interested in accessing these publicly available datasets, please visit this page TODO LINK.
+
+## Summary of tools to access the data
 There are two main ways to access the data; using either:
 -   **ONE**: a set of normalized functions that queries the Alyx database and downloads the (raw and pre-processed) data files from the FlatIron.
 -   **Datajoint**: a framework to access and analyse the (lightweight, commonly-used) data stored into the Datajoint database.
