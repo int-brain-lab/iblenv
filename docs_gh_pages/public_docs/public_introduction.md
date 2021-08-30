@@ -1,6 +1,6 @@
 # Publically available IBL data
 
-## Pilot electrophysiology data release
+## 2021: Pilot electrophysiology data release
 
 The IBL has released four pilot datasets, that include both compressed raw ephys data and preprocessed data, as well as behaviour
 and video data.  A full list of dataset types and their details can be found 
@@ -527,3 +527,8 @@ All of the following files can be dowloaded via ONE from Flatiron :
                             ├─  probe01
                                 ├─  _kilosort_raw.output.204a5a51-c1ca-4cfc-9142-5570c4f96a7b.tar -> /mnt/ibl/zadorlab/Subjects/CSH_ZAD_029/2020-09-19/001/spike_sorters/ks2_matlab/probe01/_kilosort_raw.output.204a5a51-c1ca-4cfc-9142-5570c4f96a7b.tar
 ```
+
+## 2020: Behavior data release associated with a publication
+The IBL has released all of the behavior sessions associated with the publication 
+[International Brain Laboratory et al., 2021](https://elifesciences.org/articles/63711)
+via [Datajoint](public_datajoint). 
