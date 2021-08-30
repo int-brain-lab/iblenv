@@ -2,21 +2,22 @@
 
 ## Pilot electrophysiology data release
 
-The IBL has released four pilot datasets that are available through both ONE and Datajoint. 
+The IBL has released four pilot datasets, that include both compressed raw ephys data and preprocessed data, as well as behaviour
+and video data.  A full list of dataset types and their details can be found 
+[here](https://docs.google.com/document/d/1OqIqqakPakHXRAwceYLwFY9gOrm8_P62XIfCTnHwstg/edit).
 
+These datasets are available through ONE and Datajoint. 
 To start exploring these datasets please follow the links below.
 
 1) **[Accessing public data with ONE](public_one)** 
 - Files are stored on Flatiron, following the ALF convention, and can be downloaded via ONE.
-- If you want to access raw data (e.g. `raw_ephys_data`) please use this method
-- The full architecture of the folders and list of the files stored can be found below.
+- If you want to access raw data (e.g. `raw_ephys_data`) please use this method, as the raw, bulky data is not stored on the Datajoint database.
+- The full architecture of the folders and list of the files stored on Flatiron can be found below.
 
 2)  **[Accessing public data with Datajoint](public_datajoint)** 
-- Files are stored on the Datajoint database
-- Reminder: Only a subset of lightweight, commonly used datasets are stored on this database
-- TODO: List of datasets available
-
-
+- Files are stored on the Datajoint database, following Datajoint nomenclatures with tables and schemas.
+- Reminder: Only a subset of lightweight, commonly used datasets are stored on this database.
+<!-- - TODO: List of datasets available -->
 
 ### ALF files on Flatiron
 All of the following files can be dowloaded via ONE from Flatiron :

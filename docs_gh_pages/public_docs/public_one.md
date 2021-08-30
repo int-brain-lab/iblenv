@@ -1,9 +1,5 @@
 # Accessing public data with ONE
 
-The public data includes both compressed raw ephys data and preprocessed data, as well as behaviour
-and video data.  A full list of dataset types and their details can be found 
-[here](https://docs.google.com/document/d/1OqIqqakPakHXRAwceYLwFY9gOrm8_P62XIfCTnHwstg/edit).
-
 To get started you will first need to install python. We recommend installing through 
 [Anaconda](https://www.anaconda.com/products/individual#download-section). Once python is installed
 open a conda terminal and type the following to create a new conda environment. 
