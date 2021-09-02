@@ -1,9 +1,9 @@
 ONE
 ===
 
-
 .. toctree::
    :maxdepth: 2
+
    one_docs/one_reference
    one_docs/one_installation
    notebooks/one_search/one_search

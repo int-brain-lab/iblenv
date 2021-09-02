@@ -21,5 +21,7 @@ If you are interested in accessing these publicly available datasets, please vis
 
 ## Summary of tools to access the data
 There are two main ways to access the data; using either:
--   [**ONE**](03_one): a set of normalized functions that queries the Alyx database and downloads the (raw and pre-processed) data files from the FlatIron.
--   [**Datajoint**](05_datajoint): a framework to access and analyse the (lightweight, commonly-used) data stored into the Datajoint database.
+-   **ONE**: a set of normalized functions that queries the Alyx database and downloads the (raw and pre-processed) data files from the FlatIron.
+-   **Datajoint**: a framework to access and analyse the (lightweight, commonly-used) data stored into the Datajoint database.
+
+Please visit the [**Installation**](02_installation) section to know how to install either ONE, Datajoint or both depending on the kind of datasets (public or private, raw or lightweight) you want to access.

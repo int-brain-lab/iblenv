@@ -1,6 +1,6 @@
 # To access the public datasets
 If you are solely interested in accessing the publicly available datasets,
-please visit this [section](../../08_public.html) for instructions.
+please visit this [section](../../08_public) for instructions.
 
 You do not have to install all the libraries mentioned below.
 
