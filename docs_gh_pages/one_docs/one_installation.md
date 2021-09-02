@@ -11,6 +11,10 @@ If you have installed the unified IBL environment, ONE will already have been au
 installed, so you can skip this step!
 ```
 
+```{note}
+If you want to access public data via ONE, please follow [these simplified steps](../public_docs/public_one) instead.
+```
+
 ## 2. Setup
 To start using ONE, we must first configure some settings that tell ONE whether it should connect to a database or 
 use a local file system

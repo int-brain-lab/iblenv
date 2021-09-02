@@ -6,7 +6,7 @@
 Welcome to IBL code library documentation!
 ==========================================
 
-Introduction to the IBL data architecture and data structure
+Introduction to the IBL data architecture and organisation
 ------------------------------------
 
 .. toctree::
