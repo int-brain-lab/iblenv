@@ -25,9 +25,8 @@ By a *data provider* we mean an organization that hosts a set of neurophysiology
 Every experiment a data provider releases is identified by an *experiment ID* (eID) -- a small token that uniquely identifies a particular experiment. 
 It is up to the data provider to specify the format of their eIDs. 
 
-The data files have to follow the Alyx file name specification ([ALF](../04_alf)).
+The data files **have to follow the Alyx file name specification** ([ALF](../04_alf)).
 The ONE package is concerned with parsing and loading files that follow this specification.
-
 
 ### Data browsing and loading
 When a user wants to analyze data released by a provider, they 
@@ -35,12 +34,18 @@ first import that provider's loader functions. In python, to analyze IBL data, t
 ```
 from one.api import ONE
 ```
-Because it is up to data providers to maintain the loader functions, all a user needs to do to work with data from a specific provider is import their loader module. To analyze Allen data, they could instead type `import one_allen`. After that, all other analysis code will be the same, regardless of which provider's data they are analyzing.
+Because it is up to data providers to maintain the loader functions, 
+all a user needs to do to work with data from a specific provider is import their loader module. 
+To analyze Allen data, they could instead type `import one_allen`. After that, all other analysis code will be the same,
+regardless of which provider's data they are analyzing.
 
-The user can then :
-- [search for experimental session through the database](../../notebooks/one_search/one_search)
-- [list available datasets for an experimental session](../../notebooks/one_list/one_list)
-- [load datasets of a specific session (e.g. given an eID)](../../notebooks/one_load/one_load)
+Once ONE is installed, the user can follow these tutorials to get acquainted with:
+- [searching for experimental session through the database](../../notebooks/one_search/one_search)
+- [listing available datasets for an experimental session](../../notebooks/one_list/one_list)
+- [loading datasets of a specific session (e.g. given an eID)](../../notebooks/one_load/one_load)
+
+Further tutorials can be found in the following sections: [introductory](../../notebooks/one_intro/one_intro)
+and [advanced](../../notebooks/one_advanced/one_advanced).
 
 <!-- TODO this needs major rewriting, Aug 2021 
 ### Loading data
