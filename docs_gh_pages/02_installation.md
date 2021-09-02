@@ -1,13 +1,11 @@
-# Installation
-
-## To access the public datasets
+# To access the public datasets
 If you are solely interested in accessing the publicly available datasets,
 please visit this [section](../../08_public.html) for instructions.
 
 You do not have to install all the libraries mentioned below.
 
 # To access the private datasets and/or use IBL visualisation tools
-### Recap on the main IBL librairies
+## Recap on the main IBL librairies
 There are currently a number of useful libraries being developed within the IBL 
 [(https://github.com/int-brain-lab)](https://github.com/int-brain-lab). Those integral to the IBL data architecture 
 include,
@@ -26,7 +24,7 @@ include,
 
     The library used to implement the IBL Datajoint pipeline
 
-### Unified Environment
+## Unified Environment
 To facilitate the use of `ibllib` and `IBL-pipeline`, we have compiled all the dependencies into a unified python 
 environment `iblenv`. In addition to these two libraries, this environment is also compatible with other visualisation 
 tools and analysis pipelines being developed as part of the IBL. 

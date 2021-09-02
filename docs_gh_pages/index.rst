@@ -6,21 +6,13 @@
 Welcome to IBL code library documentation!
 ==========================================
 
-Overview of Data Architecture
-------------------------------------
-
-.. toctree::
-   :maxdepth: 1
-
-   01_overview
-
-
-Introduction to IBL data structure
+Introduction to the IBL data architecture and data structure
 ------------------------------------
 
 .. toctree::
    :maxdepth: 2
 
+   01_overview
    02_ibl_data_intro
    04_alf
 
