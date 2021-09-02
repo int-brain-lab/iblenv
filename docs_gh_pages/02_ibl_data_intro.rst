@@ -1,5 +1,5 @@
 IBL data structure
-===
+==================
 
 .. toctree::
    :maxdepth: 2
