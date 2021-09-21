@@ -31,7 +31,6 @@ ONE
    :maxdepth: 1
 
    notebooks_external/docs_get_first_pass_map_sessions
-   notebooks_external/docs_one_queries
 
 Histology
 #########

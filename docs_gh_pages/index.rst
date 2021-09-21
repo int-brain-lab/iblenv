@@ -27,18 +27,8 @@ Installation
 Using ONE to access IBL Data
 ------------------------------------
 
-.. toctree::
-   :maxdepth: 2
+* `ONE <https://int-brain-lab.github.io/ONE/>`_
 
-   03_one
-
-Alf and all
-------------------------------------
-
-.. toctree::
-   :maxdepth: 2
-
-   04_alf
 
 Using Datajoint to access IBL Data
 ------------------------------------
