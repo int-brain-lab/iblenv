@@ -11,13 +11,6 @@ API Reference
    :template: custom-module-template.rst
    :recursive:
 
-   one
-
-.. autosummary::
-   :toctree: _autosummary
-   :template: custom-module-template.rst
-   :recursive:
-
    ibllib
 
 .. autosummary::
