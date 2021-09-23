@@ -27,7 +27,7 @@ Installation
 Using ONE to access IBL Data
 ------------------------------------
 
-* `ONE <https://int-brain-lab.github.io/ONE/>`_
+   * `ONE <https://int-brain-lab.github.io/ONE/>`_
 
 
 Using Datajoint to access IBL Data
