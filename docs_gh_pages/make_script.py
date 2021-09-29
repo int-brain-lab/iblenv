@@ -16,7 +16,7 @@ nb_path = root.joinpath('notebooks')
 nb_path_external = [Path(root.parent.parent).joinpath('ibllib-repo', 'examples'),
                     Path(root.parent.parent).joinpath('ibllib-repo', 'brainbox', 'examples'),
                     Path(root.parent.parent).joinpath('ONE', 'docs', 'notebooks')]
-external_file_patterns = ['docs', 'docs', '']
+external_file_patterns = ['docs', 'docs', 'quickstart']
 
 
 def make_documentation(execute, force, documentation, clean, specific, github, message):
@@ -26,15 +26,16 @@ def make_documentation(execute, force, documentation, clean, specific, github, m
     for file in nb_external_files:
         os.remove(file)
 
+    assert len(external_file_patterns) == len(nb_path_external)
     status = 0
     # Case where we want to rebuild all examples
     if execute and not specific:
         # Execute notebooks in docs folder
         status += process_notebooks(nb_path, execute=True, force=force)
         # Execute notebooks in external folders
-        for nb_path_ext in nb_path_external:
+        for nb_path_ext, pattern in zip(nb_path_external, external_file_patterns):
             status += process_notebooks(nb_path_ext, execute=True, force=force,
-                                        link=True, filename_pattern='docs')
+                                        link=True, filename_pattern=pattern)
         _logger.info("Finished processing notebooks")
 
         if status != 0:
@@ -47,8 +48,6 @@ def make_documentation(execute, force, documentation, clean, specific, github, m
             _logger.info("Making documentation")
             os.system("make html")
             sys.exit(0)
-
-    assert len(external_file_patterns) == len(nb_path_external)
 
     # Case where we only want to build specific examples
     if execute and specific:
