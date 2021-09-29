@@ -16,6 +16,7 @@ nb_path = root.joinpath('notebooks')
 nb_path_external = [Path(root.parent.parent).joinpath('ibllib-repo', 'examples'),
                     Path(root.parent.parent).joinpath('ibllib-repo', 'brainbox', 'examples'),
                     Path(root.parent.parent).joinpath('ONE', 'docs', 'notebooks')]
+external_file_patterns = ['docs', 'docs', '']
 
 
 def make_documentation(execute, force, documentation, clean, specific, github, message):
@@ -47,6 +48,8 @@ def make_documentation(execute, force, documentation, clean, specific, github, m
             os.system("make html")
             sys.exit(0)
 
+    assert len(external_file_patterns) == len(nb_path_external)
+
     # Case where we only want to build specific examples
     if execute and specific:
         for nb in specific:
@@ -58,8 +61,8 @@ def make_documentation(execute, force, documentation, clean, specific, github, m
 
         # Create the link files for the other notebooks in external paths that we haven't
         # executed. N.B this must be run after the above commands
-        for nb_path_ext in nb_path_external:
-            process_notebooks(nb_path_ext, execute=False, link=True, filename_pattern='docs')
+        for nb_path_ext, pattern in zip(nb_path_external, external_file_patterns):
+            process_notebooks(nb_path_ext, execute=False, link=True, filename_pattern=pattern)
 
         if status != 0:
             # One or more examples returned an error
@@ -73,8 +76,8 @@ def make_documentation(execute, force, documentation, clean, specific, github, m
             sys.exit(0)
 
     if documentation:
-        for nb_path_ext in nb_path_external:
-            process_notebooks(nb_path_ext, execute=False, link=True, filename_pattern='docs')
+        for nb_path_ext, pattern in zip(nb_path_external, external_file_patterns):
+            process_notebooks(nb_path_ext, execute=False, link=True, filename_pattern=pattern)
 
         _logger.info("Cleaning up previous documentation")
         os.system("make clean")
@@ -106,9 +109,9 @@ def make_documentation(execute, force, documentation, clean, specific, github, m
     if clean:
         _logger.info("Cleaning up notebooks")
         process_notebooks(nb_path, execute=False, cleanup=True)
-        for nb_path_ext in nb_path_external:
+        for nb_path_ext, pattern in zip(nb_path_external, external_file_patterns):
             process_notebooks(nb_path_ext, execute=False, cleanup=True,
-                              filename_pattern='docs')
+                              filename_pattern=pattern)
 
         try:
             build_path = root.joinpath('_build')
