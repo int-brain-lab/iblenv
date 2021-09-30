@@ -28,8 +28,16 @@ There are two main ways to access the data:
 
 The full IBL data will be publically released when we have completed collection, preprocessing, curation, and quality control. In the meantime, a subset of curated data are publically available.
 
+Software to analyze IBL data
+****************************
+IBL has released a suite of tools to process and visualize our data.
+
+* `Brainbox <https://github.com/int-brain-lab/ibllib>`_: A library of analysis functions that can be used on IBL data or other neurophysiology recordings.
+* `IBL Viewer <https://github.com/int-brain-lab/iblviewer/blob/main/README.md>`_: A simple and fast interactive visualization tool based on VTK that uses GPU accelerated volume and surface rendering. From electrophysiological data to neuronal connectivity, this tool allows simple and effective 3D visualization for many use-cases like multi-slicing and time series (even on volumes), and can be embedded within Jupyter Lab/Notebook and Qt user interfaces.
+
 .. attention::
-   Internal users should install the `Unified Environment <./02_installation.html>`_.
+   To get all the software, including ONE, brainbox and visualization tools, install the
+   `Unified Environment <./02_installation.html>`_. This is recommended for IBL members.
 
 .. toctree::
    :hidden:
@@ -55,9 +63,7 @@ The full IBL data will be publically released when we have completed collection,
    :maxdepth: 1
 
    02_installation
-   011_ibl_viewer
    09_contribution
-   genindex
 
 .. toctree::
    :hidden:
@@ -74,9 +80,4 @@ The full IBL data will be publically released when we have completed collection,
    :maxdepth: 1
 
    010_api_reference.rst
-
-
-
-
-
-
+   genindex

@@ -1,7 +1,7 @@
 Examples
 ========
 
-Below is a list of short examples
+Below is a list of short examples using public IBL data
 
 .. toctree::
    :maxdepth: 1
@@ -23,7 +23,6 @@ Below is a list of short examples
    notebooks_external/docs_visualization3D_subject_channels
    notebooks_external/docs_access_DLC
    notebooks_external/docs_load_video
-
 
 
 
