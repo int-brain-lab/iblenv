@@ -100,9 +100,7 @@
 <p class="caption"><span class="caption-text">Miscellaneous</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../02_installation.html">Unified Environment</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../011_ibl_viewer.html">IBL Viewer</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../09_contribution.html">How to contribute</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../genindex.html">Detailed Index</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Examples &amp; Tutorials</span></p>
 <ul>
@@ -113,6 +111,7 @@
 <p class="caption"><span class="caption-text">API Reference</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../010_api_reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../genindex.html">Detailed Index</a></li>
 </ul>
 
             
@@ -184,7 +183,6 @@
 <span class="kn">from</span> <span class="nn">ibllib.atlas</span> <span class="kn">import</span> <span class="n">AllenAtlas</span>
 <span class="kn">from</span> <span class="nn">ibllib.atlas.regions</span> <span class="kn">import</span> <span class="n">BrainRegions</span>
 <span class="kn">from</span> <span class="nn">ibllib.pipes</span> <span class="kn">import</span> <span class="n">histology</span>
-<span class="kn">from</span> <span class="nn">ibllib.ephys.neuropixel</span> <span class="kn">import</span> <span class="n">SITES_COORDINATES</span>
 <span class="kn">from</span> <span class="nn">ibllib.pipes.ephys_alignment</span> <span class="kn">import</span> <span class="n">EphysAlignment</span>
 <span class="kn">from</span> <span class="nn">ibllib.qc</span> <span class="kn">import</span> <span class="n">base</span>
 <span class="kn">from</span> <span class="nn">ibllib.oneibl.patcher</span> <span class="kn">import</span> <span class="n">FTPPatcher</span>
@@ -199,7 +197,7 @@
 <span class="sd">    Class that is used to update the extended_qc of the probe insertion fields with the results</span>
 <span class="sd">    from the ephys alignment procedure</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">probe_id</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">brain_atlas</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">channels</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">probe_id</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">brain_atlas</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">channels</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">probe_id</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">,</span> <span class="n">log</span><span class="o">=</span><span class="n">_log</span><span class="p">,</span> <span class="n">endpoint</span><span class="o">=</span><span class="s1">&#39;insertions&#39;</span><span class="p">)</span>
 
         <span class="c1"># Data</span>
@@ -207,6 +205,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">xyz_picks</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">depths</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">cluster_chns</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">chn_coords</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">align_keys_sorted</span> <span class="o">=</span> <span class="kc">None</span>
 
         <span class="c1"># Metrics and passed trials</span>
@@ -222,7 +221,10 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">resolved</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">insertion</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;json&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;temp&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;extended_qc&#39;</span><span class="p">)</span><span class="o">.</span>
                          <span class="n">get</span><span class="p">(</span><span class="s1">&#39;alignment_resolved&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">))</span>
 
-<div class="viewcode-block" id="AlignmentQC.load_data"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.alignment_qc.html#ibllib.qc.alignment_qc.AlignmentQC.load_data">[docs]</a>    <span class="k">def</span> <span class="nf">load_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prev_alignments</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">xyz_picks</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">depths</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">cluster_chns</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">probe_collection</span> <span class="o">=</span> <span class="n">collection</span>
+
+<div class="viewcode-block" id="AlignmentQC.load_data"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.alignment_qc.html#ibllib.qc.alignment_qc.AlignmentQC.load_data">[docs]</a>    <span class="k">def</span> <span class="nf">load_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prev_alignments</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">xyz_picks</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">depths</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">cluster_chns</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                  <span class="n">chn_coords</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;&quot;</span>
 <span class="sd">        Load data required to assess alignment qc and compute similarity matrix. If no arguments</span>
 <span class="sd">        are given load_data will fetch all the relevant data required</span>
@@ -250,16 +252,29 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">xyz_picks</span> <span class="o">=</span> <span class="n">xyz_picks</span>
 
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">probe_collection</span><span class="p">:</span>
+            <span class="n">all_collections</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">list_collections</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">insertion</span><span class="p">[</span><span class="s1">&#39;session&#39;</span><span class="p">])</span>
+            <span class="k">if</span> <span class="sa">f</span><span class="s1">&#39;alf/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">insertion</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]</span><span class="si">}</span><span class="s1">/pykilosort&#39;</span> <span class="ow">in</span> <span class="n">all_collections</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">probe_collection</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;alf/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">insertion</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]</span><span class="si">}</span><span class="s1">/pykilosort&#39;</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">probe_collection</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;alf/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">insertion</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]</span><span class="si">}</span><span class="s1">&#39;</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">chn_coords</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">chn_coords</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">load_dataset</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">insertion</span><span class="p">[</span><span class="s1">&#39;session&#39;</span><span class="p">],</span>
+                                                    <span class="s1">&#39;channels.localCoordinates.npy&#39;</span><span class="p">,</span>
+                                                    <span class="n">collection</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">probe_collection</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">chn_coords</span> <span class="o">=</span> <span class="n">chn_coords</span>
+
         <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">depths</span><span class="p">):</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">depths</span> <span class="o">=</span> <span class="n">SITES_COORDINATES</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">depths</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">chn_coords</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">depths</span> <span class="o">=</span> <span class="n">depths</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">cluster_chns</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">cluster_chns</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">load_dataset</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">insertion</span><span class="p">[</span><span class="s1">&#39;session&#39;</span><span class="p">],</span>
                                                       <span class="s1">&#39;clusters.channels.npy&#39;</span><span class="p">,</span>
-                                                      <span class="n">collection</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;alf/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">insertion</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span>
-                                                      <span class="n">download_only</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                                                      <span class="n">collection</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">probe_collection</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">cluster_chns</span> <span class="o">=</span> <span class="n">cluster_chns</span></div>
 
@@ -321,7 +336,7 @@
             <span class="k">if</span> <span class="n">update</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">update_extended_qc</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
 
-            <span class="k">if</span> <span class="n">results</span><span class="p">[</span><span class="s1">&#39;alignment_resolved&#39;</span><span class="p">]</span> <span class="ow">and</span> <span class="p">(</span><span class="n">upload_alyx</span> <span class="ow">or</span> <span class="n">upload_flatiron</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">results</span><span class="p">[</span><span class="s1">&#39;alignment_resolved&#39;</span><span class="p">]</span> <span class="ow">and</span> <span class="n">np</span><span class="o">.</span><span class="n">bitwise_or</span><span class="p">(</span><span class="n">upload_alyx</span><span class="p">,</span> <span class="n">upload_flatiron</span><span class="p">):</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">upload_channels</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="s1">&#39;alignment_stored&#39;</span><span class="p">],</span> <span class="n">upload_alyx</span><span class="p">,</span> <span class="n">upload_flatiron</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">results</span></div>
@@ -460,7 +475,7 @@
         <span class="k">if</span> <span class="n">upload_flatiron</span><span class="p">:</span>
             <span class="n">ftp_patcher</span> <span class="o">=</span> <span class="n">FTPPatcher</span><span class="p">(</span><span class="n">one</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">)</span>
             <span class="n">insertion</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;/insertions/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">eid</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">clobber</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-            <span class="n">alf_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">eid2path</span><span class="p">(</span><span class="n">insertion</span><span class="p">[</span><span class="s1">&#39;session&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="n">insertion</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">])</span>
+            <span class="n">alf_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">eid2path</span><span class="p">(</span><span class="n">insertion</span><span class="p">[</span><span class="s1">&#39;session&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">probe_collection</span><span class="p">)</span>
             <span class="n">alf_path</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
             <span class="c1"># Make the channels.mlapdv dataset</span>
@@ -497,7 +512,7 @@
         <span class="k">if</span> <span class="n">upload_alyx</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">alignment_key</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">align_keys_sorted</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
                 <span class="n">histology</span><span class="o">.</span><span class="n">register_aligned_track</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">eid</span><span class="p">,</span> <span class="n">channels_mlapdv</span> <span class="o">/</span> <span class="mf">1e6</span><span class="p">,</span>
-                                                 <span class="n">chn_coords</span><span class="o">=</span><span class="n">SITES_COORDINATES</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">,</span>
+                                                 <span class="n">chn_coords</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">chn_coords</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">,</span>
                                                  <span class="n">overwrite</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">channels</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">channels</span><span class="p">)</span>
 
                 <span class="n">ephys_traj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;/trajectories?&amp;probe_insertion=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">eid</span><span class="si">}</span><span class="s1">&#39;</span>
