@@ -30,15 +30,7 @@ To be able to access the data from your local machine, you will need to have a w
 
 Before you can start using DataJoint with IBL data on your local machine, you will need to set your DataJoint credentials. You must specify a database connection to tell DataJoint where to look for IBL data, as well as grant access to these data by providing a username and password. 
 
-
-
-<!--
-```{important}
-To set up credentials you will need access to your DataJoint username and password. If you do not have access to these, please get in contact with a member of the IBL software team.
-```
--->
-
-Start by opening a new python script or terminal, importing DataJoint then setting a few configuration options. With your python environment activated ([with your ibl environment activated](../02_installation.md)), run:
+Start by opening a new python script or terminal, importing DataJoint then setting a few configuration options. [With your IBL environment activated](../02_installation.md), run:
 
 ```python
 import datajoint as dj
