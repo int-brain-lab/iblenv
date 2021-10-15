@@ -54,6 +54,8 @@ IBL has released a suite of tools to process and visualize our data.
 
    dj_docs/dj_introduction
    dj_docs/dj_credentials
+   dj_docs/public_introduction
+   dj_docs/public_datajoint
    notebooks/dj_intro/dj_intro
    notebooks/dj_basics/dj_basics
 
