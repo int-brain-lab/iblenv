@@ -1,45 +1,25 @@
-# Introduction to Datajoint
+# Introduction to DataJoint
 
-Datajoint is a workflow management system that integrates a relational database with computational data pipelines that
-are programmed and accessed directing using Matlab or Python. To find out more about datajoint please visit their 
-website [https://datajoint.io/](https://datajoint.io/). The IBL has collaborated with Datajoint to develop the 
-IBL-pipeline, a set of tables organised in a structured manner that contain most experimental data and metadata 
-collected within the IBL. Any new data generated in the collaboration is ingested into the IBL-pipeline on a daily basis
-and so this framework can be used to access the latest data collected within the IBL.
+DataJoint is a workflow management system that integrates a relational database with computational data pipelines that are programmed and accessed directly using Matlab or Python. To find out more about DataJoint please visit their website [https://datajoint.org/](https://datajoint.org/). The IBL has collaborated with DataJoint to develop the IBL-pipeline, a set of tables organised in a structured manner that contain most experimental data and metadata collected within the IBL. Any new data generated in the collaboration is ingested into the IBL-pipeline on a daily basis, and so this framework can be used to access the latest data collected within the IBL.
 
+There are several ways in which *internal* IBL users can use DataJoint to interact with the data stored in the IBL-pipeline.
 
-There are three ways in which internal IBL users can use Datajoint to interact with the data stored in the IBL-pipeline.
+1.  **IBL Navigator website [https://djcompute.internationalbrainlab.org/](https://djcompute.internationalbrainlab.org/)**
 
-```{important}
-To access the IBL-pipeline, you will need a Datajoint username and password as well as global the IBL Navigator login 
-details. To find these out, please get in contact with a member of the IBL software team.
-```
+    DataJoint provides a website that displays behavioural and electrophysiological plots generated from data contained within the [IBL-pipeline](https://github.com/int-brain-lab/IBL-pipeline). New plots are generated on a daily basis so that users can view the website to get an overview of the latest behavioural and ephys data available.
 
-1)  **IBL Navigator website [https://djcompute.internationalbrainlab.org/](https://djcompute.internationalbrainlab.org/)**
+2.  **Jupyter Notebooks website [https://jupyter.internationalbrainlab.org/](https://jupyter.internationalbrainlab.org/)**
 
-    Datajoint provides a website that displays behavioural and electrophysiological plots generated from data 
-    contained within the IBL-pipeline. New plots are generated on a daily basis and so users can use the website to get an 
-    overview of the latest behavioural and ephys data available. 
+    DataJoint hosts a JupyterHub server with access to the IBL-pipeline. This platform can be used to programatically explore and perform analysis on data stored within the IBL-pipeline without requiring a local install of dependant packages. To use the platform you will need to register your github account as well as have access to your [DataJoint login credentials](dj_credentials.md). To get started using the IBL-pipeline please proceed to the [DataJoint basics tutorial](../notebooks/dj_basics/dj_basics.ipynb).
 
-    
-2)  **[jupyter.internationalbrainlab.org](https://jupyter.internationalbrainlab.org)**
+3.  **Accessing the DataJoint database on your local machine**
 
-    Datajoint hosts a JupyterHub server with access to the IBL-pipeline. This platform can be used to programatically 
-    explore and perform analysis on data stored within the IBL-pipeline without requiring a local install of dependant 
-    packages. To use the platform you will need to register your github account as well as have access to your Datajoint 
-    login details. To get started using the IBL-pipeline please proceed to the 
-    [Datajoint basics tutorial](../notebooks/dj_basics/dj_basics.ipynb). 
+    The most flexible way to use DataJoint with IBL data is to install the [IBL-pipeline](https://github.com/int-brain-lab/IBL-pipeline) package onto your local computer. This package is automatically installed as part of the [IBL unified environment](https://github.com/int-brain-lab/iblenv), and if you've followed the installation instructions you are ready to start using DataJoint in this way. The only thing you will need to do is to set up some local credentials. The [instructions on the next page](dj_credentials.md) will guide you through how to set these up.
 
+For *external* users looking to use DataJoint to access the public IBL dataset please proceed directly to: [Accessing public IBL data with DataJoint](../public_docs/public_datajoint.md).
 
-3)  **Accessing IBL-pipeline on your local computer**
+## Contact info
 
-    The most flexible way to use Datajoint with IBL data is to install the IBL-pipeline package onto your local computer. 
-    This package is automatically installed as part of the iblenv unified environment and so if you have set this up you are
-    ready to start using Datajoint in this way. The only thing you will need to do is to set up some local credentials. The 
-    [instructions on the next page](dj_credentials.md) will guide you through how to set these up. 
-
-    
-For external users looking to use Datajoint to access the public IBL dataset please proceed to this website 
-[https://data.internationalbrainlab.org/](https://data.internationalbrainlab.org/). Here you will find overview plots of
-all the behavioural data available as well as instructions of how to set up access the data.
-
+- Need credentials to access the data? Email: <info@internationalbrainlab.org>
+- Issues with the data? Post an issue here: <https://github.com/int-brain-lab/iblenv/issues>
+- General questions about the paper _The International Brain Laboratory et al. 2020_? Email: <info+behavior@internationalbrainlab.org>
