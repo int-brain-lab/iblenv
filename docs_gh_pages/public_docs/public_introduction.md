@@ -1,4 +1,4 @@
-# Publically available IBL data
+# Publicly available IBL data
 
 ## 2021: Pilot electrophysiology data release
 
