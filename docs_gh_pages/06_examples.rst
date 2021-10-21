@@ -1,21 +1,12 @@
 Examples
 ========
 
-Below is a list of short examples
+Below is a list of short examples using public IBL data
 
-Behaviour
-#########
 .. toctree::
    :maxdepth: 1
 
    notebooks_external/docs_get_training_status
-
-Ephys
-#####
-.. toctree::
-   :maxdepth: 1
-
-
    notebooks_external/docs_get_rms_data
    notebooks_external/docs_get_power_spectrum_data
    notebooks_external/docs_compute_drift
@@ -24,33 +15,14 @@ Ephys
    notebooks_external/docs_raw_data_decompress
    notebooks_external/docs_scatter_raster_plot
    notebooks_external/docs_explore_passive
-
-ONE
-###
-.. toctree::
-   :maxdepth: 1
-
    notebooks_external/docs_get_first_pass_map_sessions
-
-Histology
-#########
-.. toctree::
-   :maxdepth: 1
-
    notebooks_external/docs_find_previous_alignments
    notebooks_external/docs_find_nearby_trajectories
    notebooks_external/docs_find_dist_neighbouring_region
    notebooks_external/docs_visualize_session_coronal_tilted
    notebooks_external/docs_visualization3D_subject_channels
-
-Video
-#####
-.. toctree::
-   :maxdepth: 1
-
    notebooks_external/docs_access_DLC
    notebooks_external/docs_load_video
-
 
 
 

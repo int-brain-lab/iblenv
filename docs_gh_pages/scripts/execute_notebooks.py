@@ -220,7 +220,7 @@ def process_notebooks(nbfile_or_path, execute=True, force=False, link=False, cle
     cleanup : bool, default = False
         Whether to unexecute notebook and clean up files. To clean up must set this to True and
         execute argument to False
-    filename_pattern: str, default = ''
+    filename_pattern: str default = ''
         Filename pattern to look for in .py or .ipynb files to include in docs
     remove_gh: bool default = False
         Whether to remove notebook from build examples (in case where we want to use old version)
