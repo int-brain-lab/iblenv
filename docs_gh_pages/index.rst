@@ -56,8 +56,6 @@ IBL has released a suite of tools to process and visualize our data.
    dj_docs/dj_credentials
    dj_docs/public_introduction
    dj_docs/public_datajoint
-   notebooks/dj_intro/dj_intro
-   notebooks/dj_basics/dj_basics
 
 .. toctree::
    :hidden:
@@ -74,6 +72,7 @@ IBL has released a suite of tools to process and visualize our data.
 
    06_examples
    notebooks/dj_intro/dj_intro
+   notebooks/dj_basics/dj_basics
    notebooks_external/docs_wheel_moves
 
 .. toctree::
