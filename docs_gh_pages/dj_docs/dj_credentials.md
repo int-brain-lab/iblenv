@@ -1,4 +1,4 @@
-# Setting up DataJoint credentials
+# DataJoint credentials for internal IBL users
 
 Before you can start using DataJoint with the IBL data online or on your local machine, you will need to retrieve and set your DataJoint credentials. You must specify a database connection to tell DataJoint where to look for IBL data, as well as grant access to these data by providing a username and password.
 
@@ -6,7 +6,7 @@ Before you can start using DataJoint with the IBL data online or on your local m
 To set up credentials for accessing internal IBL data (not the external/public-facing data), you will need access to your DataJoint username and password. You may use the same GitHub account to access the internal IBL DataJoint database from jupyter, but must first be added as an authorized user by an IBL admin. If you do not have access to any of these, please get in contact with a member of the IBL software team.
 ```
 
-The _internal_ data configuration process is similar to the process outlined for public access. This process is described in the section, [**Accessing public IBL data with DataJoint**](../public_docs/public_datajoint).
+The _internal_ data configuration process is similar to the process outlined for public access. This process is described in the section, [**Accessing public IBL data with DataJoint**](dj_public).
 
 The notable differences for external/public access are the following:
 
@@ -23,9 +23,9 @@ Whereas the public data uses the same credentials for all users, you will need y
 ```{important}
 Internal IBL Credentials:
 
-  hostname: datajoint.internationalbrainlab.org
-  username: <your datajoint database username>
-  password: <your datajoint database password>
+hostname: datajoint.internationalbrainlab.org
+username: <your datajoint database username>
+password: <your datajoint database password>
 ```
 
 ## Internal IBL Navigator access
