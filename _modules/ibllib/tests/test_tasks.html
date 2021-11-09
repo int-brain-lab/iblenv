@@ -201,6 +201,40 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span> <span class="o">=</span> <span class="n">tasks</span></div>
 
 
+<span class="c1">#  job to output a single file (pathlib.Path)</span>
+<div class="viewcode-block" id="GpuTask"><a class="viewcode-back" href="../../../_autosummary/ibllib.tests.test_tasks.html#ibllib.tests.test_tasks.GpuTask">[docs]</a><span class="k">class</span> <span class="nc">GpuTask</span><span class="p">(</span><span class="n">ibllib</span><span class="o">.</span><span class="n">pipes</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">Task</span><span class="p">):</span>
+    <span class="n">gpu</span> <span class="o">=</span> <span class="mi">1</span>
+
+    <span class="k">def</span> <span class="nf">_run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="n">out_files</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="s1">&#39;gpu.times.npy&#39;</span><span class="p">)</span>
+        <span class="n">out_files</span><span class="o">.</span><span class="n">touch</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">out_files</span></div>
+
+
+<div class="viewcode-block" id="TestLocks"><a class="viewcode-back" href="../../../_autosummary/ibllib.tests.test_tasks.html#ibllib.tests.test_tasks.TestLocks">[docs]</a><span class="k">class</span> <span class="nc">TestLocks</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+<div class="viewcode-block" id="TestLocks.test_gpu_lock_and_local_data_handler"><a class="viewcode-back" href="../../../_autosummary/ibllib.tests.test_tasks.html#ibllib.tests.test_tasks.TestLocks.test_gpu_lock_and_local_data_handler">[docs]</a>    <span class="k">def</span> <span class="nf">test_gpu_lock_and_local_data_handler</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">td</span><span class="p">:</span>
+            <span class="n">session_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">td</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;algernon&#39;</span><span class="p">,</span> <span class="s1">&#39;2021/02/12&#39;</span><span class="p">,</span> <span class="s1">&#39;001&#39;</span><span class="p">)</span>
+            <span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;alf&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">task</span> <span class="o">=</span> <span class="n">GpuTask</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="s1">&#39;local&#39;</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="n">task</span><span class="o">.</span><span class="n">is_locked</span><span class="p">()</span> <span class="ow">is</span> <span class="kc">False</span>
+            <span class="n">task</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+            <span class="k">assert</span> <span class="n">task</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="mi">0</span>
+            <span class="k">assert</span> <span class="n">task</span><span class="o">.</span><span class="n">is_locked</span><span class="p">()</span> <span class="ow">is</span> <span class="kc">False</span>
+            <span class="c1"># then make a lock file and make sure it fails and is still locked afterwards</span>
+            <span class="n">task</span><span class="o">.</span><span class="n">_make_lock_file</span><span class="p">()</span>
+            <span class="n">task</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+            <span class="k">assert</span> <span class="n">task</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="o">-</span> <span class="mi">2</span>
+            <span class="k">assert</span> <span class="n">task</span><span class="o">.</span><span class="n">is_locked</span><span class="p">()</span>
+            <span class="c1"># test the time out feature</span>
+            <span class="n">task</span><span class="o">.</span><span class="n">time_out_secs</span> <span class="o">=</span> <span class="o">-</span> <span class="mi">1</span>
+            <span class="n">task</span><span class="o">.</span><span class="n">_make_lock_file</span><span class="p">()</span>
+            <span class="k">assert</span> <span class="ow">not</span> <span class="n">task</span><span class="o">.</span><span class="n">is_locked</span><span class="p">()</span>
+            <span class="n">task</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+            <span class="k">assert</span> <span class="n">task</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="mi">0</span></div></div>
+
+
 <div class="viewcode-block" id="TestPipelineAlyx"><a class="viewcode-back" href="../../../_autosummary/ibllib.tests.test_tasks.html#ibllib.tests.test_tasks.TestPipelineAlyx">[docs]</a><span class="k">class</span> <span class="nc">TestPipelineAlyx</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
 
 <div class="viewcode-block" id="TestPipelineAlyx.setUp"><a class="viewcode-back" href="../../../_autosummary/ibllib.tests.test_tasks.html#ibllib.tests.test_tasks.TestPipelineAlyx.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>

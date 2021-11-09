@@ -96,10 +96,11 @@
   <h1>Source code for brainbox.ephys_plots</h1><div class="highlight"><pre>
 <span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">from</span> <span class="nn">matplotlib</span> <span class="kn">import</span> <span class="n">cm</span>
-
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
 <span class="kn">from</span> <span class="nn">brainbox.plot_base</span> <span class="kn">import</span> <span class="p">(</span><span class="n">ImagePlot</span><span class="p">,</span> <span class="n">ScatterPlot</span><span class="p">,</span> <span class="n">ProbePlot</span><span class="p">,</span> <span class="n">LinePlot</span><span class="p">,</span> <span class="n">plot_line</span><span class="p">,</span>
                                 <span class="n">plot_image</span><span class="p">,</span> <span class="n">plot_probe</span><span class="p">,</span> <span class="n">plot_scatter</span><span class="p">,</span> <span class="n">arrange_channels2banks</span><span class="p">)</span>
 <span class="kn">from</span> <span class="nn">brainbox.processing</span> <span class="kn">import</span> <span class="n">bincount2D</span><span class="p">,</span> <span class="n">compute_cluster_average</span>
+<span class="kn">from</span> <span class="nn">ibllib.atlas.regions</span> <span class="kn">import</span> <span class="n">BrainRegions</span>
 
 
 <div class="viewcode-block" id="image_lfp_spectrum_plot"><a class="viewcode-back" href="../../_autosummary/brainbox.ephys_plots.html#brainbox.ephys_plots.image_lfp_spectrum_plot">[docs]</a><span class="k">def</span> <span class="nf">image_lfp_spectrum_plot</span><span class="p">(</span><span class="n">lfp_power</span><span class="p">,</span> <span class="n">lfp_freq</span><span class="p">,</span> <span class="n">chn_coords</span><span class="p">,</span> <span class="n">chn_inds</span><span class="p">,</span> <span class="n">freq_range</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">300</span><span class="p">),</span>
@@ -467,6 +468,103 @@
     <span class="k">if</span> <span class="n">display</span><span class="p">:</span>
         <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plot_line</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">convert2dict</span><span class="p">())</span>
         <span class="k">return</span> <span class="n">data</span><span class="o">.</span><span class="n">convert2dict</span><span class="p">(),</span> <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span>
+    <span class="k">return</span> <span class="n">data</span></div>
+
+
+<div class="viewcode-block" id="plot_brain_regions"><a class="viewcode-back" href="../../_autosummary/brainbox.ephys_plots.html#brainbox.ephys_plots.plot_brain_regions">[docs]</a><span class="k">def</span> <span class="nf">plot_brain_regions</span><span class="p">(</span><span class="n">channel_ids</span><span class="p">,</span> <span class="n">channel_depths</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">brain_regions</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">display</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Plot brain regions along probe, if channel depths is provided will plot along depth otherwise along channel idx</span>
+<span class="sd">    :param channel_ids: atlas ids for each channel</span>
+<span class="sd">    :param channel_depths: depth along probe for each channel</span>
+<span class="sd">    :param brain_regions: BrainRegions object</span>
+<span class="sd">    :param display: whether to output plot</span>
+<span class="sd">    :param ax: axis to plot on</span>
+<span class="sd">    :return:</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">channel_depths</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="n">channel_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">channel_depths</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="n">br</span> <span class="o">=</span> <span class="n">brain_regions</span> <span class="ow">or</span> <span class="n">BrainRegions</span><span class="p">()</span>
+
+    <span class="n">region_info</span> <span class="o">=</span> <span class="n">br</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">channel_ids</span><span class="p">)</span>
+    <span class="n">boundaries</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">region_info</span><span class="o">.</span><span class="n">id</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">boundaries</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">boundaries</span><span class="p">,</span> <span class="n">region_info</span><span class="o">.</span><span class="n">id</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
+
+    <span class="n">regions</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">c_</span><span class="p">[</span><span class="n">boundaries</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">boundaries</span><span class="p">[</span><span class="mi">1</span><span class="p">:]]</span>
+    <span class="k">if</span> <span class="n">channel_depths</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">regions</span> <span class="o">=</span> <span class="n">channel_depths</span><span class="p">[</span><span class="n">regions</span><span class="p">]</span>
+    <span class="n">region_labels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">c_</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">regions</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span> <span class="n">region_info</span><span class="o">.</span><span class="n">acronym</span><span class="p">[</span><span class="n">boundaries</span><span class="p">[</span><span class="mi">1</span><span class="p">:]]]</span>
+    <span class="n">region_colours</span> <span class="o">=</span> <span class="n">region_info</span><span class="o">.</span><span class="n">rgb</span><span class="p">[</span><span class="n">boundaries</span><span class="p">[</span><span class="mi">1</span><span class="p">:]]</span>
+
+    <span class="k">if</span> <span class="n">display</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">ax</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">()</span>
+
+        <span class="k">for</span> <span class="n">reg</span><span class="p">,</span> <span class="n">col</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">regions</span><span class="p">,</span> <span class="n">region_colours</span><span class="p">):</span>
+            <span class="n">height</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">reg</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">reg</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="n">color</span> <span class="o">=</span> <span class="n">col</span> <span class="o">/</span> <span class="mi">255</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">bar</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="n">height</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">color</span><span class="p">,</span> <span class="n">bottom</span><span class="o">=</span><span class="n">reg</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">edgecolor</span><span class="o">=</span><span class="s1">&#39;w&#39;</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_yticks</span><span class="p">(</span><span class="n">region_labels</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">))</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">yaxis</span><span class="o">.</span><span class="n">set_tick_params</span><span class="p">(</span><span class="n">labelsize</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">get_xaxis</span><span class="p">()</span><span class="o">.</span><span class="n">set_visible</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_yticklabels</span><span class="p">(</span><span class="n">region_labels</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">])</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">spines</span><span class="p">[</span><span class="s1">&#39;right&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">set_visible</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">spines</span><span class="p">[</span><span class="s1">&#39;top&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">set_visible</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">spines</span><span class="p">[</span><span class="s1">&#39;bottom&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">set_visible</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">regions</span><span class="p">,</span> <span class="n">region_labels</span><span class="p">,</span> <span class="n">region_colours</span></div>
+
+
+<div class="viewcode-block" id="plot_cdf"><a class="viewcode-back" href="../../_autosummary/brainbox.ephys_plots.html#brainbox.ephys_plots.plot_cdf">[docs]</a><span class="k">def</span> <span class="nf">plot_cdf</span><span class="p">(</span><span class="n">spike_amps</span><span class="p">,</span> <span class="n">spike_depths</span><span class="p">,</span> <span class="n">spike_times</span><span class="p">,</span> <span class="n">n_amp_bins</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">d_bin</span><span class="o">=</span><span class="mi">40</span><span class="p">,</span> <span class="n">amp_range</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">d_range</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+             <span class="n">display</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s1">&#39;hot&#39;</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Plot cumulative amplitude of spikes across depth</span>
+<span class="sd">    :param spike_amps:</span>
+<span class="sd">    :param spike_depths:</span>
+<span class="sd">    :param spike_times:</span>
+<span class="sd">    :param n_amp_bins: number of amplitude bins to use</span>
+<span class="sd">    :param d_bin: the value of the depth bins in um (default is 40 um)</span>
+<span class="sd">    :param amp_range: amp range to use [amp_min, amp_max], if not given automatically computed from spike_amps</span>
+<span class="sd">    :param d_range: depth range to use, by default [0, 3840]</span>
+<span class="sd">    :param display: whether or not to display plot</span>
+<span class="sd">    :param cmap:</span>
+<span class="sd">    :return:</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">amp_range</span> <span class="o">=</span> <span class="n">amp_range</span> <span class="ow">or</span> <span class="n">np</span><span class="o">.</span><span class="n">quantile</span><span class="p">(</span><span class="n">spike_amps</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mf">0.9</span><span class="p">))</span>
+    <span class="n">amp_bins</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">amp_range</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">amp_range</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">n_amp_bins</span><span class="p">)</span>
+    <span class="n">d_range</span> <span class="o">=</span> <span class="n">d_range</span> <span class="ow">or</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3840</span><span class="p">]</span>
+    <span class="n">depth_bins</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">d_range</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">d_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">d_bin</span><span class="p">,</span> <span class="n">d_bin</span><span class="p">)</span>
+    <span class="n">t_bin</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">spike_times</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">histc</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">bins</span><span class="p">):</span>
+        <span class="n">map_to_bins</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">digitize</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">bins</span><span class="p">)</span>  <span class="c1"># Get indices of the bins to which each value in input array belongs.</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">bins</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">el</span> <span class="ow">in</span> <span class="n">map_to_bins</span><span class="p">:</span>
+            <span class="n">res</span><span class="p">[</span><span class="n">el</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>  <span class="c1"># Increment appropriate bin.</span>
+        <span class="k">return</span> <span class="n">res</span>
+
+    <span class="n">cdfs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">depth_bins</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">n_amp_bins</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">depth_bins</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="n">spikes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">bitwise_and</span><span class="p">(</span><span class="n">spike_depths</span> <span class="o">&gt;</span> <span class="n">depth_bins</span><span class="p">[</span><span class="n">d</span><span class="p">],</span> <span class="n">spike_depths</span> <span class="o">&lt;=</span> <span class="n">depth_bins</span><span class="p">[</span><span class="n">d</span> <span class="o">+</span> <span class="mi">1</span><span class="p">])</span>
+        <span class="n">h</span> <span class="o">=</span> <span class="n">histc</span><span class="p">(</span><span class="n">spike_amps</span><span class="p">[</span><span class="n">spikes</span><span class="p">],</span> <span class="n">amp_bins</span><span class="p">)</span> <span class="o">/</span> <span class="n">t_bin</span>
+        <span class="n">hcsum</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="n">h</span><span class="p">[::</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">cdfs</span><span class="p">[</span><span class="n">d</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">hcsum</span><span class="p">[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+
+    <span class="n">cdfs</span><span class="p">[</span><span class="n">cdfs</span> <span class="o">==</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+
+    <span class="n">data</span> <span class="o">=</span> <span class="n">ImagePlot</span><span class="p">(</span><span class="n">cdfs</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="n">amp_bins</span> <span class="o">*</span> <span class="mf">1e6</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">depth_bins</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">cmap</span><span class="o">=</span><span class="n">cmap</span><span class="p">)</span>
+    <span class="n">data</span><span class="o">.</span><span class="n">set_labels</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="s1">&#39;Cumulative Amplitude&#39;</span><span class="p">,</span> <span class="n">xlabel</span><span class="o">=</span><span class="s1">&#39;Spike amplitude (uV)&#39;</span><span class="p">,</span>
+                    <span class="n">ylabel</span><span class="o">=</span><span class="s1">&#39;Distance from probe tip (um)&#39;</span><span class="p">,</span> <span class="n">clabel</span><span class="o">=</span><span class="s1">&#39;Firing Rate (Hz)&#39;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">display</span><span class="p">:</span>
+        <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plot_image</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">convert2dict</span><span class="p">(),</span> <span class="n">fig_kwargs</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;figsize&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">7</span><span class="p">]})</span>
+        <span class="k">return</span> <span class="n">data</span><span class="o">.</span><span class="n">convert2dict</span><span class="p">(),</span> <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span>
+
     <span class="k">return</span> <span class="n">data</span></div>
 </pre></div>
 

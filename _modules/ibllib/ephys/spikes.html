@@ -103,6 +103,7 @@
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">from</span> <span class="nn">one.alf.files</span> <span class="kn">import</span> <span class="n">get_session_path</span>
 
+<span class="kn">from</span> <span class="nn">iblutil.util</span> <span class="kn">import</span> <span class="n">Bunch</span>
 <span class="kn">import</span> <span class="nn">phylib.io.alf</span>
 <span class="kn">from</span> <span class="nn">ibllib.ephys.sync_probes</span> <span class="kn">import</span> <span class="n">apply_sync</span>
 <span class="kn">import</span> <span class="nn">ibllib.ephys.ephysqc</span> <span class="k">as</span> <span class="nn">ephysqc</span>
@@ -304,6 +305,57 @@
                 <span class="n">tar_dir</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">file</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="p">[</span><span class="n">out_file</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="detection"><a class="viewcode-back" href="../../../_autosummary/ibllib.ephys.spikes.html#ibllib.ephys.spikes.detection">[docs]</a><span class="k">def</span> <span class="nf">detection</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">fs</span><span class="p">,</span> <span class="n">h</span><span class="p">,</span> <span class="n">detect_threshold</span><span class="o">=-</span><span class="mi">4</span><span class="p">,</span> <span class="n">time_tol</span><span class="o">=</span><span class="mf">.002</span><span class="p">,</span> <span class="n">distance_threshold_um</span><span class="o">=</span><span class="mi">70</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Detects and de-duplicates negative voltage spikes based on voltage thresholding.</span>
+<span class="sd">    The de-duplication step locks in maximum amplitude events. To account for collisions the amplitude</span>
+<span class="sd">    is assumed to be decaying from the peak. If this is a multipeak event, each is labeled as a spike.</span>
+
+<span class="sd">    :param data: 2D numpy array nsamples x nchannels</span>
+<span class="sd">    :param fs: sampling frequency (Hz)</span>
+<span class="sd">    :param h: dictionary with neuropixel geometry header: see. ibllib.ephys.neuropixel.trace_header</span>
+<span class="sd">    :param detect_threshold: negative value below which the voltage is considered to be a spike</span>
+<span class="sd">    :param time_tol: time in seconds for which samples before and after are assumed to be part of the spike</span>
+<span class="sd">    :param distance_threshold_um: distance for which exceeding threshold values are assumed to part of the same spike</span>
+<span class="sd">    :return: spikes dictionary of vectors with keys &quot;time&quot;, &quot;trace&quot;, &quot;amp&quot; and &quot;ispike&quot;</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">multipeak</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">time_bracket</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span> <span class="o">*</span> <span class="n">time_tol</span>
+    <span class="n">inds</span><span class="p">,</span> <span class="n">indtr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">data</span> <span class="o">&lt;</span> <span class="n">detect_threshold</span><span class="p">)</span>
+    <span class="n">picks</span> <span class="o">=</span> <span class="n">Bunch</span><span class="p">(</span><span class="n">time</span><span class="o">=</span><span class="n">inds</span> <span class="o">/</span> <span class="n">fs</span><span class="p">,</span> <span class="n">trace</span><span class="o">=</span><span class="n">indtr</span><span class="p">,</span> <span class="n">amp</span><span class="o">=</span><span class="n">data</span><span class="p">[</span><span class="n">inds</span><span class="p">,</span> <span class="n">indtr</span><span class="p">],</span> <span class="n">ispike</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">inds</span><span class="o">.</span><span class="n">size</span><span class="p">))</span>
+    <span class="n">amp_order</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">picks</span><span class="o">.</span><span class="n">amp</span><span class="p">)</span>
+
+    <span class="n">hxy</span> <span class="o">=</span> <span class="n">h</span><span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="n">j</span> <span class="o">*</span> <span class="n">h</span><span class="p">[</span><span class="s1">&#39;y&#39;</span><span class="p">]</span>
+
+    <span class="n">spike_id</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="k">while</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">picks</span><span class="o">.</span><span class="n">ispike</span> <span class="o">==</span> <span class="mi">0</span><span class="p">):</span>
+        <span class="c1"># find the first unassigned spike with the highest amplitude</span>
+        <span class="n">iamp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">picks</span><span class="o">.</span><span class="n">ispike</span><span class="p">[</span><span class="n">amp_order</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">imax</span> <span class="o">=</span> <span class="n">amp_order</span><span class="p">[</span><span class="n">iamp</span><span class="p">]</span>
+        <span class="c1"># look only within the time range</span>
+        <span class="n">itlims</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">searchsorted</span><span class="p">(</span><span class="n">picks</span><span class="o">.</span><span class="n">time</span><span class="p">,</span> <span class="n">picks</span><span class="o">.</span><span class="n">time</span><span class="p">[</span><span class="n">imax</span><span class="p">]</span> <span class="o">+</span> <span class="n">time_bracket</span><span class="p">)</span>
+        <span class="n">itlims</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">itlims</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">itlims</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+
+        <span class="n">offset</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">hxy</span><span class="p">[</span><span class="n">picks</span><span class="o">.</span><span class="n">trace</span><span class="p">[</span><span class="n">itlims</span><span class="p">]]</span> <span class="o">-</span> <span class="n">hxy</span><span class="p">[</span><span class="n">picks</span><span class="o">.</span><span class="n">trace</span><span class="p">[</span><span class="n">imax</span><span class="p">]])</span>
+        <span class="n">iit</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">offset</span> <span class="o">&lt;</span> <span class="n">distance_threshold_um</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="n">picks</span><span class="o">.</span><span class="n">ispike</span><span class="p">[</span><span class="n">itlims</span><span class="p">[</span><span class="n">iit</span><span class="p">]]</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+        <span class="n">picks</span><span class="o">.</span><span class="n">ispike</span><span class="p">[</span><span class="n">imax</span><span class="p">]</span> <span class="o">=</span> <span class="n">spike_id</span>
+        <span class="c1"># handles collision with a simple amplitude decay model: if amplitude doesn&#39;t decay</span>
+        <span class="c1"># as a function of offset, then it&#39;s a collision and another spike is set</span>
+        <span class="k">if</span> <span class="n">multipeak</span><span class="p">:</span>  <span class="c1"># noqa</span>
+            <span class="n">iii</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">lexsort</span><span class="p">((</span><span class="n">picks</span><span class="o">.</span><span class="n">amp</span><span class="p">[</span><span class="n">itlims</span><span class="p">[</span><span class="n">iit</span><span class="p">]],</span> <span class="n">offset</span><span class="p">[</span><span class="n">iit</span><span class="p">]))</span>
+            <span class="n">sorted_amps_db</span> <span class="o">=</span> <span class="mi">20</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">picks</span><span class="o">.</span><span class="n">amp</span><span class="p">[</span><span class="n">itlims</span><span class="p">[</span><span class="n">iit</span><span class="p">][</span><span class="n">iii</span><span class="p">]]))</span>
+            <span class="n">idetect</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">sorted_amps_db</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">12</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
+            <span class="n">picks</span><span class="o">.</span><span class="n">ispike</span><span class="p">[</span><span class="n">itlims</span><span class="p">[</span><span class="n">iit</span><span class="p">[</span><span class="n">iii</span><span class="p">[</span><span class="n">idetect</span><span class="p">]]]]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">idetect</span><span class="o">.</span><span class="n">size</span><span class="p">)</span> <span class="o">+</span> <span class="n">spike_id</span>
+            <span class="n">spike_id</span> <span class="o">+=</span> <span class="n">idetect</span><span class="o">.</span><span class="n">size</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">spike_id</span> <span class="o">+=</span> <span class="mi">1</span>
+
+    <span class="n">detects</span> <span class="o">=</span> <span class="n">Bunch</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="n">picks</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="n">picks</span><span class="o">.</span><span class="n">ispike</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">picks</span><span class="p">})</span>
+    <span class="k">return</span> <span class="n">detects</span></div>
 </pre></div>
 
            </div>

@@ -102,42 +102,48 @@
 <span class="kn">import</span> <span class="nn">time</span>
 <span class="kn">from</span> <span class="nn">_collections</span> <span class="kn">import</span> <span class="n">OrderedDict</span>
 <span class="kn">import</span> <span class="nn">traceback</span>
-<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
-<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
-<span class="kn">import</span> <span class="nn">shutil</span>
+<span class="kn">import</span> <span class="nn">json</span>
 
 <span class="kn">from</span> <span class="nn">graphviz</span> <span class="kn">import</span> <span class="n">Digraph</span>
 
 <span class="kn">from</span> <span class="nn">ibllib.misc</span> <span class="kn">import</span> <span class="n">version</span>
+<span class="kn">from</span> <span class="nn">ibllib.oneibl</span> <span class="kn">import</span> <span class="n">data_handlers</span>
 <span class="kn">import</span> <span class="nn">one.params</span>
-<span class="kn">from</span> <span class="nn">one.alf.files</span> <span class="kn">import</span> <span class="n">add_uuid_string</span>
-<span class="kn">from</span> <span class="nn">iblutil.io.parquet</span> <span class="kn">import</span> <span class="n">np2str</span>
-<span class="kn">from</span> <span class="nn">ibllib.oneibl.registration</span> <span class="kn">import</span> <span class="n">register_dataset</span>
-<span class="kn">from</span> <span class="nn">ibllib.oneibl.patcher</span> <span class="kn">import</span> <span class="n">FTPPatcher</span><span class="p">,</span> <span class="n">SDSCPatcher</span><span class="p">,</span> <span class="n">SDSC_ROOT_PATH</span><span class="p">,</span> <span class="n">SDSC_PATCH_PATH</span>
-<span class="kn">from</span> <span class="nn">one.util</span> <span class="kn">import</span> <span class="n">filter_datasets</span>
-
+<span class="kn">from</span> <span class="nn">one.api</span> <span class="kn">import</span> <span class="n">ONE</span>
 
 <span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;ibllib&#39;</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="Task"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.tasks.html#ibllib.pipes.tasks.Task">[docs]</a><span class="k">class</span> <span class="nc">Task</span><span class="p">(</span><span class="n">abc</span><span class="o">.</span><span class="n">ABC</span><span class="p">):</span>
-    <span class="n">log</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
-    <span class="n">cpu</span> <span class="o">=</span> <span class="mi">1</span>
-    <span class="n">gpu</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">log</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>  <span class="c1"># place holder to keep the log of the task for registratoin</span>
+    <span class="n">cpu</span> <span class="o">=</span> <span class="mi">1</span>   <span class="c1"># CPU resource</span>
+    <span class="n">gpu</span> <span class="o">=</span> <span class="mi">0</span>   <span class="c1"># GPU resources: as of now, either 0 or 1</span>
     <span class="n">io_charge</span> <span class="o">=</span> <span class="mi">5</span>  <span class="c1"># integer percentage</span>
     <span class="n">priority</span> <span class="o">=</span> <span class="mi">30</span>  <span class="c1"># integer percentage, 100 means highest priority</span>
     <span class="n">ram</span> <span class="o">=</span> <span class="mi">4</span>  <span class="c1"># RAM needed to run (Go)</span>
     <span class="n">one</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># one instance (optional)</span>
-    <span class="n">level</span> <span class="o">=</span> <span class="mi">0</span>
-    <span class="n">outputs</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">level</span> <span class="o">=</span> <span class="mi">0</span>  <span class="c1"># level in the pipeline hierarchy: level 0 means there is no parent task</span>
+    <span class="n">outputs</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># place holder for a list of Path containing output files</span>
     <span class="n">time_elapsed_secs</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="n">time_out_secs</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">time_out_secs</span> <span class="o">=</span> <span class="mi">3600</span> <span class="o">*</span> <span class="mi">2</span>  <span class="c1"># time-out after which a task is considered dead</span>
     <span class="n">version</span> <span class="o">=</span> <span class="n">version</span><span class="o">.</span><span class="n">ibllib</span><span class="p">()</span>
-    <span class="n">log</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
-    <span class="n">signature</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;input_files&#39;</span><span class="p">:</span> <span class="p">(),</span> <span class="s1">&#39;output_files&#39;</span><span class="p">:</span> <span class="p">()}</span>  <span class="c1"># tuple (filename, collection, required_flag)</span>
+    <span class="n">signature</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;input_files&#39;</span><span class="p">:</span> <span class="p">[],</span> <span class="s1">&#39;output_files&#39;</span><span class="p">:</span> <span class="p">[]}</span>  <span class="c1"># list of tuples (filename, collection, required_flag)</span>
+    <span class="n">force</span> <span class="o">=</span> <span class="kc">False</span>  <span class="c1"># whether or not to re-download missing input files on local server if not present</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_path</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">taskid</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                 <span class="n">machine</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">clobber</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">aws</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="s1">&#39;server&#39;</span><span class="p">):</span>
+                 <span class="n">machine</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">clobber</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="s1">&#39;server&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Base task class</span>
+<span class="sd">        :param session_path: session path</span>
+<span class="sd">        :param parents: parents</span>
+<span class="sd">        :param taskid: alyx task id</span>
+<span class="sd">        :param one: one instance</span>
+<span class="sd">        :param machine:</span>
+<span class="sd">        :param clobber: whether or not to overwrite log on rerun</span>
+<span class="sd">        :param location: location where task is run. Options are &#39;server&#39; (lab local servers&#39;), &#39;remote&#39; (remote compute node,</span>
+<span class="sd">        data required for task downloaded via one), &#39;AWS&#39; (remote compute node, data required for task downloaded via AWS),</span>
+<span class="sd">        or &#39;SDSC&#39; (SDSC flatiron compute node) # TODO &#39;Globus&#39; (remote compute node, data required for task downloaded via Globus)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">taskid</span> <span class="o">=</span> <span class="n">taskid</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">one</span> <span class="o">=</span> <span class="n">one</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span> <span class="o">=</span> <span class="n">session_path</span>
@@ -149,7 +155,6 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">machine</span> <span class="o">=</span> <span class="n">machine</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">clobber</span> <span class="o">=</span> <span class="n">clobber</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">location</span> <span class="o">=</span> <span class="n">location</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">aws</span> <span class="o">=</span> <span class="n">aws</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -161,6 +166,11 @@
 <span class="sd">        wraps the _run() method with</span>
 <span class="sd">        -   error management</span>
 <span class="sd">        -   logging to variable</span>
+<span class="sd">        -   writing a lock file if the GPU is used</span>
+<span class="sd">        -   labels the status property of the object. The status value is labeled as:</span>
+<span class="sd">            0: Complete</span>
+<span class="sd">            -1: Errored</span>
+<span class="sd">            -2: Didn&#39;t run as a lock was encountered</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># if taskid of one properties are not available, local run only without alyx</span>
         <span class="n">use_alyx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">taskid</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
@@ -169,8 +179,7 @@
                                        <span class="n">data</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;status&#39;</span><span class="p">:</span> <span class="s1">&#39;Started&#39;</span><span class="p">})</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;&#39;</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">tdict</span><span class="p">[</span><span class="s1">&#39;log&#39;</span><span class="p">]</span> <span class="k">else</span> <span class="n">tdict</span><span class="p">[</span><span class="s1">&#39;log&#39;</span><span class="p">]</span> <span class="o">+</span>
                         <span class="s1">&#39;</span><span class="se">\n\n</span><span class="s1">=============================RERUN=============================</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
-        <span class="c1"># setup</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">setUp</span><span class="p">()</span>
+
         <span class="c1"># Setup the console handler with a StringIO object</span>
         <span class="n">log_capture_string</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">()</span>
         <span class="n">ch</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">StreamHandler</span><span class="p">(</span><span class="n">log_capture_string</span><span class="p">)</span>
@@ -181,24 +190,40 @@
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">machine</span><span class="p">:</span>
             <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Running on machine: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">machine</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;running ibllib version </span><span class="si">{</span><span class="n">version</span><span class="o">.</span><span class="n">ibllib</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="c1"># run</span>
+        <span class="c1"># setup</span>
         <span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="mi">0</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">outputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-            <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Job </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="si">}</span><span class="s2"> complete&quot;</span><span class="p">)</span>
+            <span class="n">setup</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">setUp</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Setup value is: </span><span class="si">{</span><span class="n">setup</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">setup</span><span class="p">:</span>
+                <span class="c1"># case where outputs are present but don&#39;t have input files locally to rerun task</span>
+                <span class="c1"># label task as complete</span>
+                <span class="n">_</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">outputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">assert_expected_outputs</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># run task</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">gpu</span> <span class="o">&gt;=</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_creates_lock</span><span class="p">():</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="o">-</span><span class="mi">2</span>
+                        <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Job </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="si">}</span><span class="s2"> exited as a lock was found&quot;</span><span class="p">)</span>
+                        <span class="k">return</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">outputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+                <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Job </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="si">}</span><span class="s2"> complete&quot;</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">BaseException</span><span class="p">:</span>
             <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">())</span>
             <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Job </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="si">}</span><span class="s2"> errored&quot;</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">time_elapsed_secs</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span>
-        <span class="c1"># log the outputs-+</span>
+
+        <span class="c1"># log the outputs</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">outputs</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
             <span class="n">nout</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">outputs</span><span class="p">)</span>
         <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">outputs</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">nout</span> <span class="o">=</span> <span class="mi">0</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">nout</span> <span class="o">=</span> <span class="mi">1</span>
+
         <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;N outputs: </span><span class="si">{</span><span class="n">nout</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;--- </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">time_elapsed_secs</span><span class="si">}</span><span class="s2"> seconds run-time ---&quot;</span><span class="p">)</span>
         <span class="c1"># after the run, capture the log output, amend to any existing logs if not overwrite</span>
@@ -218,64 +243,18 @@
 <span class="sd">        :param kwargs: directly passed to the register_dataset function</span>
 <span class="sd">        :return:</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">assert</span> <span class="n">one</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">location</span> <span class="o">==</span> <span class="s1">&#39;server&#39;</span><span class="p">:</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_register_datasets_server</span><span class="p">(</span><span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">location</span> <span class="o">==</span> <span class="s1">&#39;remote&#39;</span><span class="p">:</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_register_datasets_remote</span><span class="p">(</span><span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">location</span> <span class="o">==</span> <span class="s1">&#39;SDSC&#39;</span><span class="p">:</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_register_datasets_SDSC</span><span class="p">(</span><span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">location</span> <span class="o">==</span> <span class="s1">&#39;AWS&#39;</span><span class="p">:</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_register_datasets_AWS</span><span class="p">(</span><span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
-
-    <span class="k">def</span> <span class="nf">_register_datasets_server</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">outputs</span><span class="p">:</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">outputs</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
-                <span class="n">versions</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">outputs</span><span class="p">]</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">versions</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="p">]</span>
-
-            <span class="k">return</span> <span class="n">register_dataset</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">outputs</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">,</span> <span class="n">versions</span><span class="o">=</span><span class="n">versions</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-
-    <span class="k">def</span> <span class="nf">_register_datasets_remote</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">outputs</span><span class="p">:</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">outputs</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
-                <span class="n">versions</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">outputs</span><span class="p">]</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">versions</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="p">]</span>
-
-            <span class="n">ftp_patcher</span> <span class="o">=</span> <span class="n">FTPPatcher</span><span class="p">(</span><span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">)</span>
-            <span class="k">return</span> <span class="n">ftp_patcher</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span><span class="n">path</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">outputs</span><span class="p">,</span> <span class="n">created_by</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">user</span><span class="p">,</span>
-                                              <span class="n">versions</span><span class="o">=</span><span class="n">versions</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-
-    <span class="k">def</span> <span class="nf">_register_datasets_SDSC</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">outputs</span><span class="p">:</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">outputs</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
-                <span class="n">versions</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">outputs</span><span class="p">]</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">versions</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="p">]</span>
-
-            <span class="n">sdsc_patcher</span> <span class="o">=</span> <span class="n">SDSCPatcher</span><span class="p">(</span><span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">)</span>
-            <span class="k">return</span> <span class="n">sdsc_patcher</span><span class="o">.</span><span class="n">patch_datasets</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">outputs</span><span class="p">,</span> <span class="n">dry</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">versions</span><span class="o">=</span><span class="n">versions</span><span class="p">,</span>
-                                               <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-
-    <span class="k">def</span> <span class="nf">_register_datasets_AWS</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="c1"># GO through FTP patcher</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">outputs</span><span class="p">:</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">outputs</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
-                <span class="n">versions</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">outputs</span><span class="p">]</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">versions</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="p">]</span>
-
-            <span class="n">ftp_patcher</span> <span class="o">=</span> <span class="n">FTPPatcher</span><span class="p">(</span><span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">)</span>
-            <span class="k">return</span> <span class="n">ftp_patcher</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span><span class="n">path</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">outputs</span><span class="p">,</span> <span class="n">created_by</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">user</span><span class="p">,</span>
-                                              <span class="n">versions</span><span class="o">=</span><span class="n">versions</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_handler</span><span class="o">.</span><span class="n">uploadData</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">outputs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="Task.rerun"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.tasks.html#ibllib.pipes.tasks.Task.rerun">[docs]</a>    <span class="k">def</span> <span class="nf">rerun</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">overwrite</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Task.get_signatures"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.tasks.html#ibllib.pipes.tasks.Task.get_signatures">[docs]</a>    <span class="k">def</span> <span class="nf">get_signatures</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This is the default but should be overwritten for each task</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">input_files</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="p">[</span><span class="s1">&#39;input_files&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">output_files</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="p">[</span><span class="s1">&#39;output_files&#39;</span><span class="p">]</span></div>
 
     <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
     <span class="k">def</span> <span class="nf">_run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
@@ -290,104 +269,167 @@
 <span class="sd">          returning any dataset.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
-<div class="viewcode-block" id="Task.setUp"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.tasks.html#ibllib.pipes.tasks.Task.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Task.setUp"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.tasks.html#ibllib.pipes.tasks.Task.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Function to optionally overload to check inputs.</span>
+<span class="sd">        Setup method to get the data handler and ensure all data is available locally to run task</span>
+<span class="sd">        :param kwargs:</span>
 <span class="sd">        :return:</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c1"># if on local server don&#39;t do anything</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">location</span> <span class="o">==</span> <span class="s1">&#39;server&#39;</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_setUp_server</span><span class="p">()</span>
-        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">location</span> <span class="o">==</span> <span class="s1">&#39;remote&#39;</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_setUp_remote</span><span class="p">()</span>
-        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">location</span> <span class="o">==</span> <span class="s1">&#39;SDSC&#39;</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_setUp_SDSC</span><span class="p">()</span>
-        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">location</span> <span class="o">==</span> <span class="s1">&#39;AWS&#39;</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_setUp_AWS</span><span class="p">()</span></div>
+            <span class="bp">self</span><span class="o">.</span><span class="n">get_signatures</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">_setUp_server</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">pass</span>
+            <span class="n">input_status</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">assert_expected_inputs</span><span class="p">(</span><span class="n">raise_error</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="n">output_status</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">assert_expected</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_files</span><span class="p">,</span> <span class="n">silent</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">_setUp_remote</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">input_status</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">data_handler</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_data_handler</span><span class="p">()</span>
+                <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;All input files found: running task&#39;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="kc">True</span>
 
-        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span>
-        <span class="n">df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_getData</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">_download_datasets</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
-
-    <span class="k">def</span> <span class="nf">_setUp_SDSC</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span>
-        <span class="n">df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_getData</span><span class="p">()</span>
-
-        <span class="n">SDSC_TMP</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">SDSC_PATCH_PATH</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">))</span>
-
-        <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">iterrows</span><span class="p">():</span>
-            <span class="n">file_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="s1">&#39;session_path&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="s1">&#39;rel_path&#39;</span><span class="p">])</span>
-            <span class="n">file_uuid</span> <span class="o">=</span> <span class="n">add_uuid_string</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">np2str</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="n">d</span><span class="o">.</span><span class="n">name</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">d</span><span class="o">.</span><span class="n">name</span><span class="p">[</span><span class="mi">1</span><span class="p">]]))</span>
-            <span class="n">file_link</span> <span class="o">=</span> <span class="n">SDSC_TMP</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
-            <span class="n">file_link</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-            <span class="n">file_link</span><span class="o">.</span><span class="n">symlink_to</span><span class="p">(</span>
-                <span class="n">Path</span><span class="p">(</span><span class="n">SDSC_ROOT_PATH</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">file_uuid</span><span class="p">)))</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span> <span class="o">=</span> <span class="n">SDSC_TMP</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="s1">&#39;session_path&#39;</span><span class="p">])</span>
-
-    <span class="k">def</span> <span class="nf">_setUp_AWS</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">aws</span>
-        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span>
-
-        <span class="n">df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_getData</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">aws</span><span class="o">.</span><span class="n">_download_datasets</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">force</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">data_handler</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_data_handler</span><span class="p">()</span>
+                <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Not all input files found locally: will still attempt to rerun task&#39;</span><span class="p">)</span>
+                <span class="c1"># TODO in the future once we are sure that input output task signatures work properly should return False</span>
+                <span class="c1"># _logger.info(&#39;All output files found but input files required not available locally: task not rerun&#39;)</span>
+                <span class="k">return</span> <span class="kc">True</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># Attempts to download missing data using globus</span>
+                <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Not all input files found locally: attempting to re-download required files&#39;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">data_handler</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_data_handler</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="s1">&#39;serverglobus&#39;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">data_handler</span><span class="o">.</span><span class="n">setUp</span><span class="p">()</span>
+                <span class="c1"># Double check we now have the required files to run the task</span>
+                <span class="c1"># TODO in future should raise error if even after downloading don&#39;t have the correct files</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assert_expected_inputs</span><span class="p">(</span><span class="n">raise_error</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">data_handler</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_data_handler</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">data_handler</span><span class="o">.</span><span class="n">setUp</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">get_signatures</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assert_expected_inputs</span><span class="p">()</span>
+            <span class="k">return</span> <span class="kc">True</span></div>
 
 <div class="viewcode-block" id="Task.tearDown"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.tasks.html#ibllib.pipes.tasks.Task.tearDown">[docs]</a>    <span class="k">def</span> <span class="nf">tearDown</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Function to optionally overload to check results</span>
+<span class="sd">        Function after runs()</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">pass</span></div>
-
-    <span class="k">def</span> <span class="nf">_getData</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Funtcion to optionally overload to download/ create links to data</span>
-<span class="sd">        Important when running tasks in remote or SDSC locations</span>
-<span class="sd">        :return:</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span>
-        <span class="n">session_datasets</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">list_datasets</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">path2eid</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">),</span> <span class="n">details</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-        <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">_cache</span><span class="o">.</span><span class="n">datasets</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="p">[</span><span class="s1">&#39;input_files&#39;</span><span class="p">]:</span>
-            <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">filter_datasets</span><span class="p">(</span><span class="n">session_datasets</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="n">file</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">collection</span><span class="o">=</span><span class="n">file</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
-                           <span class="n">wildcards</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">assert_unique</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
-        <span class="k">return</span> <span class="n">df</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">gpu</span> <span class="o">&gt;=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_lock_file_path</span><span class="p">()</span><span class="o">.</span><span class="n">unlink</span><span class="p">()</span></div>
 
 <div class="viewcode-block" id="Task.cleanUp"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.tasks.html#ibllib.pipes.tasks.Task.cleanUp">[docs]</a>    <span class="k">def</span> <span class="nf">cleanUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Function to optionally overload to clean up</span>
 <span class="sd">        :return:</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">location</span> <span class="o">==</span> <span class="s1">&#39;SDSC&#39;</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_cleanUp_SDSC</span><span class="p">()</span></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data_handler</span><span class="o">.</span><span class="n">cleanUp</span><span class="p">()</span></div>
 
-    <span class="k">def</span> <span class="nf">_cleanUp_SDSC</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-
-        <span class="c1"># Double check we are dealing with the SDSC temp folder</span>
-        <span class="k">assert</span> <span class="n">SDSC_PATCH_PATH</span><span class="o">.</span><span class="n">parts</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">4</span><span class="p">]</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">parts</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">4</span><span class="p">]</span>
-        <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
-
-<div class="viewcode-block" id="Task.assert_expected_outputs"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.tasks.html#ibllib.pipes.tasks.Task.assert_expected_outputs">[docs]</a>    <span class="k">def</span> <span class="nf">assert_expected_outputs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Task.assert_expected_outputs"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.tasks.html#ibllib.pipes.tasks.Task.assert_expected_outputs">[docs]</a>    <span class="k">def</span> <span class="nf">assert_expected_outputs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raise_error</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        After a run, asserts that all signature files are present at least once in the output files</span>
 <span class="sd">        Mainly useful for integration tests</span>
 <span class="sd">        :return:</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="mi">0</span>
-        <span class="n">everthing_is_fine</span> <span class="o">=</span> <span class="kc">True</span>
-        <span class="k">for</span> <span class="n">expected_file</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="p">[</span><span class="s1">&#39;output_files&#39;</span><span class="p">]:</span>
-            <span class="n">actual_files</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">expected_file</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">expected_file</span><span class="p">[</span><span class="mi">0</span><span class="p">]))))</span>
-            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">actual_files</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="n">everthing_is_fine</span> <span class="o">=</span> <span class="kc">False</span>
-                <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Signature file expected </span><span class="si">{</span><span class="n">expected_file</span><span class="si">}</span><span class="s2"> not found in the output&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">everthing_is_fine</span><span class="p">:</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Checking output files&#39;</span><span class="p">)</span>
+        <span class="n">everything_is_fine</span><span class="p">,</span> <span class="n">files</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">assert_expected</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_files</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">everything_is_fine</span><span class="p">:</span>
             <span class="k">for</span> <span class="n">out</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">outputs</span><span class="p">:</span>
                 <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">out</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-            <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="s2">&quot;Missing outputs after task completion&quot;</span><span class="p">)</span></div></div>
+            <span class="k">if</span> <span class="n">raise_error</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="s2">&quot;Missing outputs after task completion&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">everything_is_fine</span><span class="p">,</span> <span class="n">files</span></div>
+
+<div class="viewcode-block" id="Task.assert_expected_inputs"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.tasks.html#ibllib.pipes.tasks.Task.assert_expected_inputs">[docs]</a>    <span class="k">def</span> <span class="nf">assert_expected_inputs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raise_error</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Before running a task, check that all the files necessary to run the task have been downloaded/ are on the local file</span>
+<span class="sd">        system already</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Checking input files&#39;</span><span class="p">)</span>
+        <span class="n">everything_is_fine</span><span class="p">,</span> <span class="n">files</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">assert_expected</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">input_files</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">everything_is_fine</span> <span class="ow">and</span> <span class="n">raise_error</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="s2">&quot;Missing inputs to run task&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">everything_is_fine</span><span class="p">,</span> <span class="n">files</span></div>
+
+<div class="viewcode-block" id="Task.assert_expected"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.tasks.html#ibllib.pipes.tasks.Task.assert_expected">[docs]</a>    <span class="k">def</span> <span class="nf">assert_expected</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">expected_files</span><span class="p">,</span> <span class="n">silent</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="n">everything_is_fine</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">files</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">expected_file</span> <span class="ow">in</span> <span class="n">expected_files</span><span class="p">:</span>
+            <span class="n">actual_files</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">expected_file</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">expected_file</span><span class="p">[</span><span class="mi">0</span><span class="p">]))))</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">actual_files</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">expected_file</span><span class="p">[</span><span class="mi">2</span><span class="p">]:</span>
+                <span class="n">everything_is_fine</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">silent</span><span class="p">:</span>
+                    <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Signature file expected </span><span class="si">{</span><span class="n">expected_file</span><span class="si">}</span><span class="s2"> not found&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">actual_files</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">actual_files</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+        <span class="k">return</span> <span class="n">everything_is_fine</span><span class="p">,</span> <span class="n">files</span></div>
+
+<div class="viewcode-block" id="Task.get_data_handler"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.tasks.html#ibllib.pipes.tasks.Task.get_data_handler">[docs]</a>    <span class="k">def</span> <span class="nf">get_data_handler</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Gets the relevant data handler based on location argument</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">location</span> <span class="o">=</span> <span class="n">location</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">location</span>
+        <span class="k">if</span> <span class="n">location</span> <span class="o">==</span> <span class="s1">&#39;local&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">data_handlers</span><span class="o">.</span><span class="n">LocalDataHandler</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">one</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span> <span class="ow">or</span> <span class="n">ONE</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">location</span> <span class="o">==</span> <span class="s1">&#39;server&#39;</span><span class="p">:</span>
+            <span class="n">dhandler</span> <span class="o">=</span> <span class="n">data_handlers</span><span class="o">.</span><span class="n">ServerDataHandler</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">location</span> <span class="o">==</span> <span class="s1">&#39;serverglobus&#39;</span><span class="p">:</span>
+            <span class="n">dhandler</span> <span class="o">=</span> <span class="n">data_handlers</span><span class="o">.</span><span class="n">ServerGlobusDataHandler</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">location</span> <span class="o">==</span> <span class="s1">&#39;remote&#39;</span><span class="p">:</span>
+            <span class="n">dhandler</span> <span class="o">=</span> <span class="n">data_handlers</span><span class="o">.</span><span class="n">RemoteHttpDataHandler</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">location</span> <span class="o">==</span> <span class="s1">&#39;AWS&#39;</span><span class="p">:</span>
+            <span class="n">dhandler</span> <span class="o">=</span> <span class="n">data_handlers</span><span class="o">.</span><span class="n">RemoteAwsDataHandler</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">location</span> <span class="o">==</span> <span class="s1">&#39;SDSC&#39;</span><span class="p">:</span>
+            <span class="n">dhandler</span> <span class="o">=</span> <span class="n">data_handlers</span><span class="o">.</span><span class="n">SDSCDataHandler</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">dhandler</span></div>
+
+<div class="viewcode-block" id="Task.make_lock_file"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.tasks.html#ibllib.pipes.tasks.Task.make_lock_file">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">make_lock_file</span><span class="p">(</span><span class="n">taskname</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">time_out_secs</span><span class="o">=</span><span class="mi">7200</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Creates a GPU lock file with a timeout of&quot;&quot;&quot;</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;start&#39;</span><span class="p">:</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">(),</span> <span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="n">taskname</span><span class="p">,</span> <span class="s1">&#39;time_out_secs&#39;</span><span class="p">:</span> <span class="n">time_out_secs</span><span class="p">}</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">Task</span><span class="o">.</span><span class="n">_lock_file_path</span><span class="p">(),</span> <span class="s1">&#39;w+&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fid</span><span class="p">:</span>
+            <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">fid</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">d</span></div>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_lock_file_path</span><span class="p">():</span>
+        <span class="sd">&quot;&quot;&quot;the lock file is in ~/.one/gpu.lock&quot;&quot;&quot;</span>
+        <span class="n">folder</span> <span class="o">=</span> <span class="n">Path</span><span class="o">.</span><span class="n">home</span><span class="p">()</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;.one&#39;</span><span class="p">)</span>
+        <span class="n">folder</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">folder</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;gpu.lock&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_make_lock_file</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;creates a lock file with the current time&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">Task</span><span class="o">.</span><span class="n">make_lock_file</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">time_out_secs</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Task.is_locked"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.tasks.html#ibllib.pipes.tasks.Task.is_locked">[docs]</a>    <span class="k">def</span> <span class="nf">is_locked</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Checks if there is a lock file for this given task&quot;&quot;&quot;</span>
+        <span class="n">lock_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock_file_path</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">lock_file</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">lock_file</span><span class="p">)</span> <span class="k">as</span> <span class="n">fid</span><span class="p">:</span>
+            <span class="n">d</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">fid</span><span class="p">)</span>
+        <span class="n">now</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">now</span> <span class="o">-</span> <span class="n">d</span><span class="p">[</span><span class="s1">&#39;start&#39;</span><span class="p">])</span> <span class="o">&gt;</span> <span class="n">d</span><span class="p">[</span><span class="s1">&#39;time_out_secs&#39;</span><span class="p">]:</span>
+            <span class="n">lock_file</span><span class="o">.</span><span class="n">unlink</span><span class="p">()</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">True</span></div>
+
+    <span class="k">def</span> <span class="nf">_creates_lock</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_locked</span><span class="p">():</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_make_lock_file</span><span class="p">()</span>
+            <span class="k">return</span> <span class="kc">True</span></div>
 
 
 <div class="viewcode-block" id="Pipeline"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.tasks.html#ibllib.pipes.tasks.Pipeline">[docs]</a><span class="k">class</span> <span class="nc">Pipeline</span><span class="p">(</span><span class="n">abc</span><span class="o">.</span><span class="n">ABC</span><span class="p">):</span>
@@ -575,6 +617,7 @@
         <span class="k">try</span><span class="p">:</span>
             <span class="n">registered_dsets</span> <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">register_datasets</span><span class="p">(</span><span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">,</span> <span class="n">max_md5_size</span><span class="o">=</span><span class="n">max_md5_size</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">BaseException</span><span class="p">:</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">())</span>
             <span class="n">patch_data</span><span class="p">[</span><span class="s1">&#39;status&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;Errored&#39;</span>
         <span class="n">patch_data</span><span class="p">[</span><span class="s1">&#39;status&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;Complete&#39;</span>
     <span class="c1"># overwrite status to errored</span>

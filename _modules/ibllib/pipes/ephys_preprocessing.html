@@ -118,7 +118,6 @@
 <span class="kn">from</span> <span class="nn">ibllib.qc.task_metrics</span> <span class="kn">import</span> <span class="n">TaskQC</span>
 <span class="kn">from</span> <span class="nn">ibllib.qc.camera</span> <span class="kn">import</span> <span class="n">run_all_qc</span> <span class="k">as</span> <span class="n">run_camera_qc</span>
 <span class="kn">from</span> <span class="nn">ibllib.dsp</span> <span class="kn">import</span> <span class="n">rms</span>
-<span class="kn">from</span> <span class="nn">ibllib.io.extractors</span> <span class="kn">import</span> <span class="n">signatures</span>
 
 <span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s2">&quot;ibllib&quot;</span><span class="p">)</span>
 
@@ -129,11 +128,50 @@
 <span class="sd">    Extract Pulses from raw electrophysiology data into numpy arrays</span>
 <span class="sd">    Perform the probes synchronisation with nidq (3B) or main probe (3A)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-
     <span class="n">cpu</span> <span class="o">=</span> <span class="mi">2</span>
     <span class="n">io_charge</span> <span class="o">=</span> <span class="mi">30</span>  <span class="c1"># this jobs reads raw ap files</span>
     <span class="n">priority</span> <span class="o">=</span> <span class="mi">90</span>  <span class="c1"># a lot of jobs depend on this one</span>
     <span class="n">level</span> <span class="o">=</span> <span class="mi">0</span>  <span class="c1"># this job doesn&#39;t depend on anything</span>
+    <span class="n">force</span> <span class="o">=</span> <span class="kc">False</span>  <span class="c1"># whether or not to force download of missing data on local server if outputs already exist</span>
+    <span class="n">signature</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;input_files&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;*ap.meta&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data/probe*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                        <span class="p">(</span><span class="s1">&#39;*ap.ch&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data/probe*&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>  <span class="c1"># not necessary when we have .bin file</span>
+                        <span class="p">(</span><span class="s1">&#39;*ap.*bin&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data/probe*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                        <span class="p">(</span><span class="s1">&#39;*nidq.meta&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                        <span class="p">(</span><span class="s1">&#39;*nidq.ch&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>  <span class="c1"># not necessary when we have .bin file</span>
+                        <span class="p">(</span><span class="s1">&#39;*nidq.*bin&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)],</span>
+        <span class="s1">&#39;output_files&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;_spikeglx_sync*.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                         <span class="p">(</span><span class="s1">&#39;_spikeglx_sync.polarities*.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                         <span class="p">(</span><span class="s1">&#39;_spikeglx_sync.times*.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)]</span>
+    <span class="p">}</span>
+
+<div class="viewcode-block" id="EphysPulses.get_signatures"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.ephys_preprocessing.html#ibllib.pipes.ephys_preprocessing.EphysPulses.get_signatures">[docs]</a>    <span class="k">def</span> <span class="nf">get_signatures</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Find the input and output signatures specific for local filesystem</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">neuropixel_version</span> <span class="o">=</span> <span class="n">spikeglx</span><span class="o">.</span><span class="n">get_neuropixel_version_from_folder</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="n">probes</span> <span class="o">=</span> <span class="n">spikeglx</span><span class="o">.</span><span class="n">get_probes_from_folder</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
+
+        <span class="n">full_input_files</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">sig</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="p">[</span><span class="s1">&#39;input_files&#39;</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="s1">&#39;raw_ephys_data/probe*&#39;</span> <span class="ow">in</span> <span class="n">sig</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+                <span class="k">for</span> <span class="n">probe</span> <span class="ow">in</span> <span class="n">probes</span><span class="p">:</span>
+                    <span class="n">full_input_files</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">sig</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="sa">f</span><span class="s1">&#39;raw_ephys_data/</span><span class="si">{</span><span class="n">probe</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">sig</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">neuropixel_version</span> <span class="o">!=</span> <span class="s1">&#39;3A&#39;</span><span class="p">:</span>
+                    <span class="n">full_input_files</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">sig</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">sig</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">sig</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">input_files</span> <span class="o">=</span> <span class="n">full_input_files</span>
+
+        <span class="n">full_output_files</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">sig</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="p">[</span><span class="s1">&#39;output_files&#39;</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="n">neuropixel_version</span> <span class="o">!=</span> <span class="s1">&#39;3A&#39;</span><span class="p">:</span>
+                <span class="n">full_output_files</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">sig</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s1">&#39;raw_ephys_data&#39;</span><span class="p">,</span> <span class="n">sig</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+            <span class="k">for</span> <span class="n">probe</span> <span class="ow">in</span> <span class="n">probes</span><span class="p">:</span>
+                <span class="n">full_output_files</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">sig</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="sa">f</span><span class="s1">&#39;raw_ephys_data/</span><span class="si">{</span><span class="n">probe</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">sig</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">output_files</span> <span class="o">=</span> <span class="n">full_output_files</span></div>
 
     <span class="k">def</span> <span class="nf">_run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
         <span class="c1"># outputs numpy</span>
@@ -149,42 +187,93 @@
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Computes raw electrophysiology QC</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-
     <span class="n">cpu</span> <span class="o">=</span> <span class="mi">2</span>
     <span class="n">io_charge</span> <span class="o">=</span> <span class="mi">30</span>  <span class="c1"># this jobs reads raw ap files</span>
     <span class="n">priority</span> <span class="o">=</span> <span class="mi">10</span>  <span class="c1"># a lot of jobs depend on this one</span>
     <span class="n">level</span> <span class="o">=</span> <span class="mi">0</span>  <span class="c1"># this job doesn&#39;t depend on anything</span>
-    <span class="n">signature</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;input_files&#39;</span><span class="p">:</span> <span class="n">signatures</span><span class="o">.</span><span class="n">RAWEPHYSQC</span><span class="p">,</span> <span class="s1">&#39;output_files&#39;</span><span class="p">:</span> <span class="p">()}</span>
+    <span class="n">force</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">signature</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;input_files&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;*ap.meta&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data/probe*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                        <span class="p">(</span><span class="s1">&#39;*lf.meta&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data/probe*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>  <span class="c1"># not necessary to run task as optional computation</span>
+                        <span class="p">(</span><span class="s1">&#39;*lf.ch&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data/probe*&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>  <span class="c1"># not required it .bin file</span>
+                        <span class="p">(</span><span class="s1">&#39;*lf.*bin&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data/probe*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)],</span>  <span class="c1"># not necessary to run task as optional computation</span>
+        <span class="s1">&#39;output_files&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;_iblqc_ephysChannels.apRMS.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data/probe*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                         <span class="p">(</span><span class="s1">&#39;_iblqc_ephysChannels.rawSpikeRates.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data/probe*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                         <span class="p">(</span><span class="s1">&#39;_iblqc_ephysSpectralDensityLF.freqs.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data/probe*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                         <span class="p">(</span><span class="s1">&#39;_iblqc_ephysSpectralDensityLF.power.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data/probe*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                         <span class="p">(</span><span class="s1">&#39;_iblqc_ephysTimeRmsLF.rms.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data/probe*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                         <span class="p">(</span><span class="s1">&#39;_iblqc_ephysTimeRmsLF.timestamps.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data/probe*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)]</span>
+    <span class="p">}</span>
 
     <span class="k">def</span> <span class="nf">_run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
         <span class="n">eid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">path2eid</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
-        <span class="n">pids</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;insertions&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span> <span class="n">session</span><span class="o">=</span><span class="n">eid</span><span class="p">)]</span>
+        <span class="n">probes</span> <span class="o">=</span> <span class="p">[(</span><span class="n">x</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">],</span> <span class="n">x</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">])</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;insertions&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span> <span class="n">session</span><span class="o">=</span><span class="n">eid</span><span class="p">)]</span>
         <span class="c1"># Usually there should be two probes, if there are less, check if all probes are registered</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">pids</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
-            <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">pids</span><span class="p">)</span><span class="si">}</span><span class="s2"> probes registered for session </span><span class="si">{</span><span class="n">eid</span><span class="si">}</span><span class="s2">, trying to register from local data&quot;</span><span class="p">)</span>
-            <span class="n">pids</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">create_alyx_probe_insertions</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">)]</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">probes</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">probes</span><span class="p">)</span><span class="si">}</span><span class="s2"> probes registered for session </span><span class="si">{</span><span class="n">eid</span><span class="si">}</span><span class="s2">, trying to register from local data&quot;</span><span class="p">)</span>
+            <span class="n">probes</span> <span class="o">=</span> <span class="p">[(</span><span class="n">p</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">],</span> <span class="n">p</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">])</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">create_alyx_probe_insertions</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">)]</span>
         <span class="n">qc_files</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">pid</span> <span class="ow">in</span> <span class="n">pids</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">pid</span><span class="p">,</span> <span class="n">pname</span> <span class="ow">in</span> <span class="n">probes</span><span class="p">:</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Running QC for probe insertion </span><span class="si">{</span><span class="n">pname</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
             <span class="k">try</span><span class="p">:</span>
                 <span class="n">eqc</span> <span class="o">=</span> <span class="n">ephysqc</span><span class="o">.</span><span class="n">EphysQC</span><span class="p">(</span><span class="n">pid</span><span class="p">,</span> <span class="n">session_path</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">)</span>
                 <span class="n">qc_files</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">eqc</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">update</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="n">overwrite</span><span class="p">))</span>
             <span class="k">except</span> <span class="ne">AssertionError</span><span class="p">:</span>
+                <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">())</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
                 <span class="k">continue</span>
-        <span class="k">return</span> <span class="n">qc_files</span></div>
+        <span class="k">return</span> <span class="n">qc_files</span>
+
+<div class="viewcode-block" id="RawEphysQC.get_signatures"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.ephys_preprocessing.html#ibllib.pipes.ephys_preprocessing.RawEphysQC.get_signatures">[docs]</a>    <span class="k">def</span> <span class="nf">get_signatures</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">probes</span> <span class="o">=</span> <span class="n">spikeglx</span><span class="o">.</span><span class="n">get_probes_from_folder</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
+
+        <span class="n">full_output_files</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">sig</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="p">[</span><span class="s1">&#39;output_files&#39;</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="s1">&#39;raw_ephys_data/probe*&#39;</span> <span class="ow">in</span> <span class="n">sig</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+                <span class="k">for</span> <span class="n">probe</span> <span class="ow">in</span> <span class="n">probes</span><span class="p">:</span>
+                    <span class="n">full_output_files</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">sig</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="sa">f</span><span class="s1">&#39;raw_ephys_data/</span><span class="si">{</span><span class="n">probe</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">sig</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">output_files</span> <span class="o">=</span> <span class="n">full_output_files</span>
+
+        <span class="c1"># input lf signature required or not required status is going to depend on the output we have, need to be agile here to</span>
+        <span class="c1"># avoid unnecessary downloading of lf.cbin files</span>
+        <span class="n">expected_count</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">count</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="c1"># check to see if we have lfp qc datasets</span>
+        <span class="k">for</span> <span class="n">expected_file</span> <span class="ow">in</span> <span class="n">full_output_files</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s1">&#39;LF&#39;</span> <span class="ow">in</span> <span class="n">expected_file</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="n">expected_count</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="n">actual_files</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">expected_file</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">expected_file</span><span class="p">[</span><span class="mi">0</span><span class="p">]))))</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">actual_files</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="n">count</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="n">lf_required</span> <span class="o">=</span> <span class="kc">False</span> <span class="k">if</span> <span class="n">count</span> <span class="o">==</span> <span class="n">expected_count</span> <span class="k">else</span> <span class="kc">True</span>
+
+        <span class="n">full_input_files</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">sig</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="p">[</span><span class="s1">&#39;input_files&#39;</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="s1">&#39;raw_ephys_data/probe*&#39;</span> <span class="ow">in</span> <span class="n">sig</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+                <span class="k">for</span> <span class="n">probe</span> <span class="ow">in</span> <span class="n">probes</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="s1">&#39;lf&#39;</span> <span class="ow">in</span> <span class="n">sig</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                        <span class="n">full_input_files</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">sig</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="sa">f</span><span class="s1">&#39;raw_ephys_data/</span><span class="si">{</span><span class="n">probe</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">lf_required</span> <span class="k">if</span> <span class="n">sig</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="k">else</span> <span class="n">sig</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">full_input_files</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">sig</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="sa">f</span><span class="s1">&#39;raw_ephys_data/</span><span class="si">{</span><span class="n">probe</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">sig</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">input_files</span> <span class="o">=</span> <span class="n">full_input_files</span></div></div>
 
 
 <div class="viewcode-block" id="EphysAudio"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.ephys_preprocessing.html#ibllib.pipes.ephys_preprocessing.EphysAudio">[docs]</a><span class="k">class</span> <span class="nc">EphysAudio</span><span class="p">(</span><span class="n">tasks</span><span class="o">.</span><span class="n">Task</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Compresses the microphone wav file in a lossless flac file</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-
+    <span class="c1"># TESTS DONE</span>
     <span class="n">cpu</span> <span class="o">=</span> <span class="mi">2</span>
     <span class="n">priority</span> <span class="o">=</span> <span class="mi">10</span>  <span class="c1"># a lot of jobs depend on this one</span>
     <span class="n">level</span> <span class="o">=</span> <span class="mi">0</span>  <span class="c1"># this job doesn&#39;t depend on anything</span>
-    <span class="n">signature</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;input_files&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;_iblrig_micData.raw.wav&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
-                 <span class="s1">&#39;output_files&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;_iblrig_micData.raw.flac&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
-                 <span class="p">}</span>
+    <span class="n">force</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">signature</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;input_files&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;_iblrig_micData.raw.wav&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)],</span>
+        <span class="s1">&#39;output_files&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;_iblrig_micData.raw.flac&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)],</span>
+    <span class="p">}</span>
 
     <span class="k">def</span> <span class="nf">_run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
         <span class="n">command</span> <span class="o">=</span> <span class="s2">&quot;ffmpeg -i </span><span class="si">{file_in}</span><span class="s2"> -y -nostdin -c:a flac -nostats </span><span class="si">{file_out}</span><span class="s2">&quot;</span>
@@ -204,12 +293,31 @@
     <span class="n">io_charge</span> <span class="o">=</span> <span class="mi">70</span>  <span class="c1"># this jobs reads raw ap files</span>
     <span class="n">priority</span> <span class="o">=</span> <span class="mi">60</span>
     <span class="n">level</span> <span class="o">=</span> <span class="mi">1</span>  <span class="c1"># this job doesn&#39;t depend on anything</span>
+    <span class="n">force</span> <span class="o">=</span> <span class="kc">True</span>
     <span class="n">SHELL_SCRIPT</span> <span class="o">=</span> <span class="n">Path</span><span class="o">.</span><span class="n">home</span><span class="p">()</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span>
         <span class="s2">&quot;Documents/PYTHON/iblscripts/deploy/serverpc/kilosort2/run_pykilosort.sh&quot;</span>
     <span class="p">)</span>
     <span class="n">SPIKE_SORTER_NAME</span> <span class="o">=</span> <span class="s1">&#39;pykilosort&#39;</span>
     <span class="n">PYKILOSORT_REPO</span> <span class="o">=</span> <span class="n">Path</span><span class="o">.</span><span class="n">home</span><span class="p">()</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;Documents/PYTHON/SPIKE_SORTING/pykilosort&#39;</span><span class="p">)</span>
-    <span class="n">signature</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;input_files&#39;</span><span class="p">:</span> <span class="n">signatures</span><span class="o">.</span><span class="n">SPIKESORTING</span><span class="p">,</span> <span class="s1">&#39;output_files&#39;</span><span class="p">:</span> <span class="p">()}</span>
+    <span class="n">signature</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;input_files&#39;</span><span class="p">:</span> <span class="p">[],</span>  <span class="c1"># see setUp method for declaration of inputs</span>
+        <span class="s1">&#39;output_files&#39;</span><span class="p">:</span> <span class="p">[]</span>  <span class="c1"># see setUp method for declaration of inputs</span>
+    <span class="p">}</span>
+
+<div class="viewcode-block" id="SpikeSorting.spike_sorting_signature"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.ephys_preprocessing.html#ibllib.pipes.ephys_preprocessing.SpikeSorting.spike_sorting_signature">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">spike_sorting_signature</span><span class="p">(</span><span class="n">pname</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">pname</span> <span class="o">=</span> <span class="n">pname</span> <span class="k">if</span> <span class="n">pname</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="s2">&quot;probe*&quot;</span>
+        <span class="n">input_signature</span> <span class="o">=</span> <span class="p">[(</span><span class="s1">&#39;*ap.meta&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;raw_ephys_data/</span><span class="si">{</span><span class="n">pname</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                           <span class="p">(</span><span class="s1">&#39;*ap.ch&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;raw_ephys_data/</span><span class="si">{</span><span class="n">pname</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                           <span class="p">(</span><span class="s1">&#39;*ap.cbin&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;raw_ephys_data/</span><span class="si">{</span><span class="n">pname</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                           <span class="p">(</span><span class="s1">&#39;_spikeglx_sync.channels.*&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                           <span class="p">(</span><span class="s1">&#39;_spikeglx_sync.polarities.*&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                           <span class="p">(</span><span class="s1">&#39;_spikeglx_sync.times.*&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                           <span class="p">(</span><span class="s1">&#39;_iblrig_taskData.raw.*&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                           <span class="p">(</span><span class="s1">&#39;_iblrig_taskSettings.raw.*&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)]</span>
+        <span class="n">output_signature</span> <span class="o">=</span> <span class="p">[(</span><span class="s1">&#39;spike_sorting_pykilosort.log&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;spike_sorters/pykilosort/</span><span class="si">{</span><span class="n">pname</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)]</span>
+
+        <span class="k">return</span> <span class="n">input_signature</span><span class="p">,</span> <span class="n">output_signature</span></div>
 
     <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">_sample2v</span><span class="p">(</span><span class="n">ap_file</span><span class="p">):</span>
@@ -245,6 +353,19 @@
             <span class="p">)</span>
             <span class="k">return</span> <span class="s2">&quot;&quot;</span>
         <span class="k">return</span> <span class="n">info</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+
+<div class="viewcode-block" id="SpikeSorting.setUp"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.ephys_preprocessing.html#ibllib.pipes.ephys_preprocessing.SpikeSorting.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">probes</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Overwrite setup method to allow inputs and outputs to be only one probe</span>
+<span class="sd">        :param probes: list of probes e.g [&#39;probe00&#39;]</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">probes</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">probes</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="p">[</span><span class="s1">&#39;input_files&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="p">[</span><span class="s1">&#39;output_files&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">spike_sorting_signature</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="p">[</span><span class="s1">&#39;input_files&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="p">[</span><span class="s1">&#39;output_files&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">spike_sorting_signature</span><span class="p">(</span><span class="n">probes</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+        <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">setUp</span><span class="p">(</span><span class="n">probes</span><span class="o">=</span><span class="n">probes</span><span class="p">)</span></div>
 
     <span class="k">def</span> <span class="nf">_run_pykilosort</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ap_file</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -326,6 +447,11 @@
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">probes</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">and</span> <span class="n">label</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">probes</span><span class="p">:</span>
                 <span class="k">continue</span>
             <span class="k">try</span><span class="p">:</span>
+                <span class="c1"># if the file is part of  a sequence, handles the run accordingly</span>
+                <span class="n">sequence_file</span> <span class="o">=</span> <span class="n">ap_file</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">ap_file</span><span class="o">.</span><span class="n">stem</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;ap&#39;</span><span class="p">,</span> <span class="s1">&#39;sequence.json&#39;</span><span class="p">))</span>
+                <span class="c1"># temporary just skips for now</span>
+                <span class="k">if</span> <span class="n">sequence_file</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+                    <span class="k">continue</span>
                 <span class="n">ks2_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_pykilosort</span><span class="p">(</span><span class="n">ap_file</span><span class="p">)</span>  <span class="c1"># runs ks2, skips if it already ran</span>
                 <span class="n">probe_out_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s2">&quot;alf&quot;</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">SPIKE_SORTER_NAME</span><span class="p">)</span>
                 <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">probe_out_path</span><span class="p">,</span> <span class="n">ignore_errors</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
@@ -356,12 +482,54 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
                 <span class="k">continue</span>
         <span class="n">probe_files</span> <span class="o">=</span> <span class="n">spikes</span><span class="o">.</span><span class="n">probes_description</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">out_files</span> <span class="o">+</span> <span class="n">probe_files</span></div>
+        <span class="k">return</span> <span class="n">out_files</span> <span class="o">+</span> <span class="n">probe_files</span>
+
+<div class="viewcode-block" id="SpikeSorting.get_signatures"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.ephys_preprocessing.html#ibllib.pipes.ephys_preprocessing.SpikeSorting.get_signatures">[docs]</a>    <span class="k">def</span> <span class="nf">get_signatures</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">probes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This transforms all wildcards in collection to exact match</span>
+<span class="sd">        :param probes:</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">neuropixel_version</span> <span class="o">=</span> <span class="n">spikeglx</span><span class="o">.</span><span class="n">get_neuropixel_version_from_folder</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="n">probes</span> <span class="o">=</span> <span class="n">probes</span> <span class="ow">or</span> <span class="n">spikeglx</span><span class="o">.</span><span class="n">get_probes_from_folder</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
+
+        <span class="n">full_input_files</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">sig</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="p">[</span><span class="s1">&#39;input_files&#39;</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="s1">&#39;raw_ephys_data*&#39;</span> <span class="ow">in</span> <span class="n">sig</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="n">neuropixel_version</span> <span class="o">!=</span> <span class="s1">&#39;3A&#39;</span><span class="p">:</span>
+                    <span class="n">full_input_files</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">sig</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s1">&#39;raw_ephys_data&#39;</span><span class="p">,</span> <span class="n">sig</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+                <span class="k">for</span> <span class="n">probe</span> <span class="ow">in</span> <span class="n">probes</span><span class="p">:</span>
+                    <span class="n">full_input_files</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">sig</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="sa">f</span><span class="s1">&#39;raw_ephys_data/</span><span class="si">{</span><span class="n">probe</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">sig</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+
+            <span class="k">elif</span> <span class="s1">&#39;raw_ephys_data/probe*&#39;</span> <span class="ow">in</span> <span class="n">sig</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+                <span class="k">for</span> <span class="n">probe</span> <span class="ow">in</span> <span class="n">probes</span><span class="p">:</span>
+                    <span class="n">full_input_files</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">sig</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="sa">f</span><span class="s1">&#39;raw_ephys_data/</span><span class="si">{</span><span class="n">probe</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">sig</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">full_input_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">sig</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">input_files</span> <span class="o">=</span> <span class="n">full_input_files</span>
+
+        <span class="n">full_output_files</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">sig</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="p">[</span><span class="s1">&#39;output_files&#39;</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="s1">&#39;probe*&#39;</span> <span class="ow">in</span> <span class="n">sig</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+                <span class="k">for</span> <span class="n">probe</span> <span class="ow">in</span> <span class="n">probes</span><span class="p">:</span>
+                    <span class="n">full_output_files</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">sig</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="sa">f</span><span class="s1">&#39;spike_sorters/pykilosort/</span><span class="si">{</span><span class="n">probe</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">sig</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">full_input_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">sig</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">output_files</span> <span class="o">=</span> <span class="n">full_output_files</span></div></div>
 
 
 <div class="viewcode-block" id="EphysVideoCompress"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.ephys_preprocessing.html#ibllib.pipes.ephys_preprocessing.EphysVideoCompress">[docs]</a><span class="k">class</span> <span class="nc">EphysVideoCompress</span><span class="p">(</span><span class="n">tasks</span><span class="o">.</span><span class="n">Task</span><span class="p">):</span>
     <span class="n">priority</span> <span class="o">=</span> <span class="mi">40</span>
-    <span class="n">level</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">level</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">force</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">signature</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;input_files&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;_iblrig_*Camera.raw.*&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_video_data&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)],</span>
+        <span class="s1">&#39;output_files&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;_iblrig_*Camera.raw.mp4&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_video_data&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)]</span>
+    <span class="p">}</span>
 
     <span class="k">def</span> <span class="nf">_run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="c1"># avi to mp4 compression</span>
@@ -370,25 +538,142 @@
         <span class="n">output_files</span> <span class="o">=</span> <span class="n">ffmpeg</span><span class="o">.</span><span class="n">iblrig_video_compression</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">command</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">output_files</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;No compressed videos found; skipping timestamp extraction&#39;</span><span class="p">)</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;No compressed videos found&#39;</span><span class="p">)</span>
             <span class="k">return</span>
 
-        <span class="n">labels</span> <span class="o">=</span> <span class="p">[</span><span class="n">label_from_path</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">output_files</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">output_files</span>
+
+<div class="viewcode-block" id="EphysVideoCompress.get_signatures"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.ephys_preprocessing.html#ibllib.pipes.ephys_preprocessing.EphysVideoCompress.get_signatures">[docs]</a>    <span class="k">def</span> <span class="nf">get_signatures</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="c1"># need to detect the number of cameras</span>
+        <span class="n">output_files</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;raw_video_data&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s1">&#39;*&#39;</span><span class="p">)</span>
+        <span class="n">labels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">([</span><span class="n">label_from_path</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">output_files</span><span class="p">])</span>
+
+        <span class="n">full_input_files</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">sig</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="p">[</span><span class="s1">&#39;input_files&#39;</span><span class="p">]:</span>
+            <span class="k">for</span> <span class="n">label</span> <span class="ow">in</span> <span class="n">labels</span><span class="p">:</span>
+                <span class="n">full_input_files</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">sig</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;*Camera&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">Camera&#39;</span><span class="p">),</span> <span class="n">sig</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">sig</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">input_files</span> <span class="o">=</span> <span class="n">full_input_files</span>
+
+        <span class="n">full_output_files</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">sig</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="p">[</span><span class="s1">&#39;output_files&#39;</span><span class="p">]:</span>
+            <span class="k">for</span> <span class="n">label</span> <span class="ow">in</span> <span class="n">labels</span><span class="p">:</span>
+                <span class="n">full_output_files</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">sig</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;*Camera&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">Camera&#39;</span><span class="p">),</span> <span class="n">sig</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">sig</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">output_files</span> <span class="o">=</span> <span class="n">full_output_files</span></div></div>
+
+
+<div class="viewcode-block" id="EphysVideoSyncQc"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.ephys_preprocessing.html#ibllib.pipes.ephys_preprocessing.EphysVideoSyncQc">[docs]</a><span class="k">class</span> <span class="nc">EphysVideoSyncQc</span><span class="p">(</span><span class="n">tasks</span><span class="o">.</span><span class="n">Task</span><span class="p">):</span>
+    <span class="n">priority</span> <span class="o">=</span> <span class="mi">40</span>
+    <span class="n">level</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="n">force</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">signature</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;input_files&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;_iblrig_*Camera.raw.mp4&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_video_data&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                        <span class="p">(</span><span class="s1">&#39;_iblrig_*Camera.timestamps.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_video_data&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
+                        <span class="p">(</span><span class="s1">&#39;_iblrig_*Camera.frameData.bin&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_video_data&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
+                        <span class="p">(</span><span class="s1">&#39;_iblrig_*Camera.GPIO.bin&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_video_data&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
+                        <span class="p">(</span><span class="s1">&#39;_iblrig_*Camera.frame_counter.bin&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_video_data&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
+                        <span class="p">(</span><span class="s1">&#39;_iblrig_taskData.raw.*&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                        <span class="p">(</span><span class="s1">&#39;_iblrig_taskSettings.raw.*&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                        <span class="p">(</span><span class="s1">&#39;_spikeglx_sync.channels.*&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                        <span class="p">(</span><span class="s1">&#39;_spikeglx_sync.polarities.*&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                        <span class="p">(</span><span class="s1">&#39;_spikeglx_sync.times.*&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                        <span class="p">(</span><span class="s1">&#39;*wheel.position.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
+                        <span class="p">(</span><span class="s1">&#39;*wheel.timestamps.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
+                        <span class="p">(</span><span class="s1">&#39;*wiring.json&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data*&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
+                        <span class="p">(</span><span class="s1">&#39;*.meta&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)],</span>
+
+        <span class="s1">&#39;output_files&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;_ibl_*Camera.times.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)]</span>
+    <span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">_run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+
+        <span class="n">mp4_files</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;raw_video_data&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="s1">&#39;*.mp4&#39;</span><span class="p">)</span>
+        <span class="n">labels</span> <span class="o">=</span> <span class="p">[</span><span class="n">label_from_path</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">mp4_files</span><span class="p">]</span>
         <span class="c1"># Video timestamps extraction</span>
+        <span class="n">output_files</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">data</span><span class="p">,</span> <span class="n">files</span> <span class="o">=</span> <span class="n">camera</span><span class="o">.</span><span class="n">extract_all</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="n">labels</span><span class="p">)</span>
         <span class="n">output_files</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">files</span><span class="p">)</span>
 
         <span class="c1"># Video QC</span>
         <span class="n">run_camera_qc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">update</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">,</span> <span class="n">cameras</span><span class="o">=</span><span class="n">labels</span><span class="p">)</span>
 
-        <span class="k">return</span> <span class="n">output_files</span></div>
+        <span class="k">return</span> <span class="n">output_files</span>
+
+<div class="viewcode-block" id="EphysVideoSyncQc.get_signatures"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.ephys_preprocessing.html#ibllib.pipes.ephys_preprocessing.EphysVideoSyncQc.get_signatures">[docs]</a>    <span class="k">def</span> <span class="nf">get_signatures</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">neuropixel_version</span> <span class="o">=</span> <span class="n">spikeglx</span><span class="o">.</span><span class="n">get_neuropixel_version_from_folder</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="n">probes</span> <span class="o">=</span> <span class="n">spikeglx</span><span class="o">.</span><span class="n">get_probes_from_folder</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="c1"># need to detect the number of cameras</span>
+        <span class="n">output_files</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;raw_video_data&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="s1">&#39;*&#39;</span><span class="p">)</span>
+        <span class="n">labels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">([</span><span class="n">label_from_path</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">output_files</span><span class="p">])</span>
+
+        <span class="n">full_input_files</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">sig</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="p">[</span><span class="s1">&#39;input_files&#39;</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="s1">&#39;raw_ephys_data*&#39;</span> <span class="ow">in</span> <span class="n">sig</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="n">neuropixel_version</span> <span class="o">!=</span> <span class="s1">&#39;3A&#39;</span><span class="p">:</span>
+                    <span class="n">full_input_files</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">sig</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s1">&#39;raw_ephys_data&#39;</span><span class="p">,</span> <span class="n">sig</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+                <span class="k">for</span> <span class="n">probe</span> <span class="ow">in</span> <span class="n">probes</span><span class="p">:</span>
+                    <span class="n">full_input_files</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">sig</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="sa">f</span><span class="s1">&#39;raw_ephys_data/</span><span class="si">{</span><span class="n">probe</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">sig</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+            <span class="k">elif</span> <span class="s1">&#39;Camera&#39;</span> <span class="ow">in</span> <span class="n">sig</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="k">for</span> <span class="n">lab</span> <span class="ow">in</span> <span class="n">labels</span><span class="p">:</span>
+                    <span class="n">full_input_files</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">sig</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;*Camera&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">lab</span><span class="si">}</span><span class="s1">Camera&#39;</span><span class="p">),</span> <span class="n">sig</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">sig</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">full_input_files</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">sig</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">sig</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">sig</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">input_files</span> <span class="o">=</span> <span class="n">full_input_files</span>
+
+        <span class="n">full_output_files</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">sig</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="p">[</span><span class="s1">&#39;output_files&#39;</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="s1">&#39;raw_ephys_data*&#39;</span> <span class="ow">in</span> <span class="n">sig</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="n">neuropixel_version</span> <span class="o">!=</span> <span class="s1">&#39;3A&#39;</span><span class="p">:</span>
+                    <span class="n">full_output_files</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">sig</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s1">&#39;raw_ephys_data&#39;</span><span class="p">,</span> <span class="n">sig</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+                <span class="k">for</span> <span class="n">probe</span> <span class="ow">in</span> <span class="n">probes</span><span class="p">:</span>
+                    <span class="n">full_output_files</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">sig</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="sa">f</span><span class="s1">&#39;raw_ephys_data/</span><span class="si">{</span><span class="n">probe</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">sig</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+            <span class="k">elif</span> <span class="s1">&#39;Camera&#39;</span> <span class="ow">in</span> <span class="n">sig</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="k">for</span> <span class="n">lab</span> <span class="ow">in</span> <span class="n">labels</span><span class="p">:</span>
+                    <span class="n">full_output_files</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">sig</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;*Camera&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">lab</span><span class="si">}</span><span class="s1">Camera&#39;</span><span class="p">),</span> <span class="n">sig</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">sig</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">full_output_files</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">sig</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">sig</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">sig</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">output_files</span> <span class="o">=</span> <span class="n">full_output_files</span></div></div>
 
 
 <span class="c1">#  level 1</span>
 <div class="viewcode-block" id="EphysTrials"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.ephys_preprocessing.html#ibllib.pipes.ephys_preprocessing.EphysTrials">[docs]</a><span class="k">class</span> <span class="nc">EphysTrials</span><span class="p">(</span><span class="n">tasks</span><span class="o">.</span><span class="n">Task</span><span class="p">):</span>
     <span class="n">priority</span> <span class="o">=</span> <span class="mi">90</span>
     <span class="n">level</span> <span class="o">=</span> <span class="mi">1</span>
-    <span class="n">signature</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;input_files&#39;</span><span class="p">:</span> <span class="n">signatures</span><span class="o">.</span><span class="n">EPHYSTRIALS</span><span class="p">,</span> <span class="s1">&#39;output_files&#39;</span><span class="p">:</span> <span class="p">()}</span>
+    <span class="n">force</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">signature</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;input_files&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;_iblrig_taskData.raw.*&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                        <span class="p">(</span><span class="s1">&#39;_iblrig_taskSettings.raw.*&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                        <span class="p">(</span><span class="s1">&#39;_spikeglx_sync.channels.*&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                        <span class="p">(</span><span class="s1">&#39;_spikeglx_sync.polarities.*&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                        <span class="p">(</span><span class="s1">&#39;_spikeglx_sync.times.*&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                        <span class="p">(</span><span class="s1">&#39;_iblrig_encoderEvents.raw*&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                        <span class="p">(</span><span class="s1">&#39;_iblrig_encoderPositions.raw*&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                        <span class="p">(</span><span class="s1">&#39;*wiring.json&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data*&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
+                        <span class="p">(</span><span class="s1">&#39;*.meta&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)],</span>
+        <span class="s1">&#39;output_files&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;*trials.choice.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                         <span class="p">(</span><span class="s1">&#39;*trials.contrastLeft.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                         <span class="p">(</span><span class="s1">&#39;*trials.contrastRight.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                         <span class="p">(</span><span class="s1">&#39;*trials.feedbackType.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                         <span class="p">(</span><span class="s1">&#39;*trials.feedback_times.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                         <span class="p">(</span><span class="s1">&#39;*trials.firstMovement_times.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                         <span class="p">(</span><span class="s1">&#39;*trials.goCueTrigger_times.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                         <span class="p">(</span><span class="s1">&#39;*trials.goCue_times.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                         <span class="p">(</span><span class="s1">&#39;*trials.intervals.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                         <span class="p">(</span><span class="s1">&#39;*trials.intervals_bpod.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                         <span class="p">(</span><span class="s1">&#39;*trials.itiDuration.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
+                         <span class="p">(</span><span class="s1">&#39;*trials.probabilityLeft.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                         <span class="p">(</span><span class="s1">&#39;*trials.response_times.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                         <span class="p">(</span><span class="s1">&#39;*trials.rewardVolume.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                         <span class="p">(</span><span class="s1">&#39;*trials.stimOff_times.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                         <span class="p">(</span><span class="s1">&#39;*trials.stimOn_times.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                         <span class="p">(</span><span class="s1">&#39;*wheel.position.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                         <span class="p">(</span><span class="s1">&#39;*wheel.timestamps.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                         <span class="p">(</span><span class="s1">&#39;*wheelMoves.intervals.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                         <span class="p">(</span><span class="s1">&#39;*wheelMoves.peakAmplitude.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)]</span>
+    <span class="p">}</span>
 
     <span class="k">def</span> <span class="nf">_behaviour_criterion</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -421,12 +706,40 @@
         <span class="n">qc</span><span class="o">.</span><span class="n">extractor</span><span class="o">.</span><span class="n">extract_data</span><span class="p">()</span>
         <span class="c1"># Aggregate and update Alyx QC fields</span>
         <span class="n">qc</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">update</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">out_files</span></div>
+        <span class="k">return</span> <span class="n">out_files</span>
+
+<div class="viewcode-block" id="EphysTrials.get_signatures"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.ephys_preprocessing.html#ibllib.pipes.ephys_preprocessing.EphysTrials.get_signatures">[docs]</a>    <span class="k">def</span> <span class="nf">get_signatures</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">neuropixel_version</span> <span class="o">=</span> <span class="n">spikeglx</span><span class="o">.</span><span class="n">get_neuropixel_version_from_folder</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="n">probes</span> <span class="o">=</span> <span class="n">spikeglx</span><span class="o">.</span><span class="n">get_probes_from_folder</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
+
+        <span class="n">full_input_files</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">sig</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="p">[</span><span class="s1">&#39;input_files&#39;</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="s1">&#39;raw_ephys_data*&#39;</span> <span class="ow">in</span> <span class="n">sig</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="n">neuropixel_version</span> <span class="o">!=</span> <span class="s1">&#39;3A&#39;</span><span class="p">:</span>
+                    <span class="n">full_input_files</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">sig</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s1">&#39;raw_ephys_data&#39;</span><span class="p">,</span> <span class="n">sig</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+                <span class="k">for</span> <span class="n">probe</span> <span class="ow">in</span> <span class="n">probes</span><span class="p">:</span>
+                    <span class="n">full_input_files</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">sig</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="sa">f</span><span class="s1">&#39;raw_ephys_data/</span><span class="si">{</span><span class="n">probe</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">sig</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">full_input_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">sig</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">input_files</span> <span class="o">=</span> <span class="n">full_input_files</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">output_files</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="p">[</span><span class="s1">&#39;output_files&#39;</span><span class="p">]</span></div></div>
 
 
 <div class="viewcode-block" id="EphysCellsQc"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.ephys_preprocessing.html#ibllib.pipes.ephys_preprocessing.EphysCellsQc">[docs]</a><span class="k">class</span> <span class="nc">EphysCellsQc</span><span class="p">(</span><span class="n">tasks</span><span class="o">.</span><span class="n">Task</span><span class="p">):</span>
     <span class="n">priority</span> <span class="o">=</span> <span class="mi">90</span>
     <span class="n">level</span> <span class="o">=</span> <span class="mi">3</span>
+    <span class="n">force</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="n">signature</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;input_files&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;spikes.times.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf/probe*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                        <span class="p">(</span><span class="s1">&#39;spikes.clusters.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf/probe*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                        <span class="p">(</span><span class="s1">&#39;spikes.amps.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf/probe*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                        <span class="p">(</span><span class="s1">&#39;spikes.depths.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf/probe*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                        <span class="p">(</span><span class="s1">&#39;clusters.channels.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf/probe*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)],</span>
+        <span class="s1">&#39;output_files&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;clusters.metrics.pqt&#39;</span><span class="p">,</span> <span class="s1">&#39;alf/probe*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)]</span>
+    <span class="p">}</span>
 
     <span class="k">def</span> <span class="nf">_compute_cell_qc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">folder_probe</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -505,12 +818,48 @@
                 <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">())</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
                 <span class="k">continue</span>
-        <span class="k">return</span> <span class="n">out_files</span></div>
+        <span class="k">return</span> <span class="n">out_files</span>
+
+<div class="viewcode-block" id="EphysCellsQc.get_signatures"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.ephys_preprocessing.html#ibllib.pipes.ephys_preprocessing.EphysCellsQc.get_signatures">[docs]</a>    <span class="k">def</span> <span class="nf">get_signatures</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">files_spikes</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;alf&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="s1">&#39;spikes.times.npy&#39;</span><span class="p">)</span>
+        <span class="n">folder_probes</span> <span class="o">=</span> <span class="p">[</span><span class="n">f</span><span class="o">.</span><span class="n">parent</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">files_spikes</span><span class="p">]</span>
+
+        <span class="n">full_input_files</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">sig</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="p">[</span><span class="s1">&#39;input_files&#39;</span><span class="p">]:</span>
+            <span class="k">for</span> <span class="n">folder</span> <span class="ow">in</span> <span class="n">folder_probes</span><span class="p">:</span>
+                <span class="n">full_input_files</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">sig</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">folder</span><span class="o">.</span><span class="n">relative_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)),</span> <span class="n">sig</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">input_files</span> <span class="o">=</span> <span class="n">full_input_files</span>
+
+        <span class="n">full_output_files</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">sig</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="p">[</span><span class="s1">&#39;output_files&#39;</span><span class="p">]:</span>
+            <span class="k">for</span> <span class="n">folder</span> <span class="ow">in</span> <span class="n">folder_probes</span><span class="p">:</span>
+                <span class="n">full_output_files</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">sig</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">folder</span><span class="o">.</span><span class="n">relative_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)),</span> <span class="n">sig</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">output_files</span> <span class="o">=</span> <span class="n">full_output_files</span></div></div>
 
 
 <div class="viewcode-block" id="EphysMtscomp"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.ephys_preprocessing.html#ibllib.pipes.ephys_preprocessing.EphysMtscomp">[docs]</a><span class="k">class</span> <span class="nc">EphysMtscomp</span><span class="p">(</span><span class="n">tasks</span><span class="o">.</span><span class="n">Task</span><span class="p">):</span>
     <span class="n">priority</span> <span class="o">=</span> <span class="mi">50</span>  <span class="c1"># ideally after spike sorting</span>
     <span class="n">level</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">force</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">signature</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;input_files&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;*ap.meta&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data/probe*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                        <span class="p">(</span><span class="s1">&#39;*ap.*bin&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data/probe*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                        <span class="p">(</span><span class="s1">&#39;*lf.meta&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data/probe*&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>  <span class="c1"># NP2 doesn&#39;t have lf files</span>
+                        <span class="p">(</span><span class="s1">&#39;*lf.*bin&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data/probe*&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>  <span class="c1"># NP2 doesn&#39;t have lf files</span>
+                        <span class="p">(</span><span class="s1">&#39;*nidq.meta&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                        <span class="p">(</span><span class="s1">&#39;*nidq.*bin&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)],</span>
+        <span class="s1">&#39;output_files&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;*ap.meta&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data/probe*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                         <span class="p">(</span><span class="s1">&#39;*ap.cbin&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data/probe*&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>  <span class="c1"># may not be present on local server anymore</span>
+                         <span class="p">(</span><span class="s1">&#39;*ap.ch&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data/probe*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                         <span class="p">(</span><span class="s1">&#39;*lf.meta&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data/probe*&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>  <span class="c1"># NP2 doesn&#39;t have lf files # TODO detect from meta</span>
+                         <span class="p">(</span><span class="s1">&#39;*lf.cbin&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data/probe*&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>  <span class="c1"># may not be present on local server anymore</span>
+                         <span class="p">(</span><span class="s1">&#39;*lf.ch&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data/probe*&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
+                         <span class="p">(</span><span class="s1">&#39;*nidq.meta&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                         <span class="p">(</span><span class="s1">&#39;*nidq.cbin&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>  <span class="c1"># may not be present on local server anymore</span>
+                         <span class="p">(</span><span class="s1">&#39;*nidq.ch&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)]</span>
+    <span class="p">}</span>
 
     <span class="k">def</span> <span class="nf">_run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -518,6 +867,7 @@
 <span class="sd">        Original bin file will be removed</span>
 <span class="sd">        The registration flag created contains targeted file names at the root of the session</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+
         <span class="n">out_files</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">ephys_files</span> <span class="o">=</span> <span class="n">spikeglx</span><span class="o">.</span><span class="n">glob_ephys_files</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
         <span class="n">ephys_files</span> <span class="o">+=</span> <span class="n">spikeglx</span><span class="o">.</span><span class="n">glob_ephys_files</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">ext</span><span class="o">=</span><span class="s2">&quot;ch&quot;</span><span class="p">)</span>
@@ -539,7 +889,33 @@
                 <span class="k">else</span><span class="p">:</span>
                     <span class="n">out_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">bin_file</span><span class="p">)</span>
 
-        <span class="k">return</span> <span class="n">out_files</span></div>
+        <span class="k">return</span> <span class="n">out_files</span>
+
+<div class="viewcode-block" id="EphysMtscomp.get_signatures"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.ephys_preprocessing.html#ibllib.pipes.ephys_preprocessing.EphysMtscomp.get_signatures">[docs]</a>    <span class="k">def</span> <span class="nf">get_signatures</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">neuropixel_version</span> <span class="o">=</span> <span class="n">spikeglx</span><span class="o">.</span><span class="n">get_neuropixel_version_from_folder</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="n">probes</span> <span class="o">=</span> <span class="n">spikeglx</span><span class="o">.</span><span class="n">get_probes_from_folder</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
+
+        <span class="n">full_input_files</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">sig</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="p">[</span><span class="s1">&#39;input_files&#39;</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="s1">&#39;raw_ephys_data/probe*&#39;</span> <span class="ow">in</span> <span class="n">sig</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+                <span class="k">for</span> <span class="n">probe</span> <span class="ow">in</span> <span class="n">probes</span><span class="p">:</span>
+                    <span class="n">full_input_files</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">sig</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="sa">f</span><span class="s1">&#39;raw_ephys_data/</span><span class="si">{</span><span class="n">probe</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">sig</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">neuropixel_version</span> <span class="o">!=</span> <span class="s1">&#39;3A&#39;</span><span class="p">:</span>
+                    <span class="n">full_input_files</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">sig</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">sig</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">sig</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">input_files</span> <span class="o">=</span> <span class="n">full_input_files</span>
+
+        <span class="n">full_output_files</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">sig</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="p">[</span><span class="s1">&#39;output_files&#39;</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="s1">&#39;raw_ephys_data/probe*&#39;</span> <span class="ow">in</span> <span class="n">sig</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+                <span class="k">for</span> <span class="n">probe</span> <span class="ow">in</span> <span class="n">probes</span><span class="p">:</span>
+                    <span class="n">full_output_files</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">sig</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="sa">f</span><span class="s1">&#39;raw_ephys_data/</span><span class="si">{</span><span class="n">probe</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">sig</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">neuropixel_version</span> <span class="o">!=</span> <span class="s1">&#39;3A&#39;</span><span class="p">:</span>
+                    <span class="n">full_output_files</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">sig</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">sig</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">sig</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">output_files</span> <span class="o">=</span> <span class="n">full_output_files</span></div></div>
 
 
 <div class="viewcode-block" id="EphysDLC"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.ephys_preprocessing.html#ibllib.pipes.ephys_preprocessing.EphysDLC">[docs]</a><span class="k">class</span> <span class="nc">EphysDLC</span><span class="p">(</span><span class="n">tasks</span><span class="o">.</span><span class="n">Task</span><span class="p">):</span>
@@ -557,7 +933,19 @@
     <span class="n">cpu</span> <span class="o">=</span> <span class="mi">1</span>
     <span class="n">io_charge</span> <span class="o">=</span> <span class="mi">90</span>
     <span class="n">level</span> <span class="o">=</span> <span class="mi">1</span>
-    <span class="n">signature</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;input_files&#39;</span><span class="p">:</span> <span class="n">signatures</span><span class="o">.</span><span class="n">EPHYSPASSIVE</span><span class="p">,</span> <span class="s1">&#39;output_files&#39;</span><span class="p">:</span> <span class="p">()}</span>
+    <span class="n">force</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">signature</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;input_files&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;_iblrig_taskSettings.raw*&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                        <span class="p">(</span><span class="s1">&#39;_spikeglx_sync.channels.*&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                        <span class="p">(</span><span class="s1">&#39;_spikeglx_sync.polarities.*&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                        <span class="p">(</span><span class="s1">&#39;_spikeglx_sync.times.*&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                        <span class="p">(</span><span class="s1">&#39;*.meta&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                        <span class="p">(</span><span class="s1">&#39;*wiring.json&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data*&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
+                        <span class="p">(</span><span class="s1">&#39;_iblrig_RFMapStim.raw*&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_passive_data&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)],</span>
+        <span class="s1">&#39;output_files&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;_ibl_passiveGabor.table.csv&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                         <span class="p">(</span><span class="s1">&#39;_ibl_passivePeriods.intervalsTable.csv&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                         <span class="p">(</span><span class="s1">&#39;_ibl_passiveRFM.times.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                         <span class="p">(</span><span class="s1">&#39;_ibl_passiveStims.table.csv&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)]}</span>
 
     <span class="k">def</span> <span class="nf">_run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;returns a list of pathlib.Paths. &quot;&quot;&quot;</span>
@@ -565,7 +953,25 @@
         <span class="k">if</span> <span class="nb">any</span><span class="p">([</span><span class="n">x</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">paths</span><span class="p">]):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
         <span class="c1"># Register?</span>
-        <span class="k">return</span> <span class="n">paths</span></div>
+        <span class="k">return</span> <span class="n">paths</span>
+
+<div class="viewcode-block" id="EphysPassive.get_signatures"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.ephys_preprocessing.html#ibllib.pipes.ephys_preprocessing.EphysPassive.get_signatures">[docs]</a>    <span class="k">def</span> <span class="nf">get_signatures</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">neuropixel_version</span> <span class="o">=</span> <span class="n">spikeglx</span><span class="o">.</span><span class="n">get_neuropixel_version_from_folder</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="n">probes</span> <span class="o">=</span> <span class="n">spikeglx</span><span class="o">.</span><span class="n">get_probes_from_folder</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
+
+        <span class="n">full_input_files</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">sig</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="p">[</span><span class="s1">&#39;input_files&#39;</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="s1">&#39;raw_ephys_data*&#39;</span> <span class="ow">in</span> <span class="n">sig</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="n">neuropixel_version</span> <span class="o">!=</span> <span class="s1">&#39;3A&#39;</span><span class="p">:</span>
+                    <span class="n">full_input_files</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">sig</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s1">&#39;raw_ephys_data&#39;</span><span class="p">,</span> <span class="n">sig</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+                <span class="k">for</span> <span class="n">probe</span> <span class="ow">in</span> <span class="n">probes</span><span class="p">:</span>
+                    <span class="n">full_input_files</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">sig</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="sa">f</span><span class="s1">&#39;raw_ephys_data/</span><span class="si">{</span><span class="n">probe</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">sig</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">full_input_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">sig</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">input_files</span> <span class="o">=</span> <span class="n">full_input_files</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">output_files</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="p">[</span><span class="s1">&#39;output_files&#39;</span><span class="p">]</span></div></div>
 
 
 <div class="viewcode-block" id="EphysExtractionPipeline"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.ephys_preprocessing.html#ibllib.pipes.ephys_preprocessing.EphysExtractionPipeline">[docs]</a><span class="k">class</span> <span class="nc">EphysExtractionPipeline</span><span class="p">(</span><span class="n">tasks</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">):</span>
@@ -581,15 +987,16 @@
         <span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysRawQC&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">RawEphysQC</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
         <span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysAudio&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">EphysAudio</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
         <span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysMtscomp&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">EphysMtscomp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;EphysVideoCompress&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">EphysVideoCompress</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
         <span class="c1"># level 1</span>
         <span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;SpikeSorting&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">SpikeSorting</span><span class="p">(</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysMtscomp&quot;</span><span class="p">],</span> <span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysPulses&quot;</span><span class="p">]])</span>
-        <span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysVideoCompress&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">EphysVideoCompress</span><span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysPulses&quot;</span><span class="p">]])</span>
         <span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysTrials&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">EphysTrials</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysPulses&quot;</span><span class="p">]])</span>
 
         <span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysPassive&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">EphysPassive</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysPulses&quot;</span><span class="p">]])</span>
         <span class="c1"># level 2</span>
+        <span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysVideoSyncQc&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">EphysVideoSyncQc</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysVideoCompress&quot;</span><span class="p">],</span> <span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysPulses&quot;</span><span class="p">],</span> <span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysTrials&quot;</span><span class="p">]])</span>
         <span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysCellsQc&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">EphysCellsQc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;SpikeSorting&quot;</span><span class="p">]])</span>
         <span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysDLC&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">EphysDLC</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysVideoCompress&quot;</span><span class="p">]])</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span> <span class="o">=</span> <span class="n">tasks</span></div>
