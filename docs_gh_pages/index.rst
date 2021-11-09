@@ -17,7 +17,7 @@ can be found in our `preprint <https://www.biorxiv.org/content/10.1101/827873v3>
 The central store has two components:
 
 * A **Bulk Data Store** that stores **large raw data files** (e.g. raw electrophysiology and video data) as well as **pre-processed data** (e.g. results of spike sorting or video segmentation). This database is accessible through HTTP, FTP and Globus. This is known informally as the "Flatiron server" as our original data server was generously hosted by the `Flatiron Institute <https://www.simonsfoundation.org/flatiron/>`_.
-* A **Relational Database** that stores **metadata** (e.g. information on each experiment and experimental subject) in a structured manner, together with links to the bulk data files. This database is known as `Alyx <https://github.com/cortex-lab/alyx>`_, for reasons no-one can remember.
+* A **Relational Database** that stores **metadata** (e.g. information on each experiment and experimental subject) in a structured manner, together with links to the bulk data files. This database is known as `Alyx <https://github.com/cortex-lab/alyx>`_, for reasons no-one can remember. Alyx contains a web-based front-end to allow users to perform colony management and enter metadata during experiments; documentation on this front end is `here <https://docs.google.com/document/d/1cx3XLZiZRh3lUzhhR_p65BggEqTKpXHUDkUDagvf9Kc/edit?usp=sharing>`_. Information on how to connect to Alyx programmatically is `here <https://alyx.readthedocs.io/en/latest/>`_.
 
 Tools to access the data
 *************************
