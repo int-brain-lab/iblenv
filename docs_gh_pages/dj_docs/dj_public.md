@@ -1,8 +1,16 @@
-# Accessing public IBL data with DataJoint
+# Publicly available IBL data
 
-There are three ways in which public IBL users can use DataJoint to access data stored in the public database.
+## Pilot electrophysiology data release
 
-## Accessing the public database through JupyterHub
+The IBL has released four pilot datasets that are available through both ONE and Datajoint. To start exploring the datasets with ONE please follow the link below.
+
+[**Accessing public data with ONE**](https://int-brain-lab.github.io/ONE/notebooks/one_quickstart.html)
+
+The IBL has also released all of the behavior sessions associated with the publication, [International Brain Laboratory et al., 2021](https://elifesciences.org/articles/63711). To access these data using DataJoint, follow the steps below.
+
+## Accessing public IBL data with DataJoint
+
+### Accessing the public database through JupyterHub
 
 You can use an online python environment to interact with the data using the following link:
 
@@ -12,7 +20,8 @@ You can use an online python environment to interact with the data using the fol
 To be able to log in to JupyterHub, you will need a [GitHub](https://github.com/) account to authorize login sessions.
 ```
 
-The site hosts several python notebooks that will allow you to interact with the database directly online using DataJoint. You won't need to download or install anything locally. The database contains data used in this publication, [_A standardized and reproducible method to measure decision-making in mice_](https://doi.org/10.1101/2020.01.17.909838_).
+The site hosts several python notebooks that will allow you to interact with the database directly online using DataJoint. You won't need to download or install anything locally. 
+
 
 1. Log in with your GitHub account.
    - If logging in for the first time, you may need to click the "Start My Server" button.
@@ -22,7 +31,7 @@ The site hosts several python notebooks that will allow you to interact with the
    - To replicate all the figures from the behavior paper, visit this GitHub Repository: <https://github.com/int-brain-lab/paper-behavior>
 4. Use the `private_notebooks` folder to write your own personal scripts and notebooks only available to you.
 
-## Accessing the public database on your local machine
+### Accessing the public database on your local machine
 
 ```{important}
 To be able to access the data from your local machine, you will need to have a working python environment with all of the required dependencies installed. For more information, see <https://github.com/int-brain-lab/iblenv>.
@@ -144,19 +153,19 @@ from ibl_pipeline.analyses import behavior as behavior_analyses
 
 You can view the `public_notebooks` as described in the JupyterHub section above for more details on queries and usage of the public tables using DataJoint for python, as well as the [IBL DataJoint behavior plot example notebook](../notebooks/dj_intro/dj_intro.ipynb) 
 
-## Accessing public data through direct download
+### Accessing public data through direct download
 
 You may also directly download the data through your web browser without running any code. Simply load an internet browser and use the provided link below.
 
 Behavior paper data URL: <http://ibl.flatironinstitute.org/public/behavior_paper_data.zip>
 
-## Accessing data via IBL Navigator
+### Accessing data via IBL Navigator
 
 **IBL Navigator website [https://data.internationalbrainlab.org/](https://data.internationalbrainlab.org/)**
 
 DataJoint also provides a website that displays plots generated from public data managed by the [IBL-pipeline](https://github.com/int-brain-lab/IBL-pipeline). 
 
-## Reference material
+### DataJoint reference material
 
 For general documentation on DataJoint, please see the following links:
 

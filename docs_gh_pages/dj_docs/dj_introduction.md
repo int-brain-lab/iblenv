@@ -10,13 +10,13 @@ There are several ways in which *internal* IBL users can use DataJoint to intera
 
 2.  **Jupyter Notebooks website [https://jupyter.internationalbrainlab.org/](https://jupyter.internationalbrainlab.org/)**
 
-    DataJoint hosts a JupyterHub server with access to the IBL-pipeline. This platform can be used to programatically explore and perform analysis on data stored within the IBL-pipeline without requiring a local install of dependant packages. To use the platform you will need to register your github account as well as have access to your [DataJoint login credentials](dj_credentials.md). To get started using the IBL-pipeline please proceed to the [DataJoint basics tutorial](../notebooks/dj_basics/dj_basics.ipynb).
+    DataJoint hosts a JupyterHub server with access to the IBL-pipeline. This platform can be used to programatically explore and perform analysis on data stored within the IBL-pipeline without requiring a local install of dependant packages. To use the platform you will need to register your github account as well as have access to your [DataJoint login credentials](dj_credentials). To get started using the IBL-pipeline please proceed to the [DataJoint basics tutorial](../notebooks/dj_basics/dj_basics.ipynb).
 
 3.  **Accessing the DataJoint database on your local machine**
 
-    The most flexible way to use DataJoint with IBL data is to install the [IBL-pipeline](https://github.com/int-brain-lab/IBL-pipeline) package onto your local computer. This package is automatically installed as part of the [IBL unified environment](https://github.com/int-brain-lab/iblenv), and if you've followed the installation instructions you are ready to start using DataJoint in this way. The only thing you will need to do is to set up some local credentials. The [instructions on the next page](dj_credentials.md) will guide you through how to set these up.
+    The most flexible way to use DataJoint with IBL data is to install the [IBL-pipeline](https://github.com/int-brain-lab/IBL-pipeline) package onto your local computer. This package is automatically installed as part of the [IBL unified environment](https://github.com/int-brain-lab/iblenv), and if you've followed the installation instructions you are ready to start using DataJoint in this way. The only thing you will need to do is to set up some local credentials. The [instructions on the next page](dj_credentials) will guide you through how to set these up.
 
-For *external* users looking to use DataJoint to access the public IBL dataset please proceed directly to: [Accessing public IBL data with DataJoint](../public_docs/public_datajoint.md).
+For *external* users looking to use DataJoint to access the public IBL dataset please proceed directly to: [Accessing public IBL data with DataJoint](dj_public).
 
 ## Contact info
 

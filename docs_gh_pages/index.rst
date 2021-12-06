@@ -53,9 +53,8 @@ IBL has released a suite of tools to process and visualize our data.
    :maxdepth: 1
 
    dj_docs/dj_introduction
+   dj_docs/dj_public
    dj_docs/dj_credentials
-   dj_docs/public_introduction
-   dj_docs/public_datajoint
 
 .. toctree::
    :hidden:
