@@ -49,6 +49,7 @@ extensions = ['sphinx.ext.autodoc',
               'sphinx.ext.autosummary',
               'sphinx.ext.mathjax',
               'sphinx.ext.githubpages',
+              'sphinx.ext.intersphinx',
               'sphinx_copybutton',
               'nbsphinx',
               'nbsphinx_link',
@@ -59,6 +60,10 @@ extensions = ['sphinx.ext.autodoc',
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
+# Looks for objects in external projects
+intersphinx_mapping = {
+    'one_api': ('https://int-brain-lab.github.io/ONE/', None),
+}
 
 #autoapi_add_toctree_entry = False
 #autoapi_dirs = ['../../ibllib-repo/ibllib', '../../ibllib-repo/alf', '../../ibllib-repo/oneibl']

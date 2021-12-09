@@ -1,4 +1,4 @@
-# Contribution Statement
+# How to contribute
 
 ## Code
 ### Linting
