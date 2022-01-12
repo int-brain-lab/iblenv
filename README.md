@@ -10,9 +10,13 @@ In a terminal, navigate to the directory in which you cloned iblenv (typically `
 ` conda env update --file iblenv.yaml --prune`
 
 Note: It can take longer to update than to install from scratch -- do not hesitate to follow the steps below if taking too much time!
-I you start from scratch, do:
+
+If you start from scratch, do:
+
 ` conda clean --all`
+
 Then repeat all steps of the install from scratch section, but starting **after** git clone.
+
 If still slow, use the mamba installation approach.
 
 ## Install from scratch
