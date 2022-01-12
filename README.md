@@ -10,6 +10,10 @@ In a terminal, navigate to the directory in which you cloned iblenv (typically `
 ` conda env update --file iblenv.yaml --prune`
 
 Note: It can take longer to update than to install from scratch -- do not hesitate to follow the steps below if taking too much time!
+I you start from scratch, do:
+` conda clean --all`
+Then repeat all steps of the install from scratch section, but starting **after** git clone.
+If still slow, use the mamba installation approach.
 
 ## Install from scratch
 In order to create the unified environment for using IBL repositories, first download and install [Anaconda](https://www.anaconda.com/distribution/#download-section) and [git](https://git-scm.com/downloads), and follow their installer instructions to add each to the system path. Also, ensure Anaconda is installed to your home directory. The below instructions will tell you how to set up and activate the unified conda environment (`iblenv`) and properly install the 'ibllib', 'iblapps', 'analysis', and 'IBL-pipeline' repositories within this environment.
