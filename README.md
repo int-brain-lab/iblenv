@@ -1,5 +1,13 @@
 [Documentation here ! ](https://int-brain-lab.github.io/iblenv/)
 
+<!-- toc -->
+
+- [Installing via Anaconda](#iblenv-installation-guide)
+- [Installing via miniforge or mambaforge (more stable for most uses)](#mambaforge-iblenv-installation)
+- [Installing on M1 Macs](#m1-mac-iblenv-installation)
+
+<!-- tocstop -->
+
 # IBLENV installation guide
 Unified environment and Issue tracker for all IBL github repositories.
 
@@ -127,3 +135,14 @@ conda develop ./phylib
 ```
 
 All done! See notes from above on how exactly conda develop works, and how to make sure you're up to date on the latest IBL code versions.
+
+
+# M1 Mac iblenv installation
+
+The new generation of Macbooks running Apple silicon represent a unique challenge for python developers. The fundamental architecture of the CPU, and the accompanying instruction sets, are different. For most pure python code this is irrelevant, since python itself runs fine on the architecture, however for many libraries which include compiled C code and other backends, distributing for OSX on M1s is thorny.
+
+In brief: It's possible to install the IBL environment on new M1 Macbooks, but somethings will be missing. In particular the IBL brain viewer will not work, along with any GUI applications used by the IBL.
+
+## Installing
+
+Installation is the same as the Mambaforge installation instructions, with the sole exception that the file `iblenv_osx-arm.yaml` should be used for the environment creation.
