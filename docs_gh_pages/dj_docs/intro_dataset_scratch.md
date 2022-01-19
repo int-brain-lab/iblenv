@@ -44,7 +44,7 @@ The IBL has released all of the behavior sessions associated with the publicatio
 via [Datajoint](public_datajoint).
 
 ### Neuropixels datasets (pilot release)
-The IBL has released five pilot datasets that are available for download through both ONE and Datajoint (see sections below). 
+The IBL has released a handful of pilot datasets that are available for download through both ONE and Datajoint (see sections below). 
 
 
 ## How to browse the datasets
