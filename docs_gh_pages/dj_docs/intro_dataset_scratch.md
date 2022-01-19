@@ -32,9 +32,14 @@ aim of this IBL project is to tile the whole mouse brain using these probes.
 
 The data is acquired on three computers (one decidated to acquiring the raw ephys, raw video and raw behavioral data
 respectively), and saved into their corresponding folder (see sections below for details).
+At the end of a Neuropixels recording session, some stimuli are replayed whilst the mouse is passive 
+(i.e. not engaged in the IBL task). The behavioral data acquired during this replay of stimuli is also saved in a dedicated folder.
+
 Once acquired, the data are centralised onto a single computer, and processed (using heavy algorithms, such as
 Deep Lab Cut for tracking points on video data, or pyKilosort for detecting and sorting the spikes of cells on the ephys traces),
 before being sent and stored onto our centralised database (see our [article on data architecture ](https://www.biorxiv.org/content/10.1101/827873v3) for details).
+
+
 
 ## What is available for download
 
@@ -77,9 +82,9 @@ Taking the session from [mainenlab/Subjects/ZM_2240/2020-01-21/001/](https://ibl
  as example, the following subfolders will contain:
 - `alf/` : The extracted data, to be used in analysis.
 - `logs/` : logged information
-- `raw_behavior_data/` : The raw trials data
+- `raw_behavior_data/` : The raw behavior data (events that occur during a trials)
 - `raw_ephys_data/` : The raw ephys data (in this case, Neuropixels data)
-- `raw_passive_data/`: The raw passive data
+- `raw_passive_data/`: The raw passive data (events that occur during the replay of task stimuli)
 - `raw_video_data/`: The raw video data
 - `spike_sorters/` : The raw processing output data for each spike sorter used
 
