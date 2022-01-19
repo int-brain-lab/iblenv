@@ -56,8 +56,8 @@ it's lab name / a folder Subjects / the name of the subject (i.e. the mouse nick
 For example: `mainenlab/Subjects/ZM_2240/2020-01-21/001`
 
 Notes:
-- A lab can host multiple subjects, e.g. the Churchland lab
-[Churchland lab ](https://ibl.flatironinstitute.org/public/churchlandlab/Subjects) hosts `CSHL047` and `CSHL049`.
+- A lab can host multiple subjects, e.g. the 
+[Churchland lab](https://ibl.flatironinstitute.org/public/churchlandlab/Subjects) hosts `CSHL047` and `CSHL049`.
 - There can be multiple sessions done in one day per subject, in such case the number of session `001` would increase
 to `002`, `003` etc.
 - Sometimes, the valuable data is found only in a later session in the day (in the case of a restart for example),
@@ -74,17 +74,17 @@ Specifically, the Neuropixels pilot datasets are in the folders:
 - [mainenlab/Subjects/ZM_2240/2020-01-21/001/](https://ibl.flatironinstitute.org/public/mainenlab/Subjects/ZM_2240/2020-01-21/001/)
 
 Taking the session from [mainenlab/Subjects/ZM_2240/2020-01-21/001/](https://ibl.flatironinstitute.org/public/mainenlab/Subjects/ZM_2240/2020-01-21/001/)
- as example, the subfolders will contain:
+ as example, the following subfolders will contain:
 - `alf/` : The extracted data, to be used in analysis.
 - `logs/` : logged information
 - `raw_behavior_data/` : The raw trials data
 - `raw_ephys_data/` : The raw ephys data (in this case, Neuropixels data)
 - `raw_passive_data/`: The raw passive data
 - `raw_video_data/`: The raw video data
-- `spike_sorters/` : The raw rocessing output for each spike sorter used
+- `spike_sorters/` : The raw processing output data for each spike sorter used
 
 The `alf/` folder notably contains:
-- the probe folder (`probe00/` or `probe01/`), in which are the output of the spike sorting
+- the probe folder (`probe00/` or `probe01/`), in which are the extracted output of the spike sorting to be used for analysis
 - the extracted behavior trials data
 - the extracted DLC data (for each camera used, here `body`, `left` and `right`)
 - the extracted wheel data
