@@ -47,9 +47,12 @@
 <p class="caption" role="heading"><span class="caption-text">DataJoint</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../dj_docs/dj_introduction.html">Introduction to DataJoint</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../dj_docs/dj_credentials.html">Setting up DataJoint credentials</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../dj_docs/public_introduction.html">Publicly available IBL data</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../dj_docs/public_datajoint.html">Accessing public IBL data with DataJoint</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../dj_docs/dj_public.html">Publicly available IBL data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../dj_docs/dj_credentials.html">DataJoint credentials for internal IBL users</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Public</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../public_docs/public_introduction.html">Publicly available IBL data</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Miscellaneous</span></p>
 <ul>
@@ -101,9 +104,11 @@
 <span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">OrderedDict</span>
 <span class="kn">import</span> <span class="nn">traceback</span>
 <span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">import</span> <span class="nn">packaging.version</span>
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+
 <span class="kn">import</span> <span class="nn">one.alf.io</span> <span class="k">as</span> <span class="nn">alfio</span>
 
 <span class="kn">from</span> <span class="nn">ibllib.misc</span> <span class="kn">import</span> <span class="n">check_nvidia_driver</span>
@@ -114,10 +119,16 @@
 <span class="kn">from</span> <span class="nn">ibllib.pipes</span> <span class="kn">import</span> <span class="n">tasks</span>
 <span class="kn">from</span> <span class="nn">ibllib.pipes.training_preprocessing</span> <span class="kn">import</span> <span class="n">TrainingRegisterRaw</span> <span class="k">as</span> <span class="n">EphysRegisterRaw</span>
 <span class="kn">from</span> <span class="nn">ibllib.pipes.misc</span> <span class="kn">import</span> <span class="n">create_alyx_probe_insertions</span>
+<span class="kn">from</span> <span class="nn">ibllib.qc.alignment_qc</span> <span class="kn">import</span> <span class="n">get_aligned_channels</span>
 <span class="kn">from</span> <span class="nn">ibllib.qc.task_extractors</span> <span class="kn">import</span> <span class="n">TaskQCExtractor</span>
 <span class="kn">from</span> <span class="nn">ibllib.qc.task_metrics</span> <span class="kn">import</span> <span class="n">TaskQC</span>
 <span class="kn">from</span> <span class="nn">ibllib.qc.camera</span> <span class="kn">import</span> <span class="n">run_all_qc</span> <span class="k">as</span> <span class="n">run_camera_qc</span>
+<span class="kn">from</span> <span class="nn">ibllib.qc.dlc</span> <span class="kn">import</span> <span class="n">DlcQC</span>
 <span class="kn">from</span> <span class="nn">ibllib.dsp</span> <span class="kn">import</span> <span class="n">rms</span>
+<span class="kn">from</span> <span class="nn">ibllib.plots.figures</span> <span class="kn">import</span> <span class="n">dlc_qc_plot</span><span class="p">,</span> <span class="n">BehaviourPlots</span><span class="p">,</span> <span class="n">LfpPlots</span><span class="p">,</span> <span class="n">ApPlots</span>
+<span class="kn">from</span> <span class="nn">ibllib.plots.figures</span> <span class="kn">import</span> <span class="n">SpikeSorting</span> <span class="k">as</span> <span class="n">SpikeSortingPlots</span>
+<span class="kn">from</span> <span class="nn">ibllib.plots.snapshot</span> <span class="kn">import</span> <span class="n">ReportSnapshot</span>
+<span class="kn">from</span> <span class="nn">brainbox.behavior.dlc</span> <span class="kn">import</span> <span class="n">likelihood_threshold</span><span class="p">,</span> <span class="n">get_licks</span><span class="p">,</span> <span class="n">get_pupil_diameter</span><span class="p">,</span> <span class="n">get_smooth_pupil_diameter</span>
 
 <span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s2">&quot;ibllib&quot;</span><span class="p">)</span>
 
@@ -199,8 +210,11 @@
                         <span class="p">(</span><span class="s1">&#39;*lf.*bin&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data/probe*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)],</span>  <span class="c1"># not necessary to run task as optional computation</span>
         <span class="s1">&#39;output_files&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;_iblqc_ephysChannels.apRMS.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data/probe*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
                          <span class="p">(</span><span class="s1">&#39;_iblqc_ephysChannels.rawSpikeRates.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data/probe*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                         <span class="p">(</span><span class="s1">&#39;_iblqc_ephysChannels.labels.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data/probe*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
                          <span class="p">(</span><span class="s1">&#39;_iblqc_ephysSpectralDensityLF.freqs.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data/probe*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
                          <span class="p">(</span><span class="s1">&#39;_iblqc_ephysSpectralDensityLF.power.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data/probe*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                         <span class="p">(</span><span class="s1">&#39;_iblqc_ephysSpectralDensityAP.freqs.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data/probe*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                         <span class="p">(</span><span class="s1">&#39;_iblqc_ephysSpectralDensityAP.power.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data/probe*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
                          <span class="p">(</span><span class="s1">&#39;_iblqc_ephysTimeRmsLF.rms.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data/probe*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
                          <span class="p">(</span><span class="s1">&#39;_iblqc_ephysTimeRmsLF.timestamps.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data/probe*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)]</span>
     <span class="p">}</span>
@@ -218,6 +232,11 @@
             <span class="k">try</span><span class="p">:</span>
                 <span class="n">eqc</span> <span class="o">=</span> <span class="n">ephysqc</span><span class="o">.</span><span class="n">EphysQC</span><span class="p">(</span><span class="n">pid</span><span class="p">,</span> <span class="n">session_path</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">)</span>
                 <span class="n">qc_files</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">eqc</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">update</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="n">overwrite</span><span class="p">))</span>
+                <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Creating LFP QC plots&quot;</span><span class="p">)</span>
+                <span class="n">plot_task</span> <span class="o">=</span> <span class="n">LfpPlots</span><span class="p">(</span><span class="n">pid</span><span class="p">,</span> <span class="n">session_path</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">)</span>
+                <span class="n">_</span> <span class="o">=</span> <span class="n">plot_task</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">plot_tasks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">plot_task</span><span class="p">)</span>
+
             <span class="k">except</span> <span class="ne">AssertionError</span><span class="p">:</span>
                 <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">())</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
@@ -310,13 +329,15 @@
         <span class="n">input_signature</span> <span class="o">=</span> <span class="p">[(</span><span class="s1">&#39;*ap.meta&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;raw_ephys_data/</span><span class="si">{</span><span class="n">pname</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
                            <span class="p">(</span><span class="s1">&#39;*ap.ch&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;raw_ephys_data/</span><span class="si">{</span><span class="n">pname</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
                            <span class="p">(</span><span class="s1">&#39;*ap.cbin&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;raw_ephys_data/</span><span class="si">{</span><span class="n">pname</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                           <span class="p">(</span><span class="s1">&#39;*nidq.meta&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
                            <span class="p">(</span><span class="s1">&#39;_spikeglx_sync.channels.*&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
                            <span class="p">(</span><span class="s1">&#39;_spikeglx_sync.polarities.*&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
                            <span class="p">(</span><span class="s1">&#39;_spikeglx_sync.times.*&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
                            <span class="p">(</span><span class="s1">&#39;_iblrig_taskData.raw.*&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
                            <span class="p">(</span><span class="s1">&#39;_iblrig_taskSettings.raw.*&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)]</span>
-        <span class="n">output_signature</span> <span class="o">=</span> <span class="p">[(</span><span class="s1">&#39;spike_sorting_pykilosort.log&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;spike_sorters/pykilosort/</span><span class="si">{</span><span class="n">pname</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)]</span>
-
+        <span class="n">output_signature</span> <span class="o">=</span> <span class="p">[(</span><span class="s1">&#39;spike_sorting_pykilosort.log&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;spike_sorters/pykilosort/</span><span class="si">{</span><span class="n">pname</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                            <span class="p">(</span><span class="s1">&#39;_iblqc_ephysTimeRmsAP.rms.npy&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;raw_ephys_data/</span><span class="si">{</span><span class="n">pname</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>  <span class="c1"># new ibllib 2.5</span>
+                            <span class="p">(</span><span class="s1">&#39;_iblqc_ephysTimeRmsAP.timestamps.npy&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;raw_ephys_data/</span><span class="si">{</span><span class="n">pname</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)]</span>  <span class="c1"># new ibllib 2.5</span>
         <span class="k">return</span> <span class="n">input_signature</span><span class="p">,</span> <span class="n">output_signature</span></div>
 
     <span class="nd">@staticmethod</span>
@@ -337,6 +358,14 @@
                         <span class="n">version</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;=&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;&quot;&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;&#39;&quot;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
             <span class="k">pass</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;pykilosort_</span><span class="si">{</span><span class="n">version</span><span class="si">}</span><span class="s2">&quot;</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_fetch_pykilosort_run_version</span><span class="p">(</span><span class="n">log_file</span><span class="p">):</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">log_file</span><span class="p">)</span> <span class="k">as</span> <span class="n">fid</span><span class="p">:</span>
+            <span class="n">line</span> <span class="o">=</span> <span class="n">fid</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span>
+        <span class="n">version</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s1">&#39;version (.*), output&#39;</span><span class="p">,</span> <span class="n">line</span><span class="p">)</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
         <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;pykilosort_</span><span class="si">{</span><span class="n">version</span><span class="si">}</span><span class="s2">&quot;</span>
 
     <span class="nd">@staticmethod</span>
@@ -377,12 +406,18 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">version</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fetch_pykilosort_version</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">PYKILOSORT_REPO</span><span class="p">)</span>
         <span class="n">label</span> <span class="o">=</span> <span class="n">ap_file</span><span class="o">.</span><span class="n">parts</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span>  <span class="c1"># this is usually the probe name</span>
         <span class="n">sorter_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s2">&quot;spike_sorters&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">SPIKE_SORTER_NAME</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span>
-        <span class="n">FORCE_RERUN</span> <span class="o">=</span> <span class="kc">False</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">FORCE_RERUN</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">sorter_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;spike_sorting_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">SPIKE_SORTER_NAME</span><span class="si">}</span><span class="s2">.log&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
-                <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Already ran: spike_sorting_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">SPIKE_SORTER_NAME</span><span class="si">}</span><span class="s2">.log&quot;</span>
-                             <span class="sa">f</span><span class="s2">&quot; found in </span><span class="si">{</span><span class="n">sorter_dir</span><span class="si">}</span><span class="s2">, skipping.&quot;</span><span class="p">)</span>
-                <span class="k">return</span> <span class="n">sorter_dir</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">FORCE_RERUN</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">FORCE_RERUN</span><span class="p">:</span>
+            <span class="n">log_file</span> <span class="o">=</span> <span class="n">sorter_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;spike_sorting_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">SPIKE_SORTER_NAME</span><span class="si">}</span><span class="s2">.log&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">log_file</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+                <span class="n">run_version</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fetch_pykilosort_run_version</span><span class="p">(</span><span class="n">log_file</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">packaging</span><span class="o">.</span><span class="n">version</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">run_version</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">packaging</span><span class="o">.</span><span class="n">version</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="s1">&#39;pykilosort_ibl_1.1.0&#39;</span><span class="p">):</span>
+                    <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Already ran: spike_sorting_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">SPIKE_SORTER_NAME</span><span class="si">}</span><span class="s2">.log&quot;</span>
+                                 <span class="sa">f</span><span class="s2">&quot; found in </span><span class="si">{</span><span class="n">sorter_dir</span><span class="si">}</span><span class="s2">, skipping.&quot;</span><span class="p">)</span>
+                    <span class="k">return</span> <span class="n">sorter_dir</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">FORCE_RERUN</span> <span class="o">=</span> <span class="kc">True</span>
+
         <span class="nb">print</span><span class="p">(</span><span class="n">sorter_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;spike_sorting_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">SPIKE_SORTER_NAME</span><span class="si">}</span><span class="s2">.log&quot;</span><span class="p">))</span>
         <span class="c1"># get the scratch drive from the shell script</span>
         <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">SHELL_SCRIPT</span><span class="p">)</span> <span class="k">as</span> <span class="n">fid</span><span class="p">:</span>
@@ -475,8 +510,29 @@
                 <span class="n">tar_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span>
                     <span class="s1">&#39;spike_sorters&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">SPIKE_SORTER_NAME</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span>
                 <span class="n">tar_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-                <span class="n">out</span> <span class="o">=</span> <span class="n">spikes</span><span class="o">.</span><span class="n">ks2_to_tar</span><span class="p">(</span><span class="n">ks2_dir</span><span class="p">,</span> <span class="n">tar_dir</span><span class="p">)</span>
+                <span class="n">out</span> <span class="o">=</span> <span class="n">spikes</span><span class="o">.</span><span class="n">ks2_to_tar</span><span class="p">(</span><span class="n">ks2_dir</span><span class="p">,</span> <span class="n">tar_dir</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">FORCE_RERUN</span><span class="p">)</span>
                 <span class="n">out_files</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">:</span>
+                    <span class="n">eid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">path2eid</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">query_type</span><span class="o">=</span><span class="s1">&#39;remote&#39;</span><span class="p">)</span>
+                    <span class="n">ins</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;insertions&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span> <span class="n">session</span><span class="o">=</span><span class="n">eid</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">label</span><span class="p">,</span> <span class="n">query_type</span><span class="o">=</span><span class="s1">&#39;remote&#39;</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">ins</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Creating SpikeSorting QC plots&quot;</span><span class="p">)</span>
+                        <span class="n">plot_task</span> <span class="o">=</span> <span class="n">ApPlots</span><span class="p">(</span><span class="n">ins</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;id&#39;</span><span class="p">],</span> <span class="n">session_path</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">)</span>
+                        <span class="n">_</span> <span class="o">=</span> <span class="n">plot_task</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">plot_tasks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">plot_task</span><span class="p">)</span>
+
+                        <span class="n">plot_task</span> <span class="o">=</span> <span class="n">SpikeSortingPlots</span><span class="p">(</span><span class="n">ins</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;id&#39;</span><span class="p">],</span> <span class="n">session_path</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">)</span>
+                        <span class="n">_</span> <span class="o">=</span> <span class="n">plot_task</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">collection</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">probe_out_path</span><span class="o">.</span><span class="n">relative_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)))</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">plot_tasks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">plot_task</span><span class="p">)</span>
+
+                        <span class="n">resolved</span> <span class="o">=</span> <span class="n">ins</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;json&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;temp&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;extended_qc&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;temp&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">})</span><span class="o">.</span> \
+                            <span class="n">get</span><span class="p">(</span><span class="s1">&#39;alignment_resolved&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="n">resolved</span><span class="p">:</span>
+                            <span class="n">chns</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">probe_out_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;channels.localCoordinates.npy&#39;</span><span class="p">))</span>
+                            <span class="n">out</span> <span class="o">=</span> <span class="n">get_aligned_channels</span><span class="p">(</span><span class="n">ins</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">chns</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">,</span> <span class="n">save_dir</span><span class="o">=</span><span class="n">probe_out_path</span><span class="p">)</span>
+                            <span class="n">out_files</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+
             <span class="k">except</span> <span class="ne">BaseException</span><span class="p">:</span>
                 <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">())</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
@@ -505,7 +561,9 @@
             <span class="k">elif</span> <span class="s1">&#39;raw_ephys_data/probe*&#39;</span> <span class="ow">in</span> <span class="n">sig</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
                 <span class="k">for</span> <span class="n">probe</span> <span class="ow">in</span> <span class="n">probes</span><span class="p">:</span>
                     <span class="n">full_input_files</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">sig</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="sa">f</span><span class="s1">&#39;raw_ephys_data/</span><span class="si">{</span><span class="n">probe</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">sig</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
-
+            <span class="k">elif</span> <span class="s1">&#39;raw_ephys_data&#39;</span> <span class="ow">in</span> <span class="n">sig</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="n">neuropixel_version</span> <span class="o">!=</span> <span class="s1">&#39;3A&#39;</span><span class="p">:</span>
+                    <span class="n">full_input_files</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">sig</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s1">&#39;raw_ephys_data&#39;</span><span class="p">,</span> <span class="n">sig</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">full_input_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">sig</span><span class="p">)</span>
 
@@ -515,7 +573,8 @@
         <span class="k">for</span> <span class="n">sig</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="p">[</span><span class="s1">&#39;output_files&#39;</span><span class="p">]:</span>
             <span class="k">if</span> <span class="s1">&#39;probe*&#39;</span> <span class="ow">in</span> <span class="n">sig</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
                 <span class="k">for</span> <span class="n">probe</span> <span class="ow">in</span> <span class="n">probes</span><span class="p">:</span>
-                    <span class="n">full_output_files</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">sig</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="sa">f</span><span class="s1">&#39;spike_sorters/pykilosort/</span><span class="si">{</span><span class="n">probe</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">sig</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+                    <span class="n">col</span> <span class="o">=</span> <span class="n">sig</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="n">probe</span><span class="p">]</span>
+                    <span class="n">full_output_files</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">sig</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s1">&#39;/&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">col</span><span class="p">),</span> <span class="n">sig</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">full_input_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">sig</span><span class="p">)</span>
 
@@ -691,7 +750,7 @@
             <span class="s2">&quot;sessions&quot;</span><span class="p">,</span> <span class="n">eid</span><span class="p">,</span> <span class="s2">&quot;extended_qc&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;behavior&quot;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">good_enough</span><span class="p">)}</span>
         <span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">_run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">plot_qc</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
         <span class="n">dsets</span><span class="p">,</span> <span class="n">out_files</span> <span class="o">=</span> <span class="n">ephys_fpga</span><span class="o">.</span><span class="n">extract_all</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">offline</span><span class="p">:</span>
@@ -706,6 +765,20 @@
         <span class="n">qc</span><span class="o">.</span><span class="n">extractor</span><span class="o">.</span><span class="n">extract_data</span><span class="p">()</span>
         <span class="c1"># Aggregate and update Alyx QC fields</span>
         <span class="n">qc</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">update</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">plot_qc</span><span class="p">:</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Creating Trials QC plots&quot;</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">session_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">path2eid</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
+                <span class="n">plot_task</span> <span class="o">=</span> <span class="n">BehaviourPlots</span><span class="p">(</span><span class="n">session_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">)</span>
+                <span class="n">_</span> <span class="o">=</span> <span class="n">plot_task</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">plot_tasks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">plot_task</span><span class="p">)</span>
+
+            <span class="k">except</span> <span class="ne">BaseException</span><span class="p">:</span>
+                <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Could not create Trials QC Plot&#39;</span><span class="p">)</span>
+                <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">())</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+
         <span class="k">return</span> <span class="n">out_files</span>
 
 <div class="viewcode-block" id="EphysTrials.get_signatures"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.ephys_preprocessing.html#ibllib.pipes.ephys_preprocessing.EphysTrials.get_signatures">[docs]</a>    <span class="k">def</span> <span class="nf">get_signatures</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
@@ -929,6 +1002,138 @@
         <span class="k">pass</span></div>
 
 
+<div class="viewcode-block" id="EphysPostDLC"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.ephys_preprocessing.html#ibllib.pipes.ephys_preprocessing.EphysPostDLC">[docs]</a><span class="k">class</span> <span class="nc">EphysPostDLC</span><span class="p">(</span><span class="n">tasks</span><span class="o">.</span><span class="n">Task</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The post_dlc task takes dlc traces as input and computes useful quantities, as well as qc.</span>
+
+<span class="sd">    For creating the full dlc_qc_plot, several other inputs are required that can be found in the docstring of</span>
+<span class="sd">    :py:func:ibllib.plots.figures.dlc_qc_plot</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">io_charge</span> <span class="o">=</span> <span class="mi">90</span>
+    <span class="n">level</span> <span class="o">=</span> <span class="mi">3</span>
+    <span class="n">force</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">signature</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;input_files&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;_ibl_leftCamera.dlc.pqt&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                                 <span class="p">(</span><span class="s1">&#39;_ibl_bodyCamera.dlc.pqt&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                                 <span class="p">(</span><span class="s1">&#39;_ibl_rightCamera.dlc.pqt&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                                 <span class="p">(</span><span class="s1">&#39;_ibl_rightCamera.times.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                                 <span class="p">(</span><span class="s1">&#39;_ibl_leftCamera.times.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                                 <span class="p">(</span><span class="s1">&#39;_ibl_bodyCamera.times.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)],</span>
+                 <span class="c1"># More files are required for all panels of the DLC QC plot to function</span>
+                 <span class="s1">&#39;output_files&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;_ibl_leftCamera.features.pqt&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                                  <span class="p">(</span><span class="s1">&#39;_ibl_rightCamera.features.pqt&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                                  <span class="p">(</span><span class="s1">&#39;licks.times.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)]</span>
+                 <span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">_run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">run_qc</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">plot_qc</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Run the EphysPostDLC task. Returns a list of file locations for the output files in signature. The created plot</span>
+<span class="sd">        (dlc_qc_plot.png) is not returned, but saved in session_path/snapshots and uploaded to Alyx as a note.</span>
+
+<span class="sd">        :param overwrite: bool, whether to recompute existing output files (default is False).</span>
+<span class="sd">                          Note that the dlc_qc_plot will be computed even if overwrite = False</span>
+<span class="sd">        :param run_qc: bool, whether to run the DLC QC (default is True)</span>
+<span class="sd">        :param plot_qc: book, whether to create the dlc_qc_plot (default is True)</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Check if output files exist locally</span>
+        <span class="n">exist</span><span class="p">,</span> <span class="n">output_files</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">assert_expected</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="p">[</span><span class="s1">&#39;output_files&#39;</span><span class="p">],</span> <span class="n">silent</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">exist</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">overwrite</span><span class="p">:</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;EphysPostDLC outputs exist and overwrite=False, skipping computations of outputs.&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">exist</span> <span class="ow">and</span> <span class="n">overwrite</span><span class="p">:</span>
+                <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;EphysPostDLC outputs exist and overwrite=True, overwriting existing outputs.&#39;</span><span class="p">)</span>
+            <span class="c1"># Find all available dlc traces and dlc times</span>
+            <span class="n">dlc_files</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;alf&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s1">&#39;_ibl_*Camera.dlc.*&#39;</span><span class="p">))</span>
+            <span class="k">for</span> <span class="n">dlc_file</span> <span class="ow">in</span> <span class="n">dlc_files</span><span class="p">:</span>
+                <span class="n">_logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">dlc_file</span><span class="p">)</span>
+            <span class="n">output_files</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">combined_licks</span> <span class="o">=</span> <span class="p">[]</span>
+
+            <span class="k">for</span> <span class="n">dlc_file</span> <span class="ow">in</span> <span class="n">dlc_files</span><span class="p">:</span>
+                <span class="c1"># Catch unforeseen exceptions and move on to next cam</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">cam</span> <span class="o">=</span> <span class="n">label_from_path</span><span class="p">(</span><span class="n">dlc_file</span><span class="p">)</span>
+                    <span class="c1"># load dlc trace and camera times</span>
+                    <span class="n">dlc</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_parquet</span><span class="p">(</span><span class="n">dlc_file</span><span class="p">)</span>
+                    <span class="n">dlc_thresh</span> <span class="o">=</span> <span class="n">likelihood_threshold</span><span class="p">(</span><span class="n">dlc</span><span class="p">,</span> <span class="mf">0.9</span><span class="p">)</span>
+                    <span class="c1"># try to load respective camera times</span>
+                    <span class="n">dlc_t</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="nb">next</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;alf&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;_ibl_</span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s1">Camera.times.*npy&#39;</span><span class="p">)))</span>
+                    <span class="n">times</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="k">if</span> <span class="n">dlc_t</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;camera.times empty for </span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s1"> camera. &#39;</span>
+                                      <span class="sa">f</span><span class="s1">&#39;Computations using camera.times will be skipped&#39;</span><span class="p">)</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+                        <span class="n">times</span> <span class="o">=</span> <span class="kc">False</span>
+                    <span class="c1"># These features are only computed from left and right cam</span>
+                    <span class="k">if</span> <span class="n">cam</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;left&#39;</span><span class="p">,</span> <span class="s1">&#39;right&#39;</span><span class="p">):</span>
+                        <span class="n">features</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">()</span>
+                        <span class="c1"># If camera times are available, get the lick time stamps for combined array</span>
+                        <span class="k">if</span> <span class="n">times</span><span class="p">:</span>
+                            <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Computing lick times for </span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s2"> camera.&quot;</span><span class="p">)</span>
+                            <span class="n">combined_licks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">get_licks</span><span class="p">(</span><span class="n">dlc_thresh</span><span class="p">,</span> <span class="n">dlc_t</span><span class="p">))</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Skipping lick times for </span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s2"> camera as no camera.times available.&quot;</span><span class="p">)</span>
+                        <span class="c1"># Compute pupil diameter, raw and smoothed</span>
+                        <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Computing raw pupil diameter for </span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s2"> camera.&quot;</span><span class="p">)</span>
+                        <span class="n">features</span><span class="p">[</span><span class="s1">&#39;pupilDiameter_raw&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">get_pupil_diameter</span><span class="p">(</span><span class="n">dlc_thresh</span><span class="p">)</span>
+                        <span class="k">try</span><span class="p">:</span>
+                            <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Computing smooth pupil diameter for </span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s2"> camera.&quot;</span><span class="p">)</span>
+                            <span class="n">features</span><span class="p">[</span><span class="s1">&#39;pupilDiameter_smooth&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">get_smooth_pupil_diameter</span><span class="p">(</span><span class="n">features</span><span class="p">[</span><span class="s1">&#39;pupilDiameter_raw&#39;</span><span class="p">],</span>
+                                                                                         <span class="n">cam</span><span class="p">)</span>
+                        <span class="k">except</span> <span class="ne">BaseException</span><span class="p">:</span>
+                            <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Computing smooth pupil diameter for </span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s2"> camera failed, saving all NaNs.&quot;</span><span class="p">)</span>
+                            <span class="n">features</span><span class="p">[</span><span class="s1">&#39;pupilDiameter_smooth&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+                        <span class="c1"># Safe to pqt</span>
+                        <span class="n">features_file</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;_ibl_</span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s1">Camera.features.pqt&#39;</span><span class="p">)</span>
+                        <span class="n">features</span><span class="o">.</span><span class="n">to_parquet</span><span class="p">(</span><span class="n">features_file</span><span class="p">)</span>
+                        <span class="n">output_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">features_file</span><span class="p">)</span>
+
+                    <span class="c1"># For all cams, compute DLC qc if times available</span>
+                    <span class="k">if</span> <span class="n">times</span> <span class="ow">and</span> <span class="n">run_qc</span><span class="p">:</span>
+                        <span class="c1"># Setting download_data to False because at this point the data should be there</span>
+                        <span class="n">qc</span> <span class="o">=</span> <span class="n">DlcQC</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">side</span><span class="o">=</span><span class="n">cam</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">,</span> <span class="n">download_data</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                        <span class="n">qc</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">update</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="ow">not</span> <span class="n">times</span><span class="p">:</span>
+                            <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Skipping QC for </span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s2"> camera as no camera.times available&quot;</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="ow">not</span> <span class="n">run_qc</span><span class="p">:</span>
+                            <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Skipping QC for </span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s2"> camera as run_qc=False&quot;</span><span class="p">)</span>
+
+                <span class="k">except</span> <span class="ne">BaseException</span><span class="p">:</span>
+                    <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">())</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+                    <span class="k">continue</span>
+
+            <span class="c1"># Combined lick times</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">combined_licks</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">lick_times_file</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="s1">&#39;licks.times.npy&#39;</span><span class="p">)</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">lick_times_file</span><span class="p">,</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">combined_licks</span><span class="p">)))</span>
+                <span class="n">output_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">lick_times_file</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;No lick times computed for this session.&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">plot_qc</span><span class="p">:</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Creating DLC QC plot&quot;</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">session_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">path2eid</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
+                <span class="n">fig_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;snapshot&#39;</span><span class="p">,</span> <span class="s1">&#39;dlc_qc_plot.png&#39;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">fig_path</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+                    <span class="n">fig_path</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                <span class="n">fig</span> <span class="o">=</span> <span class="n">dlc_qc_plot</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">path2eid</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">),</span> <span class="n">one</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">)</span>
+                <span class="n">fig</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">fig_path</span><span class="p">)</span>
+                <span class="n">fig</span><span class="o">.</span><span class="n">clf</span><span class="p">()</span>
+                <span class="n">snp</span> <span class="o">=</span> <span class="n">ReportSnapshot</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">session_id</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">)</span>
+                <span class="n">snp</span><span class="o">.</span><span class="n">outputs</span> <span class="o">=</span> <span class="p">[</span><span class="n">fig_path</span><span class="p">]</span>
+                <span class="n">snp</span><span class="o">.</span><span class="n">register_images</span><span class="p">(</span><span class="n">widths</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;orig&#39;</span><span class="p">],</span>
+                                    <span class="n">function</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">dlc_qc_plot</span><span class="o">.</span><span class="vm">__module__</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;.&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">dlc_qc_plot</span><span class="o">.</span><span class="vm">__name__</span><span class="p">))</span>
+            <span class="k">except</span> <span class="ne">BaseException</span><span class="p">:</span>
+                <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Could not create and/or upload DLC QC Plot&#39;</span><span class="p">)</span>
+                <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">())</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+
+        <span class="k">return</span> <span class="n">output_files</span></div>
+
+
 <div class="viewcode-block" id="EphysPassive"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.ephys_preprocessing.html#ibllib.pipes.ephys_preprocessing.EphysPassive">[docs]</a><span class="k">class</span> <span class="nc">EphysPassive</span><span class="p">(</span><span class="n">tasks</span><span class="o">.</span><span class="n">Task</span><span class="p">):</span>
     <span class="n">cpu</span> <span class="o">=</span> <span class="mi">1</span>
     <span class="n">io_charge</span> <span class="o">=</span> <span class="mi">90</span>
@@ -999,6 +1204,9 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysVideoCompress&quot;</span><span class="p">],</span> <span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysPulses&quot;</span><span class="p">],</span> <span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysTrials&quot;</span><span class="p">]])</span>
         <span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysCellsQc&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">EphysCellsQc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;SpikeSorting&quot;</span><span class="p">]])</span>
         <span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysDLC&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">EphysDLC</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysVideoCompress&quot;</span><span class="p">]])</span>
+        <span class="c1"># level 3</span>
+        <span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysPostDLC&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">EphysPostDLC</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysDLC&quot;</span><span class="p">],</span> <span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysTrials&quot;</span><span class="p">],</span>
+                                                                         <span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysVideoSyncQc&quot;</span><span class="p">]])</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span> <span class="o">=</span> <span class="n">tasks</span></div>
 </pre></div>
 

@@ -47,9 +47,12 @@
 <p class="caption" role="heading"><span class="caption-text">DataJoint</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../dj_docs/dj_introduction.html">Introduction to DataJoint</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../dj_docs/dj_credentials.html">Setting up DataJoint credentials</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../dj_docs/public_introduction.html">Publicly available IBL data</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../dj_docs/public_datajoint.html">Accessing public IBL data with DataJoint</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../dj_docs/dj_public.html">Publicly available IBL data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../dj_docs/dj_credentials.html">DataJoint credentials for internal IBL users</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Public</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../public_docs/public_introduction.html">Publicly available IBL data</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Miscellaneous</span></p>
 <ul>
@@ -113,7 +116,7 @@
 <div class="viewcode-block" id="LinearGLM"><a class="viewcode-back" href="../../../_autosummary/brainbox.modeling.linear.html#brainbox.modeling.linear.LinearGLM">[docs]</a><span class="k">class</span> <span class="nc">LinearGLM</span><span class="p">(</span><span class="n">NeuralModel</span><span class="p">):</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">design_matrix</span><span class="p">,</span> <span class="n">spk_times</span><span class="p">,</span> <span class="n">spk_clu</span><span class="p">,</span>
                  <span class="n">binwidth</span><span class="o">=</span><span class="mf">0.02</span><span class="p">,</span> <span class="n">metric</span><span class="o">=</span><span class="s1">&#39;rsq&#39;</span><span class="p">,</span> <span class="n">estimator</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                 <span class="n">train</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span> <span class="n">blocktrain</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">mintrials</span><span class="o">=</span><span class="mi">100</span><span class="p">):</span>
+                 <span class="n">mintrials</span><span class="o">=</span><span class="mi">100</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Fit a linear model using a DesignMatrix object and spike data. Can use ridge regression</span>
 <span class="sd">        or pure linear regression</span>
@@ -144,13 +147,15 @@
 <span class="sd">            fitting, by default 100</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">design_matrix</span><span class="p">,</span> <span class="n">spk_times</span><span class="p">,</span> <span class="n">spk_clu</span><span class="p">,</span>
-                         <span class="n">binwidth</span><span class="p">,</span> <span class="n">train</span><span class="p">,</span> <span class="n">blocktrain</span><span class="p">,</span> <span class="n">mintrials</span><span class="p">)</span>
+                         <span class="n">binwidth</span><span class="p">,</span> <span class="n">mintrials</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">estimator</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">estimator</span> <span class="o">=</span> <span class="n">LinearRegression</span><span class="p">()</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">estimator</span><span class="p">,</span> <span class="n">BaseEstimator</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Estimator must be a scikit-learn estimator, e.g. LinearRegression&#39;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">metric</span> <span class="o">=</span> <span class="n">metric</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">estimator</span> <span class="o">=</span> <span class="n">estimator</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">link</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">invlink</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">link</span>
 
     <span class="k">def</span> <span class="nf">_fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dm</span><span class="p">,</span> <span class="n">binned</span><span class="p">,</span> <span class="n">cells</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -189,30 +194,7 @@
             <span class="n">cell_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argwhere</span><span class="p">(</span><span class="n">cells</span> <span class="o">==</span> <span class="n">cell</span><span class="p">)[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
             <span class="n">coefs</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">cell</span><span class="p">]</span> <span class="o">=</span> <span class="n">weight</span><span class="p">[</span><span class="n">cell_idx</span><span class="p">,</span> <span class="p">:]</span>
             <span class="n">intercepts</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">cell</span><span class="p">]</span> <span class="o">=</span> <span class="n">intercept</span><span class="p">[</span><span class="n">cell_idx</span><span class="p">]</span>
-        <span class="k">return</span> <span class="n">coefs</span><span class="p">,</span> <span class="n">intercepts</span>
-
-<div class="viewcode-block" id="LinearGLM.score"><a class="viewcode-back" href="../../../_autosummary/brainbox.modeling.linear.html#brainbox.modeling.linear.LinearGLM.score">[docs]</a>    <span class="k">def</span> <span class="nf">score</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Score model using chosen metric</span>
-
-<span class="sd">        Returns</span>
-<span class="sd">        -------</span>
-<span class="sd">        pandas.Series</span>
-<span class="sd">            Score using chosen metric (defined at instantiation) for each unit fit by the model.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;coefs&#39;</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s1">&#39;Model has not been fit yet.&#39;</span><span class="p">)</span>
-        <span class="n">testmask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">design</span><span class="o">.</span><span class="n">trlabels</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">testinds</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
-        <span class="n">dm</span><span class="p">,</span> <span class="n">binned</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">design</span><span class="p">[</span><span class="n">testmask</span><span class="p">,</span> <span class="p">:],</span> <span class="bp">self</span><span class="o">.</span><span class="n">binnedspikes</span><span class="p">[</span><span class="n">testmask</span><span class="p">]</span>
-
-        <span class="n">scores</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">coefs</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;scores&#39;</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">cell</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">coefs</span><span class="o">.</span><span class="n">index</span><span class="p">:</span>
-            <span class="n">cell_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argwhere</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">clu_ids</span> <span class="o">==</span> <span class="n">cell</span><span class="p">)[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
-            <span class="n">wt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">coefs</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">cell</span><span class="p">]</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
-            <span class="n">bias</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">intercepts</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">cell</span><span class="p">]</span>
-            <span class="n">y</span> <span class="o">=</span> <span class="n">binned</span><span class="p">[:,</span> <span class="n">cell_idx</span><span class="p">]</span>
-            <span class="n">scores</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">cell</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_scorer</span><span class="p">(</span><span class="n">wt</span><span class="p">,</span> <span class="n">bias</span><span class="p">,</span> <span class="n">dm</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">scores</span></div></div>
+        <span class="k">return</span> <span class="n">coefs</span><span class="p">,</span> <span class="n">intercepts</span></div>
 </pre></div>
 
            </div>

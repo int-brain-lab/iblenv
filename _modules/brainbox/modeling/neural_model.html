@@ -47,9 +47,12 @@
 <p class="caption" role="heading"><span class="caption-text">DataJoint</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../dj_docs/dj_introduction.html">Introduction to DataJoint</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../dj_docs/dj_credentials.html">Setting up DataJoint credentials</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../dj_docs/public_introduction.html">Publicly available IBL data</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../dj_docs/public_datajoint.html">Accessing public IBL data with DataJoint</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../dj_docs/dj_public.html">Publicly available IBL data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../dj_docs/dj_credentials.html">DataJoint credentials for internal IBL users</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Public</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../public_docs/public_introduction.html">Publicly available IBL data</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Miscellaneous</span></p>
 <ul>
@@ -119,7 +122,7 @@
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">design_matrix</span><span class="p">,</span> <span class="n">spk_times</span><span class="p">,</span> <span class="n">spk_clu</span><span class="p">,</span>
-                 <span class="n">binwidth</span><span class="o">=</span><span class="mf">0.02</span><span class="p">,</span> <span class="n">train</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span> <span class="n">blocktrain</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">mintrials</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">stepwise</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+                 <span class="n">binwidth</span><span class="o">=</span><span class="mf">0.02</span><span class="p">,</span> <span class="n">mintrials</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">stepwise</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Construct GLM object using information about all trials, and the relevant spike times.</span>
 <span class="sd">        Only ingests data, and further object methods must be called to describe kernels, gain</span>
@@ -134,10 +137,8 @@
 <span class="sd">        spk_clu: numpy.array of integers</span>
 <span class="sd">            1-D array of same shape as spk_times, with integer cluster IDs identifying which</span>
 <span class="sd">            cluster a spike time belonged to.</span>
-<span class="sd">        train: float</span>
-<span class="sd">            Float in (0, 1] indicating proportion of data to use for training GLM vs testing</span>
-<span class="sd">            (using the NeuralGLM.score method). Trials to keep will be randomly sampled, by default</span>
-<span class="sd">            0.8</span>
+<span class="sd">        binwidth : float</span>
+<span class="sd">            Size of bins to put spikes in to, in seconds.</span>
 <span class="sd">        mintrials: int</span>
 <span class="sd">            Minimum number of trials in which neurons fired a spike in order to be fit. Defaults</span>
 <span class="sd">            to 100 trials.</span>
@@ -150,10 +151,6 @@
         <span class="c1"># Data checks #</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">spk_times</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">spk_clu</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">IndexError</span><span class="p">(</span><span class="s2">&quot;Spike times and cluster IDs are not same length&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">train</span><span class="p">,</span> <span class="nb">float</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">train</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;train must be a float between 0 and 1&#39;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="p">((</span><span class="n">train</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">train</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="p">)):</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;train must be between 0 and 1&#39;</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">design_matrix</span><span class="o">.</span><span class="n">compiled</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s1">&#39;Design matrix object must be compiled before passing to fit&#39;</span><span class="p">)</span>
 
@@ -179,29 +176,11 @@
             <span class="n">spks</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">spk_times</span><span class="p">[</span><span class="n">st_startind</span><span class="p">:</span><span class="n">st_endind</span><span class="p">]</span> <span class="o">-</span> <span class="n">start</span>
             <span class="n">clu</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">spk_clu</span><span class="p">[</span><span class="n">st_startind</span><span class="p">:</span><span class="n">st_endind</span><span class="p">]</span>
 
-        <span class="c1"># Break the data into test and train sections for cross-validation</span>
-        <span class="k">if</span> <span class="n">train</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
-            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Training fraction set to 1. Training on all data.&#39;</span><span class="p">)</span>
-            <span class="n">traininds</span> <span class="o">=</span> <span class="n">base_df</span><span class="o">.</span><span class="n">index</span>
-            <span class="n">testinds</span> <span class="o">=</span> <span class="n">base_df</span><span class="o">.</span><span class="n">index</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">trainlen</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">base_df</span><span class="p">)</span> <span class="o">*</span> <span class="n">train</span><span class="p">))</span>
-            <span class="k">if</span> <span class="n">blocktrain</span><span class="p">:</span>
-                <span class="n">testlen</span><span class="p">,</span> <span class="n">midpoint</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">base_df</span><span class="p">)</span> <span class="o">-</span> <span class="n">trainlen</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">base_df</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span>
-                <span class="n">starttest</span><span class="p">,</span> <span class="n">endtest</span> <span class="o">=</span> <span class="n">midpoint</span> <span class="o">-</span> <span class="p">(</span><span class="n">testlen</span> <span class="o">//</span> <span class="mi">2</span><span class="p">),</span> <span class="n">midpoint</span> <span class="o">+</span> <span class="p">(</span><span class="n">testlen</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span>
-                <span class="n">testinds</span> <span class="o">=</span> <span class="n">base_df</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="n">starttest</span><span class="p">:</span><span class="n">endtest</span><span class="p">]</span>
-                <span class="n">traininds</span> <span class="o">=</span> <span class="n">base_df</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">base_df</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">testinds</span><span class="p">)]</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">traininds</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">base_df</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">trainlen</span><span class="p">,</span> <span class="n">replace</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
-                <span class="n">testinds</span> <span class="o">=</span> <span class="n">base_df</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="o">~</span><span class="n">base_df</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">traininds</span><span class="p">)]</span>
-
         <span class="c1"># Set model parameters to begin with</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">design</span> <span class="o">=</span> <span class="n">design_matrix</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">spikes</span> <span class="o">=</span> <span class="n">spks</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">clu</span> <span class="o">=</span> <span class="n">clu</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">clu_ids</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argwhere</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">trialspiking</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">mintrials</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">traininds</span> <span class="o">=</span> <span class="n">traininds</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">testinds</span> <span class="o">=</span> <span class="n">testinds</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">stepwise</span> <span class="o">=</span> <span class="n">stepwise</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">binwidth</span> <span class="o">=</span> <span class="n">binwidth</span>
 
@@ -264,7 +243,7 @@
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Score a single target y</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">pred</span> <span class="o">=</span> <span class="p">(</span><span class="n">dm</span> <span class="o">@</span> <span class="n">wt</span> <span class="o">+</span> <span class="n">bias</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+        <span class="n">pred</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">link</span><span class="p">(</span><span class="n">dm</span> <span class="o">@</span> <span class="n">wt</span> <span class="o">+</span> <span class="n">bias</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">metric</span> <span class="o">==</span> <span class="s1">&#39;dsq&#39;</span><span class="p">:</span>
             <span class="n">null_pred</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">pred</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
             <span class="n">null_deviance</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">xlogy</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">y</span> <span class="o">/</span> <span class="n">null_pred</span><span class="o">.</span><span class="n">flat</span><span class="p">)</span> <span class="o">-</span> <span class="n">y</span> <span class="o">+</span> <span class="n">null_pred</span><span class="o">.</span><span class="n">flat</span><span class="p">)</span>
@@ -282,7 +261,7 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s1">&#39;No valid metric exists in the instance for use by _scorer()&#39;</span><span class="p">)</span>
 
-<div class="viewcode-block" id="NeuralModel.fit"><a class="viewcode-back" href="../../../_autosummary/brainbox.modeling.neural_model.html#brainbox.modeling.neural_model.NeuralModel.fit">[docs]</a>    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">printcond</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<div class="viewcode-block" id="NeuralModel.fit"><a class="viewcode-back" href="../../../_autosummary/brainbox.modeling.neural_model.html#brainbox.modeling.neural_model.NeuralModel.fit">[docs]</a>    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">train_idx</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">printcond</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Fit the current set of binned spikes as a function of the current design matrix. Requires</span>
 <span class="sd">        NeuralGLM.bin_spike_trains and NeuralGLM.compile_design_matrix to be run first. Will store</span>
@@ -291,6 +270,9 @@
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
+<span class="sd">        train_idx : array-like of trial indices, optional</span>
+<span class="sd">            List of which trials to use to train the model. Defaults to None, which indicates all</span>
+<span class="sd">            indices in the trialsdf will be used (100% train)</span>
 <span class="sd">        printcond : bool</span>
 <span class="sd">            Whether or not to print the condition number of the design matrix. Defaults to True</span>
 
@@ -300,10 +282,24 @@
 <span class="sd">            List of coefficients fit. Not recommended to use these for interpretation. Use</span>
 <span class="sd">            the .combine_weights() method instead.</span>
 <span class="sd">        intercepts : list</span>
-<span class="sd">            List of intercepts (bias terms) fit. Not recommended to use these for interpretation.</span>
+<span class="sd">            List of intercepts (bias terms) fit.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Input checks</span>
+        <span class="k">if</span> <span class="n">train_idx</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">train_idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">design</span><span class="o">.</span><span class="n">trialsdf</span><span class="o">.</span><span class="n">index</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">train_idx</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">design</span><span class="o">.</span><span class="n">trialsdf</span><span class="o">.</span><span class="n">index</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">IndexError</span><span class="p">(</span><span class="s1">&#39;Not all train indices in the trials of design matrix&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Store training and test indices for self so that .score() method will know what to</span>
+        <span class="c1"># operate on. If all data indices are in train indices, train and test are the same set.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">traininds</span> <span class="o">=</span> <span class="n">train_idx</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">design</span><span class="o">.</span><span class="n">trialsdf</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">train_idx</span><span class="p">)):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">testinds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">design</span><span class="o">.</span><span class="n">trialsdf</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="o">~</span><span class="bp">self</span><span class="o">.</span><span class="n">trialsdf</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">train_idx</span><span class="p">)]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">testinds</span> <span class="o">=</span> <span class="n">train_idx</span>
+
         <span class="c1"># Mask for training data</span>
-        <span class="n">trainmask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">design</span><span class="o">.</span><span class="n">trlabels</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">traininds</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+        <span class="n">trainmask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">design</span><span class="o">.</span><span class="n">trlabels</span><span class="p">,</span> <span class="n">train_idx</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
         <span class="n">trainbinned</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">binnedspikes</span><span class="p">[</span><span class="n">trainmask</span><span class="p">]</span>
         <span class="k">if</span> <span class="n">printcond</span><span class="p">:</span>
             <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Condition of design matrix is </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">cond</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">design</span><span class="p">[</span><span class="n">trainmask</span><span class="p">])</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
@@ -312,6 +308,31 @@
         <span class="n">coefs</span><span class="p">,</span> <span class="n">intercepts</span><span class="p">,</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fit</span><span class="p">(</span><span class="n">traindm</span><span class="p">,</span> <span class="n">trainbinned</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">coefs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">intercepts</span> <span class="o">=</span> <span class="n">coefs</span><span class="p">,</span> <span class="n">intercepts</span>
         <span class="k">return</span></div>
+
+<div class="viewcode-block" id="NeuralModel.score"><a class="viewcode-back" href="../../../_autosummary/brainbox.modeling.neural_model.html#brainbox.modeling.neural_model.NeuralModel.score">[docs]</a>    <span class="k">def</span> <span class="nf">score</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">testinds</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Score model using chosen metric</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        pandas.Series</span>
+<span class="sd">            Score using chosen metric (defined at instantiation) for each unit fit by the model.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;coefs&#39;</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s1">&#39;Model has not been fit yet.&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">testinds</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">testinds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testinds</span>
+        <span class="n">testmask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">design</span><span class="o">.</span><span class="n">trlabels</span><span class="p">,</span> <span class="n">testinds</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+        <span class="n">dm</span><span class="p">,</span> <span class="n">binned</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">design</span><span class="p">[</span><span class="n">testmask</span><span class="p">,</span> <span class="p">:],</span> <span class="bp">self</span><span class="o">.</span><span class="n">binnedspikes</span><span class="p">[</span><span class="n">testmask</span><span class="p">]</span>
+
+        <span class="n">scores</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">coefs</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;scores&#39;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">cell</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">coefs</span><span class="o">.</span><span class="n">index</span><span class="p">:</span>
+            <span class="n">cell_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argwhere</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">clu_ids</span> <span class="o">==</span> <span class="n">cell</span><span class="p">)[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+            <span class="n">wt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">coefs</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">cell</span><span class="p">]</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">bias</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">intercepts</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">cell</span><span class="p">]</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="n">binned</span><span class="p">[:,</span> <span class="n">cell_idx</span><span class="p">]</span>
+            <span class="n">scores</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">cell</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_scorer</span><span class="p">(</span><span class="n">wt</span><span class="p">,</span> <span class="n">bias</span><span class="p">,</span> <span class="n">dm</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">scores</span></div>
 
 <div class="viewcode-block" id="NeuralModel.binf"><a class="viewcode-back" href="../../../_autosummary/brainbox.modeling.neural_model.html#brainbox.modeling.neural_model.NeuralModel.binf">[docs]</a>    <span class="k">def</span> <span class="nf">binf</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">t</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>

@@ -47,9 +47,12 @@
 <p class="caption" role="heading"><span class="caption-text">DataJoint</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../dj_docs/dj_introduction.html">Introduction to DataJoint</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../dj_docs/dj_credentials.html">Setting up DataJoint credentials</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../dj_docs/public_introduction.html">Publicly available IBL data</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../dj_docs/public_datajoint.html">Accessing public IBL data with DataJoint</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../dj_docs/dj_public.html">Publicly available IBL data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../dj_docs/dj_credentials.html">DataJoint credentials for internal IBL users</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Public</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../public_docs/public_introduction.html">Publicly available IBL data</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Miscellaneous</span></p>
 <ul>
@@ -103,8 +106,9 @@
 <span class="kn">import</span> <span class="nn">abc</span>
 <span class="kn">from</span> <span class="nn">time</span> <span class="kn">import</span> <span class="n">time</span>
 
+<span class="kn">from</span> <span class="nn">one.api</span> <span class="kn">import</span> <span class="n">ONE</span>
 <span class="kn">from</span> <span class="nn">one.util</span> <span class="kn">import</span> <span class="n">filter_datasets</span>
-<span class="kn">from</span> <span class="nn">one.alf.files</span> <span class="kn">import</span> <span class="n">add_uuid_string</span>
+<span class="kn">from</span> <span class="nn">one.alf.files</span> <span class="kn">import</span> <span class="n">add_uuid_string</span><span class="p">,</span> <span class="n">session_path_parts</span>
 <span class="kn">from</span> <span class="nn">iblutil.io.parquet</span> <span class="kn">import</span> <span class="n">np2str</span>
 <span class="kn">from</span> <span class="nn">ibllib.oneibl.registration</span> <span class="kn">import</span> <span class="n">register_dataset</span>
 <span class="kn">from</span> <span class="nn">ibllib.oneibl.patcher</span> <span class="kn">import</span> <span class="n">FTPPatcher</span><span class="p">,</span> <span class="n">SDSCPatcher</span><span class="p">,</span> <span class="n">SDSC_ROOT_PATH</span><span class="p">,</span> <span class="n">SDSC_PATCH_PATH</span>
@@ -132,15 +136,17 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">pass</span></div>
 
-<div class="viewcode-block" id="DataHandler.getData"><a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.DataHandler.getData">[docs]</a>    <span class="k">def</span> <span class="nf">getData</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="DataHandler.getData"><a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.DataHandler.getData">[docs]</a>    <span class="k">def</span> <span class="nf">getData</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Finds the datasets required for task based on input signatures</span>
 <span class="sd">        :return:</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">one</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">return</span>
-        <span class="n">session_datasets</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">list_datasets</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">path2eid</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">),</span> <span class="n">details</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-        <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">_cache</span><span class="o">.</span><span class="n">datasets</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span>
+
+        <span class="n">one</span> <span class="o">=</span> <span class="n">one</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span>
+        <span class="n">session_datasets</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">list_datasets</span><span class="p">(</span><span class="n">one</span><span class="o">.</span><span class="n">path2eid</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">),</span> <span class="n">details</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="n">one</span><span class="o">.</span><span class="n">_cache</span><span class="o">.</span><span class="n">datasets</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="p">[</span><span class="s1">&#39;input_files&#39;</span><span class="p">]:</span>
             <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">filter_datasets</span><span class="p">(</span><span class="n">session_datasets</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="n">file</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">collection</span><span class="o">=</span><span class="n">file</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
                            <span class="n">wildcards</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">assert_unique</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
@@ -227,14 +233,21 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">lab</span> <span class="o">=</span> <span class="n">labs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">globus</span><span class="o">.</span><span class="n">add_endpoint</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;flatiron_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">lab</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="c1"># For cortex lab we need to get the endpoint from the ibl alyx</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">lab</span> <span class="o">==</span> <span class="s1">&#39;cortexlab&#39;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">globus</span><span class="o">.</span><span class="n">add_endpoint</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;flatiron_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">lab</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">ONE</span><span class="p">(</span><span class="n">base_url</span><span class="o">=</span><span class="s1">&#39;https://alyx.internationalbrainlab.org&#39;</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">globus</span><span class="o">.</span><span class="n">add_endpoint</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;flatiron_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">lab</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
 
 <div class="viewcode-block" id="ServerGlobusDataHandler.setUp"><a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.ServerGlobusDataHandler.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Function to download necessary data to run tasks using globus-sdk</span>
 <span class="sd">        :return:</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">df</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">getData</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">lab</span> <span class="o">==</span> <span class="s1">&#39;cortexlab&#39;</span><span class="p">:</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">getData</span><span class="p">(</span><span class="n">one</span><span class="o">=</span><span class="n">ONE</span><span class="p">(</span><span class="n">base_url</span><span class="o">=</span><span class="s1">&#39;https://alyx.internationalbrainlab.org&#39;</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">getData</span><span class="p">()</span>
 
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">df</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
             <span class="c1"># If no datasets found in the cache only work off local file system do not attempt to download any missing data</span>
@@ -321,7 +334,7 @@
 
 
 <div class="viewcode-block" id="RemoteAwsDataHandler"><a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.RemoteAwsDataHandler">[docs]</a><span class="k">class</span> <span class="nc">RemoteAwsDataHandler</span><span class="p">(</span><span class="n">DataHandler</span><span class="p">):</span>
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_path</span><span class="p">,</span> <span class="n">signature</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task</span><span class="p">,</span> <span class="n">session_path</span><span class="p">,</span> <span class="n">signature</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Data handler for running tasks on remote compute node. Will download missing data from private ibl s3 AWS data bucket</span>
 
@@ -329,8 +342,13 @@
 <span class="sd">        :param signature: input and output file signatures</span>
 <span class="sd">        :param one: ONE instance</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">one.globus</span> <span class="kn">import</span> <span class="n">Globus</span> <span class="c1"># noqa</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">signature</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">task</span> <span class="o">=</span> <span class="n">task</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">aws</span> <span class="o">=</span> <span class="n">AWS</span><span class="p">(</span><span class="n">one</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">globus</span> <span class="o">=</span> <span class="n">Globus</span><span class="p">(</span><span class="n">client_name</span><span class="o">=</span><span class="s1">&#39;server&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lab</span> <span class="o">=</span> <span class="n">session_path_parts</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">as_dict</span><span class="o">=</span><span class="kc">True</span><span class="p">)[</span><span class="s1">&#39;lab&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">globus</span><span class="o">.</span><span class="n">add_endpoint</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;flatiron_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">lab</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
 
 <div class="viewcode-block" id="RemoteAwsDataHandler.setUp"><a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.RemoteAwsDataHandler.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -338,7 +356,7 @@
 <span class="sd">        :return:</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">df</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">getData</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">aws</span><span class="o">.</span><span class="n">_download_datasets</span><span class="p">(</span><span class="n">df</span><span class="p">)</span></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">local_paths</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aws</span><span class="o">.</span><span class="n">_download_datasets</span><span class="p">(</span><span class="n">df</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="RemoteAwsDataHandler.uploadData"><a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.RemoteAwsDataHandler.uploadData">[docs]</a>    <span class="k">def</span> <span class="nf">uploadData</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">outputs</span><span class="p">,</span> <span class="n">version</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -347,10 +365,70 @@
 <span class="sd">        :param version: ibllib version</span>
 <span class="sd">        :return: output info of registered datasets</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># register datasets</span>
         <span class="n">versions</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">uploadData</span><span class="p">(</span><span class="n">outputs</span><span class="p">,</span> <span class="n">version</span><span class="p">)</span>
-        <span class="n">ftp_patcher</span> <span class="o">=</span> <span class="n">FTPPatcher</span><span class="p">(</span><span class="n">one</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">ftp_patcher</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span><span class="n">path</span><span class="o">=</span><span class="n">outputs</span><span class="p">,</span> <span class="n">created_by</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">user</span><span class="p">,</span>
-                                          <span class="n">versions</span><span class="o">=</span><span class="n">versions</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div></div>
+        <span class="n">response</span> <span class="o">=</span> <span class="n">register_dataset</span><span class="p">(</span><span class="n">outputs</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">,</span> <span class="n">server_only</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">versions</span><span class="o">=</span><span class="n">versions</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="c1"># upload directly via globus</span>
+        <span class="n">source_paths</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">target_paths</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">collections</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="k">for</span> <span class="n">dset</span><span class="p">,</span> <span class="n">out</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">response</span><span class="p">,</span> <span class="n">outputs</span><span class="p">):</span>
+            <span class="k">assert</span> <span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">out</span><span class="p">)</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="n">dset</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">])</span>
+            <span class="c1"># set flag to false</span>
+            <span class="n">fr</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">fr</span> <span class="k">for</span> <span class="n">fr</span> <span class="ow">in</span> <span class="n">dset</span><span class="p">[</span><span class="s1">&#39;file_records&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="s1">&#39;flatiron&#39;</span> <span class="ow">in</span> <span class="n">fr</span><span class="p">[</span><span class="s1">&#39;data_repository&#39;</span><span class="p">])</span>
+            <span class="n">collection</span> <span class="o">=</span> <span class="s1">&#39;/&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">fr</span><span class="p">[</span><span class="s1">&#39;relative_path&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+            <span class="k">if</span> <span class="n">collection</span> <span class="ow">in</span> <span class="n">collections</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="n">collections</span><span class="p">[</span><span class="n">collection</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">dset</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;fr_id&#39;</span><span class="p">:</span> <span class="n">fr</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">],</span> <span class="s1">&#39;size&#39;</span><span class="p">:</span> <span class="n">dset</span><span class="p">[</span><span class="s1">&#39;file_size&#39;</span><span class="p">]}})</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">collections</span><span class="p">[</span><span class="n">collection</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">dset</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;fr_id&#39;</span><span class="p">:</span> <span class="n">fr</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">],</span> <span class="s1">&#39;size&#39;</span><span class="p">:</span> <span class="n">dset</span><span class="p">[</span><span class="s1">&#39;file_size&#39;</span><span class="p">]}}</span>
+
+            <span class="c1"># Set all exists status to false for server file records</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;files&#39;</span><span class="p">,</span> <span class="s1">&#39;partial_update&#39;</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">fr</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">],</span> <span class="n">data</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;exists&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">})</span>
+
+            <span class="n">source_paths</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+            <span class="n">target_paths</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">add_uuid_string</span><span class="p">(</span><span class="n">fr</span><span class="p">[</span><span class="s1">&#39;relative_path&#39;</span><span class="p">],</span> <span class="n">dset</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]))</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">target_paths</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">ts</span> <span class="o">=</span> <span class="n">time</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">sp</span><span class="p">,</span> <span class="n">tp</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">source_paths</span><span class="p">,</span> <span class="n">target_paths</span><span class="p">):</span>
+                <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Uploading </span><span class="si">{</span><span class="n">sp</span><span class="si">}</span><span class="s1"> to </span><span class="si">{</span><span class="n">tp</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">globus</span><span class="o">.</span><span class="n">mv</span><span class="p">(</span><span class="s1">&#39;local&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;flatiron_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">lab</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">source_paths</span><span class="p">,</span> <span class="n">target_paths</span><span class="p">)</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Complete. Time elapsed </span><span class="si">{</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">ts</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">collection</span><span class="p">,</span> <span class="n">files</span> <span class="ow">in</span> <span class="n">collections</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">globus_files</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">globus</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;flatiron_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">lab</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">collection</span><span class="p">,</span> <span class="n">remove_uuid</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">return_size</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">file_names</span> <span class="o">=</span> <span class="p">[</span><span class="n">gl</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">gl</span> <span class="ow">in</span> <span class="n">globus_files</span><span class="p">]</span>
+            <span class="n">file_sizes</span> <span class="o">=</span> <span class="p">[</span><span class="n">gl</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">gl</span> <span class="ow">in</span> <span class="n">globus_files</span><span class="p">]</span>
+
+            <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">details</span> <span class="ow">in</span> <span class="n">files</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">idx</span> <span class="o">=</span> <span class="n">file_names</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+                    <span class="n">size</span> <span class="o">=</span> <span class="n">file_sizes</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+                    <span class="k">if</span> <span class="n">size</span> <span class="o">==</span> <span class="n">details</span><span class="p">[</span><span class="s1">&#39;size&#39;</span><span class="p">]:</span>
+                        <span class="c1"># update the file record if sizes match</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;files&#39;</span><span class="p">,</span> <span class="s1">&#39;partial_update&#39;</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">details</span><span class="p">[</span><span class="s1">&#39;fr_id&#39;</span><span class="p">],</span> <span class="n">data</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;exists&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">})</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;File </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1"> found on SDSC but sizes do not match&#39;</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                    <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;File </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1"> not found on SDSC&#39;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">response</span></div>
+
+        <span class="c1"># ftp_patcher = FTPPatcher(one=self.one)</span>
+        <span class="c1"># return ftp_patcher.create_dataset(path=outputs, created_by=self.one.alyx.user,</span>
+        <span class="c1">#                                   versions=versions, **kwargs)</span>
+
+<div class="viewcode-block" id="RemoteAwsDataHandler.cleanUp"><a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.RemoteAwsDataHandler.cleanUp">[docs]</a>    <span class="k">def</span> <span class="nf">cleanUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Clean up, remove the files that were downloaded from globus once task has completed</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">task</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">local_paths</span><span class="p">:</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">file</span><span class="p">)</span></div></div>
 
 
 <div class="viewcode-block" id="RemoteGlobusDataHandler"><a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.RemoteGlobusDataHandler">[docs]</a><span class="k">class</span> <span class="nc">RemoteGlobusDataHandler</span><span class="p">(</span><span class="n">DataHandler</span><span class="p">):</span>

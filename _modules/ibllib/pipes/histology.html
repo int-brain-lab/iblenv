@@ -47,9 +47,12 @@
 <p class="caption" role="heading"><span class="caption-text">DataJoint</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../dj_docs/dj_introduction.html">Introduction to DataJoint</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../dj_docs/dj_credentials.html">Setting up DataJoint credentials</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../dj_docs/public_introduction.html">Publicly available IBL data</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../dj_docs/public_datajoint.html">Accessing public IBL data with DataJoint</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../dj_docs/dj_public.html">Publicly available IBL data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../dj_docs/dj_credentials.html">DataJoint credentials for internal IBL users</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Public</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../public_docs/public_introduction.html">Publicly available IBL data</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Miscellaneous</span></p>
 <ul>
@@ -106,22 +109,21 @@
 <span class="kn">import</span> <span class="nn">ibllib.atlas</span> <span class="k">as</span> <span class="nn">atlas</span>
 <span class="kn">from</span> <span class="nn">ibllib.ephys.spikes</span> <span class="kn">import</span> <span class="n">probes_description</span> <span class="k">as</span> <span class="n">extract_probes</span>
 <span class="kn">from</span> <span class="nn">ibllib.dsp.utils</span> <span class="kn">import</span> <span class="n">fcn_cosine</span>
-<span class="kn">from</span> <span class="nn">ibllib.ephys.neuropixel</span> <span class="kn">import</span> <span class="n">TIP_SIZE_UM</span>
+<span class="kn">from</span> <span class="nn">ibllib.ephys.neuropixel</span> <span class="kn">import</span> <span class="n">TIP_SIZE_UM</span><span class="p">,</span> <span class="n">trace_header</span>
 <span class="kn">from</span> <span class="nn">ibllib.qc</span> <span class="kn">import</span> <span class="n">base</span>
 
 
 <span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;ibllib&#39;</span><span class="p">)</span>
 
-<span class="c1"># origin Allen left, front, up</span>
-<span class="n">brain_atlas</span> <span class="o">=</span> <span class="n">atlas</span><span class="o">.</span><span class="n">AllenAtlas</span><span class="p">(</span><span class="n">res_um</span><span class="o">=</span><span class="mi">25</span><span class="p">)</span>
 
-
-<div class="viewcode-block" id="load_track_csv"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.histology.html#ibllib.pipes.histology.load_track_csv">[docs]</a><span class="k">def</span> <span class="nf">load_track_csv</span><span class="p">(</span><span class="n">file_track</span><span class="p">):</span>
+<div class="viewcode-block" id="load_track_csv"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.histology.html#ibllib.pipes.histology.load_track_csv">[docs]</a><span class="k">def</span> <span class="nf">load_track_csv</span><span class="p">(</span><span class="n">file_track</span><span class="p">,</span> <span class="n">brain_atlas</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Loads a lasagna track and convert to IBL-ALlen coordinate framework</span>
 <span class="sd">    :param file_track:</span>
 <span class="sd">    :return: xyz</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">brain_atlas</span> <span class="o">=</span> <span class="n">brain_atlas</span> <span class="ow">or</span> <span class="n">atlas</span><span class="o">.</span><span class="n">AllenAtlas</span><span class="p">(</span><span class="mi">25</span><span class="p">)</span>
     <span class="c1"># apmldv in the histology file is flipped along y direction</span>
     <span class="n">file_track</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">file_track</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">file_track</span><span class="o">.</span><span class="n">stat</span><span class="p">()</span><span class="o">.</span><span class="n">st_size</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
@@ -134,12 +136,13 @@
     <span class="k">return</span> <span class="n">xyz</span></div>
 
 
-<div class="viewcode-block" id="get_picked_tracks"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.histology.html#ibllib.pipes.histology.get_picked_tracks">[docs]</a><span class="k">def</span> <span class="nf">get_picked_tracks</span><span class="p">(</span><span class="n">histology_path</span><span class="p">,</span> <span class="n">glob_pattern</span><span class="o">=</span><span class="s2">&quot;*_pts_transformed.csv&quot;</span><span class="p">):</span>
+<div class="viewcode-block" id="get_picked_tracks"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.histology.html#ibllib.pipes.histology.get_picked_tracks">[docs]</a><span class="k">def</span> <span class="nf">get_picked_tracks</span><span class="p">(</span><span class="n">histology_path</span><span class="p">,</span> <span class="n">glob_pattern</span><span class="o">=</span><span class="s2">&quot;*_pts_transformed.csv&quot;</span><span class="p">,</span> <span class="n">brain_atlas</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    This outputs reads in the Lasagna output and converts the picked tracks in the IBL coordinates</span>
 <span class="sd">    :param histology_path: Path object: folder path containing tracks</span>
 <span class="sd">    :return: xyz coordinates in</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">brain_atlas</span> <span class="o">=</span> <span class="n">brain_atlas</span> <span class="ow">or</span> <span class="n">atlas</span><span class="o">.</span><span class="n">AllenAtlas</span><span class="p">()</span>
     <span class="n">xyzs</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="n">histology_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">histology_path</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">histology_path</span><span class="o">.</span><span class="n">is_file</span><span class="p">():</span>
@@ -147,7 +150,7 @@
     <span class="k">else</span><span class="p">:</span>
         <span class="n">files_track</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">histology_path</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="n">glob_pattern</span><span class="p">))</span>
     <span class="k">for</span> <span class="n">file_track</span> <span class="ow">in</span> <span class="n">files_track</span><span class="p">:</span>
-        <span class="n">xyzs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">load_track_csv</span><span class="p">(</span><span class="n">file_track</span><span class="p">))</span>
+        <span class="n">xyzs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">load_track_csv</span><span class="p">(</span><span class="n">file_track</span><span class="p">,</span> <span class="n">brain_atlas</span><span class="o">=</span><span class="n">brain_atlas</span><span class="p">))</span>
     <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;files&#39;</span><span class="p">:</span> <span class="n">files_track</span><span class="p">,</span> <span class="s1">&#39;xyz&#39;</span><span class="p">:</span> <span class="n">xyzs</span><span class="p">}</span></div>
 
 
@@ -196,13 +199,14 @@
     <span class="k">return</span> <span class="n">probes</span></div>
 
 
-<div class="viewcode-block" id="plot2d_all"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.histology.html#ibllib.pipes.histology.plot2d_all">[docs]</a><span class="k">def</span> <span class="nf">plot2d_all</span><span class="p">(</span><span class="n">trajectories</span><span class="p">,</span> <span class="n">tracks</span><span class="p">):</span>
+<div class="viewcode-block" id="plot2d_all"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.histology.html#ibllib.pipes.histology.plot2d_all">[docs]</a><span class="k">def</span> <span class="nf">plot2d_all</span><span class="p">(</span><span class="n">trajectories</span><span class="p">,</span> <span class="n">tracks</span><span class="p">,</span> <span class="n">brain_atlas</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Plot all tracks on a single 2d slice</span>
 <span class="sd">    :param trajectories: dictionary output of the Alyx REST query on trajectories</span>
 <span class="sd">    :param tracks:</span>
 <span class="sd">    :return:</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">brain_atlas</span> <span class="o">=</span> <span class="n">brain_atlas</span> <span class="ow">or</span> <span class="n">atlas</span><span class="o">.</span><span class="n">AllenAtlas</span><span class="p">(</span><span class="mi">25</span><span class="p">)</span>
     <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
     <span class="n">axs</span> <span class="o">=</span> <span class="n">brain_atlas</span><span class="o">.</span><span class="n">plot_sslice</span><span class="p">(</span><span class="n">brain_atlas</span><span class="o">.</span><span class="n">bc</span><span class="o">.</span><span class="n">i2x</span><span class="p">(</span><span class="mi">190</span><span class="p">),</span> <span class="n">cmap</span><span class="o">=</span><span class="n">plt</span><span class="o">.</span><span class="n">get_cmap</span><span class="p">(</span><span class="s1">&#39;bone&#39;</span><span class="p">))</span>
     <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
@@ -217,7 +221,7 @@
         <span class="n">axs</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">xyz</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="mf">1e3</span><span class="p">,</span> <span class="n">xyz</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="mf">1e6</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="plot3d_all"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.histology.html#ibllib.pipes.histology.plot3d_all">[docs]</a><span class="k">def</span> <span class="nf">plot3d_all</span><span class="p">(</span><span class="n">trajectories</span><span class="p">,</span> <span class="n">tracks</span><span class="p">):</span>
+<div class="viewcode-block" id="plot3d_all"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.histology.html#ibllib.pipes.histology.plot3d_all">[docs]</a><span class="k">def</span> <span class="nf">plot3d_all</span><span class="p">(</span><span class="n">trajectories</span><span class="p">,</span> <span class="n">tracks</span><span class="p">,</span> <span class="n">brain_atlas</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Plot all tracks on a single 2d slice</span>
 <span class="sd">    :param trajectories: dictionary output of the Alyx REST query on trajectories</span>
@@ -225,6 +229,7 @@
 <span class="sd">    :return:</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="kn">from</span> <span class="nn">mayavi</span> <span class="kn">import</span> <span class="n">mlab</span>
+    <span class="n">brain_atlas</span> <span class="o">=</span> <span class="n">brain_atlas</span> <span class="ow">or</span> <span class="n">atlas</span><span class="o">.</span><span class="n">AllenAtlas</span><span class="p">()</span>
     <span class="n">src</span> <span class="o">=</span> <span class="n">mlab</span><span class="o">.</span><span class="n">pipeline</span><span class="o">.</span><span class="n">scalar_field</span><span class="p">(</span><span class="n">brain_atlas</span><span class="o">.</span><span class="n">label</span><span class="p">)</span>
     <span class="n">mlab</span><span class="o">.</span><span class="n">pipeline</span><span class="o">.</span><span class="n">iso_surface</span><span class="p">(</span><span class="n">src</span><span class="p">,</span> <span class="n">contours</span><span class="o">=</span><span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="p">],</span> <span class="n">opacity</span><span class="o">=</span><span class="mf">0.3</span><span class="p">)</span>
 
@@ -264,7 +269,7 @@
     <span class="k">return</span> <span class="n">xyz_channels</span></div>
 
 
-<div class="viewcode-block" id="get_brain_regions"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.histology.html#ibllib.pipes.histology.get_brain_regions">[docs]</a><span class="k">def</span> <span class="nf">get_brain_regions</span><span class="p">(</span><span class="n">xyz</span><span class="p">,</span> <span class="n">channels_positions</span><span class="o">=</span><span class="n">SITES_COORDINATES</span><span class="p">,</span> <span class="n">brain_atlas</span><span class="o">=</span><span class="n">brain_atlas</span><span class="p">):</span>
+<div class="viewcode-block" id="get_brain_regions"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.histology.html#ibllib.pipes.histology.get_brain_regions">[docs]</a><span class="k">def</span> <span class="nf">get_brain_regions</span><span class="p">(</span><span class="n">xyz</span><span class="p">,</span> <span class="n">channels_positions</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">brain_atlas</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    :param xyz: numpy array of 3D coordinates corresponding to a picked track or a trajectory</span>
 <span class="sd">    the deepest point is assumed to be the tip.</span>
@@ -278,6 +283,12 @@
 <span class="sd">    this is the depth along the probe (from the first point which is the deepest labeled point)</span>
 <span class="sd">    Due to the blockiness, depths may not be unique along the track so it has to be prepared</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">brain_atlas</span> <span class="o">=</span> <span class="n">brain_atlas</span> <span class="ow">or</span> <span class="n">atlas</span><span class="o">.</span><span class="n">AllenAtlas</span><span class="p">(</span><span class="mi">25</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">channels_positions</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">geometry</span> <span class="o">=</span> <span class="n">trace_header</span><span class="p">(</span><span class="n">version</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">channels_positions</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">c_</span><span class="p">[</span><span class="n">geometry</span><span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">],</span> <span class="n">geometry</span><span class="p">[</span><span class="s1">&#39;y&#39;</span><span class="p">]]</span>
+
     <span class="n">xyz</span> <span class="o">=</span> <span class="n">xyz</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">xyz</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]),</span> <span class="p">:]</span>
     <span class="n">d</span> <span class="o">=</span> <span class="n">atlas</span><span class="o">.</span><span class="n">cart2sph</span><span class="p">(</span><span class="n">xyz</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">xyz</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">xyz</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">xyz</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">xyz</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">xyz</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
     <span class="n">indsort</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
@@ -306,7 +317,7 @@
     <span class="k">return</span> <span class="n">brain_regions</span><span class="p">,</span> <span class="n">insertion</span></div>
 
 
-<div class="viewcode-block" id="register_track"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.histology.html#ibllib.pipes.histology.register_track">[docs]</a><span class="k">def</span> <span class="nf">register_track</span><span class="p">(</span><span class="n">probe_id</span><span class="p">,</span> <span class="n">picks</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">channels</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<div class="viewcode-block" id="register_track"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.histology.html#ibllib.pipes.histology.register_track">[docs]</a><span class="k">def</span> <span class="nf">register_track</span><span class="p">(</span><span class="n">probe_id</span><span class="p">,</span> <span class="n">picks</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">channels</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">brain_atlas</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Register the user picks to a probe in Alyx</span>
 <span class="sd">    Here we update Alyx models on the database in 3 steps</span>
@@ -316,6 +327,7 @@
 <span class="sd">    3) Channel locations are set in the table</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">assert</span> <span class="n">one</span>
+    <span class="n">brain_atlas</span> <span class="o">=</span> <span class="n">brain_atlas</span> <span class="ow">or</span> <span class="n">atlas</span><span class="o">.</span><span class="n">AllenAtlas</span><span class="p">()</span>
     <span class="c1"># 0) if it&#39;s an empty track, create a null trajectory and exit</span>
     <span class="k">if</span> <span class="n">picks</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">picks</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
         <span class="n">tdict</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;probe_insertion&#39;</span><span class="p">:</span> <span class="n">probe_id</span><span class="p">,</span>
@@ -332,7 +344,7 @@
         <span class="n">insertion_histology</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="c1"># Here need to change the track qc to critical and also extended qc to zero</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="n">brain_locations</span><span class="p">,</span> <span class="n">insertion_histology</span> <span class="o">=</span> <span class="n">get_brain_regions</span><span class="p">(</span><span class="n">picks</span><span class="p">)</span>
+        <span class="n">brain_locations</span><span class="p">,</span> <span class="n">insertion_histology</span> <span class="o">=</span> <span class="n">get_brain_regions</span><span class="p">(</span><span class="n">picks</span><span class="p">,</span> <span class="n">brain_atlas</span><span class="o">=</span><span class="n">brain_atlas</span><span class="p">)</span>
         <span class="c1"># 1) update the alyx models, first put the picked points in the insertion json</span>
         <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">json_field_update</span><span class="p">(</span><span class="n">endpoint</span><span class="o">=</span><span class="s1">&#39;insertions&#39;</span><span class="p">,</span> <span class="n">uuid</span><span class="o">=</span><span class="n">probe_id</span><span class="p">,</span> <span class="n">field_name</span><span class="o">=</span><span class="s1">&#39;json&#39;</span><span class="p">,</span>
                                    <span class="n">data</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;xyz_picks&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">(</span><span class="n">picks</span> <span class="o">*</span> <span class="mf">1e6</span><span class="p">)</span><span class="o">.</span><span class="n">tolist</span><span class="p">()})</span>
@@ -366,7 +378,7 @@
 
 
 <div class="viewcode-block" id="register_aligned_track"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.histology.html#ibllib.pipes.histology.register_aligned_track">[docs]</a><span class="k">def</span> <span class="nf">register_aligned_track</span><span class="p">(</span><span class="n">probe_id</span><span class="p">,</span> <span class="n">xyz_channels</span><span class="p">,</span> <span class="n">chn_coords</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                           <span class="n">channels</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+                           <span class="n">channels</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">brain_atlas</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Register ephys aligned trajectory and channel locations to Alyx</span>
 <span class="sd">    Here we update Alyx models on the database in 2 steps</span>
@@ -374,8 +386,10 @@
 <span class="sd">    2) Channel locations are set to the trajectory</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">assert</span> <span class="n">one</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">chn_coords</span><span class="p">):</span>
-        <span class="n">chn_coords</span> <span class="o">=</span> <span class="n">SITES_COORDINATES</span>
+    <span class="n">brain_atlas</span> <span class="o">=</span> <span class="n">brain_atlas</span> <span class="ow">or</span> <span class="n">atlas</span><span class="o">.</span><span class="n">AllenAtlas</span><span class="p">(</span><span class="mi">25</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">chn_coords</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">geometry</span> <span class="o">=</span> <span class="n">trace_header</span><span class="p">(</span><span class="n">version</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">chn_coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">c_</span><span class="p">[</span><span class="n">geometry</span><span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">],</span> <span class="n">geometry</span><span class="p">[</span><span class="s1">&#39;y&#39;</span><span class="p">]]</span>
 
     <span class="n">insertion</span> <span class="o">=</span> <span class="n">atlas</span><span class="o">.</span><span class="n">Insertion</span><span class="o">.</span><span class="n">from_track</span><span class="p">(</span><span class="n">xyz_channels</span><span class="p">,</span> <span class="n">brain_atlas</span><span class="p">)</span>
     <span class="n">tdict</span> <span class="o">=</span> <span class="n">create_trajectory_dict</span><span class="p">(</span><span class="n">probe_id</span><span class="p">,</span> <span class="n">insertion</span><span class="p">,</span> <span class="n">provenance</span><span class="o">=</span><span class="s1">&#39;Ephys aligned histology track&#39;</span><span class="p">)</span>
@@ -443,11 +457,11 @@
     <span class="n">channel_dict</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">brain_locations</span><span class="o">.</span><span class="n">id</span><span class="o">.</span><span class="n">size</span><span class="p">):</span>
         <span class="n">channel_dict</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
-            <span class="s1">&#39;x&#39;</span><span class="p">:</span> <span class="n">brain_locations</span><span class="o">.</span><span class="n">xyz</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="mf">1e6</span><span class="p">,</span>
-            <span class="s1">&#39;y&#39;</span><span class="p">:</span> <span class="n">brain_locations</span><span class="o">.</span><span class="n">xyz</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="mf">1e6</span><span class="p">,</span>
-            <span class="s1">&#39;z&#39;</span><span class="p">:</span> <span class="n">brain_locations</span><span class="o">.</span><span class="n">xyz</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="mf">1e6</span><span class="p">,</span>
-            <span class="s1">&#39;axial&#39;</span><span class="p">:</span> <span class="n">brain_locations</span><span class="o">.</span><span class="n">axial</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
-            <span class="s1">&#39;lateral&#39;</span><span class="p">:</span> <span class="n">brain_locations</span><span class="o">.</span><span class="n">lateral</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+            <span class="s1">&#39;x&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">(</span><span class="n">brain_locations</span><span class="o">.</span><span class="n">xyz</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="mf">1e6</span><span class="p">),</span>
+            <span class="s1">&#39;y&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">(</span><span class="n">brain_locations</span><span class="o">.</span><span class="n">xyz</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="mf">1e6</span><span class="p">),</span>
+            <span class="s1">&#39;z&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">(</span><span class="n">brain_locations</span><span class="o">.</span><span class="n">xyz</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="mf">1e6</span><span class="p">),</span>
+            <span class="s1">&#39;axial&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">(</span><span class="n">brain_locations</span><span class="o">.</span><span class="n">axial</span><span class="p">[</span><span class="n">i</span><span class="p">]),</span>
+            <span class="s1">&#39;lateral&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">(</span><span class="n">brain_locations</span><span class="o">.</span><span class="n">lateral</span><span class="p">[</span><span class="n">i</span><span class="p">]),</span>
             <span class="s1">&#39;brain_region&#39;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">brain_locations</span><span class="o">.</span><span class="n">id</span><span class="p">[</span><span class="n">i</span><span class="p">]),</span>
             <span class="s1">&#39;trajectory_estimate&#39;</span><span class="p">:</span> <span class="n">traj</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span>
         <span class="p">})</span>
@@ -464,14 +478,14 @@
     <span class="k">return</span> <span class="n">search_filter</span>
 
 
-<div class="viewcode-block" id="register_track_files"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.histology.html#ibllib.pipes.histology.register_track_files">[docs]</a><span class="k">def</span> <span class="nf">register_track_files</span><span class="p">(</span><span class="n">path_tracks</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<div class="viewcode-block" id="register_track_files"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.histology.html#ibllib.pipes.histology.register_track_files">[docs]</a><span class="k">def</span> <span class="nf">register_track_files</span><span class="p">(</span><span class="n">path_tracks</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">brain_atlas</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    :param path_tracks: path to directory containing tracks; also works with a single file name</span>
 <span class="sd">    :param one:</span>
 <span class="sd">    :return:</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">brain_atlas</span> <span class="o">=</span> <span class="n">brain_atlas</span> <span class="ow">or</span> <span class="n">atlas</span><span class="o">.</span><span class="n">AllenAtlas</span><span class="p">()</span>
     <span class="n">glob_pattern</span> <span class="o">=</span> <span class="s2">&quot;*_probe*_pts*.csv&quot;</span>
-
     <span class="n">path_tracks</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path_tracks</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="ow">not</span> <span class="n">path_tracks</span><span class="o">.</span><span class="n">is_dir</span><span class="p">():</span>
@@ -505,15 +519,15 @@
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Multiple probes found.&quot;</span><span class="p">)</span>
         <span class="n">probe_id</span> <span class="o">=</span> <span class="n">probe</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="n">xyz_picks</span> <span class="o">=</span> <span class="n">load_track_csv</span><span class="p">(</span><span class="n">track_file</span><span class="p">)</span>
-            <span class="n">register_track</span><span class="p">(</span><span class="n">probe_id</span><span class="p">,</span> <span class="n">xyz_picks</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="n">overwrite</span><span class="p">)</span>
+            <span class="n">xyz_picks</span> <span class="o">=</span> <span class="n">load_track_csv</span><span class="p">(</span><span class="n">track_file</span><span class="p">,</span> <span class="n">brain_atlas</span><span class="o">=</span><span class="n">brain_atlas</span><span class="p">)</span>
+            <span class="n">register_track</span><span class="p">(</span><span class="n">probe_id</span><span class="p">,</span> <span class="n">xyz_picks</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="n">overwrite</span><span class="p">,</span> <span class="n">brain_atlas</span><span class="o">=</span><span class="n">brain_atlas</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
             <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">track_file</span><span class="p">))</span>
             <span class="k">raise</span> <span class="n">e</span>
         <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">ind</span> <span class="o">+</span> <span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">ntracks</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">track_file</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="detect_missing_histology_tracks"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.histology.html#ibllib.pipes.histology.detect_missing_histology_tracks">[docs]</a><span class="k">def</span> <span class="nf">detect_missing_histology_tracks</span><span class="p">(</span><span class="n">path_tracks</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">subject</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="detect_missing_histology_tracks"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.histology.html#ibllib.pipes.histology.detect_missing_histology_tracks">[docs]</a><span class="k">def</span> <span class="nf">detect_missing_histology_tracks</span><span class="p">(</span><span class="n">path_tracks</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">subject</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">brain_atlas</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Compares the number of probe insertions to the number of registered histology tracks to see if</span>
 <span class="sd">    there is a discrepancy so that missing tracks can be properly logged in the database</span>
@@ -521,6 +535,7 @@
 <span class="sd">    :param subject: subject nickname for which to detect missing tracks</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
+    <span class="n">brain_atlas</span> <span class="o">=</span> <span class="n">brain_atlas</span> <span class="ow">or</span> <span class="n">atlas</span><span class="o">.</span><span class="n">AllenAtlas</span><span class="p">()</span>
     <span class="k">if</span> <span class="n">path_tracks</span><span class="p">:</span>
         <span class="n">glob_pattern</span> <span class="o">=</span> <span class="s2">&quot;*_probe*_pts*.csv&quot;</span>
 
@@ -569,7 +584,7 @@
                     <span class="n">probe_id</span> <span class="o">=</span> <span class="n">insertions</span><span class="p">[</span><span class="n">idx</span><span class="p">][</span><span class="s1">&#39;id&#39;</span><span class="p">]</span>
                     <span class="nb">print</span><span class="p">(</span><span class="n">insertions</span><span class="p">[</span><span class="n">idx</span><span class="p">][</span><span class="s1">&#39;session&#39;</span><span class="p">])</span>
                     <span class="nb">print</span><span class="p">(</span><span class="n">probe_id</span><span class="p">)</span>
-                    <span class="n">register_track</span><span class="p">(</span><span class="n">probe_id</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">)</span>
+                    <span class="n">register_track</span><span class="p">(</span><span class="n">probe_id</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">,</span> <span class="n">brain_atlas</span><span class="o">=</span><span class="n">brain_atlas</span><span class="p">)</span>
                 <span class="k">else</span><span class="p">:</span>
                     <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Histology track for this probe insertion will not be registered&#39;</span><span class="p">)</span>
                     <span class="k">continue</span></div>

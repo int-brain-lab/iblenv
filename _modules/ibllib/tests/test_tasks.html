@@ -47,9 +47,12 @@
 <p class="caption" role="heading"><span class="caption-text">DataJoint</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../dj_docs/dj_introduction.html">Introduction to DataJoint</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../dj_docs/dj_credentials.html">Setting up DataJoint credentials</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../dj_docs/public_introduction.html">Publicly available IBL data</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../dj_docs/public_datajoint.html">Accessing public IBL data with DataJoint</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../dj_docs/dj_public.html">Publicly available IBL data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../dj_docs/dj_credentials.html">DataJoint credentials for internal IBL users</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Public</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../public_docs/public_introduction.html">Publicly available IBL data</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Miscellaneous</span></p>
 <ul>
@@ -120,7 +123,9 @@
     <span class="s1">&#39;Task01_void&#39;</span><span class="p">:</span> <span class="s1">&#39;Empty&#39;</span><span class="p">,</span>
     <span class="s1">&#39;Task02_error&#39;</span><span class="p">:</span> <span class="s1">&#39;Errored&#39;</span><span class="p">,</span>
     <span class="s1">&#39;Task10&#39;</span><span class="p">:</span> <span class="s1">&#39;Complete&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;Task11&#39;</span><span class="p">:</span> <span class="s1">&#39;Held&#39;</span>
+    <span class="s1">&#39;Task11&#39;</span><span class="p">:</span> <span class="s1">&#39;Held&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;TaskIncomplete&#39;</span><span class="p">:</span> <span class="s1">&#39;Incomplete&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;TaskGpuLock&#39;</span><span class="p">:</span> <span class="s1">&#39;Waiting&#39;</span>
 <span class="p">}</span>
 
 <span class="n">desired_datasets</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;spikes.times.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;spikes.amps.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;spikes.clusters.npy&#39;</span><span class="p">]</span>
@@ -131,9 +136,11 @@
 <span class="n">desired_logs_rerun</span> <span class="o">=</span> <span class="p">{</span>
     <span class="s1">&#39;Task00&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
     <span class="s1">&#39;Task01_void&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
-    <span class="s1">&#39;Task02_error&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+    <span class="s1">&#39;Task02_error&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
     <span class="s1">&#39;Task10&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
-    <span class="s1">&#39;Task11&#39;</span><span class="p">:</span> <span class="kc">None</span>
+    <span class="s1">&#39;Task11&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="s1">&#39;TaskIncomplete&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="s1">&#39;TaskGpuLock&#39;</span><span class="p">:</span> <span class="mi">2</span>
 <span class="p">}</span>
 
 
@@ -155,12 +162,17 @@
         <span class="k">return</span> <span class="n">out_files</span></div>
 
 
-<span class="c1"># job that raises an error</span>
+<span class="c1"># job that raises an error on first run</span>
 <div class="viewcode-block" id="Task02_error"><a class="viewcode-back" href="../../../_autosummary/ibllib.tests.test_tasks.html#ibllib.tests.test_tasks.Task02_error">[docs]</a><span class="k">class</span> <span class="nc">Task02_error</span><span class="p">(</span><span class="n">ibllib</span><span class="o">.</span><span class="n">pipes</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">Task</span><span class="p">):</span>
-    <span class="n">level</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">run_count</span> <span class="o">=</span> <span class="mi">0</span>
 
     <span class="k">def</span> <span class="nf">_run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Something dumb happened&quot;</span><span class="p">)</span></div>
+        <span class="n">Task02_error</span><span class="o">.</span><span class="n">run_count</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="n">Task02_error</span><span class="o">.</span><span class="n">run_count</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;Something dumb happened&#39;</span><span class="p">)</span>
+        <span class="n">out_files</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="s1">&#39;spikes.templates.npy&#39;</span><span class="p">)</span>
+        <span class="n">out_files</span><span class="o">.</span><span class="n">touch</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">out_files</span></div>
 
 
 <span class="c1"># job that outputs a list of files</span>
@@ -185,6 +197,27 @@
         <span class="k">return</span> <span class="n">out_files</span></div>
 
 
+<span class="c1">#  Job that encounters a GPU lock and is set to Waiting</span>
+<div class="viewcode-block" id="TaskGpuLock"><a class="viewcode-back" href="../../../_autosummary/ibllib.tests.test_tasks.html#ibllib.tests.test_tasks.TaskGpuLock">[docs]</a><span class="k">class</span> <span class="nc">TaskGpuLock</span><span class="p">(</span><span class="n">ibllib</span><span class="o">.</span><span class="n">pipes</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">Task</span><span class="p">):</span>
+    <span class="n">gpu</span> <span class="o">=</span> <span class="mi">1</span>
+
+    <span class="c1"># Overwrite setUp to create a lock file before running the task and remove it after</span>
+<div class="viewcode-block" id="TaskGpuLock.setUp"><a class="viewcode-back" href="../../../_autosummary/ibllib.tests.test_tasks.html#ibllib.tests.test_tasks.TaskGpuLock.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">make_lock_file</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data_handler</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_data_handler</span><span class="p">()</span>
+        <span class="k">return</span> <span class="kc">True</span></div>
+
+    <span class="k">def</span> <span class="nf">_run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="k">pass</span></div>
+
+
+<span class="c1">#  Job that encounters a GPU lock and is set to Waiting</span>
+<div class="viewcode-block" id="TaskIncomplete"><a class="viewcode-back" href="../../../_autosummary/ibllib.tests.test_tasks.html#ibllib.tests.test_tasks.TaskIncomplete">[docs]</a><span class="k">class</span> <span class="nc">TaskIncomplete</span><span class="p">(</span><span class="n">ibllib</span><span class="o">.</span><span class="n">pipes</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">Task</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">_run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="o">-</span><span class="mi">3</span></div>
+
+
 <div class="viewcode-block" id="SomePipeline"><a class="viewcode-back" href="../../../_autosummary/ibllib.tests.test_tasks.html#ibllib.tests.test_tasks.SomePipeline">[docs]</a><span class="k">class</span> <span class="nc">SomePipeline</span><span class="p">(</span><span class="n">ibllib</span><span class="o">.</span><span class="n">pipes</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">):</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
@@ -195,44 +228,13 @@
         <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;Task00&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">Task00</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
         <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;Task01_void&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">Task01_void</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
         <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;Task02_error&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">Task02_error</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;TaskGpuLock&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">TaskGpuLock</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;TaskIncomplete&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">TaskIncomplete</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
         <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;Task10&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">Task10</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;Task00&#39;</span><span class="p">]])</span>
+        <span class="c1"># When both its parents Complete, this task should be set to Waiting and should finally complete</span>
         <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;Task11&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">Task11</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;Task02_error&#39;</span><span class="p">],</span>
                                                              <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;Task00&#39;</span><span class="p">]])</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span> <span class="o">=</span> <span class="n">tasks</span></div>
-
-
-<span class="c1">#  job to output a single file (pathlib.Path)</span>
-<div class="viewcode-block" id="GpuTask"><a class="viewcode-back" href="../../../_autosummary/ibllib.tests.test_tasks.html#ibllib.tests.test_tasks.GpuTask">[docs]</a><span class="k">class</span> <span class="nc">GpuTask</span><span class="p">(</span><span class="n">ibllib</span><span class="o">.</span><span class="n">pipes</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">Task</span><span class="p">):</span>
-    <span class="n">gpu</span> <span class="o">=</span> <span class="mi">1</span>
-
-    <span class="k">def</span> <span class="nf">_run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-        <span class="n">out_files</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="s1">&#39;gpu.times.npy&#39;</span><span class="p">)</span>
-        <span class="n">out_files</span><span class="o">.</span><span class="n">touch</span><span class="p">()</span>
-        <span class="k">return</span> <span class="n">out_files</span></div>
-
-
-<div class="viewcode-block" id="TestLocks"><a class="viewcode-back" href="../../../_autosummary/ibllib.tests.test_tasks.html#ibllib.tests.test_tasks.TestLocks">[docs]</a><span class="k">class</span> <span class="nc">TestLocks</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
-
-<div class="viewcode-block" id="TestLocks.test_gpu_lock_and_local_data_handler"><a class="viewcode-back" href="../../../_autosummary/ibllib.tests.test_tasks.html#ibllib.tests.test_tasks.TestLocks.test_gpu_lock_and_local_data_handler">[docs]</a>    <span class="k">def</span> <span class="nf">test_gpu_lock_and_local_data_handler</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">td</span><span class="p">:</span>
-            <span class="n">session_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">td</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;algernon&#39;</span><span class="p">,</span> <span class="s1">&#39;2021/02/12&#39;</span><span class="p">,</span> <span class="s1">&#39;001&#39;</span><span class="p">)</span>
-            <span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;alf&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-            <span class="n">task</span> <span class="o">=</span> <span class="n">GpuTask</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="s1">&#39;local&#39;</span><span class="p">)</span>
-            <span class="k">assert</span> <span class="n">task</span><span class="o">.</span><span class="n">is_locked</span><span class="p">()</span> <span class="ow">is</span> <span class="kc">False</span>
-            <span class="n">task</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
-            <span class="k">assert</span> <span class="n">task</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="mi">0</span>
-            <span class="k">assert</span> <span class="n">task</span><span class="o">.</span><span class="n">is_locked</span><span class="p">()</span> <span class="ow">is</span> <span class="kc">False</span>
-            <span class="c1"># then make a lock file and make sure it fails and is still locked afterwards</span>
-            <span class="n">task</span><span class="o">.</span><span class="n">_make_lock_file</span><span class="p">()</span>
-            <span class="n">task</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
-            <span class="k">assert</span> <span class="n">task</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="o">-</span> <span class="mi">2</span>
-            <span class="k">assert</span> <span class="n">task</span><span class="o">.</span><span class="n">is_locked</span><span class="p">()</span>
-            <span class="c1"># test the time out feature</span>
-            <span class="n">task</span><span class="o">.</span><span class="n">time_out_secs</span> <span class="o">=</span> <span class="o">-</span> <span class="mi">1</span>
-            <span class="n">task</span><span class="o">.</span><span class="n">_make_lock_file</span><span class="p">()</span>
-            <span class="k">assert</span> <span class="ow">not</span> <span class="n">task</span><span class="o">.</span><span class="n">is_locked</span><span class="p">()</span>
-            <span class="n">task</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
-            <span class="k">assert</span> <span class="n">task</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="mi">0</span></div></div>
 
 
 <div class="viewcode-block" id="TestPipelineAlyx"><a class="viewcode-back" href="../../../_autosummary/ibllib.tests.test_tasks.html#ibllib.tests.test_tasks.TestPipelineAlyx">[docs]</a><span class="k">class</span> <span class="nc">TestPipelineAlyx</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
@@ -300,8 +302,11 @@
 
         <span class="c1"># test the rerun option</span>
         <span class="n">task_deck</span><span class="p">,</span> <span class="n">dsets</span> <span class="o">=</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">rerun_failed</span><span class="p">(</span><span class="n">machine</span><span class="o">=</span><span class="s1">&#39;testmachine&#39;</span><span class="p">)</span>
-        <span class="n">check_statuses</span> <span class="o">=</span> <span class="p">[</span><span class="n">desired_statuses</span><span class="p">[</span><span class="n">t</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]]</span> <span class="o">==</span> <span class="n">t</span><span class="p">[</span><span class="s1">&#39;status&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">task_deck</span><span class="p">]</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="nb">all</span><span class="p">(</span><span class="n">check_statuses</span><span class="p">))</span>
+        <span class="n">task_02</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">t</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">task_deck</span> <span class="k">if</span> <span class="n">t</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;Task02_error&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="s1">&#39;Complete&#39;</span><span class="p">,</span> <span class="n">task_02</span><span class="p">[</span><span class="s1">&#39;status&#39;</span><span class="p">])</span>
+        <span class="n">dep_task</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">task_deck</span> <span class="k">if</span> <span class="n">task_02</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span> <span class="ow">in</span> <span class="n">x</span><span class="p">[</span><span class="s1">&#39;parents&#39;</span><span class="p">])</span>
+        <span class="k">assert</span> <span class="n">dep_task</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;Task11&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="s1">&#39;Complete&#39;</span><span class="p">,</span> <span class="n">dep_task</span><span class="p">[</span><span class="s1">&#39;status&#39;</span><span class="p">],</span> <span class="s1">&#39;Failed to set dependent task from &quot;Held&quot; to &quot;Waiting&quot;&#39;</span><span class="p">)</span>
 
         <span class="c1"># check that logs were correctly overwritten</span>
         <span class="n">check_logs</span> <span class="o">=</span> <span class="p">[</span><span class="n">t</span><span class="p">[</span><span class="s1">&#39;log&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="n">desired_logs</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">if</span> <span class="n">t</span><span class="p">[</span><span class="s1">&#39;log&#39;</span><span class="p">]</span> <span class="k">else</span> <span class="kc">True</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">task_deck</span><span class="p">]</span>
@@ -309,14 +314,53 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="nb">all</span><span class="p">(</span><span class="n">check_logs</span><span class="p">))</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="nb">all</span><span class="p">(</span><span class="n">check_rerun</span><span class="p">))</span>
 
-        <span class="c1"># Rerun without clobber and check that logs are overwritten</span>
+        <span class="c1"># Rerun without clobber and check that logs are not overwritten</span>
         <span class="n">task_deck</span><span class="p">,</span> <span class="n">dsets</span> <span class="o">=</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">rerun_failed</span><span class="p">(</span><span class="n">machine</span><span class="o">=</span><span class="s1">&#39;testmachine&#39;</span><span class="p">,</span> <span class="n">clobber</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
         <span class="n">check_logs</span> <span class="o">=</span> <span class="p">[</span><span class="n">t</span><span class="p">[</span><span class="s1">&#39;log&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="n">desired_logs</span><span class="p">)</span> <span class="o">==</span> <span class="n">desired_logs_rerun</span><span class="p">[</span><span class="n">t</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]]</span> <span class="k">if</span> <span class="n">t</span><span class="p">[</span><span class="s1">&#39;log&#39;</span><span class="p">]</span>
                       <span class="k">else</span> <span class="n">t</span><span class="p">[</span><span class="s1">&#39;log&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">desired_logs_rerun</span><span class="p">[</span><span class="n">t</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]]</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">task_deck</span><span class="p">]</span>
         <span class="n">check_rerun</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;===RERUN===&#39;</span> <span class="ow">in</span> <span class="n">t</span><span class="p">[</span><span class="s1">&#39;log&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="n">desired_logs_rerun</span><span class="p">[</span><span class="n">t</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]]</span> <span class="o">==</span> <span class="mi">2</span>
                        <span class="k">else</span> <span class="kc">True</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">task_deck</span><span class="p">]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="nb">all</span><span class="p">(</span><span class="n">check_logs</span><span class="p">))</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="nb">all</span><span class="p">(</span><span class="n">check_rerun</span><span class="p">))</span></div></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="nb">all</span><span class="p">(</span><span class="n">check_rerun</span><span class="p">))</span>
+
+        <span class="c1"># Remove the lock file</span>
+        <span class="n">Path</span><span class="o">.</span><span class="n">home</span><span class="p">()</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;.one&#39;</span><span class="p">,</span> <span class="s1">&#39;gpu.lock&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">unlink</span><span class="p">()</span></div></div>
+
+
+<div class="viewcode-block" id="GpuTask"><a class="viewcode-back" href="../../../_autosummary/ibllib.tests.test_tasks.html#ibllib.tests.test_tasks.GpuTask">[docs]</a><span class="k">class</span> <span class="nc">GpuTask</span><span class="p">(</span><span class="n">ibllib</span><span class="o">.</span><span class="n">pipes</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">Task</span><span class="p">):</span>
+    <span class="n">gpu</span> <span class="o">=</span> <span class="mi">1</span>
+
+    <span class="k">def</span> <span class="nf">_run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="n">out_files</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="s1">&#39;gpu.times.npy&#39;</span><span class="p">)</span>
+        <span class="n">out_files</span><span class="o">.</span><span class="n">touch</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">out_files</span></div>
+
+
+<div class="viewcode-block" id="TestLocks"><a class="viewcode-back" href="../../../_autosummary/ibllib.tests.test_tasks.html#ibllib.tests.test_tasks.TestLocks">[docs]</a><span class="k">class</span> <span class="nc">TestLocks</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+<div class="viewcode-block" id="TestLocks.test_gpu_lock_and_local_data_handler"><a class="viewcode-back" href="../../../_autosummary/ibllib.tests.test_tasks.html#ibllib.tests.test_tasks.TestLocks.test_gpu_lock_and_local_data_handler">[docs]</a>    <span class="k">def</span> <span class="nf">test_gpu_lock_and_local_data_handler</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># Remove any existing locks first</span>
+        <span class="k">if</span> <span class="n">Path</span><span class="o">.</span><span class="n">home</span><span class="p">()</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;.one&#39;</span><span class="p">,</span> <span class="s1">&#39;gpu.lock&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="n">Path</span><span class="o">.</span><span class="n">home</span><span class="p">()</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;.one&#39;</span><span class="p">,</span> <span class="s1">&#39;gpu.lock&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">unlink</span><span class="p">()</span>
+        <span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">td</span><span class="p">:</span>
+            <span class="n">session_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">td</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;algernon&#39;</span><span class="p">,</span> <span class="s1">&#39;2021/02/12&#39;</span><span class="p">,</span> <span class="s1">&#39;001&#39;</span><span class="p">)</span>
+            <span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;alf&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">task</span> <span class="o">=</span> <span class="n">GpuTask</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="s1">&#39;local&#39;</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="n">task</span><span class="o">.</span><span class="n">is_locked</span><span class="p">()</span> <span class="ow">is</span> <span class="kc">False</span>
+            <span class="n">task</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+            <span class="k">assert</span> <span class="n">task</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="mi">0</span>
+            <span class="k">assert</span> <span class="n">task</span><span class="o">.</span><span class="n">is_locked</span><span class="p">()</span> <span class="ow">is</span> <span class="kc">False</span>
+            <span class="c1"># then make a lock file and make sure it fails and is still locked afterwards</span>
+            <span class="n">task</span><span class="o">.</span><span class="n">_make_lock_file</span><span class="p">()</span>
+            <span class="n">task</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+            <span class="k">assert</span> <span class="n">task</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="o">-</span> <span class="mi">2</span>
+            <span class="k">assert</span> <span class="n">task</span><span class="o">.</span><span class="n">is_locked</span><span class="p">()</span>
+            <span class="c1"># test the time out feature</span>
+            <span class="n">task</span><span class="o">.</span><span class="n">time_out_secs</span> <span class="o">=</span> <span class="o">-</span> <span class="mi">1</span>
+            <span class="n">task</span><span class="o">.</span><span class="n">_make_lock_file</span><span class="p">()</span>
+            <span class="k">assert</span> <span class="ow">not</span> <span class="n">task</span><span class="o">.</span><span class="n">is_locked</span><span class="p">()</span>
+            <span class="n">task</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+            <span class="k">assert</span> <span class="n">task</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="mi">0</span></div></div>
 
 
 <span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>

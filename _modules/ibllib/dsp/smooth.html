@@ -47,9 +47,12 @@
 <p class="caption" role="heading"><span class="caption-text">DataJoint</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../dj_docs/dj_introduction.html">Introduction to DataJoint</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../dj_docs/dj_credentials.html">Setting up DataJoint credentials</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../dj_docs/public_introduction.html">Publicly available IBL data</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../dj_docs/public_datajoint.html">Accessing public IBL data with DataJoint</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../dj_docs/dj_public.html">Publicly available IBL data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../dj_docs/dj_credentials.html">DataJoint credentials for internal IBL users</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Public</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../public_docs/public_introduction.html">Publicly available IBL data</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Miscellaneous</span></p>
 <ul>
@@ -96,6 +99,7 @@
   <h1>Source code for ibllib.dsp.smooth</h1><div class="highlight"><pre>
 <span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">from</span> <span class="nn">scipy.interpolate</span> <span class="kn">import</span> <span class="n">interp1d</span>
 
 <span class="kn">import</span> <span class="nn">ibllib.dsp.fourier</span> <span class="k">as</span> <span class="nn">ft</span>
 
@@ -171,6 +175,141 @@
 
     <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">convolve</span><span class="p">(</span><span class="n">w</span> <span class="o">/</span> <span class="n">w</span><span class="o">.</span><span class="n">sum</span><span class="p">(),</span> <span class="n">s</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;valid&#39;</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">y</span><span class="p">[</span><span class="nb">round</span><span class="p">((</span><span class="n">window_len</span> <span class="o">/</span> <span class="mi">2</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)):</span><span class="nb">round</span><span class="p">(</span><span class="o">-</span><span class="p">(</span><span class="n">window_len</span> <span class="o">/</span> <span class="mi">2</span><span class="p">))]</span></div>
+
+
+<div class="viewcode-block" id="non_uniform_savgol"><a class="viewcode-back" href="../../../_autosummary/ibllib.dsp.smooth.html#ibllib.dsp.smooth.non_uniform_savgol">[docs]</a><span class="k">def</span> <span class="nf">non_uniform_savgol</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">window</span><span class="p">,</span> <span class="n">polynom</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Applies a Savitzky-Golay filter to y with non-uniform spacing as defined in x.</span>
+<span class="sd">    This is based on</span>
+<span class="sd">    https://dsp.stackexchange.com/questions/1676/savitzky-golay-smoothing-filter-for-not-equally-spaced-data</span>
+<span class="sd">    The borders are interpolated like scipy.signal.savgol_filter would do</span>
+<span class="sd">    https://dsp.stackexchange.com/a/64313</span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    x : array_like</span>
+<span class="sd">        List of floats representing the x values of the data</span>
+<span class="sd">    y : array_like</span>
+<span class="sd">        List of floats representing the y values. Must have same length as x</span>
+<span class="sd">    window : int (odd)</span>
+<span class="sd">        Window length of datapoints. Must be odd and smaller than x</span>
+<span class="sd">    polynom : int</span>
+<span class="sd">        The order of polynom used. Must be smaller than the window size</span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    np.array</span>
+<span class="sd">        The smoothed y values</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">y</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;&quot;x&quot; and &quot;y&quot; must be of the same size&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">window</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;The data size must be larger than the window size&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">window</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;&quot;window&quot; must be an integer&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">window</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;The &quot;window&quot; must be an odd integer&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">polynom</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;&quot;polynom&quot; must be an integer&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">polynom</span> <span class="o">&gt;=</span> <span class="n">window</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;&quot;polynom&quot; must be less than &quot;window&quot;&#39;</span><span class="p">)</span>
+
+    <span class="n">half_window</span> <span class="o">=</span> <span class="n">window</span> <span class="o">//</span> <span class="mi">2</span>
+    <span class="n">polynom</span> <span class="o">+=</span> <span class="mi">1</span>
+
+    <span class="c1"># Initialize variables</span>
+    <span class="n">A</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="n">window</span><span class="p">,</span> <span class="n">polynom</span><span class="p">))</span>  <span class="c1"># Matrix</span>
+    <span class="n">tA</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="n">polynom</span><span class="p">,</span> <span class="n">window</span><span class="p">))</span>  <span class="c1"># Transposed matrix</span>
+    <span class="n">t</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">window</span><span class="p">)</span>  <span class="c1"># Local x variables</span>
+    <span class="n">y_smoothed</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">y</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+
+    <span class="c1"># Start smoothing</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">half_window</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">-</span> <span class="n">half_window</span><span class="p">,</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="c1"># Center a window of x values on x[i]</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">window</span><span class="p">,</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">t</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="n">j</span> <span class="o">-</span> <span class="n">half_window</span><span class="p">]</span> <span class="o">-</span> <span class="n">x</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+
+        <span class="c1"># Create the initial matrix A and its transposed form tA</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">window</span><span class="p">,</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">r</span> <span class="o">=</span> <span class="mf">1.0</span>
+            <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">polynom</span><span class="p">,</span> <span class="mi">1</span><span class="p">):</span>
+                <span class="n">A</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">r</span>
+                <span class="n">tA</span><span class="p">[</span><span class="n">k</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">r</span>
+                <span class="n">r</span> <span class="o">*=</span> <span class="n">t</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
+
+        <span class="c1"># Multiply the two matrices</span>
+        <span class="n">tAA</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">tA</span><span class="p">,</span> <span class="n">A</span><span class="p">)</span>
+        <span class="c1"># Invert the product of the matrices</span>
+        <span class="n">tAA</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">tAA</span><span class="p">)</span>
+        <span class="c1"># Calculate the pseudoinverse of the design matrix</span>
+        <span class="n">coeffs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">tAA</span><span class="p">,</span> <span class="n">tA</span><span class="p">)</span>
+        <span class="c1"># Calculate c0 which is also the y value for y[i]</span>
+        <span class="n">y_smoothed</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">window</span><span class="p">,</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">y_smoothed</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+=</span> <span class="n">coeffs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="n">j</span> <span class="o">-</span> <span class="n">half_window</span><span class="p">]</span>
+
+        <span class="c1"># If at the end or beginning, store all coefficients for the polynom</span>
+        <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="n">half_window</span><span class="p">:</span>
+            <span class="n">first_coeffs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">polynom</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">window</span><span class="p">,</span> <span class="mi">1</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">polynom</span><span class="p">):</span>
+                    <span class="n">first_coeffs</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">+=</span> <span class="n">coeffs</span><span class="p">[</span><span class="n">k</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="n">i</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">-</span> <span class="n">half_window</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">last_coeffs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">polynom</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">window</span><span class="p">,</span> <span class="mi">1</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">polynom</span><span class="p">):</span>
+                    <span class="n">last_coeffs</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">+=</span> <span class="n">coeffs</span><span class="p">[</span><span class="n">k</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">y</span><span class="p">)</span> <span class="o">-</span> <span class="n">window</span> <span class="o">+</span> <span class="n">j</span><span class="p">]</span>
+
+    <span class="c1"># Interpolate the result at the left border</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">half_window</span><span class="p">,</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="n">y_smoothed</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">x_i</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">polynom</span><span class="p">,</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">y_smoothed</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+=</span> <span class="n">first_coeffs</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">*</span> <span class="n">x_i</span>
+            <span class="n">x_i</span> <span class="o">*=</span> <span class="n">x</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">-</span> <span class="n">x</span><span class="p">[</span><span class="n">half_window</span><span class="p">]</span>
+
+    <span class="c1"># Interpolate the result at the right border</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">-</span> <span class="n">half_window</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="n">y_smoothed</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">x_i</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">polynom</span><span class="p">,</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">y_smoothed</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+=</span> <span class="n">last_coeffs</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">*</span> <span class="n">x_i</span>
+            <span class="n">x_i</span> <span class="o">*=</span> <span class="n">x</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">-</span> <span class="n">x</span><span class="p">[</span><span class="o">-</span><span class="n">half_window</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">y_smoothed</span></div>
+
+
+<div class="viewcode-block" id="smooth_interpolate_savgol"><a class="viewcode-back" href="../../../_autosummary/ibllib.dsp.smooth.html#ibllib.dsp.smooth.smooth_interpolate_savgol">[docs]</a><span class="k">def</span> <span class="nf">smooth_interpolate_savgol</span><span class="p">(</span><span class="n">signal</span><span class="p">,</span> <span class="n">window</span><span class="o">=</span><span class="mi">31</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">interp_kind</span><span class="o">=</span><span class="s1">&#39;cubic&#39;</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Run savitzy-golay filter on signal, interpolate through nan points.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    signal : np.ndarray</span>
+<span class="sd">        original noisy signal of shape (t,), may contain nans</span>
+<span class="sd">    window : int</span>
+<span class="sd">        window of polynomial fit for savitzy-golay filter</span>
+<span class="sd">    order : int</span>
+<span class="sd">        order of polynomial for savitzy-golay filter</span>
+<span class="sd">    interp_kind : str</span>
+<span class="sd">        type of interpolation for nans, e.g. &#39;linear&#39;, &#39;quadratic&#39;, &#39;cubic&#39;</span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    np.array</span>
+<span class="sd">        smoothed, interpolated signal for each time point, shape (t,)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">signal_noisy_w_nans</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">signal</span><span class="p">)</span>
+    <span class="n">timestamps</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">signal_noisy_w_nans</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">good_idxs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">signal_noisy_w_nans</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="c1"># perform savitzky-golay filtering on non-nan points</span>
+    <span class="n">signal_smooth_nonans</span> <span class="o">=</span> <span class="n">non_uniform_savgol</span><span class="p">(</span>
+        <span class="n">timestamps</span><span class="p">[</span><span class="n">good_idxs</span><span class="p">],</span> <span class="n">signal_noisy_w_nans</span><span class="p">[</span><span class="n">good_idxs</span><span class="p">],</span> <span class="n">window</span><span class="o">=</span><span class="n">window</span><span class="p">,</span> <span class="n">polynom</span><span class="o">=</span><span class="n">order</span><span class="p">)</span>
+    <span class="n">signal_smooth_w_nans</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">signal_noisy_w_nans</span><span class="p">)</span>
+    <span class="n">signal_smooth_w_nans</span><span class="p">[</span><span class="n">good_idxs</span><span class="p">]</span> <span class="o">=</span> <span class="n">signal_smooth_nonans</span>
+    <span class="c1"># interpolate nan points</span>
+    <span class="n">interpolater</span> <span class="o">=</span> <span class="n">interp1d</span><span class="p">(</span>
+        <span class="n">timestamps</span><span class="p">[</span><span class="n">good_idxs</span><span class="p">],</span> <span class="n">signal_smooth_nonans</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="n">interp_kind</span><span class="p">,</span> <span class="n">fill_value</span><span class="o">=</span><span class="s1">&#39;extrapolate&#39;</span><span class="p">)</span>
+    <span class="n">signal</span> <span class="o">=</span> <span class="n">interpolater</span><span class="p">(</span><span class="n">timestamps</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">signal</span></div>
 
 
 <div class="viewcode-block" id="smooth_demo"><a class="viewcode-back" href="../../../_autosummary/ibllib.dsp.smooth.html#ibllib.dsp.smooth.smooth_demo">[docs]</a><span class="k">def</span> <span class="nf">smooth_demo</span><span class="p">():</span>
