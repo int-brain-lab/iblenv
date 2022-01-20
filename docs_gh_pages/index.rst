@@ -58,6 +58,13 @@ IBL has released a suite of tools to process and visualize our data.
 
 .. toctree::
    :hidden:
+   :caption: Public
+   :maxdepth: 1
+
+   public_docs/public_introduction
+
+.. toctree::
+   :hidden:
    :caption: Miscellaneous
    :maxdepth: 1
 
