@@ -54,6 +54,10 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../public_docs/public_introduction.html">Publicly available IBL data</a></li>
 </ul>
+<p class="caption" role="heading"><span class="caption-text">Exploring IBL Data</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../loading_examples.html">Loading Data</a></li>
+</ul>
 <p class="caption" role="heading"><span class="caption-text">Miscellaneous</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../02_installation.html">Unified Environment</a></li>
@@ -106,6 +110,7 @@
 <span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
 <span class="kn">import</span> <span class="nn">packaging.version</span>
 
+<span class="kn">import</span> <span class="nn">cv2</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
 
@@ -114,7 +119,7 @@
 <span class="kn">from</span> <span class="nn">ibllib.misc</span> <span class="kn">import</span> <span class="n">check_nvidia_driver</span>
 <span class="kn">from</span> <span class="nn">ibllib.ephys</span> <span class="kn">import</span> <span class="n">ephysqc</span><span class="p">,</span> <span class="n">spikes</span><span class="p">,</span> <span class="n">sync_probes</span>
 <span class="kn">from</span> <span class="nn">ibllib.io</span> <span class="kn">import</span> <span class="n">ffmpeg</span><span class="p">,</span> <span class="n">spikeglx</span>
-<span class="kn">from</span> <span class="nn">ibllib.io.video</span> <span class="kn">import</span> <span class="n">label_from_path</span>
+<span class="kn">from</span> <span class="nn">ibllib.io.video</span> <span class="kn">import</span> <span class="n">label_from_path</span><span class="p">,</span> <span class="n">assert_valid_label</span>
 <span class="kn">from</span> <span class="nn">ibllib.io.extractors</span> <span class="kn">import</span> <span class="n">ephys_fpga</span><span class="p">,</span> <span class="n">ephys_passive</span><span class="p">,</span> <span class="n">camera</span>
 <span class="kn">from</span> <span class="nn">ibllib.pipes</span> <span class="kn">import</span> <span class="n">tasks</span>
 <span class="kn">from</span> <span class="nn">ibllib.pipes.training_preprocessing</span> <span class="kn">import</span> <span class="n">TrainingRegisterRaw</span> <span class="k">as</span> <span class="n">EphysRegisterRaw</span>
@@ -992,14 +997,159 @@
 
 
 <div class="viewcode-block" id="EphysDLC"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.ephys_preprocessing.html#ibllib.pipes.ephys_preprocessing.EphysDLC">[docs]</a><span class="k">class</span> <span class="nc">EphysDLC</span><span class="p">(</span><span class="n">tasks</span><span class="o">.</span><span class="n">Task</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This task relies on a correctly installed dlc environment as per</span>
+<span class="sd">    https://docs.google.com/document/d/1g0scP6_3EmaXCU4SsDNZWwDTaD9MG0es_grLA-d0gh0/edit#</span>
+
+<span class="sd">    If your environment is set up otherwise, make sure that you set the respective attributes:</span>
+<span class="sd">    t = EphysDLC(session_path)</span>
+<span class="sd">    t.dlcenv = Path(&#39;/path/to/your/dlcenv/bin/activate&#39;)</span>
+<span class="sd">    t.scripts = Path(&#39;/path/to/your/iblscripts/deploy/serverpc/dlc&#39;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">gpu</span> <span class="o">=</span> <span class="mi">1</span>
     <span class="n">cpu</span> <span class="o">=</span> <span class="mi">4</span>
     <span class="n">io_charge</span> <span class="o">=</span> <span class="mi">90</span>
     <span class="n">level</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="n">force</span> <span class="o">=</span> <span class="kc">True</span>
 
-    <span class="k">def</span> <span class="nf">_run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;empty placeholder for job creation only&quot;&quot;&quot;</span>
-        <span class="k">pass</span></div>
+    <span class="n">dlcenv</span> <span class="o">=</span> <span class="n">Path</span><span class="o">.</span><span class="n">home</span><span class="p">()</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;Documents&#39;</span><span class="p">,</span> <span class="s1">&#39;PYTHON&#39;</span><span class="p">,</span> <span class="s1">&#39;envs&#39;</span><span class="p">,</span> <span class="s1">&#39;dlcenv&#39;</span><span class="p">,</span> <span class="s1">&#39;bin&#39;</span><span class="p">,</span> <span class="s1">&#39;activate&#39;</span><span class="p">)</span>
+    <span class="n">scripts</span> <span class="o">=</span> <span class="n">Path</span><span class="o">.</span><span class="n">home</span><span class="p">()</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;Documents&#39;</span><span class="p">,</span> <span class="s1">&#39;PYTHON&#39;</span><span class="p">,</span> <span class="s1">&#39;iblscripts&#39;</span><span class="p">,</span> <span class="s1">&#39;deploy&#39;</span><span class="p">,</span> <span class="s1">&#39;serverpc&#39;</span><span class="p">,</span> <span class="s1">&#39;dlc&#39;</span><span class="p">)</span>
+    <span class="n">signature</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;input_files&#39;</span><span class="p">:</span> <span class="p">[</span>
+            <span class="p">(</span><span class="s1">&#39;_iblrig_leftCamera.raw.mp4&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_video_data&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+            <span class="p">(</span><span class="s1">&#39;_iblrig_rightCamera.raw.mp4&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_video_data&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+            <span class="p">(</span><span class="s1">&#39;_iblrig_bodyCamera.raw.mp4&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_video_data&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+        <span class="p">],</span>
+        <span class="s1">&#39;output_files&#39;</span><span class="p">:</span> <span class="p">[</span>
+            <span class="p">(</span><span class="s1">&#39;_ibl_leftCamera.dlc.pqt&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+            <span class="p">(</span><span class="s1">&#39;_ibl_rightCamera.dlc.pqt&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+            <span class="p">(</span><span class="s1">&#39;_ibl_bodyCamera.dlc.pqt&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+            <span class="p">(</span><span class="s1">&#39;leftCamera.ROIMotionEnergy.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+            <span class="p">(</span><span class="s1">&#39;rightCamera.ROIMotionEnergy.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+            <span class="p">(</span><span class="s1">&#39;bodyCamera.ROIMotionEnergy.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+            <span class="p">(</span><span class="s1">&#39;leftROIMotionEnergy.position.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+            <span class="p">(</span><span class="s1">&#39;rightROIMotionEnergy.position.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+            <span class="p">(</span><span class="s1">&#39;bodyROIMotionEnergy.position.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+        <span class="p">],</span>
+    <span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">_check_dlcenv</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Check that scripts are present, dlcenv can be activated and get iblvideo version&quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scripts</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="s1">&#39;run_dlc.*&#39;</span><span class="p">)))</span> <span class="o">==</span> <span class="mi">2</span><span class="p">,</span> \
+            <span class="sa">f</span><span class="s1">&#39;Scripts run_dlc.sh and run_dlc.py do not exist in </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">scripts</span><span class="si">}</span><span class="s1">&#39;</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scripts</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="s1">&#39;run_motion.*&#39;</span><span class="p">)))</span> <span class="o">==</span> <span class="mi">2</span><span class="p">,</span> \
+            <span class="sa">f</span><span class="s1">&#39;Scripts run_motion.sh and run_motion.py do not exist in </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">scripts</span><span class="si">}</span><span class="s1">&#39;</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">dlcenv</span><span class="o">.</span><span class="n">exists</span><span class="p">(),</span> <span class="sa">f</span><span class="s2">&quot;DLC environment does not exist in assumed location </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">dlcenv</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="n">command2run</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;source </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">dlcenv</span><span class="si">}</span><span class="s2">; python -c &#39;import iblvideo; print(iblvideo.__version__)&#39;&quot;</span>
+        <span class="n">process</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">Popen</span><span class="p">(</span>
+            <span class="n">command2run</span><span class="p">,</span>
+            <span class="n">shell</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">stdout</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span>
+            <span class="n">stderr</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span>
+            <span class="n">executable</span><span class="o">=</span><span class="s2">&quot;/bin/bash&quot;</span>
+        <span class="p">)</span>
+        <span class="n">info</span><span class="p">,</span> <span class="n">error</span> <span class="o">=</span> <span class="n">process</span><span class="o">.</span><span class="n">communicate</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">process</span><span class="o">.</span><span class="n">returncode</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">AssertionError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;DLC environment check failed</span><span class="se">\n</span><span class="si">{</span><span class="n">error</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">version</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">version</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_video_intact</span><span class="p">(</span><span class="n">file_mp4</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Checks that the downloaded video can be opened and is not empty&quot;&quot;&quot;</span>
+        <span class="n">cap</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">VideoCapture</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">file_mp4</span><span class="p">))</span>
+        <span class="n">frame_count</span> <span class="o">=</span> <span class="n">cap</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">cv2</span><span class="o">.</span><span class="n">CAP_PROP_FRAME_COUNT</span><span class="p">)</span>
+        <span class="n">intact</span> <span class="o">=</span> <span class="kc">True</span> <span class="k">if</span> <span class="n">frame_count</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="kc">False</span>
+        <span class="n">cap</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">intact</span>
+
+    <span class="k">def</span> <span class="nf">_run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cams</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="c1"># Default to all three cams</span>
+        <span class="n">cams</span> <span class="o">=</span> <span class="n">cams</span> <span class="ow">or</span> <span class="p">[</span><span class="s1">&#39;left&#39;</span><span class="p">,</span> <span class="s1">&#39;right&#39;</span><span class="p">,</span> <span class="s1">&#39;body&#39;</span><span class="p">]</span>
+        <span class="n">cams</span> <span class="o">=</span> <span class="n">assert_valid_label</span><span class="p">(</span><span class="n">cams</span><span class="p">)</span>
+        <span class="c1"># Set up</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">session_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">path2eid</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="n">actual_outputs</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="c1"># Loop through cams</span>
+        <span class="k">for</span> <span class="n">cam</span> <span class="ow">in</span> <span class="n">cams</span><span class="p">:</span>
+            <span class="c1"># Catch exceptions so that following cameras can still run</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="c1"># If all results exist and overwrite is False, skip computation</span>
+                <span class="n">expected_outputs_present</span><span class="p">,</span> <span class="n">expected_outputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">assert_expected</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_files</span><span class="p">,</span> <span class="n">silent</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">overwrite</span> <span class="ow">is</span> <span class="kc">False</span> <span class="ow">and</span> <span class="n">expected_outputs_present</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+                    <span class="n">actual_outputs</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">expected_outputs</span><span class="p">)</span>
+                    <span class="k">return</span> <span class="n">actual_outputs</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">file_mp4</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;raw_video_data&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;_iblrig_</span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s1">Camera.raw*.mp4&#39;</span><span class="p">))</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">file_mp4</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+                        <span class="c1"># In this case we set the status to Incomplete.</span>
+                        <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No raw video file available for </span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s2">, skipping.&quot;</span><span class="p">)</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="o">-</span><span class="mi">3</span>
+                        <span class="k">continue</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_video_intact</span><span class="p">(</span><span class="n">file_mp4</span><span class="p">):</span>
+                        <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Corrupt raw video file </span><span class="si">{</span><span class="n">file_mp4</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+                        <span class="k">continue</span>
+                    <span class="c1"># Check that dlc environment is ok, shell scripts exists, and get iblvideo version, GPU addressable</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">version</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_check_dlcenv</span><span class="p">()</span>
+                    <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;iblvideo version </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+                    <span class="n">check_nvidia_driver</span><span class="p">()</span>
+
+                    <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Running DLC on </span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s1">Camera.&#39;</span><span class="p">)</span>
+                    <span class="n">command2run</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">scripts</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;run_dlc.sh&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dlcenv</span><span class="p">)</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">file_mp4</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">overwrite</span><span class="si">}</span><span class="s2">&quot;</span>
+                    <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">command2run</span><span class="p">)</span>
+                    <span class="n">process</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">Popen</span><span class="p">(</span>
+                        <span class="n">command2run</span><span class="p">,</span>
+                        <span class="n">shell</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                        <span class="n">stdout</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span>
+                        <span class="n">stderr</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span>
+                        <span class="n">executable</span><span class="o">=</span><span class="s2">&quot;/bin/bash&quot;</span><span class="p">,</span>
+                    <span class="p">)</span>
+                    <span class="n">info</span><span class="p">,</span> <span class="n">error</span> <span class="o">=</span> <span class="n">process</span><span class="o">.</span><span class="n">communicate</span><span class="p">()</span>
+                    <span class="n">info_str</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                    <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">info_str</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">process</span><span class="o">.</span><span class="n">returncode</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="n">error_str</span> <span class="o">=</span> <span class="n">error</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                        <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;DLC failed for </span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s1">Camera</span><span class="se">\n</span><span class="s1"> </span><span class="si">{</span><span class="n">error_str</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+                        <span class="c1"># We dont&#39; run motion energy, or add any files if dlc failed to run</span>
+                        <span class="k">continue</span>
+                    <span class="n">dlc_result</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;alf&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;_ibl_</span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s1">Camera.dlc*.pqt&#39;</span><span class="p">))</span>
+                    <span class="n">actual_outputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dlc_result</span><span class="p">)</span>
+
+                    <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Computing motion energy for </span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s1">Camera&#39;</span><span class="p">)</span>
+                    <span class="n">command2run</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">scripts</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;run_motion.sh&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dlcenv</span><span class="p">)</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">file_mp4</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">dlc_result</span><span class="si">}</span><span class="s2">&quot;</span>
+                    <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">command2run</span><span class="p">)</span>
+                    <span class="n">process</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">Popen</span><span class="p">(</span>
+                        <span class="n">command2run</span><span class="p">,</span>
+                        <span class="n">shell</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                        <span class="n">stdout</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span>
+                        <span class="n">stderr</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span>
+                        <span class="n">executable</span><span class="o">=</span><span class="s2">&quot;/bin/bash&quot;</span><span class="p">,</span>
+                    <span class="p">)</span>
+                    <span class="n">info</span><span class="p">,</span> <span class="n">error</span> <span class="o">=</span> <span class="n">process</span><span class="o">.</span><span class="n">communicate</span><span class="p">()</span>
+                    <span class="n">info_str</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                    <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">info_str</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">process</span><span class="o">.</span><span class="n">returncode</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="n">error_str</span> <span class="o">=</span> <span class="n">error</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                        <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Motion energy failed for </span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s1">Camera </span><span class="se">\n</span><span class="s1"> </span><span class="si">{</span><span class="n">error_str</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+                        <span class="k">continue</span>
+                    <span class="n">actual_outputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">next</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;alf&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s1">Camera.ROIMotionEnergy*.npy&#39;</span><span class="p">)))</span>
+                    <span class="n">actual_outputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">next</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;alf&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s1">ROIMotionEnergy.position*.npy&#39;</span><span class="p">)))</span>
+            <span class="k">except</span> <span class="ne">BaseException</span><span class="p">:</span>
+                <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">())</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+                <span class="k">continue</span>
+        <span class="c1"># If status is Incomplete, check that there is at least one output.</span>
+        <span class="c1"># # Otherwise make sure it gets set to Empty (outputs = None), and set status to -1 to make sure it doesn&#39;t slip</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="o">-</span><span class="mi">3</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">actual_outputs</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">actual_outputs</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+        <span class="k">return</span> <span class="n">actual_outputs</span></div>
 
 
 <div class="viewcode-block" id="EphysPostDLC"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.ephys_preprocessing.html#ibllib.pipes.ephys_preprocessing.EphysPostDLC">[docs]</a><span class="k">class</span> <span class="nc">EphysPostDLC</span><span class="p">(</span><span class="n">tasks</span><span class="o">.</span><span class="n">Task</span><span class="p">):</span>
@@ -1064,15 +1214,22 @@
                                       <span class="sa">f</span><span class="s1">&#39;Computations using camera.times will be skipped&#39;</span><span class="p">)</span>
                         <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
                         <span class="n">times</span> <span class="o">=</span> <span class="kc">False</span>
+                    <span class="k">elif</span> <span class="n">dlc_t</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">dlc_thresh</span><span class="p">):</span>
+                        <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Camera times shorter than DLC traces for </span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s1"> camera. &#39;</span>
+                                      <span class="sa">f</span><span class="s1">&#39;Computations using camera.times will be skipped&#39;</span><span class="p">)</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+                        <span class="n">times</span> <span class="o">=</span> <span class="s1">&#39;short&#39;</span>
                     <span class="c1"># These features are only computed from left and right cam</span>
                     <span class="k">if</span> <span class="n">cam</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;left&#39;</span><span class="p">,</span> <span class="s1">&#39;right&#39;</span><span class="p">):</span>
                         <span class="n">features</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">()</span>
                         <span class="c1"># If camera times are available, get the lick time stamps for combined array</span>
-                        <span class="k">if</span> <span class="n">times</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">times</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
                             <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Computing lick times for </span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s2"> camera.&quot;</span><span class="p">)</span>
                             <span class="n">combined_licks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">get_licks</span><span class="p">(</span><span class="n">dlc_thresh</span><span class="p">,</span> <span class="n">dlc_t</span><span class="p">))</span>
-                        <span class="k">else</span><span class="p">:</span>
-                            <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Skipping lick times for </span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s2"> camera as no camera.times available.&quot;</span><span class="p">)</span>
+                        <span class="k">elif</span> <span class="n">times</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
+                            <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Skipping lick times for </span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s2"> camera as no camera.times available&quot;</span><span class="p">)</span>
+                        <span class="k">elif</span> <span class="n">times</span> <span class="o">==</span> <span class="s1">&#39;short&#39;</span><span class="p">:</span>
+                            <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Skipping lick times for </span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s2"> camera as camera.times are too short&quot;</span><span class="p">)</span>
                         <span class="c1"># Compute pupil diameter, raw and smoothed</span>
                         <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Computing raw pupil diameter for </span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s2"> camera.&quot;</span><span class="p">)</span>
                         <span class="n">features</span><span class="p">[</span><span class="s1">&#39;pupilDiameter_raw&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">get_pupil_diameter</span><span class="p">(</span><span class="n">dlc_thresh</span><span class="p">)</span>
@@ -1082,6 +1239,7 @@
                                                                                          <span class="n">cam</span><span class="p">)</span>
                         <span class="k">except</span> <span class="ne">BaseException</span><span class="p">:</span>
                             <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Computing smooth pupil diameter for </span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s2"> camera failed, saving all NaNs.&quot;</span><span class="p">)</span>
+                            <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">())</span>
                             <span class="n">features</span><span class="p">[</span><span class="s1">&#39;pupilDiameter_smooth&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
                         <span class="c1"># Safe to pqt</span>
                         <span class="n">features_file</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;_ibl_</span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s1">Camera.features.pqt&#39;</span><span class="p">)</span>
@@ -1089,12 +1247,12 @@
                         <span class="n">output_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">features_file</span><span class="p">)</span>
 
                     <span class="c1"># For all cams, compute DLC qc if times available</span>
-                    <span class="k">if</span> <span class="n">times</span> <span class="ow">and</span> <span class="n">run_qc</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">times</span> <span class="ow">is</span> <span class="kc">True</span> <span class="ow">or</span> <span class="n">times</span> <span class="o">==</span> <span class="s1">&#39;short&#39;</span> <span class="ow">and</span> <span class="n">run_qc</span><span class="p">:</span>
                         <span class="c1"># Setting download_data to False because at this point the data should be there</span>
                         <span class="n">qc</span> <span class="o">=</span> <span class="n">DlcQC</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">side</span><span class="o">=</span><span class="n">cam</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">,</span> <span class="n">download_data</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
                         <span class="n">qc</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">update</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
                     <span class="k">else</span><span class="p">:</span>
-                        <span class="k">if</span> <span class="ow">not</span> <span class="n">times</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">times</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
                             <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Skipping QC for </span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s2"> camera as no camera.times available&quot;</span><span class="p">)</span>
                         <span class="k">if</span> <span class="ow">not</span> <span class="n">run_qc</span><span class="p">:</span>
                             <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Skipping QC for </span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s2"> camera as run_qc=False&quot;</span><span class="p">)</span>

@@ -54,6 +54,10 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../public_docs/public_introduction.html">Publicly available IBL data</a></li>
 </ul>
+<p class="caption" role="heading"><span class="caption-text">Exploring IBL Data</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../loading_examples.html">Loading Data</a></li>
+</ul>
 <p class="caption" role="heading"><span class="caption-text">Miscellaneous</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../02_installation.html">Unified Environment</a></li>
@@ -110,6 +114,7 @@
 <span class="c1"># &#39;Beryl&#39; is the name given to an atlas containing a subset of the most relevant allen annotations</span>
 <span class="n">FILE_BERYL</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;beryl.npy&#39;</span><span class="p">))</span>
 <span class="n">FILE_COSMOS</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;cosmos.npy&#39;</span><span class="p">))</span>
+<span class="n">FILE_MAPPINGS</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;mappings.pqt&#39;</span><span class="p">))</span>
 <span class="n">FILE_REGIONS</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;allen_structure_tree.csv&#39;</span><span class="p">))</span>
 
 
@@ -132,8 +137,6 @@
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">df_regions</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">FILE_REGIONS</span><span class="p">)</span>
-        <span class="n">beryl</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">FILE_BERYL</span><span class="p">)</span>
-        <span class="n">cosmos</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">FILE_COSMOS</span><span class="p">)</span>
         <span class="c1"># lateralize</span>
         <span class="n">df_regions_left</span> <span class="o">=</span> <span class="n">df_regions</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">df_regions</span><span class="o">.</span><span class="n">id</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">),</span> <span class="p">:]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
         <span class="n">df_regions_left</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span> <span class="n">df_regions_left</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span>
@@ -153,6 +156,18 @@
                          <span class="n">level</span><span class="o">=</span><span class="n">df_regions</span><span class="o">.</span><span class="n">depth</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(),</span>
                          <span class="n">parent</span><span class="o">=</span><span class="n">df_regions</span><span class="o">.</span><span class="n">parent_structure_id</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">())</span>
         <span class="c1"># mappings are indices not ids: they range from 0 to n regions -1</span>
+        <span class="n">mappings</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_parquet</span><span class="p">(</span><span class="n">FILE_MAPPINGS</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mappings</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">mappings</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">mappings</span><span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">_compute_mappings</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Recomputes the mapping indices for all mappings</span>
+<span class="sd">        This is left mainly as a reference for adding future mappings as this take a few seconds</span>
+<span class="sd">        to execute. In production,we use the MAPPING_FILES npz to avoid recompuing at each \</span>
+<span class="sd">        instantiation</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">beryl</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">FILE_BERYL</span><span class="p">)</span>
+        <span class="n">cosmos</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">FILE_COSMOS</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">mappings</span> <span class="o">=</span> <span class="p">{</span>
             <span class="s1">&#39;Allen&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mapping_from_regions_list</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)),</span> <span class="n">lateralize</span><span class="o">=</span><span class="kc">False</span><span class="p">),</span>
             <span class="s1">&#39;Allen-lr&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="o">.</span><span class="n">size</span><span class="p">),</span>
@@ -161,6 +176,7 @@
             <span class="s1">&#39;Cosmos&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mapping_from_regions_list</span><span class="p">(</span><span class="n">cosmos</span><span class="p">,</span> <span class="n">lateralize</span><span class="o">=</span><span class="kc">False</span><span class="p">),</span>
             <span class="s1">&#39;Cosmos-lr&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mapping_from_regions_list</span><span class="p">(</span><span class="n">cosmos</span><span class="p">,</span> <span class="n">lateralize</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
         <span class="p">}</span>
+        <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mappings</span><span class="p">)</span><span class="o">.</span><span class="n">to_parquet</span><span class="p">(</span><span class="n">FILE_MAPPINGS</span><span class="p">)</span>
 
 <div class="viewcode-block" id="BrainRegions.get"><a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.regions.html#ibllib.atlas.regions.BrainRegions.get">[docs]</a>    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ids</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Bunch</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>

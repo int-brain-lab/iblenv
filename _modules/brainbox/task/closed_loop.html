@@ -54,6 +54,10 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../public_docs/public_introduction.html">Publicly available IBL data</a></li>
 </ul>
+<p class="caption" role="heading"><span class="caption-text">Exploring IBL Data</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../loading_examples.html">Loading Data</a></li>
+</ul>
 <p class="caption" role="heading"><span class="caption-text">Miscellaneous</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../02_installation.html">Unified Environment</a></li>
@@ -110,7 +114,7 @@
 
 
 <div class="viewcode-block" id="responsive_units"><a class="viewcode-back" href="../../../_autosummary/brainbox.task.closed_loop.html#brainbox.task.closed_loop.responsive_units">[docs]</a><span class="k">def</span> <span class="nf">responsive_units</span><span class="p">(</span><span class="n">spike_times</span><span class="p">,</span> <span class="n">spike_clusters</span><span class="p">,</span> <span class="n">event_times</span><span class="p">,</span>
-                     <span class="n">pre_time</span><span class="o">=</span><span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">post_time</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">],</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.05</span><span class="p">):</span>
+                     <span class="n">pre_time</span><span class="o">=</span><span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">post_time</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">],</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span> <span class="n">use_fr</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Determine responsive neurons by doing a Wilcoxon Signed-Rank test between a baseline period</span>
 <span class="sd">    before a certain task event (e.g. stimulus onset) and a period after the task event.</span>
@@ -130,6 +134,8 @@
 <span class="sd">        time (in seconds) to follow the event times</span>
 <span class="sd">    alpha : float</span>
 <span class="sd">        alpha to use for statistical significance</span>
+<span class="sd">    use_fr : bool</span>
+<span class="sd">        whether to use the firing rate instead of total spike count</span>
 
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
@@ -150,18 +156,12 @@
     <span class="n">times</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">(((</span><span class="n">event_times</span> <span class="o">+</span> <span class="n">post_time</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="p">(</span><span class="n">event_times</span> <span class="o">+</span> <span class="n">post_time</span><span class="p">[</span><span class="mi">1</span><span class="p">])))</span>
     <span class="n">spike_counts</span><span class="p">,</span> <span class="n">cluster_ids</span> <span class="o">=</span> <span class="n">get_spike_counts_in_bins</span><span class="p">(</span><span class="n">spike_times</span><span class="p">,</span> <span class="n">spike_clusters</span><span class="p">,</span> <span class="n">times</span><span class="p">)</span>
 
-    <span class="c1"># Do statistics</span>
-    <span class="n">p_values</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">spike_counts</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
-    <span class="n">stats</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">spike_counts</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
-    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">spike_counts</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
-        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">baseline_counts</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="p">:]</span> <span class="o">-</span> <span class="n">spike_counts</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="p">:])</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="n">p_values</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
-            <span class="n">stats</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">stats</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">p_values</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">wilcoxon</span><span class="p">(</span><span class="n">baseline_counts</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="p">:],</span> <span class="n">spike_counts</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="p">:])</span>
+    <span class="k">if</span> <span class="n">use_fr</span><span class="p">:</span>
+        <span class="n">baseline_counts</span> <span class="o">=</span> <span class="n">baseline_counts</span> <span class="o">/</span> <span class="p">(</span><span class="n">pre_time</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">pre_time</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">spike_counts</span> <span class="o">=</span> <span class="n">spike_counts</span> <span class="o">/</span> <span class="p">(</span><span class="n">post_time</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">post_time</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
 
-    <span class="c1"># Perform FDR correction for multiple testing</span>
-    <span class="n">sig_units</span><span class="p">,</span> <span class="n">p_values</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">multipletests</span><span class="p">(</span><span class="n">p_values</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">&#39;fdr_bh&#39;</span><span class="p">)</span>
+    <span class="c1"># Do statistics</span>
+    <span class="n">sig_units</span><span class="p">,</span> <span class="n">stats</span><span class="p">,</span> <span class="n">p_values</span> <span class="o">=</span> <span class="n">compute_comparison_statistics</span><span class="p">(</span><span class="n">baseline_counts</span><span class="p">,</span> <span class="n">spike_counts</span><span class="p">,</span> <span class="n">test</span><span class="o">=</span><span class="s1">&#39;signrank&#39;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="n">alpha</span><span class="p">)</span>
     <span class="n">significant_units</span> <span class="o">=</span> <span class="n">cluster_ids</span><span class="p">[</span><span class="n">sig_units</span><span class="p">]</span>
 
     <span class="k">return</span> <span class="n">significant_units</span><span class="p">,</span> <span class="n">stats</span><span class="p">,</span> <span class="n">p_values</span><span class="p">,</span> <span class="n">cluster_ids</span></div>
@@ -224,27 +224,66 @@
     <span class="n">counts_2</span><span class="p">,</span> <span class="n">cluster_ids</span> <span class="o">=</span> <span class="n">get_spike_counts_in_bins</span><span class="p">(</span><span class="n">spike_times</span><span class="p">,</span> <span class="n">spike_clusters</span><span class="p">,</span> <span class="n">times_2</span><span class="p">)</span>
 
     <span class="c1"># Do statistics</span>
-    <span class="n">p_values</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">cluster_ids</span><span class="p">))</span>
-    <span class="n">stats</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">cluster_ids</span><span class="p">))</span>
-    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">cluster_ids</span><span class="p">)):</span>
-        <span class="k">if</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">counts_1</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="p">:])</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">counts_2</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="p">:])</span> <span class="o">==</span> <span class="mi">0</span><span class="p">):</span>
-            <span class="n">p_values</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
-            <span class="n">stats</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">test</span> <span class="o">==</span> <span class="s1">&#39;ranksums&#39;</span><span class="p">:</span>
-                <span class="n">stats</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">p_values</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">ranksums</span><span class="p">(</span><span class="n">counts_1</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="p">:],</span> <span class="n">counts_2</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="p">:])</span>
-            <span class="k">elif</span> <span class="n">test</span> <span class="o">==</span> <span class="s1">&#39;signrank&#39;</span><span class="p">:</span>
-                <span class="n">stats</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">p_values</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">wilcoxon</span><span class="p">(</span><span class="n">counts_1</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="p">:],</span> <span class="n">counts_2</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="p">:])</span>
-            <span class="k">elif</span> <span class="n">test</span> <span class="o">==</span> <span class="s1">&#39;ttest&#39;</span><span class="p">:</span>
-                <span class="n">stats</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">p_values</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">ttest_ind</span><span class="p">(</span><span class="n">counts_1</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="p">:],</span> <span class="n">counts_2</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="p">:])</span>
-            <span class="k">elif</span> <span class="n">test</span> <span class="o">==</span> <span class="s1">&#39;paired_ttest&#39;</span><span class="p">:</span>
-                <span class="n">stats</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">p_values</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">ttest_rel</span><span class="p">(</span><span class="n">counts_1</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="p">:],</span> <span class="n">counts_2</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="p">:])</span>
-
-    <span class="c1"># Perform FDR correction for multiple testing</span>
-    <span class="n">sig_units</span><span class="p">,</span> <span class="n">p_values</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">multipletests</span><span class="p">(</span><span class="n">p_values</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">&#39;fdr_bh&#39;</span><span class="p">)</span>
+    <span class="n">sig_units</span><span class="p">,</span> <span class="n">stats</span><span class="p">,</span> <span class="n">p_values</span> <span class="o">=</span> <span class="n">compute_comparison_statistics</span><span class="p">(</span><span class="n">counts_1</span><span class="p">,</span> <span class="n">counts_2</span><span class="p">,</span> <span class="n">test</span><span class="o">=</span><span class="n">test</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="n">alpha</span><span class="p">)</span>
     <span class="n">significant_units</span> <span class="o">=</span> <span class="n">cluster_ids</span><span class="p">[</span><span class="n">sig_units</span><span class="p">]</span>
 
     <span class="k">return</span> <span class="n">significant_units</span><span class="p">,</span> <span class="n">stats</span><span class="p">,</span> <span class="n">p_values</span><span class="p">,</span> <span class="n">cluster_ids</span></div>
+
+
+<div class="viewcode-block" id="compute_comparison_statistics"><a class="viewcode-back" href="../../../_autosummary/brainbox.task.closed_loop.html#brainbox.task.closed_loop.compute_comparison_statistics">[docs]</a><span class="k">def</span> <span class="nf">compute_comparison_statistics</span><span class="p">(</span><span class="n">value1</span><span class="p">,</span> <span class="n">value2</span><span class="p">,</span> <span class="n">test</span><span class="o">=</span><span class="s1">&#39;ranksums&#39;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.05</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compute statistical test between two arrays</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    value1 : 1D array</span>
+<span class="sd">        first array of values to compare</span>
+<span class="sd">    value2 : 1D array</span>
+<span class="sd">        second array of values to compare</span>
+<span class="sd">    test : string</span>
+<span class="sd">        which statistical test to use, options are:</span>
+<span class="sd">            &#39;ranksums&#39;      Wilcoxon Rank Sums test</span>
+<span class="sd">            &#39;signrank&#39;      Wilcoxon Signed Rank test (for paired observations)</span>
+<span class="sd">            &#39;ttest&#39;         independent samples t-test</span>
+<span class="sd">            &#39;paired_ttest&#39;  paired t-test</span>
+<span class="sd">    alpha : float</span>
+<span class="sd">        alpha to use for statistical significance</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    significant_units : 1D array</span>
+<span class="sd">        an array with the indices of values that are significatly modulated</span>
+<span class="sd">    stats : 1D array</span>
+<span class="sd">        the statistic of the test that was performed</span>
+<span class="sd">    p_values : 1D array</span>
+<span class="sd">        the p-values of all the values</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">p_values</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">value1</span><span class="p">))</span>
+    <span class="n">stats</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">value1</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">value1</span><span class="p">)):</span>
+        <span class="k">if</span> <span class="n">test</span> <span class="o">==</span> <span class="s1">&#39;signrank&#39;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">value1</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="p">:]</span> <span class="o">-</span> <span class="n">value2</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="p">:])</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">p_values</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+                <span class="n">stats</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">stats</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">p_values</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">wilcoxon</span><span class="p">(</span><span class="n">value1</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="p">:],</span> <span class="n">value2</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="p">:])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">value1</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="p">:])</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">value2</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="p">:])</span> <span class="o">==</span> <span class="mi">0</span><span class="p">):</span>
+                <span class="n">p_values</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+                <span class="n">stats</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">test</span> <span class="o">==</span> <span class="s1">&#39;ranksums&#39;</span><span class="p">:</span>
+                    <span class="n">stats</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">p_values</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">ranksums</span><span class="p">(</span><span class="n">value1</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="p">:],</span> <span class="n">value2</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="p">:])</span>
+                <span class="k">elif</span> <span class="n">test</span> <span class="o">==</span> <span class="s1">&#39;ttest&#39;</span><span class="p">:</span>
+                    <span class="n">stats</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">p_values</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">ttest_ind</span><span class="p">(</span><span class="n">value1</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="p">:],</span> <span class="n">value2</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="p">:])</span>
+                <span class="k">elif</span> <span class="n">test</span> <span class="o">==</span> <span class="s1">&#39;paired_ttest&#39;</span><span class="p">:</span>
+                    <span class="n">stats</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">p_values</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">ttest_rel</span><span class="p">(</span><span class="n">value1</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="p">:],</span> <span class="n">value2</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="p">:])</span>
+
+    <span class="c1"># Perform FDR correction for multiple testing</span>
+    <span class="n">sig_units</span><span class="p">,</span> <span class="n">p_values</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">multipletests</span><span class="p">(</span><span class="n">p_values</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">&#39;fdr_bh&#39;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">sig_units</span><span class="p">,</span> <span class="n">stats</span><span class="p">,</span> <span class="n">p_values</span></div>
 
 
 <div class="viewcode-block" id="roc_single_event"><a class="viewcode-back" href="../../../_autosummary/brainbox.task.closed_loop.html#brainbox.task.closed_loop.roc_single_event">[docs]</a><span class="k">def</span> <span class="nf">roc_single_event</span><span class="p">(</span><span class="n">spike_times</span><span class="p">,</span> <span class="n">spike_clusters</span><span class="p">,</span> <span class="n">event_times</span><span class="p">,</span>

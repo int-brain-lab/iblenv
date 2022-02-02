@@ -54,6 +54,10 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../public_docs/public_introduction.html">Publicly available IBL data</a></li>
 </ul>
+<p class="caption" role="heading"><span class="caption-text">Exploring IBL Data</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../loading_examples.html">Loading Data</a></li>
+</ul>
 <p class="caption" role="heading"><span class="caption-text">Miscellaneous</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../02_installation.html">Unified Environment</a></li>
@@ -120,6 +124,7 @@
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">event</span><span class="p">:</span>
         <span class="n">idx</span> <span class="o">=</span> <span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">trials</span><span class="p">[</span><span class="n">event</span><span class="p">])</span>
+        <span class="n">nan_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">idx</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">trials</span><span class="p">[</span><span class="s1">&#39;feedbackType&#39;</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
 
@@ -217,6 +222,9 @@
     <span class="k">if</span> <span class="n">side</span> <span class="o">==</span> <span class="s1">&#39;right&#39;</span> <span class="ow">and</span> <span class="n">choice</span> <span class="o">==</span> <span class="s1">&#39;incorrect&#39;</span><span class="p">:</span>
         <span class="n">trial_id</span> <span class="o">=</span> <span class="n">_order_by</span><span class="p">(</span><span class="n">incor_r</span><span class="p">,</span> <span class="n">order</span><span class="p">)</span>
 
+    <span class="k">if</span> <span class="n">event</span><span class="p">:</span>
+        <span class="n">trial_id</span> <span class="o">=</span> <span class="n">nan_idx</span><span class="p">[</span><span class="n">trial_id</span><span class="p">]</span>
+
     <span class="k">return</span> <span class="n">trial_id</span><span class="p">,</span> <span class="n">dividers</span></div>
 
 
@@ -245,8 +253,9 @@
         <span class="n">nbin</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
     <span class="c1"># remove nan trials</span>
-    <span class="n">events</span> <span class="o">=</span> <span class="n">events</span><span class="p">[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">events</span><span class="p">)]</span>
-    <span class="n">intervals</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">c_</span><span class="p">[</span><span class="n">events</span> <span class="o">+</span> <span class="n">epoch</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">events</span> <span class="o">+</span> <span class="n">epoch</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span>
+    <span class="n">non_nan_events</span> <span class="o">=</span> <span class="n">events</span><span class="p">[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">events</span><span class="p">)]</span>
+    <span class="n">nan_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">events</span><span class="p">))</span>
+    <span class="n">intervals</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">c_</span><span class="p">[</span><span class="n">non_nan_events</span> <span class="o">+</span> <span class="n">epoch</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">non_nan_events</span> <span class="o">+</span> <span class="n">epoch</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span>
 
     <span class="c1"># Remove any trials that are later than the last value in bin_times</span>
     <span class="n">out_intervals</span> <span class="o">=</span> <span class="n">intervals</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">bin_times</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
@@ -269,7 +278,11 @@
                                                     <span class="n">event_raster</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)]</span>
         <span class="k">assert</span><span class="p">(</span><span class="n">event_raster</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">intervals</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
 
-    <span class="k">return</span> <span class="n">event_raster</span><span class="p">,</span> <span class="n">t</span></div>
+    <span class="c1"># Reindex if we have removed any nan values</span>
+    <span class="n">all_event_raster</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">events</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">event_raster</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+    <span class="n">all_event_raster</span><span class="p">[</span><span class="n">nan_idx</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">event_raster</span>
+
+    <span class="k">return</span> <span class="n">all_event_raster</span><span class="p">,</span> <span class="n">t</span></div>
 
 
 <div class="viewcode-block" id="get_psth"><a class="viewcode-back" href="../../../_autosummary/brainbox.task.trials.html#brainbox.task.trials.get_psth">[docs]</a><span class="k">def</span> <span class="nf">get_psth</span><span class="p">(</span><span class="n">raster</span><span class="p">,</span> <span class="n">trial_ids</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
@@ -397,7 +410,7 @@
     <span class="k">return</span> <span class="n">raster</span><span class="p">,</span> <span class="n">psth</span></div>
 
 
-<div class="viewcode-block" id="filter_trials"><a class="viewcode-back" href="../../../_autosummary/brainbox.task.trials.html#brainbox.task.trials.filter_trials">[docs]</a><span class="k">def</span> <span class="nf">filter_trials</span><span class="p">(</span><span class="n">trials</span><span class="p">,</span> <span class="n">event_raster</span><span class="p">,</span> <span class="n">event</span><span class="p">,</span> <span class="n">contrast</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="s1">&#39;trial num&#39;</span><span class="p">,</span> <span class="n">sort</span><span class="o">=</span><span class="s1">&#39;choice&#39;</span><span class="p">):</span>
+<div class="viewcode-block" id="filter_trials"><a class="viewcode-back" href="../../../_autosummary/brainbox.task.trials.html#brainbox.task.trials.filter_trials">[docs]</a><span class="k">def</span> <span class="nf">filter_trials</span><span class="p">(</span><span class="n">trials</span><span class="p">,</span> <span class="n">event_raster</span><span class="p">,</span> <span class="n">event</span><span class="p">,</span> <span class="n">contrast</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.25</span><span class="p">,</span> <span class="mf">0.125</span><span class="p">,</span> <span class="mf">0.0625</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">order</span><span class="o">=</span><span class="s1">&#39;trial num&#39;</span><span class="p">,</span> <span class="n">sort</span><span class="o">=</span><span class="s1">&#39;choice&#39;</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Wrapper to get out psth and raster for trial choice</span>
 <span class="sd">    :param trials: trials object</span>
