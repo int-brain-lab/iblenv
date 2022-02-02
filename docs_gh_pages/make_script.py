@@ -14,9 +14,10 @@ scripts_path = root.joinpath('scripts')
 
 nb_path = root.joinpath('notebooks')
 nb_path_external = [Path(root.parent.parent).joinpath('ibllib-repo', 'examples'),
+                    Path(root.parent.parent).joinpath('ibllib-repo', 'examples', 'loading_data'),
                     Path(root.parent.parent).joinpath('ibllib-repo', 'brainbox', 'examples'),
                     Path(root.parent.parent).joinpath('ONE', 'docs', 'notebooks')]
-external_file_patterns = ['docs', 'docs', 'quickstart']
+external_file_patterns = ['docs', 'loading', 'docs', 'quickstart']
 
 
 def make_documentation(execute, force, documentation, clean, specific, github, message):
@@ -31,7 +32,7 @@ def make_documentation(execute, force, documentation, clean, specific, github, m
     # Case where we want to rebuild all examples
     if execute and not specific:
         # Execute notebooks in docs folder
-        status += process_notebooks(nb_path, execute=True, force=force)
+        #status += process_notebooks(nb_path, execute=True, force=force)
         # Execute notebooks in external folders
         for nb_path_ext, pattern in zip(nb_path_external, external_file_patterns):
             status += process_notebooks(nb_path_ext, execute=True, force=force,

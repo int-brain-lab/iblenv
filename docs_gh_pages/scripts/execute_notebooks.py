@@ -75,14 +75,6 @@ class NotebookConverter(object):
             gallery_config = gg.DEFAULT_GALLERY_CONF
             gallery_config['first_notebook_cell'] = None
             example_nb = sph_nb.jupyter_notebook(blocks, gallery_config, nb_path)
-
-            code = example_nb['cells'][1]['source'][0]
-            # If using mayavi add in the notebook initialisation so that figures render properly
-            if re.search("from mayavi import mlab", code):
-                if not re.search("mlab.init_notebook()", code):
-                    new_code = re.sub("from mayavi import mlab",
-                                      "from mayavi import mlab\nmlab.init_notebook()", code)
-                    example_nb['cells'][1]['source'][0] = new_code
             sph_nb.save_notebook(example_nb, nb_path)
         return nb_path
 
@@ -129,7 +121,7 @@ class NotebookConverter(object):
             t0 = time.time()
 
             clear_executor = ClearOutputPreprocessor()
-            executor = ExecutePreprocessor(**self.execute_kwargs)
+            executor = ExecuteNotebooks(**self.execute_kwargs)
 
             # First clean up the notebook and remove any cells that have been run
             clear_executor.preprocess(nb, {})
@@ -181,6 +173,7 @@ class NotebookConverter(object):
                 nb['metadata'].pop('docs_executed')
 
             clear_executor = ClearOutputPreprocessor()
+            clear_executor.remove_metadata_fields.add('execution')
             clear_executor.preprocess(nb, {})
 
             with open(self.executed_nb_path, 'w', encoding='utf-8') as f:
@@ -314,3 +307,33 @@ def process_notebooks(nbfile_or_path, execute=True, force=False, link=False, cle
                 os.remove(full_path)
 
     return overall_status
+
+
+class ExecuteNotebooks(ExecutePreprocessor):
+
+    def __init__(self, **kw):
+        super().__init__(**kw)
+
+    def preprocess_cell(self, cell, resources, index):
+        """
+        Override if you want to apply some preprocessing to each cell.
+        Must return modified cell and resource dictionary.
+
+        Parameters
+        ----------
+        cell : NotebookNode cell
+            Notebook cell being processed
+        resources : dictionary
+            Additional resources used in the conversion process.  Allows
+            preprocessors to pass variables into the Jinja engine.
+        index : int
+            Index of the cell being processed
+        """
+        self._check_assign_resources(resources)
+        if self.get_execute_meta(cell['metadata']):
+            cell = self.execute_cell(cell, index, store_history=True)
+        return cell, self.resources
+
+    def get_execute_meta(self, metadata):
+        return metadata.get('ibl_execute', True)
+
