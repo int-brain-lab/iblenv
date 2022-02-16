@@ -66,6 +66,7 @@
 <p class="caption" role="heading"><span class="caption-text">Examples &amp; Tutorials</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../06_examples.html">Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../atlas_examples.html">Atlas Examples</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../notebooks/dj_intro/dj_intro.html">Datajoint Introductory Tutorial</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../notebooks/dj_basics/dj_basics.html">Exploring the IBL Data Pipeline</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/docs_wheel_moves.html">Working with wheel data</a></li>
@@ -119,6 +120,9 @@
 <span class="n">SAMPLE_SIZE</span> <span class="o">=</span> <span class="mi">2</span>  <span class="c1"># int16</span>
 <span class="n">DEFAULT_BATCH_SIZE</span> <span class="o">=</span> <span class="mf">1e6</span>
 <span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;ibllib&#39;</span><span class="p">)</span>
+<span class="c1"># provided as convenience if no meta-data is provided, always better to read from meta</span>
+<span class="n">S2V_AP</span> <span class="o">=</span> <span class="mf">2.34375e-06</span>
+<span class="n">S2V_LFP</span> <span class="o">=</span> <span class="mf">4.6875e-06</span>
 
 
 <div class="viewcode-block" id="Reader"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.spikeglx.html#ibllib.io.spikeglx.Reader">[docs]</a><span class="k">class</span> <span class="nc">Reader</span><span class="p">:</span>
@@ -127,10 +131,24 @@
 <span class="sd">    Some format description was found looking at the Matlab SDK here</span>
 <span class="sd">    https://github.com/billkarsh/SpikeGLX/blob/master/MATLAB-SDK/DemoReadSGLXData.m</span>
 
+<span class="sd">    To open a spikeglx file that has an associated meta-data file:</span>
+<span class="sd">    sr = spikeglx.Reader(bin_file_path)</span>
+
+<span class="sd">    To open a flat binary file:</span>
+
+<span class="sd">    sr = spikeglx.Reader(bin_file_path, nc=385, ns=nsamples, fs=30000)</span>
+<span class="sd">    one can provide more options to the reader:</span>
+<span class="sd">    sr = spikeglx.Reader(..., dtype=&#39;int16, s2mv=2.34375e-06)</span>
+
+<span class="sd">    usual sample 2 mv conversion factors:</span>
+<span class="sd">        s2mv = 2.34375e-06 (NP1 ap banc) : default value used</span>
+<span class="sd">        s2mv = 4.6875e-06 (NP1 lfp band)</span>
+
 <span class="sd">    Note: To release system resources the close method must be called</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sglx_file</span><span class="p">,</span> <span class="nb">open</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sglx_file</span><span class="p">,</span> <span class="nb">open</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">nc</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ns</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;int16&#39;</span><span class="p">,</span> <span class="n">s2v</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">nsync</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        An interface for reading data from a SpikeGLX file</span>
 <span class="sd">        :param sglx_file: Path to a SpikeGLX file (compressed or otherwise)</span>
@@ -138,18 +156,29 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">file_bin</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">sglx_file</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">nbytes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_bin</span><span class="o">.</span><span class="n">stat</span><span class="p">()</span><span class="o">.</span><span class="n">st_size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dtype</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dtype</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span>
         <span class="n">file_meta_data</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">sglx_file</span><span class="p">)</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s1">&#39;.meta&#39;</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">file_meta_data</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="n">err_str</span> <span class="o">=</span> <span class="s2">&quot;Instantiating an Reader without meta data requires providing nc, fs and nc parameters&quot;</span>
+            <span class="k">assert</span> <span class="p">(</span><span class="n">nc</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">fs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">nc</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">),</span> <span class="n">err_str</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">file_meta_data</span> <span class="o">=</span> <span class="kc">None</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">meta</span> <span class="o">=</span> <span class="kc">None</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">channel_conversion_sample2v</span> <span class="o">=</span> <span class="mi">1</span>
-            <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">sglx_file</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot; : no metadata file found. Very limited support&quot;</span><span class="p">)</span>
-            <span class="k">return</span>
-        <span class="c1"># normal case we continue reading and interpreting the metadata file</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">file_meta_data</span> <span class="o">=</span> <span class="n">file_meta_data</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">meta</span> <span class="o">=</span> <span class="n">read_meta_data</span><span class="p">(</span><span class="n">file_meta_data</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">channel_conversion_sample2v</span> <span class="o">=</span> <span class="n">_conversion_sample2v_from_meta</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_raw</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_nc</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ns</span> <span class="o">=</span> <span class="p">(</span><span class="n">nc</span><span class="p">,</span> <span class="n">fs</span><span class="p">,</span> <span class="n">ns</span><span class="p">)</span>
+            <span class="c1"># handles default parameters: if int16 we assume it&#39;s a raw recording with 1 sync and sample2mv</span>
+            <span class="c1"># if its&#39; float32 or something else, we assume the sync channel has been removed and the scaling applied</span>
+            <span class="k">if</span> <span class="n">nsync</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">nsync</span> <span class="o">=</span> <span class="mi">1</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">dtype</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">dtype</span><span class="p">(</span><span class="s1">&#39;int16&#39;</span><span class="p">)</span> <span class="k">else</span> <span class="mi">0</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_nsync</span> <span class="o">=</span> <span class="n">nsync</span>
+            <span class="k">if</span> <span class="n">s2v</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">s2v</span> <span class="o">=</span> <span class="n">S2V_AP</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">dtype</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">dtype</span><span class="p">(</span><span class="s1">&#39;int16&#39;</span><span class="p">)</span> <span class="k">else</span> <span class="mf">1.0</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">channel_conversion_sample2v</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;samples&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">nc</span><span class="p">)</span> <span class="o">*</span> <span class="n">s2v</span><span class="p">}</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">channel_conversion_sample2v</span><span class="p">[</span><span class="s1">&#39;samples&#39;</span><span class="p">][</span><span class="o">-</span><span class="n">nsync</span><span class="p">:]</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># normal case we continue reading and interpreting the metadata file</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">file_meta_data</span> <span class="o">=</span> <span class="n">file_meta_data</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">meta</span> <span class="o">=</span> <span class="n">read_meta_data</span><span class="p">(</span><span class="n">file_meta_data</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">channel_conversion_sample2v</span> <span class="o">=</span> <span class="n">_conversion_sample2v_from_meta</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_raw</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="k">if</span> <span class="nb">open</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">open</span><span class="p">()</span>
 
@@ -168,8 +197,8 @@
                                     <span class="sa">f</span><span class="s2">&quot; actual </span><span class="si">{</span><span class="n">ftsec</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
                                     <span class="sa">f</span><span class="s2">&quot;Will attempt to fudge the meta-data information.&quot;</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">nc</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">ns</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">nbytes</span><span class="p">:</span>
-                <span class="n">ftsec</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_bin</span><span class="o">.</span><span class="n">stat</span><span class="p">()</span><span class="o">.</span><span class="n">st_size</span> <span class="o">/</span> <span class="mi">2</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">nc</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">fs</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">nc</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">ns</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">itemsize</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">nbytes</span><span class="p">:</span>
+                <span class="n">ftsec</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_bin</span><span class="o">.</span><span class="n">stat</span><span class="p">()</span><span class="o">.</span><span class="n">st_size</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">itemsize</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">nc</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">fs</span>
                 <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">sglx_file</span><span class="si">}</span><span class="s2"> : meta data and filesize do not checkout</span><span class="se">\n</span><span class="s2">&quot;</span>
                                 <span class="sa">f</span><span class="s2">&quot;File size: expected </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s1">&#39;fileSizeBytes&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">,&quot;</span>
                                 <span class="sa">f</span><span class="s2">&quot; actual </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">file_bin</span><span class="o">.</span><span class="n">stat</span><span class="p">()</span><span class="o">.</span><span class="n">st_size</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
@@ -177,7 +206,7 @@
                                 <span class="sa">f</span><span class="s2">&quot; actual </span><span class="si">{</span><span class="n">ftsec</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
                                 <span class="sa">f</span><span class="s2">&quot;Will attempt to fudge the meta-data information.&quot;</span><span class="p">)</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s1">&#39;fileTimeSecs&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">ftsec</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_raw</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">memmap</span><span class="p">(</span><span class="n">sglx_file</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;int16&#39;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ns</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">nc</span><span class="p">))</span></div>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_raw</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">memmap</span><span class="p">(</span><span class="n">sglx_file</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ns</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">nc</span><span class="p">))</span></div>
 
 <div class="viewcode-block" id="Reader.close"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.spikeglx.html#ibllib.io.spikeglx.Reader.close">[docs]</a>    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_open</span><span class="p">:</span>
@@ -196,6 +225,10 @@
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">nsel</span><span class="o">=</span><span class="n">item</span><span class="p">,</span> <span class="n">sync</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
         <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">item</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">nsel</span><span class="o">=</span><span class="n">item</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">csel</span><span class="o">=</span><span class="n">item</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">sync</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">sample2volts</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">channel_conversion_sample2v</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">type</span><span class="p">]</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">geometry</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -235,33 +268,29 @@
     <span class="k">def</span> <span class="nf">type</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;:return: ap, lf or nidq. Useful to index dictionaries &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">:</span>
-            <span class="k">return</span> <span class="mi">0</span>
+            <span class="k">return</span> <span class="s1">&#39;samples&#39;</span>
         <span class="k">return</span> <span class="n">_get_type_from_meta</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">)</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">fs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot; :return: sampling frequency (Hz) &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">:</span>
-            <span class="k">return</span> <span class="mi">1</span>
-        <span class="k">return</span> <span class="n">_get_fs_from_meta</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fs</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">_get_fs_from_meta</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">)</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">nc</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot; :return: number of channels &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">:</span>
-            <span class="k">return</span>
-        <span class="k">return</span> <span class="n">_get_nchannels_from_meta</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_nc</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">_get_nchannels_from_meta</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">)</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">nsync</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;:return: number of sync channels&quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="n">_get_sync_trace_indices_from_meta</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">))</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_nsync</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="nb">len</span><span class="p">(</span><span class="n">_get_sync_trace_indices_from_meta</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">))</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">ns</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot; :return: number of samples &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">:</span>
-            <span class="k">return</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ns</span>
         <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;fileTimeSecs&#39;</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">fs</span><span class="p">))</span>
 
 <div class="viewcode-block" id="Reader.read"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.spikeglx.html#ibllib.io.spikeglx.Reader.read">[docs]</a>    <span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nsel</span><span class="o">=</span><span class="nb">slice</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10000</span><span class="p">),</span> <span class="n">csel</span><span class="o">=</span><span class="nb">slice</span><span class="p">(</span><span class="kc">None</span><span class="p">),</span> <span class="n">sync</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
@@ -273,7 +302,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_open</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="s1">&#39;Reader not open; call `open` before `read`&#39;</span><span class="p">)</span>
-        <span class="n">darray</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_raw</span><span class="p">[</span><span class="n">nsel</span><span class="p">,</span> <span class="n">csel</span><span class="p">])</span>
+        <span class="n">darray</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_raw</span><span class="p">[</span><span class="n">nsel</span><span class="p">,</span> <span class="n">csel</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span> <span class="n">copy</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="n">darray</span> <span class="o">*=</span> <span class="bp">self</span><span class="o">.</span><span class="n">channel_conversion_sample2v</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">type</span><span class="p">][</span><span class="n">csel</span><span class="p">]</span>
         <span class="k">if</span> <span class="n">sync</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">darray</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">read_sync</span><span class="p">(</span><span class="n">nsel</span><span class="p">)</span>
@@ -547,11 +576,7 @@
 
 
 <span class="k">def</span> <span class="nf">_get_nchannels_from_meta</span><span class="p">(</span><span class="n">md</span><span class="p">):</span>
-    <span class="n">typ</span> <span class="o">=</span> <span class="n">_get_type_from_meta</span><span class="p">(</span><span class="n">md</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">typ</span> <span class="o">==</span> <span class="s1">&#39;nidq&#39;</span><span class="p">:</span>
-        <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">md</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;snsMnMaXaDw&#39;</span><span class="p">))))</span>
-    <span class="k">elif</span> <span class="n">typ</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;lf&#39;</span><span class="p">,</span> <span class="s1">&#39;ap&#39;</span><span class="p">]:</span>
-        <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="n">md</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;snsApLfSy&#39;</span><span class="p">))))</span>
+    <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">md</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;nSavedChans&#39;</span><span class="p">))</span>
 
 
 <span class="k">def</span> <span class="nf">_get_fs_from_meta</span><span class="p">(</span><span class="n">md</span><span class="p">):</span>
@@ -644,7 +669,7 @@
         <span class="n">sy_gain</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">meta_data</span><span class="p">[</span><span class="s1">&#39;snsApLfSy&#39;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
         <span class="c1"># imroTbl has 384 entries regardless of no of channels saved, so need to index by n_ch</span>
         <span class="c1"># TODO need to look at snsSaveChanMap and index channels to get correct gain</span>
-        <span class="n">n_chn</span> <span class="o">=</span> <span class="n">_get_nchannels_from_meta</span><span class="p">(</span><span class="n">meta_data</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+        <span class="n">n_chn</span> <span class="o">=</span> <span class="n">_get_nchannels_from_meta</span><span class="p">(</span><span class="n">meta_data</span><span class="p">)</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">_get_sync_trace_indices_from_meta</span><span class="p">(</span><span class="n">meta_data</span><span class="p">))</span>
         <span class="k">if</span> <span class="s1">&#39;NP2&#39;</span> <span class="ow">in</span> <span class="n">version</span><span class="p">:</span>
             <span class="c1"># NP 2.0; APGain = 80 for all AP</span>
             <span class="c1"># return 0 for LFgain (no LF channels)</span>
@@ -882,7 +907,7 @@
         <span class="n">ch_file</span> <span class="o">=</span> <span class="n">url_ch</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">ch_file</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">webclient</span><span class="o">.</span><span class="n">download_file</span><span class="p">(</span>
-            <span class="n">url_ch</span><span class="p">,</span> <span class="n">cache_dir</span><span class="o">=</span><span class="n">target_dir</span><span class="p">,</span> <span class="n">clobber</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">return_md5</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
+            <span class="n">url_ch</span><span class="p">,</span> <span class="n">target_dir</span><span class="o">=</span><span class="n">target_dir</span><span class="p">,</span> <span class="n">clobber</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">return_md5</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
         <span class="n">ch_file</span> <span class="o">=</span> <span class="n">remove_uuid_file</span><span class="p">(</span><span class="n">ch_file</span><span class="p">)</span>
     <span class="n">ch_file_stream</span> <span class="o">=</span> <span class="n">target_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">ch_file</span><span class="o">.</span><span class="n">name</span><span class="p">)</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s1">&#39;.stream.ch&#39;</span><span class="p">)</span>
 
@@ -939,7 +964,7 @@
     <span class="c1"># Download the requested chunks</span>
     <span class="n">cbin_local_path</span> <span class="o">=</span> <span class="n">webclient</span><span class="o">.</span><span class="n">download_file</span><span class="p">(</span>
         <span class="n">url_cbin</span><span class="p">,</span> <span class="n">chunks</span><span class="o">=</span><span class="p">(</span><span class="n">first_byte</span><span class="p">,</span> <span class="n">n_bytes</span><span class="p">),</span>
-        <span class="n">cache_dir</span><span class="o">=</span><span class="n">target_dir</span><span class="p">,</span> <span class="n">clobber</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">return_md5</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">target_dir</span><span class="o">=</span><span class="n">target_dir</span><span class="p">,</span> <span class="n">clobber</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">return_md5</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
     <span class="n">cbin_local_path</span> <span class="o">=</span> <span class="n">remove_uuid_file</span><span class="p">(</span><span class="n">cbin_local_path</span><span class="p">)</span>
     <span class="n">cbin_local_path_renamed</span> <span class="o">=</span> <span class="n">cbin_local_path</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s1">&#39;.stream.cbin&#39;</span><span class="p">)</span>
     <span class="n">cbin_local_path</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">cbin_local_path_renamed</span><span class="p">)</span>

@@ -66,6 +66,7 @@
 <p class="caption" role="heading"><span class="caption-text">Examples &amp; Tutorials</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../06_examples.html">Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../atlas_examples.html">Atlas Examples</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../notebooks/dj_intro/dj_intro.html">Datajoint Introductory Tutorial</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../notebooks/dj_basics/dj_basics.html">Exploring the IBL Data Pipeline</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/docs_wheel_moves.html">Working with wheel data</a></li>
@@ -126,6 +127,7 @@
     <span class="n">rgb</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">uint8</span>
     <span class="n">level</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span>
     <span class="n">parent</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span>
+    <span class="n">order</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">uint16</span>
 
 
 <div class="viewcode-block" id="BrainRegions"><a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.regions.html#ibllib.atlas.regions.BrainRegions">[docs]</a><span class="k">class</span> <span class="nc">BrainRegions</span><span class="p">(</span><span class="n">_BrainRegions</span><span class="p">):</span>
@@ -154,10 +156,23 @@
                          <span class="n">acronym</span><span class="o">=</span><span class="n">df_regions</span><span class="o">.</span><span class="n">acronym</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(),</span>
                          <span class="n">rgb</span><span class="o">=</span><span class="n">c</span><span class="p">,</span>
                          <span class="n">level</span><span class="o">=</span><span class="n">df_regions</span><span class="o">.</span><span class="n">depth</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(),</span>
-                         <span class="n">parent</span><span class="o">=</span><span class="n">df_regions</span><span class="o">.</span><span class="n">parent_structure_id</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">())</span>
+                         <span class="n">parent</span><span class="o">=</span><span class="n">df_regions</span><span class="o">.</span><span class="n">parent_structure_id</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(),</span>
+                         <span class="n">order</span><span class="o">=</span><span class="n">df_regions</span><span class="o">.</span><span class="n">graph_order</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint16</span><span class="p">))</span>
         <span class="c1"># mappings are indices not ids: they range from 0 to n regions -1</span>
         <span class="n">mappings</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_parquet</span><span class="p">(</span><span class="n">FILE_MAPPINGS</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">mappings</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">mappings</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">mappings</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_lr</span> <span class="o">=</span> <span class="nb">int</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_compute_order</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Compute the order of regions, per region order by left hemisphere and then right hemisphere</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">orders</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+        <span class="c1"># Left hemisphere first</span>
+        <span class="n">orders</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_lr</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_lr</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="c1"># Then right hemisphere</span>
+        <span class="n">orders</span><span class="p">[</span><span class="mi">2</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_lr</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
 
     <span class="k">def</span> <span class="nf">_compute_mappings</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -251,6 +266,7 @@
         <span class="n">iid</span><span class="p">,</span> <span class="n">inm</span> <span class="o">=</span> <span class="n">ismember</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">new_map</span><span class="p">)</span>
         <span class="n">iid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">iid</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
         <span class="n">mapind</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span> <span class="o">+</span> <span class="n">I_ROOT</span>  <span class="c1"># non assigned regions are root</span>
+        <span class="c1"># TO DO should root be lateralised?</span>
         <span class="n">mapind</span><span class="p">[</span><span class="n">iid</span><span class="p">]</span> <span class="o">=</span> <span class="n">iid</span>  <span class="c1"># regions present in the list have the same index</span>
         <span class="c1"># Starting by the higher up levels in the hierarchy, assign all descendants to the mapping</span>
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">level</span><span class="p">[</span><span class="n">iid</span><span class="p">]):</span>
@@ -273,7 +289,149 @@
 <span class="sd">        :return:</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">_</span><span class="p">,</span> <span class="n">inds</span> <span class="o">=</span> <span class="n">ismember</span><span class="p">(</span><span class="n">region_ids</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">mappings</span><span class="p">[</span><span class="n">source_map</span><span class="p">]])</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">mappings</span><span class="p">[</span><span class="n">target_map</span><span class="p">][</span><span class="n">inds</span><span class="p">]]</span></div></div>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">mappings</span><span class="p">[</span><span class="n">target_map</span><span class="p">][</span><span class="n">inds</span><span class="p">]]</span></div>
+
+<div class="viewcode-block" id="BrainRegions.acronym2acronym"><a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.regions.html#ibllib.atlas.regions.BrainRegions.acronym2acronym">[docs]</a>    <span class="k">def</span> <span class="nf">acronym2acronym</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">acronym</span><span class="p">,</span> <span class="n">mapping</span><span class="o">=</span><span class="s1">&#39;Allen&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Remap acronyms onto mapping</span>
+
+<span class="sd">        :param acronym: list or array of acronyms</span>
+<span class="sd">        :param mapping: target map to remap acronyms</span>
+<span class="sd">        :return: array of remapped acronyms</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">inds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_find_inds</span><span class="p">(</span><span class="n">acronym</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">acronym</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">acronym</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">mappings</span><span class="p">[</span><span class="n">mapping</span><span class="p">]][</span><span class="n">inds</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="BrainRegions.acronym2id"><a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.regions.html#ibllib.atlas.regions.BrainRegions.acronym2id">[docs]</a>    <span class="k">def</span> <span class="nf">acronym2id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">acronym</span><span class="p">,</span> <span class="n">mapping</span><span class="o">=</span><span class="s1">&#39;Allen&#39;</span><span class="p">,</span> <span class="n">hemisphere</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Convert acronyms to atlas ids and remap</span>
+
+<span class="sd">        :param acronym: list or array of acronyms</span>
+<span class="sd">        :param mapping: target map to remap atlas_ids</span>
+<span class="sd">        :param hemisphere: which hemisphere to return atlas ids for, options left or right</span>
+<span class="sd">        :return: array of remapped atlas ids</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">inds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_find_inds</span><span class="p">(</span><span class="n">acronym</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">acronym</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">mappings</span><span class="p">[</span><span class="n">mapping</span><span class="p">]][</span><span class="bp">self</span><span class="o">.</span><span class="n">_filter_lr</span><span class="p">(</span><span class="n">inds</span><span class="p">,</span> <span class="n">mapping</span><span class="p">,</span> <span class="n">hemisphere</span><span class="p">)]</span></div>
+
+<div class="viewcode-block" id="BrainRegions.acronym2index"><a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.regions.html#ibllib.atlas.regions.BrainRegions.acronym2index">[docs]</a>    <span class="k">def</span> <span class="nf">acronym2index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">acronym</span><span class="p">,</span> <span class="n">mapping</span><span class="o">=</span><span class="s1">&#39;Allen&#39;</span><span class="p">,</span> <span class="n">hemisphere</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Convert acronym to index and remap</span>
+<span class="sd">        :param acronym:</span>
+<span class="sd">        :param mapping:</span>
+<span class="sd">        :param hemisphere:</span>
+<span class="sd">        :return: array of remapped acronyms and list of indexes for each acronnym</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">acronym</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">acronym2acronym</span><span class="p">(</span><span class="n">acronym</span><span class="p">,</span> <span class="n">mapping</span><span class="o">=</span><span class="n">mapping</span><span class="p">)</span>
+        <span class="n">index</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+        <span class="k">for</span> <span class="nb">id</span> <span class="ow">in</span> <span class="n">acronym</span><span class="p">:</span>
+            <span class="n">inds</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">acronym</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">mappings</span><span class="p">[</span><span class="n">mapping</span><span class="p">]]</span> <span class="o">==</span> <span class="nb">id</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">index</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_filter_lr_index</span><span class="p">(</span><span class="n">inds</span><span class="p">,</span> <span class="n">hemisphere</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">acronym</span><span class="p">,</span> <span class="n">index</span></div>
+
+<div class="viewcode-block" id="BrainRegions.id2acronym"><a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.regions.html#ibllib.atlas.regions.BrainRegions.id2acronym">[docs]</a>    <span class="k">def</span> <span class="nf">id2acronym</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">atlas_id</span><span class="p">,</span> <span class="n">mapping</span><span class="o">=</span><span class="s1">&#39;Allen&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Convert atlas id to acronym and remap</span>
+
+<span class="sd">        :param acronym: list or array of atlas ids</span>
+<span class="sd">        :param mapping: target map to remap acronyms</span>
+<span class="sd">        :return: array of remapped acronyms</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">inds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_find_inds</span><span class="p">(</span><span class="n">atlas_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">acronym</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">mappings</span><span class="p">[</span><span class="n">mapping</span><span class="p">]][</span><span class="n">inds</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="BrainRegions.id2id"><a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.regions.html#ibllib.atlas.regions.BrainRegions.id2id">[docs]</a>    <span class="k">def</span> <span class="nf">id2id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">atlas_id</span><span class="p">,</span> <span class="n">mapping</span><span class="o">=</span><span class="s1">&#39;Allen&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Remap atlas id onto mapping</span>
+
+<span class="sd">        :param acronym: list or array of atlas ids</span>
+<span class="sd">        :param mapping: target map to remap acronyms</span>
+<span class="sd">        :return: array of remapped atlas ids</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">inds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_find_inds</span><span class="p">(</span><span class="n">atlas_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">mappings</span><span class="p">[</span><span class="n">mapping</span><span class="p">]][</span><span class="n">inds</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="BrainRegions.id2index"><a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.regions.html#ibllib.atlas.regions.BrainRegions.id2index">[docs]</a>    <span class="k">def</span> <span class="nf">id2index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">atlas_id</span><span class="p">,</span> <span class="n">mapping</span><span class="o">=</span><span class="s1">&#39;Allen&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Convert atlas id to index and remap</span>
+
+<span class="sd">        :param atlas_id: list or array of atlas ids</span>
+<span class="sd">        :param mapping: mapping to use</span>
+<span class="sd">        :return: dict of indices for each atlas_id</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">atlas_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">id2id</span><span class="p">(</span><span class="n">atlas_id</span><span class="p">,</span> <span class="n">mapping</span><span class="o">=</span><span class="n">mapping</span><span class="p">)</span>
+        <span class="n">index</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+        <span class="k">for</span> <span class="nb">id</span> <span class="ow">in</span> <span class="n">atlas_id</span><span class="p">:</span>
+            <span class="n">inds</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">mappings</span><span class="p">[</span><span class="n">mapping</span><span class="p">]]</span> <span class="o">==</span> <span class="nb">id</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">index</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">inds</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">atlas_id</span><span class="p">,</span> <span class="n">index</span></div>
+
+<div class="viewcode-block" id="BrainRegions.index2acronym"><a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.regions.html#ibllib.atlas.regions.BrainRegions.index2acronym">[docs]</a>    <span class="k">def</span> <span class="nf">index2acronym</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">mapping</span><span class="o">=</span><span class="s1">&#39;Allen&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Convert index to acronym and remap</span>
+
+<span class="sd">        :param index:</span>
+<span class="sd">        :param mapping:</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">inds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">acronym</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">mappings</span><span class="p">[</span><span class="n">mapping</span><span class="p">]][</span><span class="n">index</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">inds</span></div>
+
+<div class="viewcode-block" id="BrainRegions.index2id"><a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.regions.html#ibllib.atlas.regions.BrainRegions.index2id">[docs]</a>    <span class="k">def</span> <span class="nf">index2id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">mapping</span><span class="o">=</span><span class="s1">&#39;Allen&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Convert index to atlas id and remap</span>
+
+<span class="sd">        :param index:</span>
+<span class="sd">        :param mapping:</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">inds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">mappings</span><span class="p">[</span><span class="n">mapping</span><span class="p">]][</span><span class="n">index</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">inds</span></div>
+
+    <span class="k">def</span> <span class="nf">_filter_lr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">mapping</span><span class="p">,</span> <span class="n">hemisphere</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Filter values by those on left or right hemisphere</span>
+<span class="sd">        :param values: array of index values</span>
+<span class="sd">        :param mapping: mapping to use</span>
+<span class="sd">        :param hemisphere: hemisphere</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="s1">&#39;lr&#39;</span> <span class="ow">in</span> <span class="n">mapping</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">hemisphere</span> <span class="o">==</span> <span class="s1">&#39;left&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">values</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_lr</span>
+            <span class="k">elif</span> <span class="n">hemisphere</span> <span class="o">==</span> <span class="s1">&#39;right&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">values</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">c_</span><span class="p">[</span><span class="n">values</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_lr</span><span class="p">,</span> <span class="n">values</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">values</span>
+
+    <span class="k">def</span> <span class="nf">_filter_lr_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">hemisphere</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Filter index values  by those on left or right hemisphere</span>
+
+<span class="sd">        :param values: array of index values</span>
+<span class="sd">        :param mapping: mapping to use</span>
+<span class="sd">        :param hemisphere: hemisphere</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">hemisphere</span> <span class="o">==</span> <span class="s1">&#39;left&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">values</span><span class="p">[</span><span class="n">values</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_lr</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="n">hemisphere</span> <span class="o">==</span> <span class="s1">&#39;right&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">values</span><span class="p">[</span><span class="n">values</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_lr</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">values</span>
+
+    <span class="k">def</span> <span class="nf">_find_inds</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">all_values</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+            <span class="n">values</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">values</span><span class="p">])</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">inds</span> <span class="o">=</span> <span class="n">ismember</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">values</span><span class="p">),</span> <span class="n">all_values</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">inds</span></div>
 
 
 <div class="viewcode-block" id="regions_from_allen_csv"><a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.regions.html#ibllib.atlas.regions.regions_from_allen_csv">[docs]</a><span class="k">def</span> <span class="nf">regions_from_allen_csv</span><span class="p">():</span>
