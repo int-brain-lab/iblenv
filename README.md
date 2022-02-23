@@ -32,8 +32,6 @@ git clone https://github.com/int-brain-lab/iblapps.git  --branch develop
 git clone https://github.com/int-brain-lab/analysis.git
 git clone https://github.com/int-brain-lab/IBL-pipeline.git
 git clone https://github.com/int-brain-lab/iblenv.git
-git clone https://github.com/cortex-lab/phylib
-git clone https://github.com/cortex-lab/phy
 ```
 
 Then in your conda terminal, navigate to this same directory, and run the following `conda` commands:
@@ -50,12 +48,11 @@ Install all the repositories in develop mode (the first command can take some ti
 conda config --set channel_priority false
 conda env create -f ./iblenv/iblenv.yaml
 conda activate iblenv
-conda develop ./ibllib-repo
 conda develop ./iblapps
 conda develop ./analysis
 conda develop ./IBL-pipeline
-conda develop ./phy
-conda develop ./phylib
+
+pip install -e ./ibllib-repo/
 ```
 
 NB: On Mac OS, the git and conda terminals are one and the same, the terminal.
@@ -103,8 +100,6 @@ git clone https://github.com/int-brain-lab/iblapps.git  --branch develop
 git clone https://github.com/int-brain-lab/analysis.git
 git clone https://github.com/int-brain-lab/IBL-pipeline.git
 git clone https://github.com/int-brain-lab/iblenv.git
-git clone https://github.com/cortex-lab/phylib
-git clone https://github.com/cortex-lab/phy
 mamba install conda-build
 ```
 
@@ -112,18 +107,17 @@ This ensures you have the necessary repos, and the conda-build package.
 
 Now that you have a complete copy of all IBL environment repos, change directory into the iblenv directiory and run the following:
 
-` mamba env create -f iblenv_mamba.yaml `
+` mamba env create -f ./iblenv/iblenv_mamba.yaml `
 
 Then run the usual suite of conda-develop commands to link your python to the cloned version of the repos:
 
 ```
 conda activate iblenv
-conda develop ./ibllib-repo
 conda develop ./iblapps
 conda develop ./analysis
 conda develop ./IBL-pipeline
-conda develop ./phy
-conda develop ./phylib
+
+pip install -e ./ibllib-repo/
 ```
 
 All done! See notes from above on how exactly conda develop works, and how to make sure you're up to date on the latest IBL code versions.
