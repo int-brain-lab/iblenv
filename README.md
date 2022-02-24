@@ -32,6 +32,8 @@ git clone https://github.com/int-brain-lab/iblapps.git  --branch develop
 git clone https://github.com/int-brain-lab/analysis.git
 git clone https://github.com/int-brain-lab/IBL-pipeline.git
 git clone https://github.com/int-brain-lab/iblenv.git
+git clone https://github.com/cortex-lab/phylib
+git clone https://github.com/cortex-lab/phy
 ```
 
 Then in your conda terminal, navigate to this same directory, and run the following `conda` commands:
@@ -51,6 +53,8 @@ conda activate iblenv
 conda develop ./iblapps
 conda develop ./analysis
 conda develop ./IBL-pipeline
+conda develop ./phy
+conda develop ./phylib
 
 pip install -e ./ibllib-repo/
 ```
@@ -100,6 +104,8 @@ git clone https://github.com/int-brain-lab/iblapps.git  --branch develop
 git clone https://github.com/int-brain-lab/analysis.git
 git clone https://github.com/int-brain-lab/IBL-pipeline.git
 git clone https://github.com/int-brain-lab/iblenv.git
+git clone https://github.com/cortex-lab/phylib
+git clone https://github.com/cortex-lab/phy
 mamba install conda-build
 ```
 
@@ -116,6 +122,8 @@ conda activate iblenv
 conda develop ./iblapps
 conda develop ./analysis
 conda develop ./IBL-pipeline
+conda develop ./phy
+conda develop ./phylib
 
 pip install -e ./ibllib-repo/
 ```
