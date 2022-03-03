@@ -58,20 +58,20 @@ User impact: {who was affected by the incident}
 
 ### Detection
 
-{things that would have detected this failure before it became An Incident, such as better testing, monitoring, etc}
+{things that would have detected this failure before it became an incident, such as better testing, monitoring, etc}
 
 ### Mitigation
 
-{link to github issues for things that would have made this failure less serious, such as graceful degradation, better exception handling, etc}
+{things that would have made this failure less serious, such as graceful degradation, better exception handling, etc}
 
 ### Process
 
-{link to github issues for things that would have helped us resolve this failure faster, such as documented processes and protocols, etc}
+{things that would have helped us resolve this failure faster, such as documented processes and protocols, etc}
 
 ### Fixes
 
-{link to github issues or PRs/commits for the actual fixes that were necessary to resolve this incident}
+{the fixes that were necessary to resolve this incident}
 
-## Appendix
+## Other
 
-{any other useful information, such as relevant chat logs}
+{any other useful information, such as relevant logs}
