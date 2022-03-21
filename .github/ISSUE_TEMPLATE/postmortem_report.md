@@ -4,37 +4,33 @@ about: Used to describe a downtime event that has since been resolved
 title: "[Postmortem report]"
 labels: postmortem
 assignees: ''
+
 ---
-**Status:** {draft|final}<br>
+
+**Status:** {draft|final}
 **Owners:** {who worked on finding the resolution}
----
+
 ## Summary
-Description: {brief description of symptoms and root cause}<br>
-Component: {affected area}<br>
-Date/time: {YYYY-MM-DD HH:MM}<br>
-Duration: {time from initial breakage to final resolution}<br>
+Description: {brief description of symptoms and root cause}
+Component: {affected area}
+Date/time: {YYYY-MM-DD HH:MM}
+Duration: {time from initial breakage to final resolution}
 User impact: {who was affected by the incident}
----
+
 ## Timeline (all times in UTC+00:00)
 
-### 1900-01-01
+### 2022-01-01
 
-14:44 - something happened<br>
+14:44 - something happened
 14:45 - next thing happened **&lt;START OF OUTAGE&gt;**
 
 ### 1900-01-02
 
 09:12 - another thing happened **&lt;END OF OUTAGE&gt;**
 
-## Impact
+### Impact & root cause
 
-{a more thorough summary of the problems that the outage caused}
-
-## Root causes
-
-{**without blame**, describe the root cause of the outage}
-
-## Lessons learned
+{a more thorough summary of the problems that the outage caused, and **without blame**, describe the root cause of the outage}
 
 ### What worked
 
