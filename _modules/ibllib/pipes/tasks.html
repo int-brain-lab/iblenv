@@ -53,6 +53,7 @@
 <p class="caption" role="heading"><span class="caption-text">Public</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../public_docs/public_introduction.html">Publicly available IBL data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_release_repro_ephys.html">Data Release - Reproducible Ephys Paper</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Exploring IBL Data</span></p>
 <ul>
@@ -65,11 +66,10 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Examples &amp; Tutorials</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../06_examples.html">Examples</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../atlas_examples.html">Atlas Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/docs_wheel_moves.html">Working with wheel data</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../notebooks/dj_intro/dj_intro.html">Datajoint Introductory Tutorial</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../notebooks/dj_basics/dj_basics.html">Exploring the IBL Data Pipeline</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/docs_wheel_moves.html">Working with wheel data</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
 <ul>
@@ -185,6 +185,9 @@
         <span class="c1"># if taskid of one properties are not available, local run only without alyx</span>
         <span class="n">use_alyx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">taskid</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
         <span class="k">if</span> <span class="n">use_alyx</span><span class="p">:</span>
+            <span class="c1"># check that alyx user is logged in</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">is_logged_in</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">authenticate</span><span class="p">()</span>
             <span class="n">tdict</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;tasks&#39;</span><span class="p">,</span> <span class="s1">&#39;partial_update&#39;</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">taskid</span><span class="p">,</span>
                                        <span class="n">data</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;status&#39;</span><span class="p">:</span> <span class="s1">&#39;Started&#39;</span><span class="p">})</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;&#39;</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">tdict</span><span class="p">[</span><span class="s1">&#39;log&#39;</span><span class="p">]</span> <span class="k">else</span> <span class="n">tdict</span><span class="p">[</span><span class="s1">&#39;log&#39;</span><span class="p">]</span> <span class="o">+</span>
@@ -623,11 +626,11 @@
         <span class="n">parent_tasks</span> <span class="o">=</span> <span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span> <span class="ow">in</span> <span class="n">tdict</span><span class="p">[</span><span class="s1">&#39;parents&#39;</span><span class="p">],</span> <span class="n">job_deck</span><span class="p">)</span>
         <span class="n">parent_statuses</span> <span class="o">=</span> <span class="p">[</span><span class="n">j</span><span class="p">[</span><span class="s1">&#39;status&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">parent_tasks</span><span class="p">]</span>
         <span class="c1"># if any of the parent tasks is not complete, throw a warning</span>
-        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="n">s</span> <span class="o">!=</span> <span class="s1">&#39;Complete&#39;</span><span class="p">,</span> <span class="n">parent_statuses</span><span class="p">)):</span>
+        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="n">s</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;Complete&#39;</span><span class="p">,</span> <span class="s1">&#39;Incomplete&#39;</span><span class="p">],</span> <span class="n">parent_statuses</span><span class="p">)):</span>
             <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">tdict</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> has unmet dependencies&quot;</span><span class="p">)</span>
-            <span class="c1"># if parents are just waiting, don&#39;t do anything, but if they have a failed status</span>
-            <span class="c1"># set the current task status to Held</span>
-            <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="n">s</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;Errored&#39;</span><span class="p">,</span> <span class="s1">&#39;Held&#39;</span><span class="p">,</span> <span class="s1">&#39;Empty&#39;</span><span class="p">],</span> <span class="n">parent_statuses</span><span class="p">)):</span>
+            <span class="c1"># if parents are waiting or failed, set the current task status to Held</span>
+            <span class="c1"># once the parents ran, the descendent tasks will be set from Held to Waiting (see below)</span>
+            <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="n">s</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;Errored&#39;</span><span class="p">,</span> <span class="s1">&#39;Held&#39;</span><span class="p">,</span> <span class="s1">&#39;Empty&#39;</span><span class="p">,</span> <span class="s1">&#39;Waiting&#39;</span><span class="p">],</span> <span class="n">parent_statuses</span><span class="p">)):</span>
                 <span class="n">tdict</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;tasks&#39;</span><span class="p">,</span> <span class="s1">&#39;partial_update&#39;</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">tdict</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">],</span>
                                       <span class="n">data</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;status&#39;</span><span class="p">:</span> <span class="s1">&#39;Held&#39;</span><span class="p">})</span>
             <span class="k">return</span> <span class="n">tdict</span><span class="p">,</span> <span class="n">registered_dsets</span>

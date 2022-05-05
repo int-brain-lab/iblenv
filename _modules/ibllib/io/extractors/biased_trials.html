@@ -53,6 +53,7 @@
 <p class="caption" role="heading"><span class="caption-text">Public</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../../public_docs/public_introduction.html">Publicly available IBL data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notebooks_external/data_release_repro_ephys.html">Data Release - Reproducible Ephys Paper</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Exploring IBL Data</span></p>
 <ul>
@@ -65,11 +66,10 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Examples &amp; Tutorials</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../../06_examples.html">Examples</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../atlas_examples.html">Atlas Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notebooks_external/docs_wheel_moves.html">Working with wheel data</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../notebooks/dj_intro/dj_intro.html">Datajoint Introductory Tutorial</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../notebooks/dj_basics/dj_basics.html">Exploring the IBL Data Pipeline</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../../notebooks_external/docs_wheel_moves.html">Working with wheel data</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
 <ul>
@@ -102,7 +102,11 @@
            <div itemprop="articleBody">
              
   <h1>Source code for ibllib.io.extractors.biased_trials</h1><div class="highlight"><pre>
-<span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span></span><span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span><span class="p">,</span> <span class="n">PureWindowsPath</span>
+
+<span class="kn">from</span> <span class="nn">pkg_resources</span> <span class="kn">import</span> <span class="n">parse_version</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">one.alf.io</span> <span class="kn">import</span> <span class="n">AlfBunch</span>
 
 <span class="kn">from</span> <span class="nn">ibllib.io.extractors.base</span> <span class="kn">import</span> <span class="n">BaseBpodTrialsExtractor</span><span class="p">,</span> <span class="n">run_extractor_classes</span>
 <span class="kn">import</span> <span class="nn">ibllib.io.raw_data_loaders</span> <span class="k">as</span> <span class="nn">raw</span>
@@ -110,7 +114,8 @@
     <span class="n">Choice</span><span class="p">,</span> <span class="n">FeedbackTimes</span><span class="p">,</span> <span class="n">FeedbackType</span><span class="p">,</span> <span class="n">GoCueTimes</span><span class="p">,</span> <span class="n">GoCueTriggerTimes</span><span class="p">,</span>
     <span class="n">IncludedTrials</span><span class="p">,</span> <span class="n">Intervals</span><span class="p">,</span> <span class="n">ItiDuration</span><span class="p">,</span> <span class="n">ProbabilityLeft</span><span class="p">,</span> <span class="n">ResponseTimes</span><span class="p">,</span> <span class="n">RewardVolume</span><span class="p">,</span>
     <span class="n">StimOnTimes_deprecated</span><span class="p">,</span> <span class="n">StimOnTriggerTimes</span><span class="p">,</span> <span class="n">StimOnOffFreezeTimes</span><span class="p">,</span> <span class="n">ItiInTimes</span><span class="p">,</span>
-    <span class="n">StimOffTriggerTimes</span><span class="p">,</span> <span class="n">StimFreezeTriggerTimes</span><span class="p">,</span> <span class="n">ErrorCueTriggerTimes</span><span class="p">)</span>
+    <span class="n">StimOffTriggerTimes</span><span class="p">,</span> <span class="n">StimFreezeTriggerTimes</span><span class="p">,</span> <span class="n">ErrorCueTriggerTimes</span><span class="p">,</span> <span class="n">PhasePosQuiescence</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">ibllib.io.extractors.training_wheel</span> <span class="kn">import</span> <span class="n">Wheel</span>
 <span class="kn">from</span> <span class="nn">ibllib.misc</span> <span class="kn">import</span> <span class="n">version</span>
 
 
@@ -129,8 +134,123 @@
         <span class="k">return</span> <span class="n">contrastLeft</span><span class="p">,</span> <span class="n">contrastRight</span></div>
 
 
+<div class="viewcode-block" id="ProbaContrasts"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.biased_trials.html#ibllib.io.extractors.biased_trials.ProbaContrasts">[docs]</a><span class="k">class</span> <span class="nc">ProbaContrasts</span><span class="p">(</span><span class="n">BaseBpodTrialsExtractor</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Bpod pre-generated values for probabilityLeft, contrastLR, phase, quiescence</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">save_names</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;_ibl_trials.contrastLeft.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;_ibl_trials.contrastRight.npy&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span>
+                  <span class="s1">&#39;_ibl_trials.probabilityLeft.npy&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="n">var_names</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;contrastLeft&#39;</span><span class="p">,</span> <span class="s1">&#39;contrastRight&#39;</span><span class="p">,</span> <span class="s1">&#39;phase&#39;</span><span class="p">,</span>
+                 <span class="s1">&#39;position&#39;</span><span class="p">,</span> <span class="s1">&#39;probabilityLeft&#39;</span><span class="p">,</span> <span class="s1">&#39;quiescence&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Extracts positions, contrasts, quiescent delay, stimulus phase and probability left</span>
+<span class="sd">        from pregenerated session files.  Used in ephysChoiceWorld extractions.</span>
+<span class="sd">        Optional: saves alf contrastLR and probabilityLeft npy files&quot;&quot;&quot;</span>
+        <span class="n">pe</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_pregenerated_events</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">pe</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">pe</span><span class="o">.</span><span class="n">keys</span><span class="p">())]</span>
+
+<div class="viewcode-block" id="ProbaContrasts.get_pregenerated_events"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.biased_trials.html#ibllib.io.extractors.biased_trials.ProbaContrasts.get_pregenerated_events">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">get_pregenerated_events</span><span class="p">(</span><span class="n">bpod_trials</span><span class="p">,</span> <span class="n">settings</span><span class="p">):</span>
+        <span class="n">num</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;PRELOADED_SESSION_NUM&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">num</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">num</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;PREGENERATED_SESSION_NUM&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">num</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">fn</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;SESSION_LOADED_FILE_PATH&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
+            <span class="n">fn</span> <span class="o">=</span> <span class="n">PureWindowsPath</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span><span class="o">.</span><span class="n">name</span>
+            <span class="n">num</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">d</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">fn</span> <span class="k">if</span> <span class="n">d</span><span class="o">.</span><span class="n">isdigit</span><span class="p">()])</span>
+            <span class="k">if</span> <span class="n">num</span> <span class="o">==</span> <span class="s1">&#39;&#39;</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Can&#39;t extract left probability behaviour.&quot;</span><span class="p">)</span>
+        <span class="c1"># Load the pregenerated file</span>
+        <span class="n">ntrials</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">bpod_trials</span><span class="p">)</span>
+        <span class="n">sessions_folder</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">raw</span><span class="o">.</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span>
+            <span class="s2">&quot;extractors&quot;</span><span class="p">,</span> <span class="s2">&quot;ephys_sessions&quot;</span><span class="p">)</span>
+        <span class="n">fname</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;session_</span><span class="si">{</span><span class="n">num</span><span class="si">}</span><span class="s2">_ephys_pcqs.npy&quot;</span>
+        <span class="n">pcqsp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">sessions_folder</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">fname</span><span class="p">))</span>
+        <span class="n">pos</span> <span class="o">=</span> <span class="n">pcqsp</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="n">con</span> <span class="o">=</span> <span class="n">pcqsp</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="n">pos</span> <span class="o">=</span> <span class="n">pos</span><span class="p">[:</span> <span class="n">ntrials</span><span class="p">]</span>
+        <span class="n">con</span> <span class="o">=</span> <span class="n">con</span><span class="p">[:</span> <span class="n">ntrials</span><span class="p">]</span>
+        <span class="n">contrastRight</span> <span class="o">=</span> <span class="n">con</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">contrastLeft</span> <span class="o">=</span> <span class="n">con</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">contrastRight</span><span class="p">[</span><span class="n">pos</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+        <span class="n">contrastLeft</span><span class="p">[</span><span class="n">pos</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+        <span class="n">qui</span> <span class="o">=</span> <span class="n">pcqsp</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span>
+        <span class="n">qui</span> <span class="o">=</span> <span class="n">qui</span><span class="p">[:</span> <span class="n">ntrials</span><span class="p">]</span>
+        <span class="n">phase</span> <span class="o">=</span> <span class="n">pcqsp</span><span class="p">[:,</span> <span class="mi">3</span><span class="p">]</span>
+        <span class="n">phase</span> <span class="o">=</span> <span class="n">phase</span><span class="p">[:</span> <span class="n">ntrials</span><span class="p">]</span>
+        <span class="n">pLeft</span> <span class="o">=</span> <span class="n">pcqsp</span><span class="p">[:,</span> <span class="mi">4</span><span class="p">]</span>
+        <span class="n">pLeft</span> <span class="o">=</span> <span class="n">pLeft</span><span class="p">[:</span> <span class="n">ntrials</span><span class="p">]</span>
+
+        <span class="n">phase_path</span> <span class="o">=</span> <span class="n">sessions_folder</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;session_</span><span class="si">{</span><span class="n">num</span><span class="si">}</span><span class="s2">_stim_phase.npy&quot;</span><span class="p">)</span>
+        <span class="n">is_patched_version</span> <span class="o">=</span> <span class="n">parse_version</span><span class="p">(</span>
+            <span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span> <span class="o">&gt;</span> <span class="n">parse_version</span><span class="p">(</span><span class="s1">&#39;6.4.0&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">phase_path</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="ow">and</span> <span class="n">is_patched_version</span><span class="p">:</span>
+            <span class="n">phase</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">phase_path</span><span class="p">)[:</span><span class="n">ntrials</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;position&#39;</span><span class="p">:</span> <span class="n">pos</span><span class="p">,</span> <span class="s1">&#39;quiescence&#39;</span><span class="p">:</span> <span class="n">qui</span><span class="p">,</span> <span class="s1">&#39;phase&#39;</span><span class="p">:</span> <span class="n">phase</span><span class="p">,</span> <span class="s1">&#39;probabilityLeft&#39;</span><span class="p">:</span> <span class="n">pLeft</span><span class="p">,</span>
+                <span class="s1">&#39;contrastRight&#39;</span><span class="p">:</span> <span class="n">contrastRight</span><span class="p">,</span> <span class="s1">&#39;contrastLeft&#39;</span><span class="p">:</span> <span class="n">contrastLeft</span><span class="p">}</span></div></div>
+
+
+<div class="viewcode-block" id="TrialsTableBiased"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.biased_trials.html#ibllib.io.extractors.biased_trials.TrialsTableBiased">[docs]</a><span class="k">class</span> <span class="nc">TrialsTableBiased</span><span class="p">(</span><span class="n">BaseBpodTrialsExtractor</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Extracts the following into a table from Bpod raw data:</span>
+<span class="sd">        intervals, goCue_times, response_times, choice, stimOn_times, contrastLeft, contrastRight,</span>
+<span class="sd">        feedback_times, feedbackType, rewardVolume, probabilityLeft, firstMovement_times</span>
+<span class="sd">    Additionally extracts the following wheel data:</span>
+<span class="sd">        wheel_timestamps, wheel_position, wheel_moves_intervals, wheel_moves_peak_amplitude</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">save_names</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;_ibl_trials.table.pqt&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;_ibl_wheel.timestamps.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;_ibl_wheel.position.npy&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;_ibl_wheelMoves.intervals.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;_ibl_wheelMoves.peakAmplitude.npy&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="n">var_names</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;table&#39;</span><span class="p">,</span> <span class="s1">&#39;stimOff_times&#39;</span><span class="p">,</span> <span class="s1">&#39;stimFreeze_times&#39;</span><span class="p">,</span> <span class="s1">&#39;wheel_timestamps&#39;</span><span class="p">,</span> <span class="s1">&#39;wheel_position&#39;</span><span class="p">,</span> <span class="s1">&#39;wheel_moves_intervals&#39;</span><span class="p">,</span>
+                 <span class="s1">&#39;wheel_moves_peak_amplitude&#39;</span><span class="p">,</span> <span class="s1">&#39;peakVelocity_times&#39;</span><span class="p">,</span> <span class="s1">&#39;is_final_movement&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">extractor_classes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">base</span> <span class="o">=</span> <span class="p">[</span><span class="n">Intervals</span><span class="p">,</span> <span class="n">GoCueTimes</span><span class="p">,</span> <span class="n">ResponseTimes</span><span class="p">,</span> <span class="n">Choice</span><span class="p">,</span> <span class="n">StimOnOffFreezeTimes</span><span class="p">,</span> <span class="n">ContrastLR</span><span class="p">,</span> <span class="n">FeedbackTimes</span><span class="p">,</span> <span class="n">FeedbackType</span><span class="p">,</span>
+                <span class="n">RewardVolume</span><span class="p">,</span> <span class="n">ProbabilityLeft</span><span class="p">,</span> <span class="n">Wheel</span><span class="p">]</span>
+        <span class="n">out</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">run_extractor_classes</span><span class="p">(</span>
+            <span class="n">base</span><span class="p">,</span> <span class="n">session_path</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">bpod_trials</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">,</span> <span class="n">settings</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">False</span>
+        <span class="p">)</span>
+        <span class="n">table</span> <span class="o">=</span> <span class="n">AlfBunch</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="n">out</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">k</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">out</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">var_names</span><span class="p">})</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">table</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="o">==</span> <span class="mi">12</span>
+
+        <span class="k">return</span> <span class="n">table</span><span class="o">.</span><span class="n">to_df</span><span class="p">(),</span> <span class="o">*</span><span class="p">(</span><span class="n">out</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">var_names</span> <span class="k">if</span> <span class="n">x</span> <span class="o">!=</span> <span class="s1">&#39;table&#39;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="TrialsTableEphys"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.biased_trials.html#ibllib.io.extractors.biased_trials.TrialsTableEphys">[docs]</a><span class="k">class</span> <span class="nc">TrialsTableEphys</span><span class="p">(</span><span class="n">BaseBpodTrialsExtractor</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Extracts the following into a table from Bpod raw data:</span>
+<span class="sd">        intervals, goCue_times, response_times, choice, stimOn_times, contrastLeft, contrastRight,</span>
+<span class="sd">        feedback_times, feedbackType, rewardVolume, probabilityLeft, firstMovement_times</span>
+<span class="sd">    Additionally extracts the following wheel data:</span>
+<span class="sd">        wheel_timestamps, wheel_position, wheel_moves_intervals, wheel_moves_peak_amplitude</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">save_names</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;_ibl_trials.table.pqt&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;_ibl_wheel.timestamps.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;_ibl_wheel.position.npy&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;_ibl_wheelMoves.intervals.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;_ibl_wheelMoves.peakAmplitude.npy&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="n">var_names</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;table&#39;</span><span class="p">,</span> <span class="s1">&#39;stimOff_times&#39;</span><span class="p">,</span> <span class="s1">&#39;stimFreeze_times&#39;</span><span class="p">,</span> <span class="s1">&#39;wheel_timestamps&#39;</span><span class="p">,</span> <span class="s1">&#39;wheel_position&#39;</span><span class="p">,</span> <span class="s1">&#39;wheel_moves_intervals&#39;</span><span class="p">,</span>
+                 <span class="s1">&#39;wheel_moves_peak_amplitude&#39;</span><span class="p">,</span> <span class="s1">&#39;peakVelocity_times&#39;</span><span class="p">,</span> <span class="s1">&#39;is_final_movement&#39;</span><span class="p">,</span>
+                 <span class="s1">&#39;phase&#39;</span><span class="p">,</span> <span class="s1">&#39;position&#39;</span><span class="p">,</span> <span class="s1">&#39;quiescence&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">extractor_classes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">base</span> <span class="o">=</span> <span class="p">[</span><span class="n">Intervals</span><span class="p">,</span> <span class="n">GoCueTimes</span><span class="p">,</span> <span class="n">ResponseTimes</span><span class="p">,</span> <span class="n">Choice</span><span class="p">,</span> <span class="n">StimOnOffFreezeTimes</span><span class="p">,</span> <span class="n">ProbaContrasts</span><span class="p">,</span>
+                <span class="n">FeedbackTimes</span><span class="p">,</span> <span class="n">FeedbackType</span><span class="p">,</span> <span class="n">RewardVolume</span><span class="p">,</span> <span class="n">Wheel</span><span class="p">]</span>
+        <span class="c1"># Exclude from trials table</span>
+        <span class="n">out</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">run_extractor_classes</span><span class="p">(</span>
+            <span class="n">base</span><span class="p">,</span> <span class="n">session_path</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">bpod_trials</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">,</span> <span class="n">settings</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">False</span>
+        <span class="p">)</span>
+        <span class="n">table</span> <span class="o">=</span> <span class="n">AlfBunch</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">out</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">var_names</span><span class="p">})</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">table</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="o">==</span> <span class="mi">12</span>
+
+        <span class="k">return</span> <span class="n">table</span><span class="o">.</span><span class="n">to_df</span><span class="p">(),</span> <span class="o">*</span><span class="p">(</span><span class="n">out</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">var_names</span> <span class="k">if</span> <span class="n">x</span> <span class="o">!=</span> <span class="s1">&#39;table&#39;</span><span class="p">)</span></div>
+
+
 <div class="viewcode-block" id="extract_all"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.biased_trials.html#ibllib.io.extractors.biased_trials.extract_all">[docs]</a><span class="k">def</span> <span class="nf">extract_all</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">bpod_trials</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">settings</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">extra_classes</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Same as training_trials.extract_all except...</span>
+<span class="sd">     - there is no RepNum</span>
+<span class="sd">     - ContrastLR is extracted differently</span>
+<span class="sd">     - IncludedTrials is only extracted for 5.0.0 or greater</span>
+
 <span class="sd">    :param session_path:</span>
 <span class="sd">    :param save:</span>
 <span class="sd">    :param bpod_trials:</span>
@@ -144,15 +264,20 @@
         <span class="n">settings</span> <span class="o">=</span> <span class="n">raw</span><span class="o">.</span><span class="n">load_settings</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">settings</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">settings</span><span class="p">[</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;&#39;</span><span class="p">:</span>
         <span class="n">settings</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">:</span> <span class="s1">&#39;100.0.0&#39;</span><span class="p">}</span>
-    <span class="n">base</span> <span class="o">=</span> <span class="p">[</span><span class="n">FeedbackType</span><span class="p">,</span> <span class="n">ContrastLR</span><span class="p">,</span> <span class="n">ProbabilityLeft</span><span class="p">,</span> <span class="n">Choice</span><span class="p">,</span> <span class="n">RewardVolume</span><span class="p">,</span>
-            <span class="n">FeedbackTimes</span><span class="p">,</span> <span class="n">Intervals</span><span class="p">,</span> <span class="n">ResponseTimes</span><span class="p">,</span> <span class="n">GoCueTriggerTimes</span><span class="p">,</span> <span class="n">GoCueTimes</span><span class="p">]</span>
 
-    <span class="c1"># Version specific extractions</span>
+    <span class="n">base</span> <span class="o">=</span> <span class="p">[</span><span class="n">GoCueTriggerTimes</span><span class="p">]</span>
+    <span class="c1"># Version check</span>
     <span class="k">if</span> <span class="n">version</span><span class="o">.</span><span class="n">ge</span><span class="p">(</span><span class="n">settings</span><span class="p">[</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">],</span> <span class="s1">&#39;5.0.0&#39;</span><span class="p">):</span>
-        <span class="n">base</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">StimOnTriggerTimes</span><span class="p">,</span> <span class="n">IncludedTrials</span><span class="p">,</span> <span class="n">StimOnOffFreezeTimes</span><span class="p">,</span> <span class="n">ItiInTimes</span><span class="p">,</span>
-                     <span class="n">StimOffTriggerTimes</span><span class="p">,</span> <span class="n">StimFreezeTriggerTimes</span><span class="p">,</span> <span class="n">ErrorCueTriggerTimes</span><span class="p">])</span>
+        <span class="c1"># We now extract a single trials table</span>
+        <span class="n">base</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span>
+            <span class="n">StimOnTriggerTimes</span><span class="p">,</span> <span class="n">ItiInTimes</span><span class="p">,</span> <span class="n">StimOffTriggerTimes</span><span class="p">,</span> <span class="n">StimFreezeTriggerTimes</span><span class="p">,</span> <span class="n">ErrorCueTriggerTimes</span><span class="p">,</span>
+            <span class="n">TrialsTableBiased</span><span class="p">,</span> <span class="n">IncludedTrials</span><span class="p">,</span> <span class="n">PhasePosQuiescence</span>
+        <span class="p">])</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="n">base</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">ItiDuration</span><span class="p">,</span> <span class="n">StimOnTimes_deprecated</span><span class="p">])</span>
+        <span class="n">base</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span>
+            <span class="n">Intervals</span><span class="p">,</span> <span class="n">Wheel</span><span class="p">,</span> <span class="n">FeedbackType</span><span class="p">,</span> <span class="n">ContrastLR</span><span class="p">,</span> <span class="n">ProbabilityLeft</span><span class="p">,</span> <span class="n">Choice</span><span class="p">,</span> <span class="n">ItiDuration</span><span class="p">,</span>
+            <span class="n">StimOnTimes_deprecated</span><span class="p">,</span> <span class="n">RewardVolume</span><span class="p">,</span> <span class="n">FeedbackTimes</span><span class="p">,</span> <span class="n">ResponseTimes</span><span class="p">,</span> <span class="n">GoCueTimes</span><span class="p">,</span> <span class="n">PhasePosQuiescence</span>
+        <span class="p">])</span>
 
     <span class="k">if</span> <span class="n">extra_classes</span><span class="p">:</span>
         <span class="n">base</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">extra_classes</span><span class="p">)</span>

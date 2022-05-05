@@ -53,6 +53,7 @@
 <p class="caption" role="heading"><span class="caption-text">Public</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../public_docs/public_introduction.html">Publicly available IBL data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_release_repro_ephys.html">Data Release - Reproducible Ephys Paper</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Exploring IBL Data</span></p>
 <ul>
@@ -65,11 +66,10 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Examples &amp; Tutorials</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../06_examples.html">Examples</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../atlas_examples.html">Atlas Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/docs_wheel_moves.html">Working with wheel data</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../notebooks/dj_intro/dj_intro.html">Datajoint Introductory Tutorial</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../notebooks/dj_basics/dj_basics.html">Exploring the IBL Data Pipeline</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/docs_wheel_moves.html">Working with wheel data</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
 <ul>
@@ -113,6 +113,7 @@
 <span class="kn">from</span> <span class="nn">ibllib.io.extractors</span> <span class="kn">import</span> <span class="n">ephys_fpga</span>
 <span class="kn">import</span> <span class="nn">ibllib.io.raw_data_loaders</span> <span class="k">as</span> <span class="nn">raw</span>
 <span class="kn">from</span> <span class="nn">one.alf.spec</span> <span class="kn">import</span> <span class="n">is_session_path</span>
+<span class="kn">import</span> <span class="nn">one.alf.io</span> <span class="k">as</span> <span class="nn">alfio</span>
 <span class="kn">from</span> <span class="nn">one.api</span> <span class="kn">import</span> <span class="n">ONE</span>
 
 
@@ -244,8 +245,8 @@
         <span class="c1"># Run extractors</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s1">&#39;ephys&#39;</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_only</span><span class="p">:</span>
             <span class="n">data</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">ephys_fpga</span><span class="o">.</span><span class="n">extract_all</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
-            <span class="n">bpod2fpga</span> <span class="o">=</span> <span class="n">interp1d</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;intervals_bpod&#39;</span><span class="p">][:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;intervals&#39;</span><span class="p">][:,</span> <span class="mi">0</span><span class="p">],</span>
-                                 <span class="n">fill_value</span><span class="o">=</span><span class="s2">&quot;extrapolate&quot;</span><span class="p">)</span>
+            <span class="n">bpod2fpga</span> <span class="o">=</span> <span class="n">interp1d</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;intervals_bpod&#39;</span><span class="p">][:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;table&#39;</span><span class="p">][</span><span class="s1">&#39;intervals_0&#39;</span><span class="p">],</span>
+                                 <span class="n">fill_value</span><span class="o">=</span><span class="s1">&#39;extrapolate&#39;</span><span class="p">)</span>
             <span class="c1"># Add Bpod wheel data</span>
             <span class="n">re_ts</span><span class="p">,</span> <span class="n">pos</span> <span class="o">=</span> <span class="n">get_wheel_position</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">raw_data</span><span class="p">)</span>
             <span class="n">data</span><span class="p">[</span><span class="s1">&#39;wheel_timestamps_bpod&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">bpod2fpga</span><span class="p">(</span><span class="n">re_ts</span><span class="p">)</span>
@@ -261,14 +262,7 @@
                 <span class="c1"># Nasty hack to trim last trial due to stim off events happening at trial num + 1</span>
                 <span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span><span class="p">[:</span><span class="n">n_trials</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="n">quiescence</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">t</span><span class="p">[</span><span class="s1">&#39;quiescent_period&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">raw_data</span><span class="p">[:</span><span class="n">n_trials</span><span class="p">]])</span>
-                <span class="n">data</span> <span class="o">=</span> <span class="p">{</span>
-                    <span class="o">**</span><span class="n">trials</span><span class="p">,</span>
-                    <span class="o">**</span><span class="n">wheel</span><span class="p">,</span>
-                    <span class="s1">&#39;quiescence&#39;</span><span class="p">:</span> <span class="n">quiescence</span><span class="p">,</span>
-                    <span class="s1">&#39;position&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">t</span><span class="p">[</span><span class="s1">&#39;position&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">raw_data</span><span class="p">[:</span><span class="n">n_trials</span><span class="p">]]),</span>
-                    <span class="s1">&#39;phase&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">t</span><span class="p">[</span><span class="s1">&#39;stim_phase&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">raw_data</span><span class="p">[:</span><span class="n">n_trials</span><span class="p">]])</span>
-                <span class="p">}</span>
+                <span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="o">**</span><span class="n">trials</span><span class="p">,</span> <span class="o">**</span><span class="n">wheel</span><span class="p">}</span>
         <span class="c1"># Update the data attribute with extracted data</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rename_data</span><span class="p">(</span><span class="n">data</span><span class="p">)</span></div>
 
@@ -280,6 +274,10 @@
 <span class="sd">        :param data: A dict of task data returned by the task extractors</span>
 <span class="sd">        :return: the same dict after modifying the keys</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Expand trials dataframe into key value pairs</span>
+        <span class="n">trials_table</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;table&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">trials_table</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="o">**</span><span class="n">data</span><span class="p">,</span> <span class="o">**</span><span class="n">alfio</span><span class="o">.</span><span class="n">AlfBunch</span><span class="o">.</span><span class="n">from_df</span><span class="p">(</span><span class="n">trials_table</span><span class="p">)}</span>
         <span class="n">correct</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;feedbackType&#39;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span>
         <span class="c1"># get valve_time and errorCue_times from feedback_times</span>
         <span class="k">if</span> <span class="s1">&#39;errorCue_times&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>

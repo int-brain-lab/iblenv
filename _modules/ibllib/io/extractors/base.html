@@ -53,6 +53,7 @@
 <p class="caption" role="heading"><span class="caption-text">Public</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../../public_docs/public_introduction.html">Publicly available IBL data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notebooks_external/data_release_repro_ephys.html">Data Release - Reproducible Ephys Paper</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Exploring IBL Data</span></p>
 <ul>
@@ -65,11 +66,10 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Examples &amp; Tutorials</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../../06_examples.html">Examples</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../atlas_examples.html">Atlas Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notebooks_external/docs_wheel_moves.html">Working with wheel data</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../notebooks/dj_intro/dj_intro.html">Datajoint Introductory Tutorial</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../notebooks/dj_basics/dj_basics.html">Exploring the IBL Data Pipeline</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../../notebooks_external/docs_wheel_moves.html">Working with wheel data</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
 <ul>
@@ -268,6 +268,15 @@
 <span class="k">def</span> <span class="nf">_get_task_types_json_config</span><span class="p">():</span>
     <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;extractor_types.json&#39;</span><span class="p">))</span> <span class="k">as</span> <span class="n">fp</span><span class="p">:</span>
         <span class="n">task_types</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">fp</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="c1"># look if there are custom extractor types in the personal projects repo</span>
+        <span class="kn">import</span> <span class="nn">projects.base</span>
+        <span class="n">custom_extractors</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">projects</span><span class="o">.</span><span class="n">base</span><span class="o">.</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;extractor_types.json&#39;</span><span class="p">)</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">custom_extractors</span><span class="p">)</span> <span class="k">as</span> <span class="n">fp</span><span class="p">:</span>
+            <span class="n">custom_task_types</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">fp</span><span class="p">)</span>
+        <span class="n">task_types</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">custom_task_types</span><span class="p">)</span>
+    <span class="k">except</span> <span class="p">(</span><span class="ne">ModuleNotFoundError</span><span class="p">,</span> <span class="ne">FileNotFoundError</span><span class="p">):</span>
+        <span class="k">pass</span>
     <span class="k">return</span> <span class="n">task_types</span>
 
 
@@ -296,7 +305,10 @@
         <span class="k">if</span> <span class="n">task_name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">return</span>
     <span class="n">task_types</span> <span class="o">=</span> <span class="n">_get_task_types_json_config</span><span class="p">()</span>
-    <span class="n">task_type</span> <span class="o">=</span> <span class="nb">next</span><span class="p">((</span><span class="n">task_types</span><span class="p">[</span><span class="n">tt</span><span class="p">]</span> <span class="k">for</span> <span class="n">tt</span> <span class="ow">in</span> <span class="n">task_types</span> <span class="k">if</span> <span class="n">tt</span> <span class="ow">in</span> <span class="n">task_name</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
+
+    <span class="n">task_type</span> <span class="o">=</span> <span class="n">task_types</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_name</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">task_type</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">task_type</span> <span class="o">=</span> <span class="nb">next</span><span class="p">((</span><span class="n">task_types</span><span class="p">[</span><span class="n">tt</span><span class="p">]</span> <span class="k">for</span> <span class="n">tt</span> <span class="ow">in</span> <span class="n">task_types</span> <span class="k">if</span> <span class="n">tt</span> <span class="ow">in</span> <span class="n">task_name</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">task_type</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No extractor type found for </span><span class="si">{</span><span class="n">task_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">task_type</span></div>

@@ -53,6 +53,7 @@
 <p class="caption" role="heading"><span class="caption-text">Public</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../../public_docs/public_introduction.html">Publicly available IBL data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notebooks_external/data_release_repro_ephys.html">Data Release - Reproducible Ephys Paper</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Exploring IBL Data</span></p>
 <ul>
@@ -65,11 +66,10 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Examples &amp; Tutorials</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../../06_examples.html">Examples</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../atlas_examples.html">Atlas Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notebooks_external/docs_wheel_moves.html">Working with wheel data</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../notebooks/dj_intro/dj_intro.html">Datajoint Introductory Tutorial</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../notebooks/dj_basics/dj_basics.html">Exploring the IBL Data Pipeline</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../../notebooks_external/docs_wheel_moves.html">Working with wheel data</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
 <ul>
@@ -107,19 +107,19 @@
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">OrderedDict</span>
 <span class="kn">import</span> <span class="nn">logging</span>
-<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span><span class="p">,</span> <span class="n">PureWindowsPath</span>
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
 <span class="kn">import</span> <span class="nn">uuid</span>
 
 <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
-<span class="kn">from</span> <span class="nn">pkg_resources</span> <span class="kn">import</span> <span class="n">parse_version</span>
 
 <span class="kn">import</span> <span class="nn">one.alf.io</span> <span class="k">as</span> <span class="nn">alfio</span>
 <span class="kn">from</span> <span class="nn">iblutil.util</span> <span class="kn">import</span> <span class="n">Bunch</span>
 <span class="kn">import</span> <span class="nn">ibllib.dsp</span> <span class="k">as</span> <span class="nn">dsp</span>
 <span class="kn">import</span> <span class="nn">ibllib.exceptions</span> <span class="k">as</span> <span class="nn">err</span>
 <span class="kn">from</span> <span class="nn">ibllib.io</span> <span class="kn">import</span> <span class="n">raw_data_loaders</span><span class="p">,</span> <span class="n">spikeglx</span>
-<span class="kn">from</span> <span class="nn">ibllib.io.extractors</span> <span class="kn">import</span> <span class="n">biased_trials</span><span class="p">,</span> <span class="n">training_trials</span>
+<span class="kn">from</span> <span class="nn">ibllib.io.extractors.bpod_trials</span> <span class="kn">import</span> <span class="n">extract_all</span> <span class="k">as</span> <span class="n">bpod_extract_all</span>
+<span class="kn">from</span> <span class="nn">ibllib.io.extractors.opto_trials</span> <span class="kn">import</span> <span class="n">LaserBool</span>
 <span class="kn">import</span> <span class="nn">ibllib.io.extractors.base</span> <span class="k">as</span> <span class="nn">extractors_base</span>
 <span class="kn">from</span> <span class="nn">ibllib.io.extractors.training_wheel</span> <span class="kn">import</span> <span class="n">extract_wheel_moves</span>
 <span class="kn">import</span> <span class="nn">ibllib.plots</span> <span class="k">as</span> <span class="nn">plots</span>
@@ -260,7 +260,8 @@
 <span class="sd">    :param ignore_first_valve (True): removes detected valve events at indices le 2</span>
 <span class="sd">    :return: numpy arrays of times t_trial_start, t_valve_open and t_iti_in</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">TRIAL_START_TTL_LEN</span> <span class="o">=</span> <span class="mf">2.33e-4</span>
+    <span class="n">TRIAL_START_TTL_LEN</span> <span class="o">=</span> <span class="mf">2.33e-4</span>  <span class="c1"># the TTL length is 0.1ms but this has proven to drift on</span>
+    <span class="c1"># some bpods and this is the highest possible value that discriminates trial start from valve</span>
     <span class="n">ITI_TTL_LEN</span> <span class="o">=</span> <span class="mf">0.4</span>
     <span class="c1"># make sure that there are no 2 consecutive fall or consecutive rise events</span>
     <span class="k">assert</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">bpod_polarities</span><span class="p">))</span> <span class="o">==</span> <span class="mi">2</span><span class="p">))</span>
@@ -294,12 +295,12 @@
     <span class="c1"># t_abnormal = events[&#39;t&#39;][bpod_polarities != -1][i_abnormal]</span>
     <span class="c1"># assert(np.all(events != 0))</span>
     <span class="c1"># plt.figure()</span>
-    <span class="c1"># plots.squares(bpod_t, bpod_polarities)</span>
-    <span class="c1"># plots.vertical_lines(t_trial_start, ymin=-0.2, ymax=1.1, linewidth=0.5)</span>
-    <span class="c1"># plots.vertical_lines(t_valve_open, ymin=-0.2, ymax=1.1, linewidth=0.5)</span>
-    <span class="c1"># plots.vertical_lines(t_iti_in, ymin=-0.2, ymax=1.1, linewidth=0.5)</span>
+    <span class="c1"># plots.squares(bpod_t, bpod_polarities, label=&#39;raw fronts&#39;)</span>
+    <span class="c1"># plots.vertical_lines(t_trial_start, ymin=-0.2, ymax=1.1, linewidth=0.5, label=&#39;trial start&#39;)</span>
+    <span class="c1"># plots.vertical_lines(t_valve_open, ymin=-0.2, ymax=1.1, linewidth=0.5, label=&#39;valve open&#39;)</span>
+    <span class="c1"># plots.vertical_lines(t_iti_in, ymin=-0.2, ymax=1.1, linewidth=0.5, label=&#39;iti_in&#39;)</span>
     <span class="c1"># plt.plot(t_abnormal, t_abnormal * 0 + .5, &#39;k*&#39;)</span>
-    <span class="c1"># plt.legend([&#39;raw fronts&#39;, &#39;trial start&#39;, &#39;valve open&#39;, &#39;iti_in&#39;])</span>
+    <span class="c1"># plt.legend()</span>
 
     <span class="k">return</span> <span class="n">t_trial_start</span><span class="p">,</span> <span class="n">t_valve_open</span><span class="p">,</span> <span class="n">t_iti_in</span>
 
@@ -684,81 +685,29 @@
     <span class="k">return</span> <span class="n">sync</span><span class="p">,</span> <span class="n">sync_chmap</span></div>
 
 
-<div class="viewcode-block" id="ProbaContrasts"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.ephys_fpga.html#ibllib.io.extractors.ephys_fpga.ProbaContrasts">[docs]</a><span class="k">class</span> <span class="nc">ProbaContrasts</span><span class="p">(</span><span class="n">extractors_base</span><span class="o">.</span><span class="n">BaseBpodTrialsExtractor</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Bpod pre-generated values for probabilityLeft, contrastLR, phase, quiescence</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">save_names</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;_ibl_trials.contrastLeft.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;_ibl_trials.contrastRight.npy&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span>
-                  <span class="s1">&#39;_ibl_trials.probabilityLeft.npy&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-    <span class="n">var_names</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;contrastLeft&#39;</span><span class="p">,</span> <span class="s1">&#39;contrastRight&#39;</span><span class="p">,</span> <span class="s1">&#39;phase&#39;</span><span class="p">,</span>
-                 <span class="s1">&#39;position&#39;</span><span class="p">,</span> <span class="s1">&#39;probabilityLeft&#39;</span><span class="p">,</span> <span class="s1">&#39;quiescence&#39;</span><span class="p">)</span>
-
-    <span class="k">def</span> <span class="nf">_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Extracts positions, contrasts, quiescent delay, stimulus phase and probability left</span>
-<span class="sd">        from pregenerated session files.</span>
-<span class="sd">        Optional: saves alf contrastLR and probabilityLeft npy files&quot;&quot;&quot;</span>
-        <span class="n">pe</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_pregenerated_events</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">)</span>
-        <span class="k">return</span> <span class="p">[</span><span class="n">pe</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">pe</span><span class="o">.</span><span class="n">keys</span><span class="p">())]</span>
-
-<div class="viewcode-block" id="ProbaContrasts.get_pregenerated_events"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.ephys_fpga.html#ibllib.io.extractors.ephys_fpga.ProbaContrasts.get_pregenerated_events">[docs]</a>    <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">get_pregenerated_events</span><span class="p">(</span><span class="n">bpod_trials</span><span class="p">,</span> <span class="n">settings</span><span class="p">):</span>
-        <span class="n">num</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;PRELOADED_SESSION_NUM&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">num</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">num</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;PREGENERATED_SESSION_NUM&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">num</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">fn</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;SESSION_LOADED_FILE_PATH&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
-            <span class="n">fn</span> <span class="o">=</span> <span class="n">PureWindowsPath</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span><span class="o">.</span><span class="n">name</span>
-            <span class="n">num</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">d</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">fn</span> <span class="k">if</span> <span class="n">d</span><span class="o">.</span><span class="n">isdigit</span><span class="p">()])</span>
-            <span class="k">if</span> <span class="n">num</span> <span class="o">==</span> <span class="s1">&#39;&#39;</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Can&#39;t extract left probability behaviour.&quot;</span><span class="p">)</span>
-        <span class="c1"># Load the pregenerated file</span>
-        <span class="n">ntrials</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">bpod_trials</span><span class="p">)</span>
-        <span class="n">sessions_folder</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">raw_data_loaders</span><span class="o">.</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span>
-            <span class="s2">&quot;extractors&quot;</span><span class="p">,</span> <span class="s2">&quot;ephys_sessions&quot;</span><span class="p">)</span>
-        <span class="n">fname</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;session_</span><span class="si">{</span><span class="n">num</span><span class="si">}</span><span class="s2">_ephys_pcqs.npy&quot;</span>
-        <span class="n">pcqsp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">sessions_folder</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">fname</span><span class="p">))</span>
-        <span class="n">pos</span> <span class="o">=</span> <span class="n">pcqsp</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
-        <span class="n">con</span> <span class="o">=</span> <span class="n">pcqsp</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span>
-        <span class="n">pos</span> <span class="o">=</span> <span class="n">pos</span><span class="p">[:</span> <span class="n">ntrials</span><span class="p">]</span>
-        <span class="n">con</span> <span class="o">=</span> <span class="n">con</span><span class="p">[:</span> <span class="n">ntrials</span><span class="p">]</span>
-        <span class="n">contrastRight</span> <span class="o">=</span> <span class="n">con</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
-        <span class="n">contrastLeft</span> <span class="o">=</span> <span class="n">con</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
-        <span class="n">contrastRight</span><span class="p">[</span><span class="n">pos</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
-        <span class="n">contrastLeft</span><span class="p">[</span><span class="n">pos</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
-        <span class="n">qui</span> <span class="o">=</span> <span class="n">pcqsp</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span>
-        <span class="n">qui</span> <span class="o">=</span> <span class="n">qui</span><span class="p">[:</span> <span class="n">ntrials</span><span class="p">]</span>
-        <span class="n">phase</span> <span class="o">=</span> <span class="n">pcqsp</span><span class="p">[:,</span> <span class="mi">3</span><span class="p">]</span>
-        <span class="n">phase</span> <span class="o">=</span> <span class="n">phase</span><span class="p">[:</span> <span class="n">ntrials</span><span class="p">]</span>
-        <span class="n">pLeft</span> <span class="o">=</span> <span class="n">pcqsp</span><span class="p">[:,</span> <span class="mi">4</span><span class="p">]</span>
-        <span class="n">pLeft</span> <span class="o">=</span> <span class="n">pLeft</span><span class="p">[:</span> <span class="n">ntrials</span><span class="p">]</span>
-
-        <span class="n">phase_path</span> <span class="o">=</span> <span class="n">sessions_folder</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;session_</span><span class="si">{</span><span class="n">num</span><span class="si">}</span><span class="s2">_stim_phase.npy&quot;</span><span class="p">)</span>
-        <span class="n">is_patched_version</span> <span class="o">=</span> <span class="n">parse_version</span><span class="p">(</span>
-            <span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span> <span class="o">&gt;</span> <span class="n">parse_version</span><span class="p">(</span><span class="s1">&#39;6.4.0&#39;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">phase_path</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="ow">and</span> <span class="n">is_patched_version</span><span class="p">:</span>
-            <span class="n">phase</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">phase_path</span><span class="p">)[:</span><span class="n">ntrials</span><span class="p">]</span>
-
-        <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;position&#39;</span><span class="p">:</span> <span class="n">pos</span><span class="p">,</span> <span class="s1">&#39;quiescence&#39;</span><span class="p">:</span> <span class="n">qui</span><span class="p">,</span> <span class="s1">&#39;phase&#39;</span><span class="p">:</span> <span class="n">phase</span><span class="p">,</span> <span class="s1">&#39;probabilityLeft&#39;</span><span class="p">:</span> <span class="n">pLeft</span><span class="p">,</span>
-                <span class="s1">&#39;contrastRight&#39;</span><span class="p">:</span> <span class="n">contrastRight</span><span class="p">,</span> <span class="s1">&#39;contrastLeft&#39;</span><span class="p">:</span> <span class="n">contrastLeft</span><span class="p">}</span></div></div>
-
-
 <div class="viewcode-block" id="FpgaTrials"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.ephys_fpga.html#ibllib.io.extractors.ephys_fpga.FpgaTrials">[docs]</a><span class="k">class</span> <span class="nc">FpgaTrials</span><span class="p">(</span><span class="n">extractors_base</span><span class="o">.</span><span class="n">BaseExtractor</span><span class="p">):</span>
-    <span class="n">save_names</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;_ibl_trials.feedbackType.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;_ibl_trials.choice.npy&#39;</span><span class="p">,</span>
-                  <span class="s1">&#39;_ibl_trials.rewardVolume.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;_ibl_trials.intervals_bpod.npy&#39;</span><span class="p">,</span>
-                  <span class="s1">&#39;_ibl_trials.intervals.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;_ibl_trials.response_times.npy&#39;</span><span class="p">,</span>
-                  <span class="s1">&#39;_ibl_trials.goCueTrigger_times.npy&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span>
-                  <span class="s1">&#39;_ibl_trials.feedback_times.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;_ibl_trials.goCue_times.npy&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span>
-                  <span class="s1">&#39;_ibl_trials.stimOff_times.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;_ibl_trials.stimOn_times.npy&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span>
-                  <span class="s1">&#39;_ibl_trials.firstMovement_times.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;_ibl_wheel.timestamps.npy&#39;</span><span class="p">,</span>
+    <span class="n">save_names</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;_ibl_trials.intervals_bpod.npy&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;_ibl_trials.goCueTrigger_times.npy&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span>
+                  <span class="s1">&#39;_ibl_trials.stimOff_times.npy&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span>
+                  <span class="s1">&#39;_ibl_trials.table.pqt&#39;</span><span class="p">,</span> <span class="s1">&#39;_ibl_wheel.timestamps.npy&#39;</span><span class="p">,</span>
                   <span class="s1">&#39;_ibl_wheel.position.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;_ibl_wheelMoves.intervals.npy&#39;</span><span class="p">,</span>
                   <span class="s1">&#39;_ibl_wheelMoves.peakAmplitude.npy&#39;</span><span class="p">)</span>
-    <span class="n">var_names</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;feedbackType&#39;</span><span class="p">,</span> <span class="s1">&#39;choice&#39;</span><span class="p">,</span> <span class="s1">&#39;rewardVolume&#39;</span><span class="p">,</span> <span class="s1">&#39;intervals_bpod&#39;</span><span class="p">,</span> <span class="s1">&#39;intervals&#39;</span><span class="p">,</span>
-                 <span class="s1">&#39;response_times&#39;</span><span class="p">,</span> <span class="s1">&#39;goCueTrigger_times&#39;</span><span class="p">,</span> <span class="s1">&#39;stimOnTrigger_times&#39;</span><span class="p">,</span>
+    <span class="n">var_names</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;intervals_bpod&#39;</span><span class="p">,</span>
+                 <span class="s1">&#39;goCueTrigger_times&#39;</span><span class="p">,</span> <span class="s1">&#39;stimOnTrigger_times&#39;</span><span class="p">,</span>
                  <span class="s1">&#39;stimOffTrigger_times&#39;</span><span class="p">,</span> <span class="s1">&#39;stimFreezeTrigger_times&#39;</span><span class="p">,</span> <span class="s1">&#39;errorCueTrigger_times&#39;</span><span class="p">,</span>
-                 <span class="s1">&#39;errorCue_times&#39;</span><span class="p">,</span> <span class="s1">&#39;feedback_times&#39;</span><span class="p">,</span> <span class="s1">&#39;goCue_times&#39;</span><span class="p">,</span> <span class="s1">&#39;itiIn_times&#39;</span><span class="p">,</span>
-                 <span class="s1">&#39;stimFreeze_times&#39;</span><span class="p">,</span> <span class="s1">&#39;stimOff_times&#39;</span><span class="p">,</span> <span class="s1">&#39;stimOn_times&#39;</span><span class="p">,</span> <span class="s1">&#39;valveOpen_times&#39;</span><span class="p">,</span>
-                 <span class="s1">&#39;firstMovement_times&#39;</span><span class="p">,</span> <span class="s1">&#39;wheel_timestamps&#39;</span><span class="p">,</span> <span class="s1">&#39;wheel_position&#39;</span><span class="p">,</span>
+                 <span class="s1">&#39;errorCue_times&#39;</span><span class="p">,</span> <span class="s1">&#39;itiIn_times&#39;</span><span class="p">,</span> <span class="s1">&#39;stimFreeze_times&#39;</span><span class="p">,</span> <span class="s1">&#39;stimOff_times&#39;</span><span class="p">,</span>
+                 <span class="s1">&#39;valveOpen_times&#39;</span><span class="p">,</span> <span class="s1">&#39;phase&#39;</span><span class="p">,</span> <span class="s1">&#39;position&#39;</span><span class="p">,</span> <span class="s1">&#39;quiescence&#39;</span><span class="p">,</span> <span class="s1">&#39;table&#39;</span><span class="p">,</span>
+                 <span class="s1">&#39;wheel_timestamps&#39;</span><span class="p">,</span> <span class="s1">&#39;wheel_position&#39;</span><span class="p">,</span>
                  <span class="s1">&#39;wheelMoves_intervals&#39;</span><span class="p">,</span> <span class="s1">&#39;wheelMoves_peakAmplitude&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Fields from bpod extractor that we want to resync to FPGA</span>
+    <span class="n">bpod_rsync_fields</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;intervals&#39;</span><span class="p">,</span> <span class="s1">&#39;response_times&#39;</span><span class="p">,</span> <span class="s1">&#39;goCueTrigger_times&#39;</span><span class="p">,</span>
+                         <span class="s1">&#39;stimOnTrigger_times&#39;</span><span class="p">,</span> <span class="s1">&#39;stimOffTrigger_times&#39;</span><span class="p">,</span>
+                         <span class="s1">&#39;stimFreezeTrigger_times&#39;</span><span class="p">,</span> <span class="s1">&#39;errorCueTrigger_times&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Fields from bpod extractor that we want to save</span>
+    <span class="n">bpod_fields</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;feedbackType&#39;</span><span class="p">,</span> <span class="s1">&#39;choice&#39;</span><span class="p">,</span> <span class="s1">&#39;rewardVolume&#39;</span><span class="p">,</span> <span class="s1">&#39;contrastLeft&#39;</span><span class="p">,</span> <span class="s1">&#39;contrastRight&#39;</span><span class="p">,</span> <span class="s1">&#39;probabilityLeft&#39;</span><span class="p">,</span>
+                   <span class="s1">&#39;intervals_bpod&#39;</span><span class="p">,</span> <span class="s1">&#39;phase&#39;</span><span class="p">,</span> <span class="s1">&#39;position&#39;</span><span class="p">,</span> <span class="s1">&#39;quiescence&#39;</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;An extractor for all ephys trial data, in FPGA time&quot;&quot;&quot;</span>
@@ -775,8 +724,13 @@
         <span class="c1"># load the bpod data and performs a biased choice world training extraction</span>
         <span class="n">bpod_raw</span> <span class="o">=</span> <span class="n">raw_data_loaders</span><span class="o">.</span><span class="n">load_data</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
         <span class="k">assert</span> <span class="n">bpod_raw</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;No task trials data in raw_behavior_data - Exit&quot;</span>
-        <span class="n">bpod_trials</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">biased_trials</span><span class="o">.</span><span class="n">extract_all</span><span class="p">(</span>
-            <span class="n">session_path</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">bpod_trials</span><span class="o">=</span><span class="n">bpod_raw</span><span class="p">)</span>
+
+        <span class="n">bpod_trials</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_extract_bpod</span><span class="p">(</span><span class="n">bpod_raw</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="c1"># Explode trials table df</span>
+        <span class="n">trials_table</span> <span class="o">=</span> <span class="n">alfio</span><span class="o">.</span><span class="n">AlfBunch</span><span class="o">.</span><span class="n">from_df</span><span class="p">(</span><span class="n">bpod_trials</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;table&#39;</span><span class="p">))</span>
+        <span class="n">table_columns</span> <span class="o">=</span> <span class="n">trials_table</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+        <span class="n">bpod_trials</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">trials_table</span><span class="p">)</span>
+        <span class="c1"># synchronize</span>
         <span class="n">bpod_trials</span><span class="p">[</span><span class="s1">&#39;intervals_bpod&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">bpod_trials</span><span class="p">[</span><span class="s1">&#39;intervals&#39;</span><span class="p">])</span>
         <span class="n">fpga_trials</span> <span class="o">=</span> <span class="n">extract_behaviour_sync</span><span class="p">(</span><span class="n">sync</span><span class="o">=</span><span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span><span class="o">=</span><span class="n">chmap</span><span class="p">,</span> <span class="n">bpod_trials</span><span class="o">=</span><span class="n">bpod_trials</span><span class="p">)</span>
         <span class="c1"># checks consistency and compute dt with bpod</span>
@@ -790,15 +744,9 @@
         <span class="k">if</span> <span class="n">drift_ppm</span> <span class="o">&gt;</span> <span class="n">BPOD_FPGA_DRIFT_THRESHOLD_PPM</span><span class="p">:</span>
             <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;BPOD/FPGA synchronization shows values greater than </span><span class="si">%i</span><span class="s1"> ppm&#39;</span><span class="p">,</span>
                             <span class="n">BPOD_FPGA_DRIFT_THRESHOLD_PPM</span><span class="p">)</span>
-        <span class="c1"># those fields get directly in the output</span>
-        <span class="n">bpod_fields</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;feedbackType&#39;</span><span class="p">,</span> <span class="s1">&#39;choice&#39;</span><span class="p">,</span> <span class="s1">&#39;rewardVolume&#39;</span><span class="p">,</span> <span class="s1">&#39;intervals_bpod&#39;</span><span class="p">]</span>
-        <span class="c1"># those fields have to be resynced</span>
-        <span class="n">bpod_rsync_fields</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;intervals&#39;</span><span class="p">,</span> <span class="s1">&#39;response_times&#39;</span><span class="p">,</span> <span class="s1">&#39;goCueTrigger_times&#39;</span><span class="p">,</span>
-                             <span class="s1">&#39;stimOnTrigger_times&#39;</span><span class="p">,</span> <span class="s1">&#39;stimOffTrigger_times&#39;</span><span class="p">,</span>
-                             <span class="s1">&#39;stimFreezeTrigger_times&#39;</span><span class="p">,</span> <span class="s1">&#39;errorCueTrigger_times&#39;</span><span class="p">]</span>
         <span class="n">out</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
-        <span class="n">out</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="n">bpod_trials</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="n">ibpod</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">bpod_fields</span><span class="p">})</span>
-        <span class="n">out</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod2fpga</span><span class="p">(</span><span class="n">bpod_trials</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="n">ibpod</span><span class="p">])</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">bpod_rsync_fields</span><span class="p">})</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="n">bpod_trials</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="n">ibpod</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_fields</span><span class="p">})</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod2fpga</span><span class="p">(</span><span class="n">bpod_trials</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="n">ibpod</span><span class="p">])</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_rsync_fields</span><span class="p">})</span>
         <span class="n">out</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="n">fpga_trials</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="n">ifpga</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">fpga_trials</span><span class="o">.</span><span class="n">keys</span><span class="p">())})</span>
         <span class="c1"># extract the wheel data</span>
         <span class="n">wheel</span><span class="p">,</span> <span class="n">moves</span> <span class="o">=</span> <span class="n">get_wheel_positions</span><span class="p">(</span><span class="n">sync</span><span class="o">=</span><span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span><span class="o">=</span><span class="n">chmap</span><span class="p">)</span>
@@ -807,10 +755,20 @@
         <span class="n">min_qt</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;QUIESCENT_PERIOD&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
         <span class="n">first_move_onsets</span><span class="p">,</span> <span class="o">*</span><span class="n">_</span> <span class="o">=</span> <span class="n">extract_first_movement_times</span><span class="p">(</span><span class="n">moves</span><span class="p">,</span> <span class="n">out</span><span class="p">,</span> <span class="n">min_qt</span><span class="o">=</span><span class="n">min_qt</span><span class="p">)</span>
         <span class="n">out</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;firstMovement_times&#39;</span><span class="p">:</span> <span class="n">first_move_onsets</span><span class="p">})</span>
+        <span class="c1"># Re-create trials table</span>
+        <span class="n">trials_table</span> <span class="o">=</span> <span class="n">alfio</span><span class="o">.</span><span class="n">AlfBunch</span><span class="p">({</span><span class="n">x</span><span class="p">:</span> <span class="n">out</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">table_columns</span><span class="p">})</span>
+        <span class="n">out</span><span class="p">[</span><span class="s1">&#39;table&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">trials_table</span><span class="o">.</span><span class="n">to_df</span><span class="p">()</span>
 
+        <span class="n">out</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">out</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">var_names</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">out</span><span class="p">}</span>  <span class="c1"># Reorder output</span>
         <span class="k">assert</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="s1">&#39;wheel&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">x</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">var_names</span><span class="p">))</span> <span class="o">==</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">out</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
         <span class="k">return</span> <span class="p">[</span><span class="n">out</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">out</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="n">wheel</span><span class="p">[</span><span class="s1">&#39;timestamps&#39;</span><span class="p">],</span> <span class="n">wheel</span><span class="p">[</span><span class="s1">&#39;position&#39;</span><span class="p">],</span>
-                                        <span class="n">moves</span><span class="p">[</span><span class="s1">&#39;intervals&#39;</span><span class="p">],</span> <span class="n">moves</span><span class="p">[</span><span class="s1">&#39;peakAmplitude&#39;</span><span class="p">]]</span></div>
+                                        <span class="n">moves</span><span class="p">[</span><span class="s1">&#39;intervals&#39;</span><span class="p">],</span> <span class="n">moves</span><span class="p">[</span><span class="s1">&#39;peakAmplitude&#39;</span><span class="p">]]</span>
+
+    <span class="k">def</span> <span class="nf">_extract_bpod</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bpod_trials</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="n">bpod_trials</span><span class="p">,</span> <span class="o">*</span><span class="n">_</span> <span class="o">=</span> <span class="n">bpod_extract_all</span><span class="p">(</span>
+            <span class="n">session_path</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="n">save</span><span class="p">,</span> <span class="n">bpod_trials</span><span class="o">=</span><span class="n">bpod_trials</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">bpod_trials</span></div>
 
 
 <div class="viewcode-block" id="extract_all"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.ephys_fpga.html#ibllib.io.extractors.ephys_fpga.extract_all">[docs]</a><span class="k">def</span> <span class="nf">extract_all</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">bin_exists</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
@@ -826,20 +784,12 @@
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">extractor_type</span> <span class="o">=</span> <span class="n">extractors_base</span><span class="o">.</span><span class="n">get_session_extractor_type</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
     <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Extracting </span><span class="si">{</span><span class="n">session_path</span><span class="si">}</span><span class="s2"> as </span><span class="si">{</span><span class="n">extractor_type</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-    <span class="n">basecls</span> <span class="o">=</span> <span class="p">[</span><span class="n">FpgaTrials</span><span class="p">]</span>
-    <span class="k">if</span> <span class="n">extractor_type</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;ephys&#39;</span><span class="p">,</span> <span class="s1">&#39;mock_ephys&#39;</span><span class="p">,</span> <span class="s1">&#39;sync_ephys&#39;</span><span class="p">]:</span>
-        <span class="n">basecls</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">ProbaContrasts</span><span class="p">])</span>
-    <span class="k">elif</span> <span class="n">extractor_type</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;ephys_biased&#39;</span><span class="p">]:</span>
-        <span class="n">basecls</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">biased_trials</span><span class="o">.</span><span class="n">ProbabilityLeft</span><span class="p">,</span> <span class="n">biased_trials</span><span class="o">.</span><span class="n">ContrastLR</span><span class="p">])</span>
-    <span class="k">elif</span> <span class="n">extractor_type</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;ephys_training&#39;</span><span class="p">]:</span>
-        <span class="n">basecls</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">training_trials</span><span class="o">.</span><span class="n">ProbabilityLeft</span><span class="p">,</span> <span class="n">training_trials</span><span class="o">.</span><span class="n">ContrastLR</span><span class="p">])</span>
-    <span class="k">elif</span> <span class="n">extractor_type</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;ephys_biased_opto&#39;</span><span class="p">]:</span>
-        <span class="kn">from</span> <span class="nn">ibllib.io.extractors</span> <span class="kn">import</span> <span class="n">opto_trials</span>
-        <span class="n">basecls</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">biased_trials</span><span class="o">.</span><span class="n">ProbabilityLeft</span><span class="p">,</span> <span class="n">biased_trials</span><span class="o">.</span><span class="n">ContrastLR</span><span class="p">,</span>
-                        <span class="n">opto_trials</span><span class="o">.</span><span class="n">LaserBool</span><span class="p">])</span>
     <span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span> <span class="o">=</span> <span class="n">get_main_probe_sync</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">bin_exists</span><span class="o">=</span><span class="n">bin_exists</span><span class="p">)</span>
+    <span class="n">base</span> <span class="o">=</span> <span class="p">[</span><span class="n">FpgaTrials</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">extractor_type</span> <span class="o">==</span> <span class="s1">&#39;ephys_biased_opto&#39;</span><span class="p">:</span>
+        <span class="n">base</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">LaserBool</span><span class="p">)</span>
     <span class="n">outputs</span><span class="p">,</span> <span class="n">files</span> <span class="o">=</span> <span class="n">extractors_base</span><span class="o">.</span><span class="n">run_extractor_classes</span><span class="p">(</span>
-        <span class="n">basecls</span><span class="p">,</span> <span class="n">session_path</span><span class="o">=</span><span class="n">session_path</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="n">save</span><span class="p">,</span> <span class="n">sync</span><span class="o">=</span><span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span><span class="o">=</span><span class="n">chmap</span><span class="p">)</span>
+        <span class="n">base</span><span class="p">,</span> <span class="n">session_path</span><span class="o">=</span><span class="n">session_path</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="n">save</span><span class="p">,</span> <span class="n">sync</span><span class="o">=</span><span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span><span class="o">=</span><span class="n">chmap</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">outputs</span><span class="p">,</span> <span class="n">files</span></div>
 </pre></div>
 

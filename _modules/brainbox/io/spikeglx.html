@@ -53,6 +53,7 @@
 <p class="caption" role="heading"><span class="caption-text">Public</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../public_docs/public_introduction.html">Publicly available IBL data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_release_repro_ephys.html">Data Release - Reproducible Ephys Paper</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Exploring IBL Data</span></p>
 <ul>
@@ -65,11 +66,10 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Examples &amp; Tutorials</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../06_examples.html">Examples</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../atlas_examples.html">Atlas Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/docs_wheel_moves.html">Working with wheel data</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../notebooks/dj_intro/dj_intro.html">Datajoint Introductory Tutorial</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../notebooks/dj_basics/dj_basics.html">Exploring the IBL Data Pipeline</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/docs_wheel_moves.html">Working with wheel data</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
 <ul>
@@ -106,6 +106,7 @@
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
 <span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">json</span>
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 
@@ -230,19 +231,27 @@
     <span class="k">if</span> <span class="n">cache_folder</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">samples_folder</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">_par</span><span class="o">.</span><span class="n">CACHE_DIR</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;cache&#39;</span><span class="p">,</span> <span class="n">typ</span><span class="p">)</span>
 
+    <span class="k">def</span> <span class="nf">_get_file</span><span class="p">(</span><span class="n">one_rec</span><span class="p">):</span>
+        <span class="n">fpath</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">_par</span><span class="o">.</span><span class="n">CACHE_DIR</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span>
+            <span class="nb">str</span><span class="p">(</span><span class="n">one_rec</span><span class="p">[</span><span class="s1">&#39;session_path&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span>
+            <span class="nb">str</span><span class="p">(</span><span class="n">one_rec</span><span class="p">[</span><span class="s1">&#39;rel_path&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+        <span class="k">if</span> <span class="n">fpath</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">return</span> <span class="n">fpath</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">one</span><span class="o">.</span><span class="n">_download_datasets</span><span class="p">(</span><span class="n">one_rec</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
     <span class="n">eid</span><span class="p">,</span> <span class="n">pname</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">pid2eid</span><span class="p">(</span><span class="n">pid</span><span class="p">)</span>
     <span class="n">cbin_rec</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">list_datasets</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;*</span><span class="si">{</span><span class="n">pname</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;*</span><span class="si">{</span><span class="n">typ</span><span class="si">}</span><span class="s1">.*bin&#39;</span><span class="p">,</span> <span class="n">details</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="n">ch_rec</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">list_datasets</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;*</span><span class="si">{</span><span class="n">pname</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;*</span><span class="si">{</span><span class="n">typ</span><span class="si">}</span><span class="s1">.ch&#39;</span><span class="p">,</span> <span class="n">details</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="n">meta_rec</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">list_datasets</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;*</span><span class="si">{</span><span class="n">pname</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;*</span><span class="si">{</span><span class="n">typ</span><span class="si">}</span><span class="s1">.meta&#39;</span><span class="p">,</span> <span class="n">details</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-    <span class="n">ch_file</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">_download_datasets</span><span class="p">(</span><span class="n">ch_rec</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
-    <span class="n">one</span><span class="o">.</span><span class="n">_download_datasets</span><span class="p">(</span><span class="n">meta_rec</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">ch_file</span> <span class="o">=</span> <span class="n">_get_file</span><span class="p">(</span><span class="n">ch_rec</span><span class="p">)</span>
+    <span class="n">_get_file</span><span class="p">(</span><span class="n">meta_rec</span><span class="p">)</span>
 
-    <span class="kn">import</span> <span class="nn">json</span>
     <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">ch_file</span><span class="p">)</span> <span class="k">as</span> <span class="n">fid</span><span class="p">:</span>
         <span class="n">chinfo</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">fid</span><span class="p">)</span>
     <span class="n">tbounds</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">chinfo</span><span class="p">[</span><span class="s1">&#39;chunk_bounds&#39;</span><span class="p">])</span> <span class="o">/</span> <span class="n">chinfo</span><span class="p">[</span><span class="s1">&#39;sample_rate&#39;</span><span class="p">]</span>
-    <span class="n">first_chunk</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">searchsorted</span><span class="p">(</span><span class="n">tbounds</span><span class="p">,</span> <span class="n">t0</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
-    <span class="n">last_chunk</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">searchsorted</span><span class="p">(</span><span class="n">tbounds</span><span class="p">,</span> <span class="n">t0</span> <span class="o">+</span> <span class="n">nsecs</span><span class="p">)</span> <span class="o">-</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">first_chunk</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">searchsorted</span><span class="p">(</span><span class="n">tbounds</span><span class="p">,</span> <span class="n">t0</span> <span class="o">+</span> <span class="mf">0.01</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">last_chunk</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">searchsorted</span><span class="p">(</span><span class="n">tbounds</span><span class="p">,</span> <span class="n">t0</span> <span class="o">+</span> <span class="o">+</span> <span class="mf">0.01</span> <span class="o">+</span> <span class="n">nsecs</span><span class="p">)</span> <span class="o">-</span> <span class="mi">2</span><span class="p">)</span>
     <span class="n">t0</span> <span class="o">=</span> <span class="n">tbounds</span><span class="p">[</span><span class="n">first_chunk</span><span class="p">]</span>
 
     <span class="n">samples_folder</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
