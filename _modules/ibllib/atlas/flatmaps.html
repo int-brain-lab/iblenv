@@ -106,10 +106,18 @@
 <span class="sd">Module that hold techniques to project the brain volume onto 2D images for visualisation purposes</span>
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">lru_cache</span>
-<span class="kn">from</span> <span class="nn">ibllib.atlas</span> <span class="kn">import</span> <span class="n">AllenAtlas</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
-<span class="kn">from</span> <span class="nn">iblutil.util</span> <span class="kn">import</span> <span class="n">Bunch</span>
 <span class="kn">from</span> <span class="nn">scipy.interpolate</span> <span class="kn">import</span> <span class="n">interp1d</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+
+<span class="kn">from</span> <span class="nn">iblutil.numerical</span> <span class="kn">import</span> <span class="n">ismember</span>
+<span class="kn">from</span> <span class="nn">iblutil.util</span> <span class="kn">import</span> <span class="n">Bunch</span>
+<span class="kn">from</span> <span class="nn">ibllib.atlas.atlas</span> <span class="kn">import</span> <span class="n">AllenAtlas</span><span class="p">,</span> <span class="n">S3_BUCKET_IBL</span><span class="p">,</span> <span class="n">BrainRegions</span><span class="p">,</span> <span class="n">s3_download_public</span>
+
+<span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="circles"><a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.flatmaps.html#ibllib.atlas.flatmaps.circles">[docs]</a><span class="nd">@lru_cache</span><span class="p">(</span><span class="n">maxsize</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">typed</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
@@ -206,6 +214,74 @@
     <span class="c1"># ax[1].imshow(ba.top)</span>
     <span class="c1"># ax[1].plot(centroid[1], centroid[0], &#39;*&#39;)</span>
     <span class="c1"># ax[1].plot(s.x, s.y)</span>
+
+
+<div class="viewcode-block" id="swanson"><a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.flatmaps.html#ibllib.atlas.flatmaps.swanson">[docs]</a><span class="k">def</span> <span class="nf">swanson</span><span class="p">(</span><span class="n">filename</span><span class="o">=</span><span class="s2">&quot;swanson2allen.npz&quot;</span><span class="p">):</span>
+    <span class="c1"># filename could be &quot;swanson2allen_original.npz&quot;, or &quot;swanson2allen.npz&quot; for remapped indices to match</span>
+    <span class="c1"># existing labels in the brain atlas</span>
+    <span class="n">npz_file</span> <span class="o">=</span> <span class="n">AllenAtlas</span><span class="o">.</span><span class="n">_get_cache_dir</span><span class="p">()</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">npz_file</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+        <span class="n">npz_file</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;downloading swanson image from </span><span class="si">{</span><span class="n">S3_BUCKET_IBL</span><span class="si">}</span><span class="s1"> s3 bucket...&#39;</span><span class="p">)</span>
+        <span class="n">s3_download_public</span><span class="p">(</span><span class="n">S3_BUCKET_IBL</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;atlas/</span><span class="si">{</span><span class="n">npz_file</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">npz_file</span><span class="p">))</span>
+    <span class="n">s2a</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">npz_file</span><span class="p">)[</span><span class="s1">&#39;swanson2allen&#39;</span><span class="p">]</span>  <span class="c1"># inds contains regions ids</span>
+    <span class="k">return</span> <span class="n">s2a</span></div>
+
+
+<div class="viewcode-block" id="plot_swanson"><a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.flatmaps.html#ibllib.atlas.flatmaps.plot_swanson">[docs]</a><span class="k">def</span> <span class="nf">plot_swanson</span><span class="p">(</span><span class="n">acronyms</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">values</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">hemisphere</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">br</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Displays the 2D image corresponding to the swanson flatmap.</span>
+<span class="sd">    This case is different from the others in the sense that only a region maps to another regions, there</span>
+<span class="sd">    is no correspondency from the spatial 3D coordinates.</span>
+<span class="sd">    :param acronyms:</span>
+<span class="sd">    :param values:</span>
+<span class="sd">    :param hemisphere: hemisphere to display, options are &#39;left&#39;, &#39;right&#39; or &#39;both&#39;</span>
+<span class="sd">    :param br: ibllib.atlas.BrainRegions object</span>
+<span class="sd">    :param ax:</span>
+<span class="sd">    :param kwargs:</span>
+<span class="sd">    :return:</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">br</span> <span class="o">=</span> <span class="n">BrainRegions</span><span class="p">()</span> <span class="k">if</span> <span class="n">br</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">br</span>
+    <span class="n">s2a</span> <span class="o">=</span> <span class="n">swanson</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">hemisphere</span> <span class="o">==</span> <span class="s1">&#39;both&#39;</span><span class="p">:</span>
+        <span class="n">_s2a</span> <span class="o">=</span> <span class="n">s2a</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">br</span><span class="o">.</span><span class="n">id</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">_s2a</span><span class="p">[</span><span class="n">s2a</span> <span class="o">==</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">_s2a</span><span class="p">[</span><span class="n">s2a</span> <span class="o">==</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="n">s2a</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="n">s2a</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">flipud</span><span class="p">(</span><span class="n">_s2a</span><span class="p">)]</span>
+    <span class="k">if</span> <span class="n">acronyms</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">regions</span> <span class="o">=</span> <span class="n">br</span><span class="o">.</span><span class="n">mappings</span><span class="p">[</span><span class="s1">&#39;Swanson&#39;</span><span class="p">][</span><span class="n">s2a</span><span class="p">]</span>
+        <span class="n">im</span> <span class="o">=</span> <span class="n">br</span><span class="o">.</span><span class="n">rgba</span><span class="p">[</span><span class="n">regions</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># first get the allen region ids regardless of the input type</span>
+        <span class="n">acronyms</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">acronyms</span><span class="p">)</span>
+        <span class="c1"># if the user provides acronyms they&#39;re not signed by definition</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">issubdtype</span><span class="p">(</span><span class="n">acronyms</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">number</span><span class="p">):</span>
+            <span class="n">user_aids</span> <span class="o">=</span> <span class="n">br</span><span class="o">.</span><span class="n">acronym2id</span><span class="p">(</span><span class="n">acronyms</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">user_aids</span> <span class="o">=</span> <span class="n">acronyms</span>
+        <span class="c1"># the user may have input non-unique regions</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="nb">dict</span><span class="p">(</span><span class="n">aid</span><span class="o">=</span><span class="n">user_aids</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">values</span><span class="p">))</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s1">&#39;aid&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+        <span class="n">aids</span><span class="p">,</span> <span class="n">vals</span> <span class="o">=</span> <span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">df</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">)</span>
+        <span class="c1"># apply mapping and perform another round of aggregation</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">ibr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">intersect1d</span><span class="p">(</span><span class="n">aids</span><span class="p">,</span> <span class="n">br</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">return_indices</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">ibr</span> <span class="o">=</span> <span class="n">br</span><span class="o">.</span><span class="n">mappings</span><span class="p">[</span><span class="s1">&#39;Swanson-lr&#39;</span><span class="p">][</span><span class="n">ibr</span><span class="p">]</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="nb">dict</span><span class="p">(</span><span class="n">ibr</span><span class="o">=</span><span class="n">ibr</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">vals</span><span class="p">))</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s1">&#39;ibr&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+        <span class="n">ibr</span><span class="p">,</span> <span class="n">vals</span> <span class="o">=</span> <span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">df</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">)</span>
+        <span class="c1"># we now have the mapped regions and aggregated values, map values onto swanson map</span>
+        <span class="n">iswan</span><span class="p">,</span> <span class="n">iv</span> <span class="o">=</span> <span class="n">ismember</span><span class="p">(</span><span class="n">s2a</span><span class="p">,</span> <span class="n">ibr</span><span class="p">)</span>
+        <span class="n">im</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">s2a</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="n">im</span><span class="p">[</span><span class="n">iswan</span><span class="p">]</span> <span class="o">=</span> <span class="n">vals</span><span class="p">[</span><span class="n">iv</span><span class="p">]</span>
+        <span class="n">im</span><span class="p">[</span><span class="o">~</span><span class="n">iswan</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">ax</span><span class="p">:</span>
+        <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">gca</span><span class="p">()</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_axis_off</span><span class="p">()</span>  <span class="c1"># unless provided we don&#39;t need scales here</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">im</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="c1"># overlay the boundaries if value plot</span>
+    <span class="n">imb</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="o">*</span><span class="n">s2a</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="mi">2</span><span class="p">],</span> <span class="mi">4</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+    <span class="n">imb</span><span class="p">[</span><span class="n">s2a</span> <span class="o">==</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">255</span>
+    <span class="n">imb</span><span class="p">[</span><span class="n">s2a</span> <span class="o">==</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">167</span><span class="p">,</span> <span class="mi">169</span><span class="p">,</span> <span class="mi">172</span><span class="p">,</span> <span class="mi">255</span><span class="p">])</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">imb</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">ax</span></div>
 </pre></div>
 
            </div>
