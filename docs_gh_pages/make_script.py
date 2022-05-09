@@ -105,7 +105,14 @@ def make_documentation(execute, force, documentation, clean, specific, github, m
         if not message:
             message = "commit latest documentation"
 
-        subprocess.call(['scripts\gh_push.sh', message], shell=True)  # noqa: E605
+        from sys import platform
+        if platform == "win32":
+            exec = Path('scripts').joinpath('gh_push.bat')
+        else:
+            exec = Path('scripts').joinpath('gh_push.sh')
+        command = f'{exec} "{message}"'
+        print(command)
+        subprocess.call(command, shell=True)  # noqa: E605
 
     # Clean up notebooks in directory if also specified
     if clean:

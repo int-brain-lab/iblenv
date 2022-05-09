@@ -1,7 +1,11 @@
-#!/bin/bash
 # Script to push html doc files to gh pages
+
+# Repo information
+ORG=int-brain-lab
+REPO=iblenv
+
 # Clone the gh-pages branch to local documentation directory
-git clone -b gh-pages https://github.com/int-brain-lab/iblenv.git gh-pages
+git clone -b gh-pages "https://github.com/$ORG/$REPO.git" gh-pages
 cd gh-pages
 
 # Copy everything from output of build into gh-pages branch
@@ -17,3 +21,8 @@ git push -q origin gh-pages
 # Leave gh-pages repo and delete
 cd ../
 rm -rf gh-pages
+
+
+
+
+
