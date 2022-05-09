@@ -11,4 +11,4 @@ Below is a list of examples using the ibllib.atlas module
    notebooks_external/atlas_dorsal_cortex_flatmap
    notebooks_external/atlas_circular_pyramidal_flatmap
    notebooks_external/atlas_plotting_points_on_slice
-   notebooks_external/atlas_swanson
+   notebooks_external/atlas_swanson_flatmap
