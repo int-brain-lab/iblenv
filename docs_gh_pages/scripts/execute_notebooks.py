@@ -1,18 +1,16 @@
-import os
 import json
+import logging
+import os
+import re
+import shutil
 import time
-import numpy as np
+from pathlib import Path
+
+import nbformat
+import sphinx_gallery.gen_gallery as gg
+import sphinx_gallery.notebook as sph_nb
 from nbconvert.preprocessors import (ExecutePreprocessor, CellExecutionError,
                                      ClearOutputPreprocessor)
-from nbconvert.exporters import RSTExporter
-from nbconvert.writers import FilesWriter
-import nbformat
-import re
-import sphinx_gallery.notebook as sph_nb
-import sphinx_gallery.gen_gallery as gg
-import shutil
-import logging
-from pathlib import Path
 
 _logger = logging.getLogger('ibllib')
 IPYTHON_VERSION = 4
