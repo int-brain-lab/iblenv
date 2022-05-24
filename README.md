@@ -13,7 +13,7 @@ git --version    # output should be something like "git version 2.34.1"
 conda --version  # output should be something like "conda 4.12.0"
 ```
 
-If the commands are unrecognized or the version is far below the ones listed above, please download and install:
+If the commands are unrecognized or the version is far below the ones listed above, please download and install/update:
 * [git](https://git-scm.com/downloads)
 * [Anaconda](https://www.anaconda.com/distribution/#download-section) - ensure Anaconda is installed to your home directory (not 
   system-wide)

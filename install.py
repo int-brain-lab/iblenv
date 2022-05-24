@@ -1,22 +1,22 @@
 import subprocess
-
+import sys
 
 # TODO: logging
 
 def check_dependencies():
-    # Check if git and conda are installed
-    # Is git a requirement?
+    """Check required dependencies are installed"""
     print("Checking for dependencies...")
     conda_version = str(subprocess.check_output([f"conda", "--version"])).split(" ")[1].split("\\n")[0]
     if int(conda_version.split(".")[0]) < 4:
         print("conda version is less than v4, update is required...")
         # conda update -q -y -n base -c defaults conda
         exit(1)
-    git_version = str(subprocess.check_output([f"git", "--version"])).split(" ")[2].split("\\n")[0]
-    if int(git_version.split(".")[0]) < 2:
-        print("git version is less than v2, update is required...")
-        # conda install -q -y git
-        exit(1)
+    # Is git a requirement?
+    # git_version = str(subprocess.check_output([f"git", "--version"])).split(" ")[2].split("\\n")[0]
+    # if int(git_version.split(".")[0]) < 2:
+    #     print("git version is less than v2, update is required...")
+    #     # conda install -q -y git
+    #     exit(1)
     print("All dependencies OK.")
 
 
@@ -35,13 +35,25 @@ def check_or_create_iblenv():
             raise
 
 
+def pip_install_packages():
+    """Use pip to install packages listed in requirements.txt"""
+    print("Ensuring pip is up to date and using it to install packages in the requirements.txt file...")
+    try:
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "pip"])  # Untested
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "--requirement", "requirements.txt"])
+    except subprocess.CalledProcessError:
+        print("pip installation could not be completed")
+        raise
+
+
 if __name__ == "__main__":
     print("------ install.py script called ------")
     check_dependencies()
     check_or_create_iblenv()
+    pip_install_packages()
 
     # clone additional repositories (functionalize)
-    # TODO: do not clone; create pypi packages in those repos instead
+    # TODO: do not clone; create pypi packages in required repos instead
     # subprocess.check_call(["git", "clone", "https://github.com/int-brain-lab/ibllib.git"])
     # subprocess.check_call(["git", "clone", "https://github.com/int-brain-lab/iblapps.git"])
     # Include other repos?
