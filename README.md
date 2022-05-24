@@ -1,28 +1,37 @@
-[Documentation here ! ](https://int-brain-lab.github.io/iblenv/)
+[Additional documentation can be found here.](https://int-brain-lab.github.io/iblenv/)
 
-# IBLENV installation guide
-Unified environment and Issue tracker for all IBL github repositories.
+# IBLENV
+The unified environment and issue tracker for all IBL github repositories.
 
-## Update environment
+## Installing iblenv conda environment from scratch
+In order to create the unified Anaconda environment for using IBL repositories you will need to have Anaconda and git installed. 
+To check that these applications are installed, please open a terminal (command prompt) and perform the following commands:
 
-In a terminal, navigate to the directory in which you cloned iblenv (typically `int-brain-lab/iblenv`) and type: 
+```
+git --version    # output should be something like "git version 2.34.1"
+conda --version  # output should be something like "conda 4.12.0"
+```
 
-` conda env update --file iblenv.yaml --prune`
+If the commands are unrecognized or the version is far below the ones listed above, please download and install:
+* [git](https://git-scm.com/downloads)
+* [Anaconda](https://www.anaconda.com/distribution/#download-section) - ensure Anaconda is installed to your home directory (not 
+  system-wide)
 
-Note: It can take longer to update than to install from scratch -- do not hesitate to follow the steps below if taking too much time!
+After updates or installation completes, open a new terminal and rerun the version commands listed above to verify they have 
+been installed properly. Once verification has been completed, perform the following steps:
+* create and change to the directory that you will want to house the IBL repositories, something like 
+`/home/username/Documents/int-brain-lab` or `C:\Users\username\Documents\int-brain-lab` works well
+* run the commands:
+  * `git clone https://github.com/int-brain-lab/iblenv.git`
+  * `python iblenv/install.py`
 
-If you start from scratch, do:
+This will clone the requisite repositories...
 
-` conda clean --all`
 
-Then repeat all steps of the install from scratch section, but starting **after** git clone.
 
-If still slow, use the mamba installation approach.
-
-## Install from scratch
-In order to create the unified environment for using IBL repositories, first download and install [Anaconda](https://www.anaconda.com/distribution/#download-section) and [git](https://git-scm.com/downloads), and follow their installer instructions to add each to the system path. Also, ensure Anaconda is installed to your home directory. The below instructions will tell you how to set up and activate the unified conda environment (`iblenv`) and properly install the 'ibllib', 'iblapps', 'analysis', and 'IBL-pipeline' repositories within this environment.
-
-Ensure that the only active applications on your computer are your system terminal and optionally a text editor. Close *all* other applications (this includes the web browser you may be reading this on) before continuing. If you leave other applications open, then worse than failing and aborting the install process, `conda` may create and install some packages in the environment but fail silently, which can cause future issues. Feel free to copy and paste these instructions to your text editor before closing all other applications.
+---
+Update documentation below
+---
 
 In your git terminal, navigate to the directory in which you want to install the IBL repositories (e.g. create a folder named `int-brain-lab`), and run the following `git` commands:
 
@@ -71,59 +80,19 @@ NB: On Mac OS, the git and conda terminals are one and the same, the terminal.
 
 If conda can't find the package, it will look in the .pth file that was created by conda develop. It will then use these files on your disk (that you can keep up-to-date by simply pulling) to import the latest version of the code.
 
-# Mambaforge IBLENV installation
-
-[Mamba](https://github.com/mamba-org/mamba) is a drop-in conda alternative which provides much faster solving of environments thanks to a backend written mostly in C++ which relies on `libsolv`, a faster dependency solver. It can be installed via conda, and must be 
-
-[Mambaforge](https://github.com/conda-forge/miniforge#miniforge) is a complete conda replacement which couples mamba with complete reliance on the open-source and community-run conda-forge channel. The "defaults" channel which is run by Continuum analytics is not enabled in this distribution.
-
-This option has the advantages of being both:
-1. Faster than conda
-2. Supporting more hardware architectures (OSX Users with apple silicon can rejoice! Apple ARM M1 is supported for many packages)
-
-It also means the IBL environment doesn't fall into dependency resolution hell when trying to install pytorch on top of the normal iblenv spec.
-
 ## Update environment
 
-As in the conda example, change to the iblenv repo directory on your machine (make sure it's up to date). Then run:
+In a terminal, navigate to the directory in which you cloned iblenv (typically `int-brain-lab/iblenv`) and type: 
 
-` mamba env update --file iblenv.yaml --prune`
+` conda env update --file iblenv.yaml --prune`
 
-The only change from above is the substition of mamba for conda
+Note: It can take longer to update than to install from scratch -- do not hesitate to follow the steps below if taking too much time!
 
-## Installing from scratch
+If you start from scratch, do:
 
-First ensure that you have git installed. Then, follow the instructions for [downloading and installing mambaforge](https://github.com/conda-forge/miniforge#mambaforge) on your platform.
+` conda clean --all`
 
-Once mambaforge is installed, run the following commands to download all IBL repositories:
+Then repeat all steps of the install from scratch section, but starting **after** git clone.
 
-```
-git clone https://github.com/int-brain-lab/ibllib.git --branch develop ibllib-repo
-git clone https://github.com/int-brain-lab/iblapps.git  --branch develop
-git clone https://github.com/int-brain-lab/analysis.git
-git clone https://github.com/int-brain-lab/IBL-pipeline.git
-git clone https://github.com/int-brain-lab/iblenv.git
-git clone https://github.com/cortex-lab/phylib
-git clone https://github.com/cortex-lab/phy
-mamba install conda-build
-```
+If still slow, use the mamba installation approach.
 
-This ensures you have the necessary repos, and the conda-build package.
-
-Now that you have a complete copy of all IBL environment repos, change directory into the iblenv directiory and run the following:
-
-` mamba env create -f iblenv_mamba.yaml `
-
-Then run the usual suite of conda-develop commands to link your python to the cloned version of the repos:
-
-```
-conda activate iblenv
-conda develop ./ibllib-repo
-conda develop ./iblapps
-conda develop ./analysis
-conda develop ./IBL-pipeline
-conda develop ./phy
-conda develop ./phylib
-```
-
-All done! See notes from above on how exactly conda develop works, and how to make sure you're up to date on the latest IBL code versions.
