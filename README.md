@@ -3,6 +3,7 @@
 # IBLENV
 The unified environment and issue tracker for all IBL github repositories.
 
+
 ## Installing iblenv conda environment from scratch
 In order to create the unified Anaconda environment for using IBL repositories you will need to have Anaconda and git installed. 
 To check that these applications are installed, please open a terminal (command prompt) and perform the following commands:
@@ -23,9 +24,22 @@ been installed properly. Once verification has been completed, perform the follo
 `/home/username/Documents/int-brain-lab` or `C:\Users\username\Documents\int-brain-lab` works well
 * run the commands:
   * `git clone https://github.com/int-brain-lab/iblenv.git`
-  * `python iblenv/install.py`
+  * `cd iblenv`
+  * `python install.py`
 
 This will clone the requisite repositories...
+TODO: Complete installation instructions
+
+
+## Updating iblenv conda environment
+run the commands:
+* `python update.py`
+
+TODO: Complete update instructions
+
+
+
+## Advanced usage
 
 
 

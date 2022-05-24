@@ -1,10 +1,11 @@
 import subprocess
 
 
-# Perform some sort of logging
-# Error checking on git and Anaconda
+# TODO: logging
+
 def check_dependencies():
     # Check if git and conda are installed
+    # Is git a requirement?
     print("Checking for dependencies...")
     conda_version = str(subprocess.check_output([f"conda", "--version"])).split(" ")[1].split("\\n")[0]
     if int(conda_version.split(".")[0]) < 4:
@@ -40,8 +41,9 @@ if __name__ == "__main__":
     check_or_create_iblenv()
 
     # clone additional repositories (functionalize)
-    subprocess.check_call(["git", "clone", "https://github.com/int-brain-lab/ibllib.git"])
-    subprocess.check_call(["git", "clone", "https://github.com/int-brain-lab/iblapps.git"])
+    # TODO: do not clone; create pypi packages in those repos instead
+    # subprocess.check_call(["git", "clone", "https://github.com/int-brain-lab/ibllib.git"])
+    # subprocess.check_call(["git", "clone", "https://github.com/int-brain-lab/iblapps.git"])
     # Include other repos?
     # git clone https://github.com/int-brain-lab/analysis.git
     # git clone https://github.com/int-brain-lab/IBL-pipeline.git
