@@ -14,7 +14,6 @@ A containerized `iblenv` environment.
 
 _See below for more details._
 
-
 ## Docker Build and Run
 
 ```bash
@@ -36,5 +35,5 @@ docker run \
     --rm -itdu "root:docker" \
     --name iblenv_local \
     --entrypoint bash \
-    ghcr.io/${GITHUB_USERNAME}/iblenv:latest 
+    ghcr.io/${GITHUB_USERNAME}/iblenv:latest
 ```
