@@ -33,7 +33,6 @@ RUN <<-EOF
 	micromamba install -yq conda-build
 	micromamba install -yq --file /tmp/requirements/conda_requirements.txt
 	pip install --no-cache --no-input -vr /tmp/requirements/pip_requirements.txt
-	chown 999:999 /usr/local/conda-meta/history /usr/local/pkgs/urls.txt
 EOF
 
 # clone repos and add to path ----------------------------------------------------------
@@ -41,20 +40,20 @@ USER 999:999
 WORKDIR ${ROOT_ENV_PATH}
 RUN <<-EOF
 	git clone https://github.com/int-brain-lab/iblenv.git --single-branch --branch master
-	git clone https://github.com/int-brain-lab/ibllib.git --single-branch --branch develop ibllib-repo
+	git clone https://github.com/int-brain-lab/IBL-pipeline.git --single-branch --branch master
 	git clone https://github.com/int-brain-lab/iblapps.git --single-branch --branch develop
 	git clone https://github.com/int-brain-lab/analysis.git --single-branch --branch master
-	git clone https://github.com/int-brain-lab/IBL-pipeline.git --single-branch --branch master
 	git clone https://github.com/cortex-lab/phylib --single-branch --branch master
 	git clone https://github.com/cortex-lab/phy --single-branch --branch master
+	git clone https://github.com/int-brain-lab/ibllib.git --single-branch --branch develop ibllib-repo
 
 	micromamba activate
-	conda-develop ./ibllib-repo
 	conda-develop ./iblapps
-	conda-develop ./analysis
 	conda-develop ./IBL-pipeline
+	conda-develop ./analysis
 	conda-develop ./phylib
 	conda-develop ./phy
+	pip install --no-cache --no-input -v --no-deps -e ./ibllib-repo
 EOF
 
 # clean up -----------------------------------------------------------------------------
@@ -62,7 +61,10 @@ USER 0:999
 RUN <<-EOF
 	micromamba activate
 	micromamba update -yqa
-	micromamba clean -ya
+	/usr/local/bin/conda clean -fya
+	micromamba install python
+	chmod -R g+wX /usr/local/pkgs
+	chown -R 999:999 /usr/local/conda-meta/history /usr/local/pkgs/urls.txt
 	conda-env export --no-builds --ignore-channels >"${ROOT_ENV_PATH}/iblenv.locked.yml"
 	rm -rf /tmp/*
 EOF
