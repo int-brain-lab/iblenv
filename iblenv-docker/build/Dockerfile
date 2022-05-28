@@ -1,17 +1,17 @@
 # syntax=docker/dockerfile:labs
 
 # global arguments shared across different build stages
-ARG GITHUB_USERNAME=int-brain-lab
-ARG ROOT_ENV_PATH=/int-brain-lab
+ARG IBLALYX_FORK=int-brain-lab
+ARG ROOT_IBLENV_PATH=/int-brain-lab
 ARG IMAGE_CREATED=2022-11-11T11:11:11Z
 ARG IMAGE_VERSION=v0.0.0
 
 ## Stage 1 =============================================================================
 ## IBL Env Build Stage
 ## -------------------------------------------------------------------------------------
-FROM ghcr.io/${GITHUB_USERNAME}/iblalyx:latest as iblenv_build
+FROM ghcr.io/${IBLALYX_FORK}/iblalyx:latest as iblenv_build
 
-ARG ROOT_ENV_PATH
+ARG ROOT_IBLENV_PATH
 
 # system environment
 ENV TZ="Europe/Lisbon"
@@ -31,7 +31,7 @@ RUN xargs </tmp/requirements/apt_requirements.txt apt-get-update-install
 
 # clone repos and add to path ----------------------------------------------------------
 USER 999:999
-WORKDIR ${ROOT_ENV_PATH}
+WORKDIR ${ROOT_IBLENV_PATH}
 RUN <<-EOF
 	micromamba activate
 	micromamba install -yq conda-build
@@ -55,7 +55,7 @@ RUN <<-EOF
 
 	micromamba clean -fya
 	micromamba update -yqa
-	conda-env export --no-builds --ignore-channels >"${ROOT_ENV_PATH}/iblenv.locked.yml"
+	conda-env export --no-builds --ignore-channels >"${ROOT_IBLENV_PATH}/iblenv.locked.yml"
 	rm -rf /tmp/*
 EOF
 
@@ -69,34 +69,21 @@ FROM scratch as iblenv
 COPY --from=iblenv_build / /
 USER 999:999
 
+ARG ROOT_IBLENV_PATH
 ARG IMAGE_CREATED
 ARG IMAGE_VERSION
 
-ENV IBL_PATH_ROOT=${ROOT_ENV_PATH}
+ENV IBL_PATH_ROOT=${ROOT_IBLENV_PATH}
 ENV TZ="Europe/Lisbon"
 ENV LANG=en_US.utf8
 ENV LC_ALL=en_US.utf8
 ENV LANGUAGE=en_US.utf8
 ENV LC_CTYPE=en_US.utf8
 ENV QT_QPA_PLATFORM=offscreen
-ENV ALYX_INSTANCE=local
-ENV ALYX_SRC_PATH=/var/www/alyx-local
-ENV ALYX_CACHE_DIR=/var/www/alyx-local/cache
 ENV PYTHONPATH=/var/www/alyx-local/alyx
-ENV ALYX_URL=alyx.internationalbrainlab.org
-ENV ALYX_LOGIN=ibl_dev
-ENV ALYX_PWD=
-ENV CACHE_DIR=
-ENV HTTP_DATA_SERVER=https://ibl.flatironinstitute.org
-ENV HTTP_DATA_SERVER_LOGIN=
-ENV HTTP_DATA_SERVER_PWD=
-ENV DJANGO_SECRET_KEY=
 ENV DJANGO_SETTINGS_MODULE=alyx.settings
-ENV FLATIRON_SERVER=https://ibl.flatironinstitute.org
-ENV FLATIRON_SERVER_LOGIN=
-ENV FLATIRON_SERVER_PWD=
 
-WORKDIR ${IBL_PATH_ROOT}
+WORKDIR ${ROOT_IBLENV_PATH}
 ENTRYPOINT [ "/bin/bash", "-lc" ]
 CMD [ ]
 
