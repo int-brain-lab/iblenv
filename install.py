@@ -9,7 +9,8 @@ def check_dependencies():
     """Check required dependencies are installed"""
     print("Checking for dependencies...")
     try:
-        conda_version = str(subprocess.check_output([f"conda", "--version"])).split(" ")[1].split("\\n")[0]
+        conda_version = str(subprocess.check_output(["conda", "--version"])).split(" ")[1].split("\\n")[0]
+        conda_version = conda_version.strip("\\r") if "\\r" in conda_version else None  # Windows specific annoyance
     except subprocess.CalledProcessError:
         print("Anaconda call failed, check if Anaconda is installed.")
         raise
