@@ -1,15 +1,19 @@
 import subprocess
+from packaging.version import parse
 
 
 # TODO: logging
-# TODO: "from packaging.version import parse" to more easily parse version numbers
 
 
 def check_dependencies():
     """Check required dependencies are installed"""
     print("Checking for dependencies...")
-    conda_version = str(subprocess.check_output([f"conda", "--version"])).split(" ")[1].split("\\n")[0]
-    if int(conda_version.split(".")[0]) < 4:
+    try:
+        conda_version = str(subprocess.check_output([f"conda", "--version"])).split(" ")[1].split("\\n")[0]
+    except subprocess.CalledProcessError:
+        print("Anaconda call failed, check if Anaconda is installed.")
+        raise
+    if parse(conda_version) < parse("4.0.0"):
         print("conda version is less than v4, update is required...")
         # conda update -q -y -n base -c defaults conda
         exit(1)
