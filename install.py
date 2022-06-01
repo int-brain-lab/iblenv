@@ -15,7 +15,7 @@ def check_dependencies():
         exit(0)
     try:
         conda_version = str(subprocess.check_output(["conda", "--version"], shell=True)).split(" ")[1].split(".") if ON_WINDOWS \
-            else conda_version = str(subprocess.check_output(["conda", "--version"])).split(" ")[1].split(".")
+            else str(subprocess.check_output(["conda", "--version"])).split(" ")[1].split(".")
     except subprocess.CalledProcessError or FileNotFoundError:
         print("Anaconda call failed, check if Anaconda is installed.")
         raise
@@ -39,7 +39,13 @@ def check_dependencies():
 def check_or_create_iblenv():
     """Creates the Anaconda environment for iblenv"""
     print("Check if Anaconda iblenv exists")
-    if "iblenv" in str(subprocess.run(["conda", "env", "list"], capture_output=True).stdout):
+    try:
+        conda_env_list = str(subprocess.check_output(["conda", "env", "list"], shell=True)) if ON_WINDOWS else \
+            str(subprocess.check_output(["conda", "env", "list"]))
+    except subprocess.CalledProcessError:
+        print("Could not retrieve Anaconda environment list")
+        raise
+    if "iblenv" in conda_env_list:
         print("iblenv already installed")  # remove environment, install fresh, or call an update?
     else:
         print("iblenv does not currently exist, creating it now...")
@@ -58,7 +64,6 @@ def pip_install_packages():
     try:
         sp_upgrade_cmd = ["conda", "run", "--name", "iblenv", "python", "-m", "pip", "install", "--upgrade", "pip"]
         sp_run_cmd = ["conda", "run", "--name", "iblenv", "python", "-m", "pip", "install", "--requirement", "requirements.txt"]
-
         subprocess.check_call(sp_upgrade_cmd, shell=True) if ON_WINDOWS else subprocess.check_call(sp_upgrade_cmd)
         subprocess.check_call(sp_run_cmd, shell=True) if ON_WINDOWS else subprocess.check_call(sp_run_cmd)
     except subprocess.CalledProcessError:
