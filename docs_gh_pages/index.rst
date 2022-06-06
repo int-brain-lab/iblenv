@@ -62,6 +62,7 @@ IBL has released a suite of tools to process and visualize our data.
    :maxdepth: 1
 
    public_docs/public_introduction
+   public_docs/data_release_pilot
    notebooks_external/data_release_repro_ephys
 
 .. toctree::
