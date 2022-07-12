@@ -13,11 +13,14 @@ root = Path.cwd()
 scripts_path = root.joinpath('scripts')
 
 nb_path = root.joinpath('notebooks')
-nb_path_external = [Path(root.parent.parent).joinpath('ibllib-repo', 'examples'),
+nb_path_external = [# Path(root.parent.parent).joinpath('ibllib-repo', 'examples'),
+                    Path(root.parent.parent).joinpath('ibllib-repo', 'examples', 'loading_data'),
+                    Path(root.parent.parent).joinpath('ibllib-repo', 'examples', 'atlas'),
+                    Path(root.parent.parent).joinpath('ibllib-repo', 'examples', 'data_release'),
                     Path(root.parent.parent).joinpath('ibllib-repo', 'brainbox', 'examples'),
                     Path(root.parent.parent).joinpath('ONE', 'docs', 'notebooks')]
-external_file_patterns = ['docs', 'docs', 'quickstart']
-
+# external_file_patterns = ['docs', 'loading', 'atlas', 'docs', 'quickstart']
+external_file_patterns = ['loading', 'atlas', 'data', 'docs_wheel', 'quickstart']
 
 def make_documentation(execute, force, documentation, clean, specific, github, message):
 
@@ -102,7 +105,10 @@ def make_documentation(execute, force, documentation, clean, specific, github, m
         if not message:
             message = "commit latest documentation"
 
-        subprocess.call(['scripts\gh_push.sh', message], shell=True)  # noqa: E605
+        exec = Path('scripts').joinpath('gh_push.sh')
+        command = f'{exec} "{message}"'
+        print(command)
+        subprocess.call(command, shell=True)  # noqa: E605
 
     # Clean up notebooks in directory if also specified
     if clean:

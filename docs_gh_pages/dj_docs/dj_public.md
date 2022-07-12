@@ -1,12 +1,6 @@
-# Publicly available IBL data
+# Publicly available IBL data via Datajoint
 
-## Pilot electrophysiology data release
-
-The IBL has released four pilot datasets that are available through both ONE and Datajoint. To start exploring the datasets with ONE please follow the link below.
-
-[**Accessing public data with ONE**](https://int-brain-lab.github.io/ONE/notebooks/one_quickstart.html)
-
-The IBL has also released all of the behavior sessions associated with the publication, [International Brain Laboratory et al., 2021](https://elifesciences.org/articles/63711). To access these data using DataJoint, follow the steps below.
+The IBL has released all of the behavior sessions associated with the publication, [International Brain Laboratory et al., 2021](https://elifesciences.org/articles/63711). To access these data using DataJoint, follow the steps below.
 
 ## Accessing public IBL data with DataJoint
 

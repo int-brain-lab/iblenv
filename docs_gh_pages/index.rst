@@ -62,6 +62,16 @@ IBL has released a suite of tools to process and visualize our data.
    :maxdepth: 1
 
    public_docs/public_introduction
+   public_docs/data_release_pilot
+   notebooks_external/data_release_repro_ephys
+
+.. toctree::
+   :hidden:
+   :caption: Exploring IBL Data
+   :maxdepth: 1
+
+   loading_examples
+
 
 .. toctree::
    :hidden:
@@ -76,10 +86,10 @@ IBL has released a suite of tools to process and visualize our data.
    :caption: Examples & Tutorials
    :maxdepth: 1
 
-   06_examples
+   atlas_examples
+   notebooks_external/docs_wheel_moves
    notebooks/dj_intro/dj_intro
    notebooks/dj_basics/dj_basics
-   notebooks_external/docs_wheel_moves
 
 .. toctree::
    :hidden:

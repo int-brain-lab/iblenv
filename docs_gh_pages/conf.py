@@ -55,7 +55,8 @@ extensions = ['sphinx.ext.autodoc',
               'nbsphinx_link',
               'myst_parser',
               'sphinx.ext.napoleon',
-              'sphinx.ext.viewcode']
+              'sphinx.ext.viewcode',]
+              #'sphinx_gallery.gen_gallery']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -64,6 +65,14 @@ templates_path = ['_templates']
 intersphinx_mapping = {
     'one_api': ('https://int-brain-lab.github.io/ONE/', None),
 }
+
+
+#sphinx_gallery_conf = {
+#     'examples_dirs': '../../ibllib-repo/examples/one/ephys',   # path to your example scripts
+#     'gallery_dirs': 'auto_examples',  # path to where to save gallery generated output
+#     'filename_pattern': 'docs_',
+#}
+
 
 #autoapi_add_toctree_entry = False
 #autoapi_dirs = ['../../ibllib-repo/ibllib', '../../ibllib-repo/alf', '../../ibllib-repo/oneibl']
