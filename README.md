@@ -1,12 +1,10 @@
-[Documentation here ! ](https://int-brain-lab.github.io/iblenv/)
-
 # IBLENV installation guide
 Unified environment and issue tracker for IBL github repositories.
 
 ## Update environment
 
 In a terminal, navigate to your working directory, the one in you cloned the `iblenv` and `iblapps` repositories previously
-(typically something like `int-brain-lab`) and type: 
+(typically something like `int-brain-lab`). Run the following commands in your terminal: 
 
 ```commandline
 conda activate iblenv
@@ -24,14 +22,8 @@ installer instructions to add each to the system path. Also, please ensure Anaco
 below instructions will tell you how to set up and activate the unified conda environment (`iblenv`) and properly install 
 multiple repositories within this environment.
 
-Ensure that the only active applications on your computer are your system terminal and optionally a text editor. Close *all* 
-other applications (this includes the web browser you may be reading this on) before continuing. If you leave other applications 
-open, then worse than failing and aborting the installation process, `conda` may create and install some packages in the 
-environment but fail silently, which can cause future issues. Feel free to copy and paste these instructions to your text editor 
-before closing all other applications.
-
 In your git terminal, navigate to the directory in which you want to install the IBL repositories (e.g. create a folder named 
-something like `int-brain-lab`), and run the following commands:
+something like `int-brain-lab` and work from within it). Run the following commands:
 
 ```commandline
 conda create --name iblenv python=3.9 --yes
@@ -51,4 +43,4 @@ The following command will completely remove an anaconda environment and all of 
 - If you want to launch GUIs that rely on pyqt (e.g. the IBL data exploration gui or phy) from IPython, you should first run the 
 IPython magic command `%gui qt`.
 
-All done! See notes from above on how exactly conda develop works, and how to make sure you're up to date on the latest IBL code versions.
+[Additional documentation here for working with iblenv](https://int-brain-lab.github.io/iblenv/)
