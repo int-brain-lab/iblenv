@@ -62,3 +62,7 @@ The IBL has released all data associated with the preprint
 The IBL has released all data described in our 
 [technical wite paper](link_todo). 
 * Please follow this [link](../notebooks_external/data_release_brainwidemap) to access this data
+
+# Information and troubleshooting
+- Issues with the data? Post an issue here: <https://github.com/int-brain-lab/iblenv/issues>
+- General questions about the datasets or publications?  Email: <info@internationalbrainlab.org>
