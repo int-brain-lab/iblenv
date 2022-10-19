@@ -70,6 +70,8 @@ IBL has released a suite of tools to process and visualize our data.
    :caption: Exploring IBL Data
    :maxdepth: 1
 
+   notebooks_external/data_structure
+   notebooks_external/data_download
    loading_examples
 
 
