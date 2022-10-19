@@ -42,9 +42,18 @@ The following command will completely remove an anaconda environment and all of 
 - Whenever you run IBL code in Python you should activate the `iblenv` environment, i.e. `conda activate iblenv`
 - If you want to launch GUIs that rely on pyqt (e.g. the IBL data exploration gui or phy) from IPython, you should first run the 
 IPython magic command `%gui qt`.
-- Currently, the pip package for PyQt5 is locked down to a specific version for both `iblapps` and `iblenv` repositories. This is 
-intended to ensure compatibility across multiple system configurations. Depending on a variety of factors, there may still be 
-environment build problems with what is specified. If troubleshooting an environment build problem, removing the PyQt5 version 
-lock within the `requirements.txt` files may be a good place to start.
-
 [Additional documentation here for working with iblenv](https://int-brain-lab.github.io/iblenv/)
+
+## Troubleshooting:
+Currently, the pip package for PyQt5 is locked down to a specific version in the `iblenv` repository. This was intended to ensure compatibility across multiple system configurations. Depending on a variety of factors, there may still be environment build problems with what is specified. If troubleshooting an environment build problem, removing the PyQt5 version lock within the `requirements.txt` file may be a good place to start. A typical error that you may see when encountering a build error related to PyQt5 could look like this:
+```
+Using cached PyQtWebEngine-5.15.0.tar.gz (48 kB)
+Installing build dependencies ... done
+Getting requirements to build wheel ... done
+Preparing metadata (pyproject.toml) ... error
+error: subprocess-exited-with-error
+
+× Preparing metadata (pyproject.toml) did not run successfully.
+│ exit code: 1
+...
+```
