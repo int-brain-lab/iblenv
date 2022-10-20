@@ -6,7 +6,7 @@ import subprocess
 from pathlib import Path
 import logging
 from scripts.execute_notebooks import process_notebooks
-from ibllib.misc import logger_config  # noqa
+# from ibllib.misc import logger_config  # noqa
 
 _logger = logging.getLogger('ibllib')
 root = Path.cwd()
@@ -17,10 +17,11 @@ nb_path_external = [# Path(root.parent.parent).joinpath('ibllib-repo', 'examples
                     Path(root.parent.parent).joinpath('ibllib-repo', 'examples', 'loading_data'),
                     Path(root.parent.parent).joinpath('ibllib-repo', 'examples', 'atlas'),
                     Path(root.parent.parent).joinpath('ibllib-repo', 'examples', 'data_release'),
+                    Path(root.parent.parent).joinpath('ibllib-repo', 'examples', 'exploring_data'),
                     Path(root.parent.parent).joinpath('ibllib-repo', 'brainbox', 'examples'),
                     Path(root.parent.parent).joinpath('ONE', 'docs', 'notebooks')]
 # external_file_patterns = ['docs', 'loading', 'atlas', 'docs', 'quickstart']
-external_file_patterns = ['loading', 'atlas', 'data', 'docs_wheel', 'quickstart']
+external_file_patterns = ['loading', 'atlas', 'data', 'data', 'docs_wheel', 'quickstart']
 
 def make_documentation(execute, force, documentation, clean, specific, github, message):
 
