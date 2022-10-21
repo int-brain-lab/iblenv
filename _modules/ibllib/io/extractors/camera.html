@@ -55,9 +55,13 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../public_docs/public_introduction.html">Publicly available IBL data</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../public_docs/data_release_pilot.html">Data Release - Pilot Dataset</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../notebooks_external/data_release_repro_ephys.html">Data Release - Reproducible Ephys Paper</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notebooks_external/data_release_brainwidemap.html">Data Release - Brain Wide Map</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../public_docs/information_contact.html">Information and troubleshooting</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Exploring IBL Data</span></p>
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notebooks_external/data_structure.html">Get to know the datasets and folder structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notebooks_external/data_download.html">Download the public datasets</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../loading_examples.html">Loading Data</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Miscellaneous</span></p>
@@ -108,8 +112,6 @@
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
-<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
-<span class="kn">import</span> <span class="nn">re</span>
 
 <span class="kn">import</span> <span class="nn">cv2</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
@@ -121,7 +123,7 @@
 <span class="kn">from</span> <span class="nn">ibllib.io.video</span> <span class="kn">import</span> <span class="n">assert_valid_label</span><span class="p">,</span> <span class="n">VideoStreamer</span>
 <span class="kn">from</span> <span class="nn">iblutil.numerical</span> <span class="kn">import</span> <span class="n">within_ranges</span>
 <span class="kn">from</span> <span class="nn">ibllib.io.extractors.base</span> <span class="kn">import</span> <span class="n">get_session_extractor_type</span>
-<span class="kn">from</span> <span class="nn">ibllib.io.extractors.ephys_fpga</span> <span class="kn">import</span> <span class="n">get_sync_fronts</span><span class="p">,</span> <span class="n">get_main_probe_sync</span>
+<span class="kn">from</span> <span class="nn">ibllib.io.extractors.ephys_fpga</span> <span class="kn">import</span> <span class="n">get_sync_fronts</span><span class="p">,</span> <span class="n">get_sync_and_chn_map</span>
 <span class="kn">import</span> <span class="nn">ibllib.io.raw_data_loaders</span> <span class="k">as</span> <span class="nn">raw</span>
 <span class="kn">from</span> <span class="nn">ibllib.io.extractors.base</span> <span class="kn">import</span> <span class="p">(</span>
     <span class="n">BaseBpodTrialsExtractor</span><span class="p">,</span>
@@ -130,23 +132,24 @@
     <span class="n">_get_task_types_json_config</span>
 <span class="p">)</span>
 
-<span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;ibllib&#39;</span><span class="p">)</span>
+<span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
 
-<div class="viewcode-block" id="extract_camera_sync"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.camera.html#ibllib.io.extractors.camera.extract_camera_sync">[docs]</a><span class="k">def</span> <span class="nf">extract_camera_sync</span><span class="p">(</span><span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Extract camera timestamps from the sync matrix.</span>
-
-<span class="sd">    Extracts the sync fronts for all channels with a name ending in &#39;_camera&#39;.</span>
+<div class="viewcode-block" id="extract_camera_sync"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.camera.html#ibllib.io.extractors.camera.extract_camera_sync">[docs]</a><span class="k">def</span> <span class="nf">extract_camera_sync</span><span class="p">(</span><span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Extract camera timestamps from the sync matrix</span>
 
 <span class="sd">    :param sync: dictionary &#39;times&#39;, &#39;polarities&#39; of fronts detected on sync trace</span>
-<span class="sd">    :param chmap: dictionary containing channel indices.</span>
+<span class="sd">    :param chmap: dictionary containing channel indices. Default to constant.</span>
 <span class="sd">    :return: dictionary containing camera timestamps</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">cam_sync</span> <span class="o">=</span> <span class="p">{}</span>
-    <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="nb">filter</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="nb">map</span><span class="p">(</span><span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;(\w+)_camera&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">match</span><span class="p">,</span> <span class="n">chmap</span><span class="o">.</span><span class="n">keys</span><span class="p">())):</span>
-        <span class="n">key</span><span class="p">,</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">groups</span><span class="p">()</span>
-        <span class="n">cam_sync</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">get_sync_fronts</span><span class="p">(</span><span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span><span class="p">[</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">()])</span><span class="o">.</span><span class="n">times</span><span class="p">[::</span><span class="mi">2</span><span class="p">]</span>
-    <span class="k">return</span> <span class="n">cam_sync</span></div>
+    <span class="k">assert</span> <span class="n">chmap</span>
+    <span class="n">sr</span> <span class="o">=</span> <span class="n">get_sync_fronts</span><span class="p">(</span><span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span><span class="p">[</span><span class="s1">&#39;right_camera&#39;</span><span class="p">])</span>
+    <span class="n">sl</span> <span class="o">=</span> <span class="n">get_sync_fronts</span><span class="p">(</span><span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span><span class="p">[</span><span class="s1">&#39;left_camera&#39;</span><span class="p">])</span>
+    <span class="n">sb</span> <span class="o">=</span> <span class="n">get_sync_fronts</span><span class="p">(</span><span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span><span class="p">[</span><span class="s1">&#39;body_camera&#39;</span><span class="p">])</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;right&#39;</span><span class="p">:</span> <span class="n">sr</span><span class="o">.</span><span class="n">times</span><span class="p">[::</span><span class="mi">2</span><span class="p">],</span>
+            <span class="s1">&#39;left&#39;</span><span class="p">:</span> <span class="n">sl</span><span class="o">.</span><span class="n">times</span><span class="p">[::</span><span class="mi">2</span><span class="p">],</span>
+            <span class="s1">&#39;body&#39;</span><span class="p">:</span> <span class="n">sb</span><span class="o">.</span><span class="n">times</span><span class="p">[::</span><span class="mi">2</span><span class="p">]}</span></div>
 
 
 <div class="viewcode-block" id="get_video_length"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.camera.html#ibllib.io.extractors.camera.get_video_length">[docs]</a><span class="k">def</span> <span class="nf">get_video_length</span><span class="p">(</span><span class="n">video_path</span><span class="p">):</span>
@@ -167,7 +170,7 @@
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">session_path</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">label</span> <span class="o">=</span> <span class="n">label</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">label</span> <span class="o">=</span> <span class="n">assert_valid_label</span><span class="p">(</span><span class="n">label</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">save_names</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;_ibl_</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">Camera.times.npy&#39;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">var_names</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">_camera_timestamps&#39;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_log_level</span> <span class="o">=</span> <span class="n">_logger</span><span class="o">.</span><span class="n">level</span>
@@ -177,7 +180,7 @@
         <span class="n">_logger</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_log_level</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sync</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">chmap</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">video_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                 <span class="n">display</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">extrapolate_missing</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+                 <span class="n">display</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">extrapolate_missing</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        The raw timestamps are taken from the FPGA. These are the times of the camera&#39;s frame TTLs.</span>
 <span class="sd">        If the pin state file exists, these timestamps are aligned to the video frames using the</span>
@@ -247,6 +250,40 @@
         <span class="k">return</span> <span class="n">raw_ts</span></div>
 
 
+<div class="viewcode-block" id="CameraTimestampsCamlog"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.camera.html#ibllib.io.extractors.camera.CameraTimestampsCamlog">[docs]</a><span class="k">class</span> <span class="nc">CameraTimestampsCamlog</span><span class="p">(</span><span class="n">BaseExtractor</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">session_path</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">label</span> <span class="o">=</span> <span class="n">assert_valid_label</span><span class="p">(</span><span class="n">label</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">save_names</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;_ibl_</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">Camera.times.npy&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">var_names</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">_camera_timestamps&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log_level</span> <span class="o">=</span> <span class="n">_logger</span><span class="o">.</span><span class="n">level</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__del__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_log_level</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sync</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">chmap</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">video_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">display</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">extrapolate_missing</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+
+        <span class="n">fpga_times</span> <span class="o">=</span> <span class="n">extract_camera_sync</span><span class="p">(</span><span class="n">sync</span><span class="o">=</span><span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span><span class="o">=</span><span class="n">chmap</span><span class="p">)</span>
+        <span class="n">video_frames</span> <span class="o">=</span> <span class="n">get_video_length</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;raw_video_data&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;_iblrig_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="si">}</span><span class="s1">Camera.raw.mp4&#39;</span><span class="p">))</span>
+        <span class="n">raw_ts</span> <span class="o">=</span> <span class="n">fpga_times</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">]</span>
+
+        <span class="c1"># For left camera sometimes we have one extra pulse than video frame</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">raw_ts</span><span class="o">.</span><span class="n">size</span> <span class="o">-</span> <span class="n">video_frames</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;One extra sync pulse detected for </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="si">}</span><span class="s1"> camera&#39;</span><span class="p">)</span>
+            <span class="n">raw_ts</span> <span class="o">=</span> <span class="n">raw_ts</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="p">(</span><span class="n">raw_ts</span><span class="o">.</span><span class="n">size</span> <span class="o">-</span> <span class="n">video_frames</span><span class="p">)</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;One extra video frame detected for </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="si">}</span><span class="s1"> camera&#39;</span><span class="p">)</span>
+            <span class="n">med_time</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">raw_ts</span><span class="p">))</span>
+            <span class="n">raw_ts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="n">raw_ts</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">raw_ts</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">med_time</span><span class="p">])]</span>
+
+        <span class="k">assert</span> <span class="n">video_frames</span> <span class="o">==</span> <span class="n">raw_ts</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;dimension mismatch between video frames and TTL pulses for </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="si">}</span><span class="s1"> camera&#39;</span> \
+                                            <span class="sa">f</span><span class="s1">&#39;by </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">video_frames</span> <span class="o">-</span> <span class="n">raw_ts</span><span class="o">.</span><span class="n">size</span><span class="p">)</span><span class="si">}</span><span class="s1"> frames&#39;</span>
+
+        <span class="k">return</span> <span class="n">raw_ts</span></div>
+
+
 <div class="viewcode-block" id="CameraTimestampsBpod"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.camera.html#ibllib.io.extractors.camera.CameraTimestampsBpod">[docs]</a><span class="k">class</span> <span class="nc">CameraTimestampsBpod</span><span class="p">(</span><span class="n">BaseBpodTrialsExtractor</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Get the camera timestamps from the Bpod</span>
@@ -265,7 +302,7 @@
     <span class="k">def</span> <span class="fm">__del__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">_logger</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_log_level</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">video_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">display</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">extrapolate_missing</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">video_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">display</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">extrapolate_missing</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        The raw timestamps are taken from the Bpod. These are the times of the camera&#39;s frame TTLs.</span>
 <span class="sd">        If the pin state file exists, these timestamps are aligned to the video frames using the</span>
@@ -295,7 +332,7 @@
         <span class="k">if</span> <span class="n">gpio</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">gpio</span><span class="p">[</span><span class="s1">&#39;indices&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">size</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
             <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Aligning to audio TTLs&#39;</span><span class="p">)</span>
             <span class="c1"># Extract audio TTLs</span>
-            <span class="n">_</span><span class="p">,</span> <span class="n">audio</span> <span class="o">=</span> <span class="n">raw</span><span class="o">.</span><span class="n">load_bpod_fronts</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">)</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">audio</span> <span class="o">=</span> <span class="n">raw</span><span class="o">.</span><span class="n">load_bpod_fronts</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">)</span>
             <span class="n">_</span><span class="p">,</span> <span class="n">ts</span> <span class="o">=</span> <span class="n">raw</span><span class="o">.</span><span class="n">load_camera_ssv_times</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="s1">&#39;left&#39;</span><span class="p">)</span>
             <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">            There are many audio TTLs that are for some reason missed by the GPIO.  Conversely</span>
@@ -748,7 +785,7 @@
     <span class="k">return</span> <span class="n">gpio</span><span class="p">,</span> <span class="n">audio_</span><span class="p">,</span> <span class="n">fcn_a2b</span><span class="p">(</span><span class="n">ts</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="extract_all"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.camera.html#ibllib.io.extractors.camera.extract_all">[docs]</a><span class="k">def</span> <span class="nf">extract_all</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">session_type</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="s1">&#39;raw_video_data*&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<div class="viewcode-block" id="extract_all"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.camera.html#ibllib.io.extractors.camera.extract_all">[docs]</a><span class="k">def</span> <span class="nf">extract_all</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">session_type</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    For the IBL ephys task, reads ephys binary file and extract:</span>
 <span class="sd">        -   video time stamps</span>
@@ -759,17 +796,23 @@
 <span class="sd">    :param kwargs: parameters to pass to the extractor</span>
 <span class="sd">    :return: outputs, files</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">session_type</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+
+    <span class="n">sync_collection</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;sync_collection&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data&#39;</span><span class="p">)</span>
+    <span class="n">camlog</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;camlog&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">session_type</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>  <span class="c1"># infer the session type</span>
         <span class="n">session_type</span> <span class="o">=</span> <span class="n">get_session_extractor_type</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">session_type</span> <span class="ow">or</span> <span class="n">session_type</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">_get_task_types_json_config</span><span class="p">()</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Session type </span><span class="si">{</span><span class="n">session_type</span><span class="si">}</span><span class="s2"> has no matching extractor&quot;</span><span class="p">)</span>
-    <span class="k">elif</span> <span class="s1">&#39;ephys&#39;</span> <span class="ow">in</span> <span class="n">session_type</span><span class="p">:</span>  <span class="c1"># assume ephys == FPGA</span>
-        <span class="n">labels</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;labels&#39;</span><span class="p">,</span> <span class="p">(</span><span class="s1">&#39;left&#39;</span><span class="p">,</span> <span class="s1">&#39;right&#39;</span><span class="p">,</span> <span class="s1">&#39;body&#39;</span><span class="p">))</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">session_type</span> <span class="ow">or</span> <span class="n">session_type</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">_get_task_types_json_config</span><span class="p">()</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Session type </span><span class="si">{</span><span class="n">session_type</span><span class="si">}</span><span class="s2"> has no matching extractor&quot;</span><span class="p">)</span>
+    <span class="n">sync_type</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;sync_type&#39;</span><span class="p">,</span> <span class="s1">&#39;nidq&#39;</span> <span class="k">if</span> <span class="n">session_type</span> <span class="o">==</span> <span class="s1">&#39;ephys&#39;</span> <span class="k">else</span> <span class="s1">&#39;bpod&#39;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">sync_type</span> <span class="o">==</span> <span class="s1">&#39;nidq&#39;</span><span class="p">:</span>
+        <span class="n">labels</span> <span class="o">=</span> <span class="n">assert_valid_label</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;labels&#39;</span><span class="p">,</span> <span class="p">(</span><span class="s1">&#39;left&#39;</span><span class="p">,</span> <span class="s1">&#39;right&#39;</span><span class="p">,</span> <span class="s1">&#39;body&#39;</span><span class="p">)))</span>
         <span class="n">labels</span> <span class="o">=</span> <span class="p">(</span><span class="n">labels</span><span class="p">,)</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">else</span> <span class="n">labels</span>  <span class="c1"># Ensure list/tuple</span>
-        <span class="n">extractor</span> <span class="o">=</span> <span class="p">[</span><span class="n">partial</span><span class="p">(</span><span class="n">CameraTimestampsFPGA</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span> <span class="k">for</span> <span class="n">label</span> <span class="ow">in</span> <span class="n">labels</span><span class="p">]</span>
+        <span class="n">CamExtractor</span> <span class="o">=</span> <span class="n">CameraTimestampsCamlog</span> <span class="k">if</span> <span class="n">camlog</span> <span class="k">else</span> <span class="n">CameraTimestampsFPGA</span>
+        <span class="n">extractor</span> <span class="o">=</span> <span class="p">[</span><span class="n">partial</span><span class="p">(</span><span class="n">CamExtractor</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span> <span class="k">for</span> <span class="n">label</span> <span class="ow">in</span> <span class="n">labels</span><span class="p">]</span>
         <span class="k">if</span> <span class="s1">&#39;sync&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
-            <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;sync&#39;</span><span class="p">],</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;chmap&#39;</span><span class="p">]</span> <span class="o">=</span> \
-                <span class="n">get_main_probe_sync</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">bin_exists</span><span class="o">=</span><span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;bin_exists&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">))</span>
+            <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;sync&#39;</span><span class="p">],</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;chmap&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">get_sync_and_chn_map</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">sync_collection</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>  <span class="c1"># assume Bpod otherwise</span>
         <span class="k">assert</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;labels&#39;</span><span class="p">,</span> <span class="s1">&#39;left&#39;</span><span class="p">),</span> <span class="s1">&#39;only left camera is currently supported&#39;</span>
         <span class="n">extractor</span> <span class="o">=</span> <span class="n">CameraTimestampsBpod</span>

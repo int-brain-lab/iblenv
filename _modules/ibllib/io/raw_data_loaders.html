@@ -55,9 +55,13 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../public_docs/public_introduction.html">Publicly available IBL data</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../public_docs/data_release_pilot.html">Data Release - Pilot Dataset</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_release_repro_ephys.html">Data Release - Reproducible Ephys Paper</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_release_brainwidemap.html">Data Release - Brain Wide Map</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../public_docs/information_contact.html">Information and troubleshooting</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Exploring IBL Data</span></p>
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_structure.html">Get to know the datasets and folder structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_download.html">Download the public datasets</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../loading_examples.html">Loading Data</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Miscellaneous</span></p>
@@ -120,14 +124,15 @@
 <span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Union</span>
 
+<span class="kn">from</span> <span class="nn">pkg_resources</span> <span class="kn">import</span> <span class="n">parse_version</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
 
 <span class="kn">from</span> <span class="nn">iblutil.io</span> <span class="kn">import</span> <span class="n">jsonable</span>
-<span class="kn">from</span> <span class="nn">ibllib.misc</span> <span class="kn">import</span> <span class="n">version</span>
+<span class="kn">from</span> <span class="nn">ibllib.io.video</span> <span class="kn">import</span> <span class="n">assert_valid_label</span>
 <span class="kn">from</span> <span class="nn">ibllib.time</span> <span class="kn">import</span> <span class="n">uncycle_pgts</span><span class="p">,</span> <span class="n">convert_pgts</span>
 
-<span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;ibllib&#39;</span><span class="p">)</span>
+<span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="trial_times_to_times"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.raw_data_loaders.html#ibllib.io.raw_data_loaders.trial_times_to_times">[docs]</a><span class="k">def</span> <span class="nf">trial_times_to_times</span><span class="p">(</span><span class="n">raw_trial</span><span class="p">):</span>
@@ -167,21 +172,22 @@
     <span class="n">raw_trial</span><span class="p">[</span><span class="s1">&#39;behavior_data&#39;</span><span class="p">][</span><span class="s1">&#39;Bpod start timestamp&#39;</span><span class="p">]</span> <span class="o">-=</span> <span class="n">shift</span>
     <span class="n">raw_trial</span><span class="p">[</span><span class="s1">&#39;behavior_data&#39;</span><span class="p">][</span><span class="s1">&#39;Trial start timestamp&#39;</span><span class="p">]</span> <span class="o">-=</span> <span class="n">shift</span>
     <span class="n">raw_trial</span><span class="p">[</span><span class="s1">&#39;behavior_data&#39;</span><span class="p">][</span><span class="s1">&#39;Trial end timestamp&#39;</span><span class="p">]</span> <span class="o">-=</span> <span class="n">shift</span>
-    <span class="k">assert</span><span class="p">(</span><span class="n">raw_trial</span><span class="p">[</span><span class="s1">&#39;behavior_data&#39;</span><span class="p">][</span><span class="s1">&#39;Bpod start timestamp&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">raw_trial</span><span class="p">[</span><span class="s1">&#39;behavior_data&#39;</span><span class="p">][</span><span class="s1">&#39;Bpod start timestamp&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span>
     <span class="k">return</span> <span class="n">raw_trial</span></div>
 
 
-<div class="viewcode-block" id="load_bpod"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.raw_data_loaders.html#ibllib.io.raw_data_loaders.load_bpod">[docs]</a><span class="k">def</span> <span class="nf">load_bpod</span><span class="p">(</span><span class="n">session_path</span><span class="p">):</span>
+<div class="viewcode-block" id="load_bpod"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.raw_data_loaders.html#ibllib.io.raw_data_loaders.load_bpod">[docs]</a><span class="k">def</span> <span class="nf">load_bpod</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Load both settings and data from bpod (.json and .jsonable)</span>
 
 <span class="sd">    :param session_path: Absolute path of session folder</span>
+<span class="sd">    :param task_collection: Collection within sesison path with behavior data</span>
 <span class="sd">    :return: dict settings and list of dicts data</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="n">load_settings</span><span class="p">(</span><span class="n">session_path</span><span class="p">),</span> <span class="n">load_data</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span></div>
+    <span class="k">return</span> <span class="n">load_settings</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="p">),</span> <span class="n">load_data</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="load_data"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.raw_data_loaders.html#ibllib.io.raw_data_loaders.load_data">[docs]</a><span class="k">def</span> <span class="nf">load_data</span><span class="p">(</span><span class="n">session_path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span> <span class="n">time</span><span class="o">=</span><span class="s1">&#39;absolute&#39;</span><span class="p">):</span>
+<div class="viewcode-block" id="load_data"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.raw_data_loaders.html#ibllib.io.raw_data_loaders.load_data">[docs]</a><span class="k">def</span> <span class="nf">load_data</span><span class="p">(</span><span class="n">session_path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span> <span class="n">task_collection</span><span class="o">=</span><span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">,</span> <span class="n">time</span><span class="o">=</span><span class="s1">&#39;absolute&#39;</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Load PyBpod data files (.jsonable).</span>
 
@@ -196,7 +202,7 @@
     <span class="k">if</span> <span class="n">session_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;No data loaded: session_path is None&quot;</span><span class="p">)</span>
         <span class="k">return</span>
-    <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s2">&quot;raw_behavior_data&quot;</span><span class="p">)</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">task_collection</span><span class="p">)</span>
     <span class="n">path</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">&quot;_iblrig_taskData.raw*.jsonable&quot;</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">path</span><span class="p">:</span>
         <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;No data loaded: could not find raw data file&quot;</span><span class="p">)</span>
@@ -207,14 +213,13 @@
     <span class="k">return</span> <span class="n">data</span></div>
 
 
-<div class="viewcode-block" id="load_camera_frameData"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.raw_data_loaders.html#ibllib.io.raw_data_loaders.load_camera_frameData">[docs]</a><span class="k">def</span> <span class="nf">load_camera_frameData</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">camera</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;left&#39;</span><span class="p">,</span> <span class="n">raw</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="s1">&#39;raw_video_data*&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<div class="viewcode-block" id="load_camera_frameData"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.raw_data_loaders.html#ibllib.io.raw_data_loaders.load_camera_frameData">[docs]</a><span class="k">def</span> <span class="nf">load_camera_frameData</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">camera</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;left&#39;</span><span class="p">,</span> <span class="n">raw</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot; Loads binary frame data from Bonsai camera recording workflow.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        session_path (StrPath): Path to session folder</span>
-<span class="sd">        camera (str, optional): Load FrameData for specific camera. Defaults to &#39;left&#39;.</span>
+<span class="sd">        camera (str, optional): Load FramsData for specific camera. Defaults to &#39;left&#39;.</span>
 <span class="sd">        raw (bool, optional): Whether to return raw or parsed data. Defaults to False.</span>
-<span class="sd">        collection (str, optional): An optional collection to search in. Defaults to folders starting with raw_video_data</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        parsed: (raw=False, Default)</span>
@@ -235,9 +240,10 @@
 <span class="sd">                embeddedGPIOPinState    # GPIO pin state integer representation of 4 pins</span>
 <span class="sd">            }</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">session_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
-    <span class="n">fpath</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">session_path</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">collection</span><span class="si">}</span><span class="s2">/_iblrig_</span><span class="si">{</span><span class="n">camera</span><span class="si">}</span><span class="s2">Camera.frameData*.bin&quot;</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
-    <span class="k">assert</span> <span class="n">fpath</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">session_path</span> <span class="o">/</span> <span class="n">collection</span><span class="si">}</span><span class="se">\n</span><span class="s2">File not Found: Could not find bin file for cam &lt;</span><span class="si">{</span><span class="n">camera</span><span class="si">}</span><span class="s2">&gt;&quot;</span>
+    <span class="n">camera</span> <span class="o">=</span> <span class="n">assert_valid_label</span><span class="p">(</span><span class="n">camera</span><span class="p">)</span>
+    <span class="n">fpath</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s2">&quot;raw_video_data&quot;</span><span class="p">)</span>
+    <span class="n">fpath</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">fpath</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;_iblrig_</span><span class="si">{</span><span class="n">camera</span><span class="si">}</span><span class="s2">Camera.frameData*.bin&quot;</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">fpath</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">fpath</span><span class="si">}</span><span class="se">\n</span><span class="s2">File not Found: Could not find bin file for cam &lt;</span><span class="si">{</span><span class="n">camera</span><span class="si">}</span><span class="s2">&gt;&quot;</span>
     <span class="n">rdata</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fromfile</span><span class="p">(</span><span class="n">fpath</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
     <span class="k">assert</span> <span class="n">rdata</span><span class="o">.</span><span class="n">size</span> <span class="o">%</span> <span class="mi">4</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;Dimension mismatch: bin file length is not mod 4&quot;</span>
     <span class="n">rows</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">rdata</span><span class="o">.</span><span class="n">size</span> <span class="o">/</span> <span class="mi">4</span><span class="p">)</span>
@@ -260,7 +266,7 @@
     <span class="k">return</span> <span class="n">parsed_df</span></div>
 
 
-<div class="viewcode-block" id="load_camera_ssv_times"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.raw_data_loaders.html#ibllib.io.raw_data_loaders.load_camera_ssv_times">[docs]</a><span class="k">def</span> <span class="nf">load_camera_ssv_times</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">camera</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="s1">&#39;raw_video_data*&#39;</span><span class="p">):</span>
+<div class="viewcode-block" id="load_camera_ssv_times"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.raw_data_loaders.html#ibllib.io.raw_data_loaders.load_camera_ssv_times">[docs]</a><span class="k">def</span> <span class="nf">load_camera_ssv_times</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">camera</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Load the bonsai frame and camera timestamps from Camera.timestamps.ssv</span>
 
@@ -268,19 +274,17 @@
 <span class="sd">    NB: If using the new bin file the bonsai_times is a float in seconds since first frame</span>
 <span class="sd">    :param session_path: Absolute path of session folder</span>
 <span class="sd">    :param camera: Name of the camera to load, e.g. &#39;left&#39;</span>
-<span class="sd">    :param collection: The collection in which to search</span>
-
 <span class="sd">    :return: array of datetimes, array of frame times in seconds</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">session_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
-    <span class="n">collection</span> <span class="o">=</span> <span class="n">collection</span> <span class="o">+</span> <span class="s1">&#39;/&#39;</span> <span class="k">if</span> <span class="n">collection</span> <span class="k">else</span> <span class="s1">&#39;&#39;</span>
-    <span class="k">if</span> <span class="nb">next</span><span class="p">(</span><span class="n">session_path</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">collection</span><span class="si">}</span><span class="s1">_iblrig_</span><span class="si">{</span><span class="n">camera</span><span class="si">}</span><span class="s1">Camera.frameData*.bin&#39;</span><span class="p">),</span> <span class="kc">None</span><span class="p">):</span>
-        <span class="n">df</span> <span class="o">=</span> <span class="n">load_camera_frameData</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">camera</span><span class="o">=</span><span class="n">camera</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="n">collection</span><span class="p">)</span>
+    <span class="n">camera</span> <span class="o">=</span> <span class="n">assert_valid_label</span><span class="p">(</span><span class="n">camera</span><span class="p">)</span>
+    <span class="n">video_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;raw_video_data&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">next</span><span class="p">(</span><span class="n">video_path</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;_iblrig_</span><span class="si">{</span><span class="n">camera</span><span class="si">}</span><span class="s1">Camera.frameData*.bin&#39;</span><span class="p">),</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">load_camera_frameData</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">camera</span><span class="o">=</span><span class="n">camera</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">df</span><span class="p">[</span><span class="s1">&#39;Timestamp&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">df</span><span class="p">[</span><span class="s1">&#39;embeddedTimeStamp&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
 
-    <span class="n">file</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">session_path</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">collection</span><span class="si">}</span><span class="s1">_iblrig_</span><span class="si">{</span><span class="n">camera</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="si">}</span><span class="s1">Camera.timestamps*.ssv&#39;</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="n">file</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">video_path</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;_iblrig_</span><span class="si">{</span><span class="n">camera</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="si">}</span><span class="s1">Camera.timestamps*.ssv&#39;</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">file</span><span class="p">:</span>
-        <span class="n">file</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">collection</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;_iblrig_</span><span class="si">{</span><span class="n">camera</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="si">}</span><span class="s1">Camera.timestamps.ssv&#39;</span><span class="p">))</span>
+        <span class="n">file</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">video_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;_iblrig_</span><span class="si">{</span><span class="n">camera</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="si">}</span><span class="s1">Camera.timestamps.ssv&#39;</span><span class="p">))</span>
         <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="n">file</span> <span class="o">+</span> <span class="s1">&#39; not found&#39;</span><span class="p">)</span>
     <span class="c1"># NB: Numpy has deprecated support for non-naive timestamps.</span>
     <span class="c1"># Converting them is extremely slow: 6000 timestamps takes 0.8615s vs 0.0352s.</span>
@@ -303,7 +307,7 @@
     <span class="k">return</span> <span class="n">bonsai_times</span><span class="p">,</span> <span class="n">camera_times</span></div>
 
 
-<div class="viewcode-block" id="load_embedded_frame_data"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.raw_data_loaders.html#ibllib.io.raw_data_loaders.load_embedded_frame_data">[docs]</a><span class="k">def</span> <span class="nf">load_embedded_frame_data</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">label</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">raw</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="load_embedded_frame_data"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.raw_data_loaders.html#ibllib.io.raw_data_loaders.load_embedded_frame_data">[docs]</a><span class="k">def</span> <span class="nf">load_embedded_frame_data</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">label</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">raw</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Load the embedded frame count and GPIO for a given session.  If the file doesn&#39;t exist,</span>
 <span class="sd">    or is empty, None values are returned.</span>
@@ -311,15 +315,14 @@
 <span class="sd">    :param label: The specific video to load, one of (&#39;left&#39;, &#39;right&#39;, &#39;body&#39;)</span>
 <span class="sd">    :param raw: If True the raw data are returned without preprocessing, otherwise frame count is</span>
 <span class="sd">    returned starting from 0 and the GPIO is returned as a dict of indices</span>
-<span class="sd">    :param collection: The collection in which to search</span>
 <span class="sd">    :return: The frame count, GPIO</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">count</span> <span class="o">=</span> <span class="n">load_camera_frame_count</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">raw</span><span class="o">=</span><span class="n">raw</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="n">collection</span><span class="p">)</span>
-    <span class="n">gpio</span> <span class="o">=</span> <span class="n">load_camera_gpio</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">as_dicts</span><span class="o">=</span><span class="ow">not</span> <span class="n">raw</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="n">collection</span><span class="p">)</span>
+    <span class="n">count</span> <span class="o">=</span> <span class="n">load_camera_frame_count</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">raw</span><span class="o">=</span><span class="n">raw</span><span class="p">)</span>
+    <span class="n">gpio</span> <span class="o">=</span> <span class="n">load_camera_gpio</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">as_dicts</span><span class="o">=</span><span class="ow">not</span> <span class="n">raw</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">count</span><span class="p">,</span> <span class="n">gpio</span></div>
 
 
-<div class="viewcode-block" id="load_camera_frame_count"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.raw_data_loaders.html#ibllib.io.raw_data_loaders.load_camera_frame_count">[docs]</a><span class="k">def</span> <span class="nf">load_camera_frame_count</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">label</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">raw</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="s1">&#39;raw_video_data*&#39;</span><span class="p">):</span>
+<div class="viewcode-block" id="load_camera_frame_count"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.raw_data_loaders.html#ibllib.io.raw_data_loaders.load_camera_frame_count">[docs]</a><span class="k">def</span> <span class="nf">load_camera_frame_count</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">label</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">raw</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Load the embedded frame count for a given session.  If the file doesn&#39;t exist, or is empty,</span>
 <span class="sd">    a None value is returned.</span>
@@ -327,19 +330,19 @@
 <span class="sd">    :param label: The specific video to load, one of (&#39;left&#39;, &#39;right&#39;, &#39;body&#39;)</span>
 <span class="sd">    :param raw: If True the raw data are returned without preprocessing, otherwise frame count is</span>
 <span class="sd">    returned starting from 0</span>
-<span class="sd">    :param collection: The collection in which to search</span>
 <span class="sd">    :return: The frame count</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">session_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">return</span>
 
-    <span class="n">collection</span> <span class="o">=</span> <span class="n">collection</span> <span class="o">+</span> <span class="s1">&#39;/&#39;</span> <span class="k">if</span> <span class="n">collection</span> <span class="k">else</span> <span class="s1">&#39;&#39;</span>
-    <span class="k">if</span> <span class="nb">next</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">collection</span><span class="si">}</span><span class="s1">_iblrig_</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">Camera.frameData*.bin&#39;</span><span class="p">),</span> <span class="kc">None</span><span class="p">):</span>
-        <span class="n">df</span> <span class="o">=</span> <span class="n">load_camera_frameData</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">camera</span><span class="o">=</span><span class="n">label</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="n">collection</span><span class="p">)</span>
+    <span class="n">label</span> <span class="o">=</span> <span class="n">assert_valid_label</span><span class="p">(</span><span class="n">label</span><span class="p">)</span>
+    <span class="n">video_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;raw_video_data&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">next</span><span class="p">(</span><span class="n">video_path</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;_iblrig_</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">Camera.frameData*.bin&#39;</span><span class="p">),</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">load_camera_frameData</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">camera</span><span class="o">=</span><span class="n">label</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">df</span><span class="p">[</span><span class="s1">&#39;embeddedFrameCounter&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
 
     <span class="c1"># Load frame count</span>
-    <span class="n">glob</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">collection</span><span class="si">}</span><span class="s1">_iblrig_</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">Camera.frame_counter*.bin&#39;</span><span class="p">)</span>
+    <span class="n">glob</span> <span class="o">=</span> <span class="n">video_path</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;_iblrig_</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">Camera.frame_counter*.bin&#39;</span><span class="p">)</span>
     <span class="n">count_file</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">glob</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
     <span class="n">count</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fromfile</span><span class="p">(</span><span class="n">count_file</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span> <span class="k">if</span> <span class="n">count_file</span> <span class="k">else</span> <span class="p">[]</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">count</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
@@ -349,7 +352,7 @@
     <span class="k">return</span> <span class="n">count</span></div>
 
 
-<div class="viewcode-block" id="load_camera_gpio"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.raw_data_loaders.html#ibllib.io.raw_data_loaders.load_camera_gpio">[docs]</a><span class="k">def</span> <span class="nf">load_camera_gpio</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">label</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">as_dicts</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="s1">&#39;raw_video_data*&#39;</span><span class="p">):</span>
+<div class="viewcode-block" id="load_camera_gpio"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.raw_data_loaders.html#ibllib.io.raw_data_loaders.load_camera_gpio">[docs]</a><span class="k">def</span> <span class="nf">load_camera_gpio</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">label</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">as_dicts</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Load the GPIO for a given session.  If the file doesn&#39;t exist, or is empty, a None value is</span>
 <span class="sd">    returned.</span>
@@ -362,24 +365,23 @@
 <span class="sd">    :param label: The specific video to load, one of (&#39;left&#39;, &#39;right&#39;, &#39;body&#39;)</span>
 <span class="sd">    :param as_dicts: If False the raw data are returned boolean array with shape (n_frames, n_pins)</span>
 <span class="sd">     otherwise GPIO is returned as a list of dictionaries with keys (&#39;indices&#39;, &#39;polarities&#39;).</span>
-<span class="sd">    :param collection: The collection in which to search</span>
 <span class="sd">    :return: An nx4 boolean array where columns represent state of GPIO pins 1-4.</span>
 <span class="sd">     If as_dicts is True, a list of dicts is returned with keys (&#39;indices&#39;, &#39;polarities&#39;),</span>
 <span class="sd">     or None if the dictionary is empty.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">session_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">return</span>
+    <span class="n">raw_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;raw_video_data&#39;</span><span class="p">)</span>
+    <span class="n">label</span> <span class="o">=</span> <span class="n">assert_valid_label</span><span class="p">(</span><span class="n">label</span><span class="p">)</span>
 
     <span class="c1"># Load pin state</span>
-    <span class="n">session_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
-    <span class="n">collection</span> <span class="o">=</span> <span class="n">collection</span> <span class="o">+</span> <span class="s1">&#39;/&#39;</span> <span class="k">if</span> <span class="n">collection</span> <span class="k">else</span> <span class="s1">&#39;&#39;</span>
-    <span class="k">if</span> <span class="nb">next</span><span class="p">(</span><span class="n">session_path</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">collection</span><span class="si">}</span><span class="s1">_iblrig_</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">Camera.frameData*.bin&#39;</span><span class="p">),</span> <span class="kc">False</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">next</span><span class="p">(</span><span class="n">raw_path</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;_iblrig_</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">Camera.frameData*.bin&#39;</span><span class="p">),</span> <span class="kc">False</span><span class="p">):</span>
         <span class="n">df</span> <span class="o">=</span> <span class="n">load_camera_frameData</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">camera</span><span class="o">=</span><span class="n">label</span><span class="p">,</span> <span class="n">raw</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
         <span class="n">gpio</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">df</span><span class="p">[</span><span class="s1">&#39;embeddedGPIOPinState&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">])</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">gpio</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
             <span class="k">return</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="mi">4</span> <span class="k">if</span> <span class="n">as_dicts</span> <span class="k">else</span> <span class="kc">None</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="n">GPIO_file</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">session_path</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">collection</span><span class="si">}</span><span class="s1">_iblrig_</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">Camera.GPIO*.bin&#39;</span><span class="p">),</span> <span class="kc">False</span><span class="p">)</span>
+        <span class="n">GPIO_file</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">raw_path</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;_iblrig_</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">Camera.GPIO*.bin&#39;</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
         <span class="c1"># This deals with missing and empty files the same</span>
         <span class="n">gpio</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fromfile</span><span class="p">(</span><span class="n">GPIO_file</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint32</span><span class="p">)</span> <span class="k">if</span> <span class="n">GPIO_file</span> <span class="k">else</span> <span class="p">[]</span>
         <span class="c1"># Check values make sense (4 pins = 16 possible values)</span>
@@ -408,7 +410,7 @@
     <span class="k">return</span> <span class="n">gpio</span></div>
 
 
-<div class="viewcode-block" id="load_settings"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.raw_data_loaders.html#ibllib.io.raw_data_loaders.load_settings">[docs]</a><span class="k">def</span> <span class="nf">load_settings</span><span class="p">(</span><span class="n">session_path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">]):</span>
+<div class="viewcode-block" id="load_settings"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.raw_data_loaders.html#ibllib.io.raw_data_loaders.load_settings">[docs]</a><span class="k">def</span> <span class="nf">load_settings</span><span class="p">(</span><span class="n">session_path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span> <span class="n">task_collection</span><span class="o">=</span><span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Load PyBpod Settings files (.json).</span>
 
@@ -422,7 +424,7 @@
     <span class="k">if</span> <span class="n">session_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;No data loaded: session_path is None&quot;</span><span class="p">)</span>
         <span class="k">return</span>
-    <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s2">&quot;raw_behavior_data&quot;</span><span class="p">)</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">task_collection</span><span class="p">)</span>
     <span class="n">path</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">&quot;_iblrig_taskSettings.raw*.json&quot;</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">path</span><span class="p">:</span>
         <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;No data loaded: could not find raw settings file&quot;</span><span class="p">)</span>
@@ -434,17 +436,17 @@
     <span class="k">return</span> <span class="n">settings</span></div>
 
 
-<div class="viewcode-block" id="load_stim_position_screen"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.raw_data_loaders.html#ibllib.io.raw_data_loaders.load_stim_position_screen">[docs]</a><span class="k">def</span> <span class="nf">load_stim_position_screen</span><span class="p">(</span><span class="n">session_path</span><span class="p">):</span>
-    <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s2">&quot;raw_behavior_data&quot;</span><span class="p">)</span>
+<div class="viewcode-block" id="load_stim_position_screen"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.raw_data_loaders.html#ibllib.io.raw_data_loaders.load_stim_position_screen">[docs]</a><span class="k">def</span> <span class="nf">load_stim_position_screen</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">):</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">task_collection</span><span class="p">)</span>
     <span class="n">path</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">&quot;_iblrig_stimPositionScreen.raw*.csv&quot;</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
 
-    <span class="n">data</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s1">&#39;,&#39;</span><span class="p">,</span> <span class="n">header</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">error_bad_lines</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s1">&#39;,&#39;</span><span class="p">,</span> <span class="n">header</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">on_bad_lines</span><span class="o">=</span><span class="s1">&#39;skip&#39;</span><span class="p">)</span>
     <span class="n">data</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;contrast&#39;</span><span class="p">,</span> <span class="s1">&#39;position&#39;</span><span class="p">,</span> <span class="s1">&#39;bns_ts&#39;</span><span class="p">]</span>
     <span class="n">data</span><span class="p">[</span><span class="s1">&#39;bns_ts&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;bns_ts&#39;</span><span class="p">])</span>
     <span class="k">return</span> <span class="n">data</span></div>
 
 
-<div class="viewcode-block" id="load_encoder_events"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.raw_data_loaders.html#ibllib.io.raw_data_loaders.load_encoder_events">[docs]</a><span class="k">def</span> <span class="nf">load_encoder_events</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">settings</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<div class="viewcode-block" id="load_encoder_events"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.raw_data_loaders.html#ibllib.io.raw_data_loaders.load_encoder_events">[docs]</a><span class="k">def</span> <span class="nf">load_encoder_events</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">,</span> <span class="n">settings</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Load Rotary Encoder (RE) events raw data file.</span>
 
@@ -469,7 +471,7 @@
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">session_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">return</span>
-    <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s2">&quot;raw_behavior_data&quot;</span><span class="p">)</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">task_collection</span><span class="p">)</span>
     <span class="n">path</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">&quot;_iblrig_encoderEvents.raw*.ssv&quot;</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">settings</span><span class="p">:</span>
         <span class="n">settings</span> <span class="o">=</span> <span class="n">load_settings</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
@@ -482,7 +484,7 @@
             <span class="n">settings</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">:</span> <span class="s1">&#39;0.0.0&#39;</span><span class="p">}</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">path</span><span class="p">:</span>
         <span class="k">return</span> <span class="kc">None</span>
-    <span class="k">if</span> <span class="n">version</span><span class="o">.</span><span class="n">ge</span><span class="p">(</span><span class="n">settings</span><span class="p">[</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">],</span> <span class="s1">&#39;5.0.0&#39;</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">parse_version</span><span class="p">(</span><span class="n">settings</span><span class="p">[</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">])</span> <span class="o">&gt;=</span> <span class="n">parse_version</span><span class="p">(</span><span class="s1">&#39;5.0.0&#39;</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">_load_encoder_events_file_ge5</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">_load_encoder_events_file_lt5</span><span class="p">(</span><span class="n">path</span><span class="p">)</span></div>
@@ -493,7 +495,7 @@
     <span class="k">if</span> <span class="n">file_path</span><span class="o">.</span><span class="n">stat</span><span class="p">()</span><span class="o">.</span><span class="n">st_size</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
         <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">file_path</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> is an empty file. &quot;</span><span class="p">)</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">file_path</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> is an empty file. ABORT EXTRACTION. &quot;</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s1">&#39; &#39;</span><span class="p">,</span> <span class="n">header</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">error_bad_lines</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s1">&#39; &#39;</span><span class="p">,</span> <span class="n">header</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">on_bad_lines</span><span class="o">=</span><span class="s1">&#39;skip&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
 
 <span class="k">def</span> <span class="nf">_load_encoder_positions_file_lt5</span><span class="p">(</span><span class="n">file_path</span><span class="p">):</span>
@@ -544,7 +546,7 @@
     <span class="k">return</span> <span class="n">_groom_wheel_data_ge5</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;_iblrig_encoderEvents.raw.ssv&#39;</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="n">file_path</span><span class="p">)</span>
 
 
-<div class="viewcode-block" id="load_encoder_positions"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.raw_data_loaders.html#ibllib.io.raw_data_loaders.load_encoder_positions">[docs]</a><span class="k">def</span> <span class="nf">load_encoder_positions</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">settings</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<div class="viewcode-block" id="load_encoder_positions"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.raw_data_loaders.html#ibllib.io.raw_data_loaders.load_encoder_positions">[docs]</a><span class="k">def</span> <span class="nf">load_encoder_positions</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">,</span> <span class="n">settings</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Load Rotary Encoder (RE) positions from raw data file within a session path.</span>
 
@@ -573,7 +575,7 @@
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">session_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">return</span>
-    <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s2">&quot;raw_behavior_data&quot;</span><span class="p">)</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">task_collection</span><span class="p">)</span>
     <span class="n">path</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">&quot;_iblrig_encoderPositions.raw*.ssv&quot;</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">settings</span><span class="p">:</span>
         <span class="n">settings</span> <span class="o">=</span> <span class="n">load_settings</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
@@ -587,13 +589,13 @@
     <span class="k">if</span> <span class="ow">not</span> <span class="n">path</span><span class="p">:</span>
         <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;No data loaded: could not find raw encoderPositions file&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="kc">None</span>
-    <span class="k">if</span> <span class="n">version</span><span class="o">.</span><span class="n">ge</span><span class="p">(</span><span class="n">settings</span><span class="p">[</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">],</span> <span class="s1">&#39;5.0.0&#39;</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">parse_version</span><span class="p">(</span><span class="n">settings</span><span class="p">[</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">])</span> <span class="o">&gt;=</span> <span class="n">parse_version</span><span class="p">(</span><span class="s1">&#39;5.0.0&#39;</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">_load_encoder_positions_file_ge5</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">_load_encoder_positions_file_lt5</span><span class="p">(</span><span class="n">path</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="load_encoder_trial_info"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.raw_data_loaders.html#ibllib.io.raw_data_loaders.load_encoder_trial_info">[docs]</a><span class="k">def</span> <span class="nf">load_encoder_trial_info</span><span class="p">(</span><span class="n">session_path</span><span class="p">):</span>
+<div class="viewcode-block" id="load_encoder_trial_info"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.raw_data_loaders.html#ibllib.io.raw_data_loaders.load_encoder_trial_info">[docs]</a><span class="k">def</span> <span class="nf">load_encoder_trial_info</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Load Rotary Encoder trial info from raw data file.</span>
 
@@ -624,7 +626,7 @@
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">session_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">return</span>
-    <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s2">&quot;raw_behavior_data&quot;</span><span class="p">)</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">task_collection</span><span class="p">)</span>
     <span class="n">path</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">&quot;_iblrig_encoderTrialInfo.raw*.ssv&quot;</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">path</span><span class="p">:</span>
         <span class="k">return</span> <span class="kc">None</span>
@@ -636,7 +638,7 @@
     <span class="k">return</span> <span class="n">data</span></div>
 
 
-<div class="viewcode-block" id="load_ambient_sensor"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.raw_data_loaders.html#ibllib.io.raw_data_loaders.load_ambient_sensor">[docs]</a><span class="k">def</span> <span class="nf">load_ambient_sensor</span><span class="p">(</span><span class="n">session_path</span><span class="p">):</span>
+<div class="viewcode-block" id="load_ambient_sensor"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.raw_data_loaders.html#ibllib.io.raw_data_loaders.load_ambient_sensor">[docs]</a><span class="k">def</span> <span class="nf">load_ambient_sensor</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Load Ambient Sensor data from session.</span>
 
@@ -654,7 +656,7 @@
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">session_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">return</span>
-    <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s2">&quot;raw_behavior_data&quot;</span><span class="p">)</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">task_collection</span><span class="p">)</span>
     <span class="n">path</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">&quot;_iblrig_ambientSensorData.raw*.jsonable&quot;</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">path</span><span class="p">:</span>
         <span class="k">return</span> <span class="kc">None</span>
@@ -665,7 +667,7 @@
     <span class="k">return</span> <span class="n">data</span></div>
 
 
-<div class="viewcode-block" id="load_mic"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.raw_data_loaders.html#ibllib.io.raw_data_loaders.load_mic">[docs]</a><span class="k">def</span> <span class="nf">load_mic</span><span class="p">(</span><span class="n">session_path</span><span class="p">):</span>
+<div class="viewcode-block" id="load_mic"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.raw_data_loaders.html#ibllib.io.raw_data_loaders.load_mic">[docs]</a><span class="k">def</span> <span class="nf">load_mic</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Load Microphone wav file to np.array of len nSamples</span>
 
@@ -676,7 +678,7 @@
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">session_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">return</span>
-    <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s2">&quot;raw_behavior_data&quot;</span><span class="p">)</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">task_collection</span><span class="p">)</span>
     <span class="n">path</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">&quot;_iblrig_micData.raw*.wav&quot;</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">path</span><span class="p">:</span>
         <span class="k">return</span> <span class="kc">None</span>
@@ -822,7 +824,7 @@
         <span class="k">return</span> <span class="n">t0</span><span class="p">[</span><span class="n">ind0</span><span class="p">],</span> <span class="n">t1</span><span class="p">[</span><span class="n">ind1</span><span class="p">]</span></div>
 
 
-<div class="viewcode-block" id="load_bpod_fronts"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.raw_data_loaders.html#ibllib.io.raw_data_loaders.load_bpod_fronts">[docs]</a><span class="k">def</span> <span class="nf">load_bpod_fronts</span><span class="p">(</span><span class="n">session_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">:</span>
+<div class="viewcode-block" id="load_bpod_fronts"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.raw_data_loaders.html#ibllib.io.raw_data_loaders.load_bpod_fronts">[docs]</a><span class="k">def</span> <span class="nf">load_bpod_fronts</span><span class="p">(</span><span class="n">session_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">task_collection</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;load_bpod_fronts</span>
 <span class="sd">    Loads BNC1 and BNC2 bpod channels times and polarities from session_path</span>
 
@@ -834,7 +836,7 @@
 <span class="sd">    :rtype: list</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">data</span><span class="p">:</span>
-        <span class="n">data</span> <span class="o">=</span> <span class="n">load_data</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">load_data</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="p">)</span>
 
     <span class="n">BNC1_fronts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">]])</span>
     <span class="n">BNC2_fronts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">]])</span>
@@ -912,6 +914,34 @@
     <span class="n">out</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">out</span></div>
+
+
+<div class="viewcode-block" id="load_widefield_mmap"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.raw_data_loaders.html#ibllib.io.raw_data_loaders.load_widefield_mmap">[docs]</a><span class="k">def</span> <span class="nf">load_widefield_mmap</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">540</span><span class="p">,</span> <span class="mi">640</span><span class="p">),</span> <span class="n">n_frames</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;r&#39;</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    TODO Document this function</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    session_path</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">filepath</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;raw_widefield_data&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s1">&#39;widefield.raw.*.dat&#39;</span><span class="p">)</span>
+    <span class="n">filepath</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">filepath</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">filepath</span><span class="p">:</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;No data loaded: could not find raw data file&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="n">dtype</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dtype</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">n_frames</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># Get the number of samples from the file size</span>
+        <span class="n">n_frames</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">filepath</span><span class="o">.</span><span class="n">stat</span><span class="p">()</span><span class="o">.</span><span class="n">st_size</span> <span class="o">/</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span> <span class="o">*</span> <span class="n">dtype</span><span class="o">.</span><span class="n">itemsize</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">memmap</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">filepath</span><span class="p">),</span> <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">n_frames</span><span class="p">),</span> <span class="o">*</span><span class="n">shape</span><span class="p">))</span></div>
 </pre></div>
 
            </div>

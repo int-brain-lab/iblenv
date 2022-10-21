@@ -55,9 +55,13 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../public_docs/public_introduction.html">Publicly available IBL data</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../public_docs/data_release_pilot.html">Data Release - Pilot Dataset</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_release_repro_ephys.html">Data Release - Reproducible Ephys Paper</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_release_brainwidemap.html">Data Release - Brain Wide Map</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../public_docs/information_contact.html">Information and troubleshooting</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Exploring IBL Data</span></p>
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_structure.html">Get to know the datasets and folder structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_download.html">Download the public datasets</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../loading_examples.html">Loading Data</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Miscellaneous</span></p>
@@ -120,7 +124,23 @@
 <span class="kn">from</span> <span class="nn">ibllib.oneibl.patcher</span> <span class="kn">import</span> <span class="n">FTPPatcher</span><span class="p">,</span> <span class="n">SDSCPatcher</span><span class="p">,</span> <span class="n">SDSC_ROOT_PATH</span><span class="p">,</span> <span class="n">SDSC_PATCH_PATH</span>
 <span class="kn">from</span> <span class="nn">ibllib.oneibl.aws</span> <span class="kn">import</span> <span class="n">AWS</span>
 
-<span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;ibllib&#39;</span><span class="p">)</span>
+
+<span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="get_local_data_repository"><a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.get_local_data_repository">[docs]</a><span class="k">def</span> <span class="nf">get_local_data_repository</span><span class="p">(</span><span class="n">one</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">one</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">Path</span><span class="o">.</span><span class="n">home</span><span class="p">()</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s2">&quot;.globusonline/lta/client-id.txt&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+        <span class="k">return</span>
+
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">Path</span><span class="o">.</span><span class="n">home</span><span class="p">()</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s2">&quot;.globusonline/lta/client-id.txt&quot;</span><span class="p">),</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fid</span><span class="p">:</span>
+        <span class="n">globus_id</span> <span class="o">=</span> <span class="n">fid</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+
+    <span class="n">data_repo</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;data-repository&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span> <span class="n">globus_endpoint_id</span><span class="o">=</span><span class="n">globus_id</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">data_repo</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">da</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">da</span> <span class="ow">in</span> <span class="n">data_repo</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span></div>
 
 
 <div class="viewcode-block" id="DataHandler"><a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.DataHandler">[docs]</a><span class="k">class</span> <span class="nc">DataHandler</span><span class="p">(</span><span class="n">abc</span><span class="o">.</span><span class="n">ABC</span><span class="p">):</span>
@@ -215,8 +235,8 @@
 <span class="sd">        :return: output info of registered datasets</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">versions</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">uploadData</span><span class="p">(</span><span class="n">outputs</span><span class="p">,</span> <span class="n">version</span><span class="p">)</span>
-
-        <span class="k">return</span> <span class="n">register_dataset</span><span class="p">(</span><span class="n">outputs</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">,</span> <span class="n">versions</span><span class="o">=</span><span class="n">versions</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div></div>
+        <span class="n">data_repo</span> <span class="o">=</span> <span class="n">get_local_data_repository</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">register_dataset</span><span class="p">(</span><span class="n">outputs</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">,</span> <span class="n">versions</span><span class="o">=</span><span class="n">versions</span><span class="p">,</span> <span class="n">repository</span><span class="o">=</span><span class="n">data_repo</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div></div>
 
 
 <div class="viewcode-block" id="ServerGlobusDataHandler"><a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.ServerGlobusDataHandler">[docs]</a><span class="k">class</span> <span class="nc">ServerGlobusDataHandler</span><span class="p">(</span><span class="n">DataHandler</span><span class="p">):</span>
@@ -228,7 +248,7 @@
 <span class="sd">        :param signature: input and output file signatures</span>
 <span class="sd">        :param one: ONE instance</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="kn">from</span> <span class="nn">one.globus</span> <span class="kn">import</span> <span class="n">Globus</span><span class="p">,</span> <span class="n">get_lab_from_endpoint_id</span>  <span class="c1"># noqa</span>
+        <span class="kn">from</span> <span class="nn">one.remote.globus</span> <span class="kn">import</span> <span class="n">Globus</span><span class="p">,</span> <span class="n">get_lab_from_endpoint_id</span>  <span class="c1"># noqa</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">signatures</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">globus</span> <span class="o">=</span> <span class="n">Globus</span><span class="p">(</span><span class="n">client_name</span><span class="o">=</span><span class="s1">&#39;server&#39;</span><span class="p">)</span>
 
@@ -236,7 +256,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">globus</span><span class="o">.</span><span class="n">endpoints</span><span class="p">[</span><span class="s1">&#39;local&#39;</span><span class="p">][</span><span class="s1">&#39;root_path&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;/mnt/s0/Data/Subjects&#39;</span>
 
         <span class="c1"># Find the lab</span>
-        <span class="n">labs</span> <span class="o">=</span> <span class="n">get_lab_from_endpoint_id</span><span class="p">(</span><span class="n">one</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">)</span>
+        <span class="n">labs</span> <span class="o">=</span> <span class="n">get_lab_from_endpoint_id</span><span class="p">(</span><span class="n">alyx</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">labs</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
             <span class="c1"># for flofer lab</span>
@@ -247,9 +267,11 @@
 
         <span class="c1"># For cortex lab we need to get the endpoint from the ibl alyx</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">lab</span> <span class="o">==</span> <span class="s1">&#39;cortexlab&#39;</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">globus</span><span class="o">.</span><span class="n">add_endpoint</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;flatiron_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">lab</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">ONE</span><span class="p">(</span><span class="n">base_url</span><span class="o">=</span><span class="s1">&#39;https://alyx.internationalbrainlab.org&#39;</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">globus</span><span class="o">.</span><span class="n">add_endpoint</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;flatiron_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">lab</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">alyx</span><span class="o">=</span><span class="n">ONE</span><span class="p">(</span><span class="n">base_url</span><span class="o">=</span><span class="s1">&#39;https://alyx.internationalbrainlab.org&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">alyx</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">globus</span><span class="o">.</span><span class="n">add_endpoint</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;flatiron_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">lab</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">globus</span><span class="o">.</span><span class="n">add_endpoint</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;flatiron_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">lab</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">alyx</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">local_paths</span> <span class="o">=</span> <span class="p">[]</span>
 
 <div class="viewcode-block" id="ServerGlobusDataHandler.setUp"><a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.ServerGlobusDataHandler.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -279,7 +301,6 @@
 
         <span class="n">target_paths</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">source_paths</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">local_paths</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">iterrows</span><span class="p">():</span>
             <span class="n">sess_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">rel_sess_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="s1">&#39;rel_path&#39;</span><span class="p">])</span>
             <span class="n">full_local_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">globus</span><span class="o">.</span><span class="n">endpoints</span><span class="p">[</span><span class="s1">&#39;local&#39;</span><span class="p">][</span><span class="s1">&#39;root_path&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">sess_path</span><span class="p">)</span>
@@ -309,8 +330,8 @@
 <span class="sd">        :return: output info of registered datasets</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">versions</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">uploadData</span><span class="p">(</span><span class="n">outputs</span><span class="p">,</span> <span class="n">version</span><span class="p">)</span>
-
-        <span class="k">return</span> <span class="n">register_dataset</span><span class="p">(</span><span class="n">outputs</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">,</span> <span class="n">versions</span><span class="o">=</span><span class="n">versions</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+        <span class="n">data_repo</span> <span class="o">=</span> <span class="n">get_local_data_repository</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">register_dataset</span><span class="p">(</span><span class="n">outputs</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">,</span> <span class="n">versions</span><span class="o">=</span><span class="n">versions</span><span class="p">,</span> <span class="n">repository</span><span class="o">=</span><span class="n">data_repo</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="ServerGlobusDataHandler.cleanUp"><a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.ServerGlobusDataHandler.cleanUp">[docs]</a>    <span class="k">def</span> <span class="nf">cleanUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -362,13 +383,18 @@
 <span class="sd">        :param signature: input and output file signatures</span>
 <span class="sd">        :param one: ONE instance</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="kn">from</span> <span class="nn">one.globus</span> <span class="kn">import</span> <span class="n">Globus</span> <span class="c1"># noqa</span>
+        <span class="kn">from</span> <span class="nn">one.remote.globus</span> <span class="kn">import</span> <span class="n">Globus</span> <span class="c1"># noqa</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">signature</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">task</span> <span class="o">=</span> <span class="n">task</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">aws</span> <span class="o">=</span> <span class="n">AWS</span><span class="p">(</span><span class="n">one</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">globus</span> <span class="o">=</span> <span class="n">Globus</span><span class="p">(</span><span class="n">client_name</span><span class="o">=</span><span class="s1">&#39;server&#39;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">lab</span> <span class="o">=</span> <span class="n">session_path_parts</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">as_dict</span><span class="o">=</span><span class="kc">True</span><span class="p">)[</span><span class="s1">&#39;lab&#39;</span><span class="p">]</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">globus</span><span class="o">.</span><span class="n">add_endpoint</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;flatiron_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">lab</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">lab</span> <span class="o">==</span> <span class="s1">&#39;cortexlab&#39;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">globus</span><span class="o">.</span><span class="n">add_endpoint</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;flatiron_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">lab</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">alyx</span><span class="o">=</span><span class="n">ONE</span><span class="p">(</span><span class="n">base_url</span><span class="o">=</span><span class="s1">&#39;https://alyx.internationalbrainlab.org&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">alyx</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">globus</span><span class="o">.</span><span class="n">add_endpoint</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;flatiron_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">lab</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">alyx</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">local_paths</span> <span class="o">=</span> <span class="p">[]</span>
 
 <div class="viewcode-block" id="RemoteAwsDataHandler.setUp"><a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.RemoteAwsDataHandler.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>

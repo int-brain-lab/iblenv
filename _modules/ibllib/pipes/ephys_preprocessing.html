@@ -55,9 +55,13 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../public_docs/public_introduction.html">Publicly available IBL data</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../public_docs/data_release_pilot.html">Data Release - Pilot Dataset</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_release_repro_ephys.html">Data Release - Reproducible Ephys Paper</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_release_brainwidemap.html">Data Release - Brain Wide Map</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../public_docs/information_contact.html">Information and troubleshooting</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Exploring IBL Data</span></p>
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_structure.html">Get to know the datasets and folder structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_download.html">Download the public datasets</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../loading_examples.html">Loading Data</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Miscellaneous</span></p>
@@ -93,6 +97,7 @@
   <ul class="wy-breadcrumbs">
       <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
           <li><a href="../../index.html">Module code</a> &raquo;</li>
+          <li><a href="../pipes.html">ibllib.pipes</a> &raquo;</li>
       <li>ibllib.pipes.ephys_preprocessing</li>
       <li class="wy-breadcrumbs-aside">
       </li>
@@ -127,6 +132,7 @@
 <span class="kn">from</span> <span class="nn">ibllib.io.extractors</span> <span class="kn">import</span> <span class="n">ephys_fpga</span><span class="p">,</span> <span class="n">ephys_passive</span><span class="p">,</span> <span class="n">camera</span>
 <span class="kn">from</span> <span class="nn">ibllib.pipes</span> <span class="kn">import</span> <span class="n">tasks</span>
 <span class="kn">from</span> <span class="nn">ibllib.pipes.training_preprocessing</span> <span class="kn">import</span> <span class="n">TrainingRegisterRaw</span> <span class="k">as</span> <span class="n">EphysRegisterRaw</span>
+<span class="kn">from</span> <span class="nn">ibllib.pipes.training_preprocessing</span> <span class="kn">import</span> <span class="n">TrainingStatus</span> <span class="k">as</span> <span class="n">EphysTrainingStatus</span>
 <span class="kn">from</span> <span class="nn">ibllib.pipes.misc</span> <span class="kn">import</span> <span class="n">create_alyx_probe_insertions</span>
 <span class="kn">from</span> <span class="nn">ibllib.qc.alignment_qc</span> <span class="kn">import</span> <span class="n">get_aligned_channels</span>
 <span class="kn">from</span> <span class="nn">ibllib.qc.task_extractors</span> <span class="kn">import</span> <span class="n">TaskQCExtractor</span>
@@ -320,10 +326,12 @@
 <span class="sd">    Pykilosort 2.5 pipeline</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">gpu</span> <span class="o">=</span> <span class="mi">1</span>
-    <span class="n">io_charge</span> <span class="o">=</span> <span class="mi">70</span>  <span class="c1"># this jobs reads raw ap files</span>
+    <span class="n">io_charge</span> <span class="o">=</span> <span class="mi">100</span>  <span class="c1"># this jobs reads raw ap files</span>
     <span class="n">priority</span> <span class="o">=</span> <span class="mi">60</span>
     <span class="n">level</span> <span class="o">=</span> <span class="mi">1</span>  <span class="c1"># this job doesn&#39;t depend on anything</span>
     <span class="n">force</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">job_size</span> <span class="o">=</span> <span class="s1">&#39;large&#39;</span>
+
     <span class="n">SHELL_SCRIPT</span> <span class="o">=</span> <span class="n">Path</span><span class="o">.</span><span class="n">home</span><span class="p">()</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span>
         <span class="s2">&quot;Documents/PYTHON/iblscripts/deploy/serverpc/kilosort2/run_pykilosort.sh&quot;</span>
     <span class="p">)</span>
@@ -373,10 +381,16 @@
 
     <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">_fetch_pykilosort_run_version</span><span class="p">(</span><span class="n">log_file</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Parse the following line (2 formats depending on version) from the log files to get the version</span>
+<span class="sd">        &#39;\x1b[0m15:39:37.919 [I] ibl:90               Starting Pykilosort version ibl_1.2.1, output in gnagga^[[0m\n&#39;</span>
+<span class="sd">        &#39;\x1b[0m15:39:37.919 [I] ibl:90               Starting Pykilosort version ibl_1.3.0^[[0m\n&#39;</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">log_file</span><span class="p">)</span> <span class="k">as</span> <span class="n">fid</span><span class="p">:</span>
             <span class="n">line</span> <span class="o">=</span> <span class="n">fid</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span>
-        <span class="n">version</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s1">&#39;version (.*), output&#39;</span><span class="p">,</span> <span class="n">line</span><span class="p">)</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
-
+        <span class="n">version</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s1">&#39;version (.*), output&#39;</span><span class="p">,</span> <span class="n">line</span><span class="p">)</span>
+        <span class="n">version</span> <span class="o">=</span> <span class="n">version</span> <span class="ow">or</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s1">&#39;version (.*)&#39;</span><span class="p">,</span> <span class="n">line</span><span class="p">)</span>  <span class="c1"># old versions have output, new have a version line</span>
+        <span class="n">version</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\\</span><span class="s1">^[[0-9]+m&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">version</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>  <span class="c1"># removes the coloring tags</span>
         <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;pykilosort_</span><span class="si">{</span><span class="n">version</span><span class="si">}</span><span class="s2">&quot;</span>
 
     <span class="nd">@staticmethod</span>
@@ -544,7 +558,7 @@
                             <span class="n">out</span> <span class="o">=</span> <span class="n">get_aligned_channels</span><span class="p">(</span><span class="n">ins</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">chns</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">,</span> <span class="n">save_dir</span><span class="o">=</span><span class="n">probe_out_path</span><span class="p">)</span>
                             <span class="n">out_files</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
 
-            <span class="k">except</span> <span class="ne">BaseException</span><span class="p">:</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
                 <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">())</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
                 <span class="k">continue</span>
@@ -596,6 +610,9 @@
     <span class="n">priority</span> <span class="o">=</span> <span class="mi">90</span>
     <span class="n">level</span> <span class="o">=</span> <span class="mi">0</span>
     <span class="n">force</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">job_size</span> <span class="o">=</span> <span class="s1">&#39;large&#39;</span>
+    <span class="n">io_charge</span> <span class="o">=</span> <span class="mi">100</span>
+
     <span class="n">signature</span> <span class="o">=</span> <span class="p">{</span>
         <span class="s1">&#39;input_files&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;_iblrig_*Camera.raw.*&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_video_data&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)],</span>
         <span class="s1">&#39;output_files&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;_iblrig_*Camera.raw.mp4&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_video_data&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)]</span>
@@ -723,22 +740,10 @@
                         <span class="p">(</span><span class="s1">&#39;_iblrig_encoderPositions.raw*&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
                         <span class="p">(</span><span class="s1">&#39;*wiring.json&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data*&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
                         <span class="p">(</span><span class="s1">&#39;*.meta&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)],</span>
-        <span class="s1">&#39;output_files&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;*trials.choice.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
-                         <span class="p">(</span><span class="s1">&#39;*trials.contrastLeft.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
-                         <span class="p">(</span><span class="s1">&#39;*trials.contrastRight.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
-                         <span class="p">(</span><span class="s1">&#39;*trials.feedbackType.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
-                         <span class="p">(</span><span class="s1">&#39;*trials.feedback_times.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
-                         <span class="p">(</span><span class="s1">&#39;*trials.firstMovement_times.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+        <span class="s1">&#39;output_files&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;*trials.table.pqt&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
                          <span class="p">(</span><span class="s1">&#39;*trials.goCueTrigger_times.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
-                         <span class="p">(</span><span class="s1">&#39;*trials.goCue_times.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
-                         <span class="p">(</span><span class="s1">&#39;*trials.intervals.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
                          <span class="p">(</span><span class="s1">&#39;*trials.intervals_bpod.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
-                         <span class="p">(</span><span class="s1">&#39;*trials.itiDuration.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
-                         <span class="p">(</span><span class="s1">&#39;*trials.probabilityLeft.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
-                         <span class="p">(</span><span class="s1">&#39;*trials.response_times.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
-                         <span class="p">(</span><span class="s1">&#39;*trials.rewardVolume.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
                          <span class="p">(</span><span class="s1">&#39;*trials.stimOff_times.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
-                         <span class="p">(</span><span class="s1">&#39;*trials.stimOn_times.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
                          <span class="p">(</span><span class="s1">&#39;*wheel.position.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
                          <span class="p">(</span><span class="s1">&#39;*wheel.timestamps.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
                          <span class="p">(</span><span class="s1">&#39;*wheelMoves.intervals.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
@@ -761,8 +766,13 @@
             <span class="s2">&quot;sessions&quot;</span><span class="p">,</span> <span class="n">eid</span><span class="p">,</span> <span class="s2">&quot;extended_qc&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;behavior&quot;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">good_enough</span><span class="p">)}</span>
         <span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">_run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">plot_qc</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_extract_behaviour</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">dsets</span><span class="p">,</span> <span class="n">out_files</span> <span class="o">=</span> <span class="n">ephys_fpga</span><span class="o">.</span><span class="n">extract_all</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">dsets</span><span class="p">,</span> <span class="n">out_files</span>
+
+    <span class="k">def</span> <span class="nf">_run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">plot_qc</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="n">dsets</span><span class="p">,</span> <span class="n">out_files</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_extract_behaviour</span><span class="p">()</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">offline</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">out_files</span>
@@ -784,8 +794,7 @@
                 <span class="n">plot_task</span> <span class="o">=</span> <span class="n">BehaviourPlots</span><span class="p">(</span><span class="n">session_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">)</span>
                 <span class="n">_</span> <span class="o">=</span> <span class="n">plot_task</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">plot_tasks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">plot_task</span><span class="p">)</span>
-
-            <span class="k">except</span> <span class="ne">BaseException</span><span class="p">:</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
                 <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Could not create Trials QC Plot&#39;</span><span class="p">)</span>
                 <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">())</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
@@ -1014,9 +1023,10 @@
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">gpu</span> <span class="o">=</span> <span class="mi">1</span>
     <span class="n">cpu</span> <span class="o">=</span> <span class="mi">4</span>
-    <span class="n">io_charge</span> <span class="o">=</span> <span class="mi">90</span>
+    <span class="n">io_charge</span> <span class="o">=</span> <span class="mi">100</span>
     <span class="n">level</span> <span class="o">=</span> <span class="mi">2</span>
     <span class="n">force</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">job_size</span> <span class="o">=</span> <span class="s1">&#39;large&#39;</span>
 
     <span class="n">dlcenv</span> <span class="o">=</span> <span class="n">Path</span><span class="o">.</span><span class="n">home</span><span class="p">()</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;Documents&#39;</span><span class="p">,</span> <span class="s1">&#39;PYTHON&#39;</span><span class="p">,</span> <span class="s1">&#39;envs&#39;</span><span class="p">,</span> <span class="s1">&#39;dlcenv&#39;</span><span class="p">,</span> <span class="s1">&#39;bin&#39;</span><span class="p">,</span> <span class="s1">&#39;activate&#39;</span><span class="p">)</span>
     <span class="n">scripts</span> <span class="o">=</span> <span class="n">Path</span><span class="o">.</span><span class="n">home</span><span class="p">()</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;Documents&#39;</span><span class="p">,</span> <span class="s1">&#39;PYTHON&#39;</span><span class="p">,</span> <span class="s1">&#39;iblscripts&#39;</span><span class="p">,</span> <span class="s1">&#39;deploy&#39;</span><span class="p">,</span> <span class="s1">&#39;serverpc&#39;</span><span class="p">,</span> <span class="s1">&#39;dlc&#39;</span><span class="p">)</span>
@@ -1392,6 +1402,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysVideoCompress&quot;</span><span class="p">],</span> <span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysPulses&quot;</span><span class="p">],</span> <span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysTrials&quot;</span><span class="p">]])</span>
         <span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysCellsQc&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">EphysCellsQc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;SpikeSorting&quot;</span><span class="p">]])</span>
         <span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysDLC&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">EphysDLC</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysVideoCompress&quot;</span><span class="p">]])</span>
+        <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;EphysTrainingStatus&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">EphysTrainingStatus</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysTrials&quot;</span><span class="p">]])</span>
         <span class="c1"># level 3</span>
         <span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysPostDLC&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">EphysPostDLC</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysDLC&quot;</span><span class="p">],</span> <span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysTrials&quot;</span><span class="p">],</span>
                                                                          <span class="n">tasks</span><span class="p">[</span><span class="s2">&quot;EphysVideoSyncQc&quot;</span><span class="p">]])</span>

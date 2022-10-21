@@ -55,9 +55,13 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../public_docs/public_introduction.html">Publicly available IBL data</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../public_docs/data_release_pilot.html">Data Release - Pilot Dataset</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_release_repro_ephys.html">Data Release - Reproducible Ephys Paper</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_release_brainwidemap.html">Data Release - Brain Wide Map</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../public_docs/information_contact.html">Information and troubleshooting</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Exploring IBL Data</span></p>
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_structure.html">Get to know the datasets and folder structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_download.html">Download the public datasets</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../loading_examples.html">Loading Data</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Miscellaneous</span></p>
@@ -109,19 +113,20 @@
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">re</span>
 
+<span class="kn">from</span> <span class="nn">pkg_resources</span> <span class="kn">import</span> <span class="n">parse_version</span>
 <span class="kn">from</span> <span class="nn">dateutil</span> <span class="kn">import</span> <span class="n">parser</span> <span class="k">as</span> <span class="n">dateparser</span>
 <span class="kn">from</span> <span class="nn">iblutil.io</span> <span class="kn">import</span> <span class="n">hashfile</span>
 <span class="kn">from</span> <span class="nn">one.alf.files</span> <span class="kn">import</span> <span class="n">get_session_path</span>
 <span class="kn">import</span> <span class="nn">one.alf.exceptions</span> <span class="k">as</span> <span class="nn">alferr</span>
 <span class="kn">from</span> <span class="nn">one.api</span> <span class="kn">import</span> <span class="n">ONE</span>
 
+<span class="kn">import</span> <span class="nn">ibllib</span>
 <span class="kn">import</span> <span class="nn">ibllib.io.extractors.base</span>
-<span class="kn">from</span> <span class="nn">ibllib.misc</span> <span class="kn">import</span> <span class="n">version</span>
 <span class="kn">import</span> <span class="nn">ibllib.time</span>
 <span class="kn">import</span> <span class="nn">ibllib.io.raw_data_loaders</span> <span class="k">as</span> <span class="nn">raw</span>
 <span class="kn">from</span> <span class="nn">ibllib.io</span> <span class="kn">import</span> <span class="n">flags</span>
 
-<span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;ibllib&#39;</span><span class="p">)</span>
+<span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 <span class="n">EXCLUDED_EXTENSIONS</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;.flag&#39;</span><span class="p">,</span> <span class="s1">&#39;.error&#39;</span><span class="p">,</span> <span class="s1">&#39;.avi&#39;</span><span class="p">]</span>
 <span class="n">REGISTRATION_GLOB_PATTERNS</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;alf/**/*.*&#39;</span><span class="p">,</span>
                               <span class="s1">&#39;raw_behavior_data/**/_iblrig_*.*&#39;</span><span class="p">,</span>
@@ -133,6 +138,9 @@
                               <span class="s1">&#39;raw_ephys_data/**/_spikeglx_*.*&#39;</span><span class="p">,</span>
                               <span class="s1">&#39;raw_ephys_data/**/_iblqc_*.*&#39;</span><span class="p">,</span>
                               <span class="s1">&#39;spikesorters/**/_kilosort_*.*&#39;</span>
+                              <span class="s1">&#39;spikesorters/**/_kilosort_*.*&#39;</span><span class="p">,</span>
+                              <span class="s1">&#39;raw_widefield_data/**/_ibl_*.*&#39;</span><span class="p">,</span>
+                              <span class="s1">&#39;raw_photometry_data/**/_neurophotometrics_*.*&#39;</span>
                               <span class="p">]</span>
 
 
@@ -147,7 +155,7 @@
 
 
 <div class="viewcode-block" id="register_dataset"><a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.registration.html#ibllib.oneibl.registration.register_dataset">[docs]</a><span class="k">def</span> <span class="nf">register_dataset</span><span class="p">(</span><span class="n">file_list</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">created_by</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">repository</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">server_only</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                     <span class="n">versions</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">dry</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">max_md5_size</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+                     <span class="n">versions</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">dry</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">max_md5_size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">exists</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Registers a set of files belonging to a session only on the server</span>
 <span class="sd">    :param file_list: (list of pathlib.Path or pathlib.Path)</span>
@@ -162,6 +170,11 @@
 <span class="sd">    defaults to None</span>
 <span class="sd">    :return:</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># If the repository is specified then for the registration client we want server_only=True to make sure we don&#39;t make</span>
+    <span class="c1"># any other repositories for the lab</span>
+    <span class="k">if</span> <span class="n">repository</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">server_only</span><span class="p">:</span>
+        <span class="n">server_only</span> <span class="o">=</span> <span class="kc">True</span>
+
     <span class="k">if</span> <span class="n">created_by</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">created_by</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">user</span>
     <span class="k">if</span> <span class="n">file_list</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">file_list</span> <span class="o">==</span> <span class="s1">&#39;&#39;</span> <span class="ow">or</span> <span class="n">file_list</span> <span class="o">==</span> <span class="p">[]:</span>
@@ -172,7 +185,7 @@
     <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">([</span><span class="n">get_session_path</span><span class="p">(</span><span class="n">f</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">file_list</span><span class="p">]))</span> <span class="o">==</span> <span class="mi">1</span>
     <span class="k">assert</span> <span class="nb">all</span><span class="p">([</span><span class="n">Path</span><span class="p">(</span><span class="n">f</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">file_list</span><span class="p">])</span>
     <span class="k">if</span> <span class="n">versions</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">versions</span> <span class="o">=</span> <span class="n">version</span><span class="o">.</span><span class="n">ibllib</span><span class="p">()</span>
+        <span class="n">versions</span> <span class="o">=</span> <span class="n">ibllib</span><span class="o">.</span><span class="n">__version__</span>
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">versions</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
         <span class="n">versions</span> <span class="o">=</span> <span class="p">[</span><span class="n">versions</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">file_list</span><span class="p">]</span>
     <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">versions</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">versions</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">file_list</span><span class="p">)</span>
@@ -195,7 +208,8 @@
          <span class="s1">&#39;hashes&#39;</span><span class="p">:</span> <span class="n">hashes</span><span class="p">,</span>
          <span class="s1">&#39;filesizes&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">p</span><span class="o">.</span><span class="n">stat</span><span class="p">()</span><span class="o">.</span><span class="n">st_size</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">file_list</span><span class="p">],</span>
          <span class="s1">&#39;versions&#39;</span><span class="p">:</span> <span class="n">versions</span><span class="p">,</span>
-         <span class="s1">&#39;default&#39;</span><span class="p">:</span> <span class="n">default</span><span class="p">}</span>
+         <span class="s1">&#39;default&#39;</span><span class="p">:</span> <span class="n">default</span><span class="p">,</span>
+         <span class="s1">&#39;exists&#39;</span><span class="p">:</span> <span class="n">exists</span><span class="p">}</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">dry</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">one</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">one</span> <span class="o">=</span> <span class="n">ONE</span><span class="p">(</span><span class="n">cache_rest</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
@@ -235,10 +249,12 @@
     <span class="c1"># filter 1/2 filter out datasets that do not match any dataset type</span>
     <span class="n">files_2_register</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">f</span><span class="p">:</span> <span class="n">_check_filename_for_registration</span><span class="p">(</span>
         <span class="n">f</span><span class="p">,</span> <span class="n">registration_patterns</span><span class="p">),</span> <span class="n">files_2_register</span><span class="p">))</span>
-    <span class="c1"># filter 2/2 unless overwrite is True, filter out the datasets that already exists</span>
+    <span class="c1"># filter 2/2 unless overwrite is True, filter out the datasets that already exist</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">overwrite</span><span class="p">:</span>
         <span class="n">files_2_register</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">f</span><span class="p">:</span> <span class="n">f</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">already_registered</span><span class="p">,</span> <span class="n">files_2_register</span><span class="p">))</span>
-    <span class="n">response</span> <span class="o">=</span> <span class="n">register_dataset</span><span class="p">(</span><span class="n">files_2_register</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">,</span> <span class="n">versions</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dry</span><span class="o">=</span><span class="n">dry</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="n">data_repo</span> <span class="o">=</span> <span class="n">get_local_data_repository</span><span class="p">(</span><span class="n">one</span><span class="p">)</span>
+    <span class="n">response</span> <span class="o">=</span> <span class="n">register_dataset</span><span class="p">(</span><span class="n">files_2_register</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">,</span> <span class="n">versions</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dry</span><span class="o">=</span><span class="n">dry</span><span class="p">,</span> <span class="n">repository</span><span class="o">=</span><span class="n">data_repo</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">files_2_register</span><span class="p">,</span> <span class="n">response</span></div>
 
 
@@ -282,11 +298,11 @@
 
         <span class="k">return</span> <span class="p">[</span><span class="n">ff</span><span class="o">.</span><span class="n">parent</span> <span class="k">for</span> <span class="n">ff</span> <span class="ow">in</span> <span class="n">flag_files</span><span class="p">]</span></div>
 
-<div class="viewcode-block" id="RegistrationClient.create_session"><a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.registration.html#ibllib.oneibl.registration.RegistrationClient.create_session">[docs]</a>    <span class="k">def</span> <span class="nf">create_session</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_path</span><span class="p">):</span>
+<div class="viewcode-block" id="RegistrationClient.create_session"><a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.registration.html#ibllib.oneibl.registration.RegistrationClient.create_session">[docs]</a>    <span class="k">def</span> <span class="nf">create_session</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_path</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        create_session(session_path)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">register_session</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">file_list</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></div>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">register_session</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">file_list</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="RegistrationClient.register_sync"><a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.registration.html#ibllib.oneibl.registration.RegistrationClient.register_sync">[docs]</a>    <span class="k">def</span> <span class="nf">register_sync</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">root_data_folder</span><span class="p">,</span> <span class="n">dry</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -310,12 +326,18 @@
                 <span class="n">flag_file</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;create_me.flag&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">unlink</span><span class="p">()</span>
             <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;registered&#39;</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="RegistrationClient.register_session"><a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.registration.html#ibllib.oneibl.registration.RegistrationClient.register_session">[docs]</a>    <span class="k">def</span> <span class="nf">register_session</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ses_path</span><span class="p">,</span> <span class="n">file_list</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<div class="viewcode-block" id="RegistrationClient.register_session"><a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.registration.html#ibllib.oneibl.registration.RegistrationClient.register_session">[docs]</a>    <span class="k">def</span> <span class="nf">register_session</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ses_path</span><span class="p">,</span> <span class="n">file_list</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">projects</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">procedures</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Register session in Alyx</span>
 
 <span class="sd">        :param ses_path: path to the session</span>
 <span class="sd">        :param file_list: bool. Set to False will only create the session and skip registration</span>
+<span class="sd">        :param projects: list of strings corresponding to project names in the database. If set to</span>
+<span class="sd">         None, defaults to the subject projects. Here is how to get a list of current projects</span>
+<span class="sd">            &gt;&gt;&gt; sorted([proj[&#39;name&#39;] for proj in one.alyx.rest(&#39;projects&#39;, &#39;list&#39;)])</span>
+<span class="sd">        :param procedures: (None) list of session procedure to label the session with. They should</span>
+<span class="sd">        correspond to procedures in the database.</span>
+<span class="sd">            &gt;&gt;&gt; sorted([proc[&#39;name&#39;] for proc in one.alyx.rest(&#39;procedures&#39;, &#39;list&#39;)])</span>
 <span class="sd">        :return: Status string on error</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ses_path</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
@@ -334,8 +356,8 @@
         <span class="n">md</span> <span class="o">=</span> <span class="n">_read_settings_json_compatibility_enforced</span><span class="p">(</span><span class="n">settings_json_file</span><span class="p">)</span>
         <span class="c1"># query alyx endpoints for subject, error if not found</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="n">subject</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;subjects?nickname=&#39;</span> <span class="o">+</span> <span class="n">md</span><span class="p">[</span><span class="s1">&#39;SUBJECT_NAME&#39;</span><span class="p">],</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span>
-                                         <span class="n">no_cache</span><span class="o">=</span><span class="kc">True</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">subject</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span>
+                <span class="s1">&#39;subjects&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span> <span class="n">nickname</span><span class="o">=</span><span class="n">md</span><span class="p">[</span><span class="s1">&#39;SUBJECT_NAME&#39;</span><span class="p">],</span> <span class="n">no_cache</span><span class="o">=</span><span class="kc">True</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
         <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
             <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Subject: </span><span class="si">{</span><span class="n">md</span><span class="p">[</span><span class="s1">&#39;SUBJECT_NAME&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> doesn&#39;t exist in Alyx. ABORT.&quot;</span><span class="p">)</span>
             <span class="k">raise</span> <span class="n">alferr</span><span class="o">.</span><span class="n">AlyxSubjectNotFound</span><span class="p">(</span><span class="n">md</span><span class="p">[</span><span class="s1">&#39;SUBJECT_NAME&#39;</span><span class="p">])</span>
@@ -362,16 +384,24 @@
         <span class="n">gen_rel_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">subject</span><span class="p">[</span><span class="s1">&#39;nickname&#39;</span><span class="p">],</span> <span class="n">md</span><span class="p">[</span><span class="s1">&#39;SESSION_DATE&#39;</span><span class="p">],</span>
                             <span class="s1">&#39;</span><span class="si">{0:03d}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">md</span><span class="p">[</span><span class="s1">&#39;SESSION_NUMBER&#39;</span><span class="p">])))</span>
 
-        <span class="c1"># if nothing found create a new session in Alyx</span>
         <span class="n">task_protocol</span> <span class="o">=</span> <span class="n">md</span><span class="p">[</span><span class="s1">&#39;PYBPOD_PROTOCOL&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="n">md</span><span class="p">[</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">]</span>
-        <span class="n">alyx_procedure</span> <span class="o">=</span> <span class="n">_alyx_procedure_from_task</span><span class="p">(</span><span class="n">task_protocol</span><span class="p">)</span>
+        <span class="c1"># unless specified label the session projects with subject projects</span>
+        <span class="n">projects</span> <span class="o">=</span> <span class="n">subject</span><span class="p">[</span><span class="s1">&#39;projects&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="n">projects</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">projects</span>
+        <span class="c1"># makes sure projects is a list</span>
+        <span class="n">projects</span> <span class="o">=</span> <span class="p">[</span><span class="n">projects</span><span class="p">]</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">projects</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">else</span> <span class="n">projects</span>
+
+        <span class="c1"># unless specified label the session procedures with task protocol lookup</span>
+        <span class="n">procedures</span> <span class="o">=</span> <span class="n">procedures</span> <span class="k">if</span> <span class="n">procedures</span> <span class="k">else</span> <span class="n">_alyx_procedure_from_task</span><span class="p">(</span><span class="n">task_protocol</span><span class="p">)</span>
+        <span class="n">procedures</span> <span class="o">=</span> <span class="p">[</span><span class="n">procedures</span><span class="p">]</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">procedures</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">else</span> <span class="n">procedures</span>
+        <span class="n">json_fields_names</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;IS_MOCK&#39;</span><span class="p">,</span> <span class="s1">&#39;POOP_COUNT&#39;</span><span class="p">,</span> <span class="s1">&#39;IBLRIG_VERSION&#39;</span><span class="p">]</span>
+        <span class="n">json_field</span> <span class="o">=</span> <span class="p">{</span><span class="n">f</span><span class="p">:</span> <span class="n">md</span><span class="p">[</span><span class="n">f</span><span class="p">]</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">json_fields_names</span> <span class="k">if</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">md</span><span class="p">}</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">session</span><span class="p">:</span>
             <span class="n">ses_</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;subject&#39;</span><span class="p">:</span> <span class="n">subject</span><span class="p">[</span><span class="s1">&#39;nickname&#39;</span><span class="p">],</span>
                     <span class="s1">&#39;users&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">username</span><span class="p">],</span>
                     <span class="s1">&#39;location&#39;</span><span class="p">:</span> <span class="n">md</span><span class="p">[</span><span class="s1">&#39;PYBPOD_BOARD&#39;</span><span class="p">],</span>
-                    <span class="s1">&#39;procedures&#39;</span><span class="p">:</span> <span class="p">[]</span> <span class="k">if</span> <span class="n">alyx_procedure</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">[</span><span class="n">alyx_procedure</span><span class="p">],</span>
+                    <span class="s1">&#39;procedures&#39;</span><span class="p">:</span> <span class="n">procedures</span><span class="p">,</span>
                     <span class="s1">&#39;lab&#39;</span><span class="p">:</span> <span class="n">subject</span><span class="p">[</span><span class="s1">&#39;lab&#39;</span><span class="p">],</span>
-                    <span class="c1"># &#39;project&#39;: project[&#39;name&#39;],</span>
+                    <span class="s1">&#39;projects&#39;</span><span class="p">:</span> <span class="n">projects</span><span class="p">,</span>
                     <span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;Experiment&#39;</span><span class="p">,</span>
                     <span class="s1">&#39;task_protocol&#39;</span><span class="p">:</span> <span class="n">task_protocol</span><span class="p">,</span>
                     <span class="s1">&#39;number&#39;</span><span class="p">:</span> <span class="n">md</span><span class="p">[</span><span class="s1">&#39;SESSION_NUMBER&#39;</span><span class="p">],</span>
@@ -379,7 +409,7 @@
                     <span class="s1">&#39;end_time&#39;</span><span class="p">:</span> <span class="n">ibllib</span><span class="o">.</span><span class="n">time</span><span class="o">.</span><span class="n">date2isostr</span><span class="p">(</span><span class="n">end_time</span><span class="p">)</span> <span class="k">if</span> <span class="n">end_time</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
                     <span class="s1">&#39;n_correct_trials&#39;</span><span class="p">:</span> <span class="n">n_correct_trials</span><span class="p">,</span>
                     <span class="s1">&#39;n_trials&#39;</span><span class="p">:</span> <span class="n">n_trials</span><span class="p">,</span>
-                    <span class="s1">&#39;json&#39;</span><span class="p">:</span> <span class="n">md</span><span class="p">,</span>
+                    <span class="s1">&#39;json&#39;</span><span class="p">:</span> <span class="n">json_field</span><span class="p">,</span>
                     <span class="p">}</span>
             <span class="n">session</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;sessions&#39;</span><span class="p">,</span> <span class="s1">&#39;create&#39;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">ses_</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">md</span><span class="p">[</span><span class="s1">&#39;SUBJECT_WEIGHT&#39;</span><span class="p">]:</span>
@@ -444,7 +474,7 @@
               <span class="s1">&#39;filenames&#39;</span><span class="p">:</span> <span class="n">F</span><span class="p">,</span>
               <span class="s1">&#39;hashes&#39;</span><span class="p">:</span> <span class="n">md5s</span><span class="p">,</span>
               <span class="s1">&#39;filesizes&#39;</span><span class="p">:</span> <span class="n">file_sizes</span><span class="p">,</span>
-              <span class="s1">&#39;versions&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">version</span><span class="o">.</span><span class="n">ibllib</span><span class="p">()</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">F</span><span class="p">]</span>
+              <span class="s1">&#39;versions&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">ibllib</span><span class="o">.</span><span class="n">__version__</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">F</span><span class="p">]</span>
               <span class="p">}</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s1">&#39;/register-file&#39;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">r_</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">session</span></div></div>
@@ -452,7 +482,8 @@
 
 <span class="k">def</span> <span class="nf">_alyx_procedure_from_task</span><span class="p">(</span><span class="n">task_protocol</span><span class="p">):</span>
     <span class="n">task_type</span> <span class="o">=</span> <span class="n">ibllib</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">extractors</span><span class="o">.</span><span class="n">base</span><span class="o">.</span><span class="n">get_task_extractor_type</span><span class="p">(</span><span class="n">task_protocol</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">_alyx_procedure_from_task_type</span><span class="p">(</span><span class="n">task_type</span><span class="p">)</span>
+    <span class="n">procedure</span> <span class="o">=</span> <span class="n">_alyx_procedure_from_task_type</span><span class="p">(</span><span class="n">task_type</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">procedure</span> <span class="ow">or</span> <span class="p">[]</span>
 
 
 <span class="k">def</span> <span class="nf">_alyx_procedure_from_task_type</span><span class="p">(</span><span class="n">task_type</span><span class="p">):</span>
@@ -490,13 +521,15 @@
 <span class="k">def</span> <span class="nf">_read_settings_json_compatibility_enforced</span><span class="p">(</span><span class="n">json_file</span><span class="p">):</span>
     <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">json_file</span><span class="p">)</span> <span class="k">as</span> <span class="n">js</span><span class="p">:</span>
         <span class="n">md</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">js</span><span class="p">)</span>
+    <span class="k">if</span> <span class="s1">&#39;IS_MOCK&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">md</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="n">md</span><span class="p">[</span><span class="s1">&#39;IS_MOCK&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
     <span class="k">if</span> <span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">md</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
         <span class="n">md</span><span class="p">[</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;3.2.3&#39;</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">md</span><span class="p">[</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">]:</span>
         <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;You appear to be on an untagged version...&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">md</span>
     <span class="c1"># 2018-12-05 Version 3.2.3 fixes (permanent fixes in IBL_RIG from 3.2.4 on)</span>
-    <span class="k">if</span> <span class="n">version</span><span class="o">.</span><span class="n">le</span><span class="p">(</span><span class="n">md</span><span class="p">[</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">],</span> <span class="s1">&#39;3.2.3&#39;</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">parse_version</span><span class="p">(</span><span class="n">md</span><span class="p">[</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">])</span> <span class="o">&lt;=</span> <span class="n">parse_version</span><span class="p">(</span><span class="s1">&#39;3.2.3&#39;</span><span class="p">):</span>
         <span class="k">if</span> <span class="s1">&#39;LAST_TRIAL_DATA&#39;</span> <span class="ow">in</span> <span class="n">md</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
             <span class="n">md</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;LAST_TRIAL_DATA&#39;</span><span class="p">)</span>
         <span class="k">if</span> <span class="s1">&#39;weighings&#39;</span> <span class="ow">in</span> <span class="n">md</span><span class="p">[</span><span class="s1">&#39;PYBPOD_SUBJECT_EXTRA&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
@@ -517,7 +550,7 @@
 <div class="viewcode-block" id="rename_files_compatibility"><a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.registration.html#ibllib.oneibl.registration.rename_files_compatibility">[docs]</a><span class="k">def</span> <span class="nf">rename_files_compatibility</span><span class="p">(</span><span class="n">ses_path</span><span class="p">,</span> <span class="n">version_tag</span><span class="p">):</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">version_tag</span><span class="p">:</span>
         <span class="k">return</span>
-    <span class="k">if</span> <span class="n">version</span><span class="o">.</span><span class="n">le</span><span class="p">(</span><span class="n">version_tag</span><span class="p">,</span> <span class="s1">&#39;3.2.3&#39;</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">parse_version</span><span class="p">(</span><span class="n">version_tag</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">parse_version</span><span class="p">(</span><span class="s1">&#39;3.2.3&#39;</span><span class="p">):</span>
         <span class="n">task_code</span> <span class="o">=</span> <span class="n">ses_path</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s1">&#39;**/_ibl_trials.iti_duration.npy&#39;</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">fn</span> <span class="ow">in</span> <span class="n">task_code</span><span class="p">:</span>
             <span class="n">fn</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">fn</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;_ibl_trials.itiDuration.npy&#39;</span><span class="p">))</span>
@@ -572,6 +605,26 @@
     <span class="k">for</span> <span class="n">gp</span> <span class="ow">in</span> <span class="n">REGISTRATION_GLOB_PATTERNS</span><span class="p">:</span>
         <span class="n">fl</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">ses_path</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">gp</span><span class="p">)))</span>
     <span class="k">return</span> <span class="n">fl</span>
+
+
+<div class="viewcode-block" id="get_local_data_repository"><a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.registration.html#ibllib.oneibl.registration.get_local_data_repository">[docs]</a><span class="k">def</span> <span class="nf">get_local_data_repository</span><span class="p">(</span><span class="n">one</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Get local data repo name from globus client</span>
+<span class="sd">    :param one:</span>
+<span class="sd">    :return:</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">one</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">Path</span><span class="o">.</span><span class="n">home</span><span class="p">()</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s2">&quot;.globusonline/lta/client-id.txt&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+        <span class="k">return</span>
+
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">Path</span><span class="o">.</span><span class="n">home</span><span class="p">()</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s2">&quot;.globusonline/lta/client-id.txt&quot;</span><span class="p">),</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fid</span><span class="p">:</span>
+        <span class="n">globus_id</span> <span class="o">=</span> <span class="n">fid</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+
+    <span class="n">data_repo</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;data-repository&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span> <span class="n">globus_endpoint_id</span><span class="o">=</span><span class="n">globus_id</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">data_repo</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">da</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">da</span> <span class="ow">in</span> <span class="n">data_repo</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span></div>
 </pre></div>
 
            </div>

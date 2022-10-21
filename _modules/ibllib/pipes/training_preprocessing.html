@@ -55,9 +55,13 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../public_docs/public_introduction.html">Publicly available IBL data</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../public_docs/data_release_pilot.html">Data Release - Pilot Dataset</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_release_repro_ephys.html">Data Release - Reproducible Ephys Paper</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_release_brainwidemap.html">Data Release - Brain Wide Map</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../public_docs/information_contact.html">Information and troubleshooting</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Exploring IBL Data</span></p>
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_structure.html">Get to know the datasets and folder structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_download.html">Download the public datasets</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../loading_examples.html">Loading Data</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Miscellaneous</span></p>
@@ -93,6 +97,7 @@
   <ul class="wy-breadcrumbs">
       <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
           <li><a href="../../index.html">Module code</a> &raquo;</li>
+          <li><a href="../pipes.html">ibllib.pipes</a> &raquo;</li>
       <li>ibllib.pipes.training_preprocessing</li>
       <li class="wy-breadcrumbs-aside">
       </li>
@@ -106,7 +111,7 @@
 <span></span><span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">OrderedDict</span>
 
-<span class="kn">from</span> <span class="nn">ibllib.pipes</span> <span class="kn">import</span> <span class="n">tasks</span>
+<span class="kn">from</span> <span class="nn">ibllib.pipes</span> <span class="kn">import</span> <span class="n">tasks</span><span class="p">,</span> <span class="n">training_status</span>
 <span class="kn">from</span> <span class="nn">ibllib.io</span> <span class="kn">import</span> <span class="n">ffmpeg</span>
 <span class="kn">from</span> <span class="nn">ibllib.io.extractors.base</span> <span class="kn">import</span> <span class="n">get_session_extractor_type</span>
 <span class="kn">from</span> <span class="nn">ibllib.io.extractors</span> <span class="kn">import</span> <span class="n">training_audio</span><span class="p">,</span> <span class="n">bpod_trials</span><span class="p">,</span> <span class="n">camera</span>
@@ -115,7 +120,7 @@
 <span class="kn">from</span> <span class="nn">ibllib.qc.task_extractors</span> <span class="kn">import</span> <span class="n">TaskQCExtractor</span>
 <span class="kn">from</span> <span class="nn">ibllib.oneibl.registration</span> <span class="kn">import</span> <span class="n">register_session_raw_data</span>
 
-<span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;ibllib&#39;</span><span class="p">)</span>
+<span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
 
 <span class="c1">#  level 0</span>
@@ -137,7 +142,6 @@
                         <span class="p">(</span><span class="s1">&#39;_iblrig_encoderEvents.raw*&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
                         <span class="p">(</span><span class="s1">&#39;_iblrig_encoderPositions.raw*&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)],</span>
         <span class="s1">&#39;output_files&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;*trials.goCueTrigger_times.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
-                         <span class="p">(</span><span class="s1">&#39;*trials.itiDuration.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
                          <span class="p">(</span><span class="s1">&#39;*trials.table.pqt&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
                          <span class="p">(</span><span class="s1">&#39;*wheel.position.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
                          <span class="p">(</span><span class="s1">&#39;*wheel.timestamps.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
@@ -172,6 +176,8 @@
 <div class="viewcode-block" id="TrainingVideoCompress"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_preprocessing.html#ibllib.pipes.training_preprocessing.TrainingVideoCompress">[docs]</a><span class="k">class</span> <span class="nc">TrainingVideoCompress</span><span class="p">(</span><span class="n">tasks</span><span class="o">.</span><span class="n">Task</span><span class="p">):</span>
 
     <span class="n">priority</span> <span class="o">=</span> <span class="mi">90</span>
+    <span class="n">io_charge</span> <span class="o">=</span> <span class="mi">100</span>
+    <span class="n">job_size</span> <span class="o">=</span> <span class="s1">&#39;large&#39;</span>
 
     <span class="k">def</span> <span class="nf">_run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="c1"># avi to mp4 compression</span>
@@ -212,6 +218,27 @@
         <span class="k">pass</span></div>
 
 
+<div class="viewcode-block" id="TrainingStatus"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_preprocessing.html#ibllib.pipes.training_preprocessing.TrainingStatus">[docs]</a><span class="k">class</span> <span class="nc">TrainingStatus</span><span class="p">(</span><span class="n">tasks</span><span class="o">.</span><span class="n">Task</span><span class="p">):</span>
+    <span class="n">priority</span> <span class="o">=</span> <span class="mi">90</span>
+    <span class="n">level</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">force</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">signature</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;input_files&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;_iblrig_taskData.raw.*&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                        <span class="p">(</span><span class="s1">&#39;_iblrig_taskSettings.raw.*&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                        <span class="p">(</span><span class="s1">&#39;*trials.table.pqt&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)],</span>
+        <span class="s1">&#39;output_files&#39;</span><span class="p">:</span> <span class="p">[]</span>
+    <span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">_run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">upload</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Extracts training status for subject</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">training_status</span><span class="o">.</span><span class="n">get_latest_training_information</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">)</span>
+        <span class="n">training_status</span><span class="o">.</span><span class="n">make_plots</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">,</span> <span class="n">df</span><span class="o">=</span><span class="n">df</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">upload</span><span class="o">=</span><span class="n">upload</span><span class="p">)</span>
+        <span class="n">output_files</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">return</span> <span class="n">output_files</span></div>
+
+
 <div class="viewcode-block" id="TrainingExtractionPipeline"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_preprocessing.html#ibllib.pipes.training_preprocessing.TrainingExtractionPipeline">[docs]</a><span class="k">class</span> <span class="nc">TrainingExtractionPipeline</span><span class="p">(</span><span class="n">tasks</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">):</span>
     <span class="n">label</span> <span class="o">=</span> <span class="vm">__name__</span>
 
@@ -225,6 +252,7 @@
         <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;TrainingVideoCompress&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">TrainingVideoCompress</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
         <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;TrainingAudio&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">TrainingAudio</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
         <span class="c1"># level 1</span>
+        <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;TrainingStatus&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">TrainingStatus</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;TrainingTrials&#39;</span><span class="p">]])</span>
         <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;TrainingDLC&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">TrainingDLC</span><span class="p">(</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;TrainingVideoCompress&#39;</span><span class="p">]])</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span> <span class="o">=</span> <span class="n">tasks</span></div>

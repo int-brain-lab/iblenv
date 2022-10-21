@@ -55,9 +55,13 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../public_docs/public_introduction.html">Publicly available IBL data</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../public_docs/data_release_pilot.html">Data Release - Pilot Dataset</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_release_repro_ephys.html">Data Release - Reproducible Ephys Paper</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_release_brainwidemap.html">Data Release - Brain Wide Map</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../public_docs/information_contact.html">Information and troubleshooting</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Exploring IBL Data</span></p>
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_structure.html">Get to know the datasets and folder structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_download.html">Download the public datasets</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../loading_examples.html">Loading Data</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Miscellaneous</span></p>
@@ -93,6 +97,7 @@
   <ul class="wy-breadcrumbs">
       <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
           <li><a href="../../index.html">Module code</a> &raquo;</li>
+          <li><a href="../pipes.html">ibllib.pipes</a> &raquo;</li>
       <li>ibllib.pipes.tasks</li>
       <li class="wy-breadcrumbs-aside">
       </li>
@@ -115,32 +120,35 @@
 
 <span class="kn">from</span> <span class="nn">graphviz</span> <span class="kn">import</span> <span class="n">Digraph</span>
 
-<span class="kn">from</span> <span class="nn">ibllib.misc</span> <span class="kn">import</span> <span class="n">version</span>
+<span class="kn">import</span> <span class="nn">ibllib</span>
 <span class="kn">from</span> <span class="nn">ibllib.oneibl</span> <span class="kn">import</span> <span class="n">data_handlers</span>
+<span class="kn">from</span> <span class="nn">ibllib.oneibl.data_handlers</span> <span class="kn">import</span> <span class="n">get_local_data_repository</span>
+<span class="kn">from</span> <span class="nn">iblutil.util</span> <span class="kn">import</span> <span class="n">Bunch</span>
 <span class="kn">import</span> <span class="nn">one.params</span>
 <span class="kn">from</span> <span class="nn">one.api</span> <span class="kn">import</span> <span class="n">ONE</span>
 
-<span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;ibllib&#39;</span><span class="p">)</span>
+<span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="Task"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.tasks.html#ibllib.pipes.tasks.Task">[docs]</a><span class="k">class</span> <span class="nc">Task</span><span class="p">(</span><span class="n">abc</span><span class="o">.</span><span class="n">ABC</span><span class="p">):</span>
-    <span class="n">log</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>  <span class="c1"># place holder to keep the log of the task for registratoin</span>
+    <span class="n">log</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>  <span class="c1"># place holder to keep the log of the task for registration</span>
     <span class="n">cpu</span> <span class="o">=</span> <span class="mi">1</span>   <span class="c1"># CPU resource</span>
     <span class="n">gpu</span> <span class="o">=</span> <span class="mi">0</span>   <span class="c1"># GPU resources: as of now, either 0 or 1</span>
     <span class="n">io_charge</span> <span class="o">=</span> <span class="mi">5</span>  <span class="c1"># integer percentage</span>
     <span class="n">priority</span> <span class="o">=</span> <span class="mi">30</span>  <span class="c1"># integer percentage, 100 means highest priority</span>
-    <span class="n">ram</span> <span class="o">=</span> <span class="mi">4</span>  <span class="c1"># RAM needed to run (Go)</span>
+    <span class="n">ram</span> <span class="o">=</span> <span class="mi">4</span>  <span class="c1"># RAM needed to run (GB)</span>
     <span class="n">one</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># one instance (optional)</span>
     <span class="n">level</span> <span class="o">=</span> <span class="mi">0</span>  <span class="c1"># level in the pipeline hierarchy: level 0 means there is no parent task</span>
     <span class="n">outputs</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># place holder for a list of Path containing output files</span>
     <span class="n">time_elapsed_secs</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">time_out_secs</span> <span class="o">=</span> <span class="mi">3600</span> <span class="o">*</span> <span class="mi">2</span>  <span class="c1"># time-out after which a task is considered dead</span>
-    <span class="n">version</span> <span class="o">=</span> <span class="n">version</span><span class="o">.</span><span class="n">ibllib</span><span class="p">()</span>
+    <span class="n">version</span> <span class="o">=</span> <span class="n">ibllib</span><span class="o">.</span><span class="n">__version__</span>
     <span class="n">signature</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;input_files&#39;</span><span class="p">:</span> <span class="p">[],</span> <span class="s1">&#39;output_files&#39;</span><span class="p">:</span> <span class="p">[]}</span>  <span class="c1"># list of tuples (filename, collection, required_flag)</span>
     <span class="n">force</span> <span class="o">=</span> <span class="kc">False</span>  <span class="c1"># whether or not to re-download missing input files on local server if not present</span>
+    <span class="n">job_size</span> <span class="o">=</span> <span class="s1">&#39;small&#39;</span>  <span class="c1"># either &#39;small&#39; or &#39;large&#39;, defines whether task should be run as part of the large or small job services</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_path</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">taskid</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                 <span class="n">machine</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">clobber</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="s1">&#39;server&#39;</span><span class="p">):</span>
+                 <span class="n">machine</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">clobber</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="s1">&#39;server&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Base task class</span>
 <span class="sd">        :param session_path: session path</span>
@@ -152,6 +160,7 @@
 <span class="sd">        :param location: location where task is run. Options are &#39;server&#39; (lab local servers&#39;), &#39;remote&#39; (remote compute node,</span>
 <span class="sd">        data required for task downloaded via one), &#39;AWS&#39; (remote compute node, data required for task downloaded via AWS),</span>
 <span class="sd">        or &#39;SDSC&#39; (SDSC flatiron compute node) # TODO &#39;Globus&#39; (remote compute node, data required for task downloaded via Globus)</span>
+<span class="sd">        :param args: running arguments</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">taskid</span> <span class="o">=</span> <span class="n">taskid</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">one</span> <span class="o">=</span> <span class="n">one</span>
@@ -159,12 +168,14 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">register_kwargs</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="k">if</span> <span class="n">parents</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">parents</span> <span class="o">=</span> <span class="n">parents</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">level</span> <span class="o">=</span> <span class="nb">max</span><span class="p">([</span><span class="n">p</span><span class="o">.</span><span class="n">level</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parents</span><span class="p">])</span> <span class="o">+</span> <span class="mi">1</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">parents</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">machine</span> <span class="o">=</span> <span class="n">machine</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">clobber</span> <span class="o">=</span> <span class="n">clobber</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">location</span> <span class="o">=</span> <span class="n">location</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">plot_tasks</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># Plotting task/ tasks to create plot outputs during the task</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span> <span class="o">=</span> <span class="n">kwargs</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -200,12 +211,12 @@
         <span class="n">ch</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">StreamHandler</span><span class="p">(</span><span class="n">log_capture_string</span><span class="p">)</span>
         <span class="n">str_format</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">%(asctime)s</span><span class="s1">,</span><span class="si">%(msecs)d</span><span class="s1"> </span><span class="si">%(levelname)-8s</span><span class="s1"> [</span><span class="si">%(filename)s</span><span class="s1">:</span><span class="si">%(lineno)d</span><span class="s1">] </span><span class="si">%(message)s</span><span class="s1">&#39;</span>
         <span class="n">ch</span><span class="o">.</span><span class="n">setFormatter</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">Formatter</span><span class="p">(</span><span class="n">str_format</span><span class="p">))</span>
-        <span class="n">_logger</span><span class="o">.</span><span class="n">addHandler</span><span class="p">(</span><span class="n">ch</span><span class="p">)</span>
-        <span class="n">_logger</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">addHandler</span><span class="p">(</span><span class="n">ch</span><span class="p">)</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
         <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Starting job </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">machine</span><span class="p">:</span>
             <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Running on machine: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">machine</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;running ibllib version </span><span class="si">{</span><span class="n">version</span><span class="o">.</span><span class="n">ibllib</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;running ibllib version </span><span class="si">{</span><span class="n">ibllib</span><span class="o">.</span><span class="n">__version__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="c1"># setup</span>
         <span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
         <span class="k">try</span><span class="p">:</span>
@@ -224,8 +235,8 @@
                         <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Job </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="si">}</span><span class="s2"> exited as a lock was found&quot;</span><span class="p">)</span>
                         <span class="n">new_log</span> <span class="o">=</span> <span class="n">log_capture_string</span><span class="o">.</span><span class="n">getvalue</span><span class="p">()</span>
                         <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">new_log</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">clobber</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">+</span> <span class="n">new_log</span>
-                        <span class="n">log_capture_string</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
                         <span class="n">_logger</span><span class="o">.</span><span class="n">removeHandler</span><span class="p">(</span><span class="n">ch</span><span class="p">)</span>
+                        <span class="n">ch</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
                         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">status</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">outputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
                 <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Job </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="si">}</span><span class="s2"> complete&quot;</span><span class="p">)</span>
@@ -248,8 +259,8 @@
         <span class="c1"># after the run, capture the log output, amend to any existing logs if not overwrite</span>
         <span class="n">new_log</span> <span class="o">=</span> <span class="n">log_capture_string</span><span class="o">.</span><span class="n">getvalue</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">new_log</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">clobber</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">+</span> <span class="n">new_log</span>
-        <span class="n">log_capture_string</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
         <span class="n">_logger</span><span class="o">.</span><span class="n">removeHandler</span><span class="p">(</span><span class="n">ch</span><span class="p">)</span>
+        <span class="n">ch</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
         <span class="n">_logger</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logger_level</span><span class="p">)</span>
         <span class="c1"># tear down</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tearDown</span><span class="p">()</span>
@@ -298,7 +309,7 @@
 <span class="sd">        :param overwrite: (bool) if the output already exists,</span>
 <span class="sd">        :return: out_files: files to be registered. Could be a list of files (pathlib.Path),</span>
 <span class="sd">        a single file (pathlib.Path) an empty list [] or None.</span>
-<span class="sd">        Whithin the pipeline, there is a distinction between a job that returns an empty list</span>
+<span class="sd">        Within the pipeline, there is a distinction between a job that returns an empty list</span>
 <span class="sd">         and a job that returns None. If the function returns None, the job will be labeled as</span>
 <span class="sd">          &quot;empty&quot; status in the database, otherwise, the job has an expected behaviour of not</span>
 <span class="sd">          returning any dataset.</span>
@@ -482,12 +493,28 @@
         <span class="k">if</span> <span class="n">one</span> <span class="ow">and</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">cache_mode</span> <span class="ow">and</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">default_expiry</span><span class="o">.</span><span class="n">seconds</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
             <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Alyx client REST cache active; this may cause issues with jobs&#39;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">eid</span> <span class="o">=</span> <span class="n">eid</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data_repo</span> <span class="o">=</span> <span class="n">get_local_data_repository</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">session_path</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span> <span class="o">=</span> <span class="n">session_path</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">eid</span><span class="p">:</span>
                 <span class="c1"># eID for newer sessions may not be in cache so use remote query</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">eid</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">path2eid</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">query_type</span><span class="o">=</span><span class="s1">&#39;remote&#39;</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span> <span class="k">else</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">label</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__module__</span> <span class="o">+</span> <span class="s1">&#39;.&#39;</span> <span class="o">+</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_get_exec_name</span><span class="p">(</span><span class="n">obj</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        For a class, get the executable name as it should be stored in Alyx. When the class</span>
+<span class="sd">        is created dynamically using the type() built-in function, need to revert to the base</span>
+<span class="sd">        class to be able to re-instantiate the class from the alyx dictionary on the client side</span>
+<span class="sd">        :param obj:</span>
+<span class="sd">        :return: string containing the full module plus class name</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">obj</span><span class="o">.</span><span class="vm">__module__</span> <span class="o">==</span> <span class="s1">&#39;abc&#39;</span><span class="p">:</span>
+            <span class="n">exec_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">obj</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="n">__base__</span><span class="o">.</span><span class="vm">__module__</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">obj</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="n">__base__</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">exec_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">obj</span><span class="o">.</span><span class="vm">__module__</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">obj</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">return</span> <span class="n">exec_name</span>
 
 <div class="viewcode-block" id="Pipeline.make_graph"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.tasks.html#ibllib.pipes.tasks.Pipeline.make_graph">[docs]</a>    <span class="k">def</span> <span class="nf">make_graph</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">out_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">show</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">out_dir</span><span class="p">:</span>
@@ -514,7 +541,7 @@
             <span class="n">m</span><span class="o">.</span><span class="n">view</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">m</span></div>
 
-<div class="viewcode-block" id="Pipeline.create_alyx_tasks"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.tasks.html#ibllib.pipes.tasks.Pipeline.create_alyx_tasks">[docs]</a>    <span class="k">def</span> <span class="nf">create_alyx_tasks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rerun__status__in</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="Pipeline.create_alyx_tasks"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.tasks.html#ibllib.pipes.tasks.Pipeline.create_alyx_tasks">[docs]</a>    <span class="k">def</span> <span class="nf">create_alyx_tasks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rerun__status__in</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">tasks_list</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Instantiate the pipeline and create the tasks in Alyx, then create the jobs for the session</span>
 <span class="sd">        If the jobs already exist, they are left untouched. The re-run parameter will re-init the</span>
@@ -532,22 +559,44 @@
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;No ONE instance found for Alyx connection, set the one property&quot;</span><span class="p">)</span>
             <span class="k">return</span>
-        <span class="n">tasks_alyx_pre</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;tasks&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span>
-                                            <span class="n">session</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">eid</span><span class="p">,</span> <span class="n">graph</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">no_cache</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">tasks_alyx_pre</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;tasks&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span> <span class="n">session</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">eid</span><span class="p">,</span> <span class="n">graph</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">no_cache</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="n">tasks_alyx</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="c1"># creates all the tasks by iterating through the ordered dict</span>
-        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+
+        <span class="k">if</span> <span class="n">tasks_list</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">task_items</span> <span class="o">=</span> <span class="n">tasks_list</span>
+            <span class="c1"># need to add in the session eid and the parents</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">task_items</span> <span class="o">=</span> <span class="p">[</span><span class="n">t</span> <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">items</span><span class="p">()]</span>
+
+        <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">task_items</span><span class="p">:</span>
             <span class="c1"># get the parents&#39; alyx ids to reference in the database</span>
+            <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">t</span><span class="p">)</span> <span class="o">==</span> <span class="nb">dict</span><span class="p">:</span>
+                <span class="n">t</span> <span class="o">=</span> <span class="n">Bunch</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+                <span class="n">executable</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">executable</span>
+                <span class="n">arguments</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">arguments</span>
+                <span class="n">t</span><span class="p">[</span><span class="s1">&#39;time_out_secs&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">t</span><span class="p">[</span><span class="s1">&#39;time_out_sec&#39;</span><span class="p">]</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">parents</span><span class="p">):</span>
+                    <span class="n">pnames</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">t</span><span class="o">.</span><span class="n">parents</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">executable</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_exec_name</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+                <span class="n">arguments</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">kwargs</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">parents</span><span class="p">):</span>
+                    <span class="n">pnames</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">t</span><span class="o">.</span><span class="n">parents</span><span class="p">]</span>
+
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">parents</span><span class="p">):</span>
-                <span class="n">pnames</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">t</span><span class="o">.</span><span class="n">parents</span><span class="p">]</span>
                 <span class="n">parents_ids</span> <span class="o">=</span> <span class="p">[</span><span class="n">ta</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">ta</span> <span class="ow">in</span> <span class="n">tasks_alyx</span> <span class="k">if</span> <span class="n">ta</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span> <span class="ow">in</span> <span class="n">pnames</span><span class="p">]</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">parents_ids</span> <span class="o">=</span> <span class="p">[]</span>
-            <span class="n">task_dict</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;executable&#39;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">t</span><span class="o">.</span><span class="vm">__module__</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">t</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s1">&#39;priority&#39;</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">priority</span><span class="p">,</span>
+
+            <span class="n">task_dict</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;executable&#39;</span><span class="p">:</span> <span class="n">executable</span><span class="p">,</span> <span class="s1">&#39;priority&#39;</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">priority</span><span class="p">,</span>
                          <span class="s1">&#39;io_charge&#39;</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">io_charge</span><span class="p">,</span> <span class="s1">&#39;gpu&#39;</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">gpu</span><span class="p">,</span> <span class="s1">&#39;cpu&#39;</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">cpu</span><span class="p">,</span>
                          <span class="s1">&#39;ram&#39;</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">ram</span><span class="p">,</span> <span class="s1">&#39;module&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">,</span> <span class="s1">&#39;parents&#39;</span><span class="p">:</span> <span class="n">parents_ids</span><span class="p">,</span>
                          <span class="s1">&#39;level&#39;</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">level</span><span class="p">,</span> <span class="s1">&#39;time_out_sec&#39;</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">time_out_secs</span><span class="p">,</span> <span class="s1">&#39;session&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">eid</span><span class="p">,</span>
-                         <span class="s1">&#39;status&#39;</span><span class="p">:</span> <span class="s1">&#39;Waiting&#39;</span><span class="p">,</span> <span class="s1">&#39;log&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s1">&#39;graph&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">}</span>
+                         <span class="s1">&#39;status&#39;</span><span class="p">:</span> <span class="s1">&#39;Waiting&#39;</span><span class="p">,</span> <span class="s1">&#39;log&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s1">&#39;graph&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                         <span class="s1">&#39;arguments&#39;</span><span class="p">:</span> <span class="n">arguments</span><span class="p">}</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_repo</span><span class="p">:</span>
+                <span class="n">task_dict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;data_repository&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_repo</span><span class="p">})</span>
             <span class="c1"># if the task already exists, patch it otherwise, create it</span>
             <span class="n">talyx</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">t</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">tasks_alyx_pre</span><span class="p">),</span> <span class="p">[])</span>
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">talyx</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
@@ -557,6 +606,33 @@
                     <span class="s1">&#39;tasks&#39;</span><span class="p">,</span> <span class="s1">&#39;partial_update&#39;</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">talyx</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">],</span> <span class="n">data</span><span class="o">=</span><span class="n">task_dict</span><span class="p">)</span>
             <span class="n">tasks_alyx</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">talyx</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">tasks_alyx</span></div>
+
+<div class="viewcode-block" id="Pipeline.create_tasks_list_from_pipeline"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.tasks.html#ibllib.pipes.tasks.Pipeline.create_tasks_list_from_pipeline">[docs]</a>    <span class="k">def</span> <span class="nf">create_tasks_list_from_pipeline</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        From a pipeline with tasks, creates a list of dictionaries containing task description that can be used to upload to</span>
+<span class="sd">        create alyx tasks</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">tasks_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="c1"># get the parents&#39; alyx ids to reference in the database</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">parents</span><span class="p">):</span>
+                <span class="n">parent_names</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">t</span><span class="o">.</span><span class="n">parents</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">parent_names</span> <span class="o">=</span> <span class="p">[]</span>
+
+            <span class="n">task_dict</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;executable&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_exec_name</span><span class="p">(</span><span class="n">t</span><span class="p">),</span> <span class="s1">&#39;priority&#39;</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">priority</span><span class="p">,</span>
+                         <span class="s1">&#39;io_charge&#39;</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">io_charge</span><span class="p">,</span> <span class="s1">&#39;gpu&#39;</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">gpu</span><span class="p">,</span> <span class="s1">&#39;cpu&#39;</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">cpu</span><span class="p">,</span>
+                         <span class="s1">&#39;ram&#39;</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">ram</span><span class="p">,</span> <span class="s1">&#39;module&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">,</span> <span class="s1">&#39;parents&#39;</span><span class="p">:</span> <span class="n">parent_names</span><span class="p">,</span>
+                         <span class="s1">&#39;level&#39;</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">level</span><span class="p">,</span> <span class="s1">&#39;time_out_sec&#39;</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">time_out_secs</span><span class="p">,</span> <span class="s1">&#39;session&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">eid</span><span class="p">,</span>
+                         <span class="s1">&#39;status&#39;</span><span class="p">:</span> <span class="s1">&#39;Waiting&#39;</span><span class="p">,</span> <span class="s1">&#39;log&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s1">&#39;graph&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                         <span class="s1">&#39;arguments&#39;</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">kwargs</span><span class="p">}</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_repo</span><span class="p">:</span>
+                <span class="n">task_dict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;data_repository&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_repo</span><span class="p">})</span>
+
+            <span class="n">tasks_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">task_dict</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">tasks_list</span></div>
 
 <div class="viewcode-block" id="Pipeline.run"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.tasks.html#ibllib.pipes.tasks.Pipeline.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">status__in</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;Waiting&#39;</span><span class="p">],</span> <span class="n">machine</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">clobber</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -601,7 +677,7 @@
 
 
 <div class="viewcode-block" id="run_alyx_task"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.tasks.html#ibllib.pipes.tasks.run_alyx_task">[docs]</a><span class="k">def</span> <span class="nf">run_alyx_task</span><span class="p">(</span><span class="n">tdict</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">session_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">job_deck</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                  <span class="n">max_md5_size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">machine</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">clobber</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="s1">&#39;server&#39;</span><span class="p">):</span>
+                  <span class="n">max_md5_size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">machine</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">clobber</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="s1">&#39;server&#39;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;log&#39;</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Runs a single Alyx job and registers output datasets</span>
 <span class="sd">    :param tdict:</span>
@@ -616,6 +692,8 @@
 <span class="sd">    :param clobber: bool, if True any existing logs are overwritten, default is True</span>
 <span class="sd">    :param location: where you are running the task, &#39;server&#39; - local lab server, &#39;remote&#39; - any</span>
 <span class="sd">    compute node/ computer, &#39;SDSC&#39; - flatiron compute node, &#39;AWS&#39; - using data from aws s3</span>
+<span class="sd">    :param mode: str (&#39;log&#39; or &#39;raise&#39;) behaviour to adopt if an error occured. If &#39;raise&#39;, it</span>
+<span class="sd">    will Raise the error at the very end of this function (ie. after having labeled the tasks)</span>
 <span class="sd">    :return:</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">registered_dsets</span> <span class="o">=</span> <span class="p">[]</span>
@@ -631,7 +709,8 @@
             <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">tdict</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> has unmet dependencies&quot;</span><span class="p">)</span>
             <span class="c1"># if parents are waiting or failed, set the current task status to Held</span>
             <span class="c1"># once the parents ran, the descendent tasks will be set from Held to Waiting (see below)</span>
-            <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="n">s</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;Errored&#39;</span><span class="p">,</span> <span class="s1">&#39;Held&#39;</span><span class="p">,</span> <span class="s1">&#39;Empty&#39;</span><span class="p">,</span> <span class="s1">&#39;Waiting&#39;</span><span class="p">],</span> <span class="n">parent_statuses</span><span class="p">)):</span>
+            <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="n">s</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;Errored&#39;</span><span class="p">,</span> <span class="s1">&#39;Held&#39;</span><span class="p">,</span> <span class="s1">&#39;Empty&#39;</span><span class="p">,</span> <span class="s1">&#39;Waiting&#39;</span><span class="p">,</span> <span class="s1">&#39;Started&#39;</span><span class="p">,</span> <span class="s1">&#39;Abandoned&#39;</span><span class="p">],</span>
+                       <span class="n">parent_statuses</span><span class="p">)):</span>
                 <span class="n">tdict</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;tasks&#39;</span><span class="p">,</span> <span class="s1">&#39;partial_update&#39;</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">tdict</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">],</span>
                                       <span class="n">data</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;status&#39;</span><span class="p">:</span> <span class="s1">&#39;Held&#39;</span><span class="p">})</span>
             <span class="k">return</span> <span class="n">tdict</span><span class="p">,</span> <span class="n">registered_dsets</span>
@@ -639,8 +718,9 @@
     <span class="n">exec_name</span> <span class="o">=</span> <span class="n">tdict</span><span class="p">[</span><span class="s1">&#39;executable&#39;</span><span class="p">]</span>
     <span class="n">strmodule</span><span class="p">,</span> <span class="n">strclass</span> <span class="o">=</span> <span class="n">exec_name</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
     <span class="n">classe</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">importlib</span><span class="o">.</span><span class="n">import_module</span><span class="p">(</span><span class="n">strmodule</span><span class="p">),</span> <span class="n">strclass</span><span class="p">)</span>
+    <span class="n">tkwargs</span> <span class="o">=</span> <span class="n">tdict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;arguments&#39;</span><span class="p">,</span> <span class="p">{})</span> <span class="ow">or</span> <span class="p">{}</span>  <span class="c1"># if the db field is null it returns None</span>
     <span class="n">task</span> <span class="o">=</span> <span class="n">classe</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">,</span> <span class="n">taskid</span><span class="o">=</span><span class="n">tdict</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">],</span> <span class="n">machine</span><span class="o">=</span><span class="n">machine</span><span class="p">,</span> <span class="n">clobber</span><span class="o">=</span><span class="n">clobber</span><span class="p">,</span>
-                  <span class="n">location</span><span class="o">=</span><span class="n">location</span><span class="p">)</span>
+                  <span class="n">location</span><span class="o">=</span><span class="n">location</span><span class="p">,</span> <span class="o">**</span><span class="n">tkwargs</span><span class="p">)</span>
     <span class="c1"># sets the status flag to started before running</span>
     <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;tasks&#39;</span><span class="p">,</span> <span class="s1">&#39;partial_update&#39;</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">tdict</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">],</span> <span class="n">data</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;status&#39;</span><span class="p">:</span> <span class="s1">&#39;Started&#39;</span><span class="p">})</span>
     <span class="n">status</span> <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
@@ -653,10 +733,11 @@
     <span class="k">else</span><span class="p">:</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="n">registered_dsets</span> <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">register_datasets</span><span class="p">(</span><span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">,</span> <span class="n">max_md5_size</span><span class="o">=</span><span class="n">max_md5_size</span><span class="p">)</span>
+            <span class="n">patch_data</span><span class="p">[</span><span class="s1">&#39;status&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;Complete&#39;</span>
         <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
             <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">())</span>
-            <span class="n">patch_data</span><span class="p">[</span><span class="s1">&#39;status&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;Errored&#39;</span>
-        <span class="n">patch_data</span><span class="p">[</span><span class="s1">&#39;status&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;Complete&#39;</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+
     <span class="c1"># overwrite status to errored</span>
     <span class="k">if</span> <span class="n">status</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
         <span class="n">patch_data</span><span class="p">[</span><span class="s1">&#39;status&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;Errored&#39;</span>
@@ -676,9 +757,11 @@
         <span class="k">assert</span> <span class="n">d</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span> <span class="o">!=</span> <span class="n">t</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">],</span> <span class="s1">&#39;task its own parent&#39;</span>
         <span class="c1"># if all their parent tasks now complete, set to waiting</span>
         <span class="n">parent_status</span> <span class="o">=</span> <span class="p">[</span><span class="nb">next</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="s1">&#39;status&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">job_deck</span> <span class="k">if</span> <span class="n">x</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">y</span><span class="p">)</span> <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="n">d</span><span class="p">[</span><span class="s1">&#39;parents&#39;</span><span class="p">]]</span>
-        <span class="k">if</span> <span class="nb">all</span><span class="p">(</span><span class="n">x</span> <span class="o">==</span> <span class="s1">&#39;Complete&#39;</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">parent_status</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">all</span><span class="p">(</span><span class="n">x</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;Complete&#39;</span><span class="p">,</span> <span class="s1">&#39;Incomplete&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">parent_status</span><span class="p">):</span>
             <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;tasks&#39;</span><span class="p">,</span> <span class="s1">&#39;partial_update&#39;</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">d</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">],</span> <span class="n">data</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;status&#39;</span><span class="p">:</span> <span class="s1">&#39;Waiting&#39;</span><span class="p">})</span>
     <span class="n">task</span><span class="o">.</span><span class="n">cleanUp</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s1">&#39;raise&#39;</span> <span class="ow">and</span> <span class="n">status</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="n">log</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">t</span><span class="p">,</span> <span class="n">registered_dsets</span></div>
 </pre></div>
 

@@ -55,9 +55,13 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../public_docs/public_introduction.html">Publicly available IBL data</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../public_docs/data_release_pilot.html">Data Release - Pilot Dataset</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_release_repro_ephys.html">Data Release - Reproducible Ephys Paper</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_release_brainwidemap.html">Data Release - Brain Wide Map</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../public_docs/information_contact.html">Information and troubleshooting</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Exploring IBL Data</span></p>
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_structure.html">Get to know the datasets and folder structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_download.html">Download the public datasets</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../loading_examples.html">Loading Data</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Miscellaneous</span></p>
@@ -108,7 +112,7 @@
 
 <span class="sd">Run the following to set-up the workspace to run the docstring examples:</span>
 <span class="sd">&gt;&gt;&gt; import brainbox as bb</span>
-<span class="sd">&gt;&gt;&gt; import alf.io as aio</span>
+<span class="sd">&gt;&gt;&gt; import one.alf.io as aio</span>
 <span class="sd">&gt;&gt;&gt; import numpy as np</span>
 <span class="sd">&gt;&gt;&gt; import matplotlib.pyplot as plt</span>
 <span class="sd">&gt;&gt;&gt; import ibllib.ephys.spikes as e_spks</span>
@@ -128,10 +132,12 @@
 <span class="kn">import</span> <span class="nn">scipy.stats</span> <span class="k">as</span> <span class="nn">stats</span>
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
 
-<span class="kn">from</span> <span class="nn">ibllib.io</span> <span class="kn">import</span> <span class="n">spikeglx</span>
+<span class="kn">import</span> <span class="nn">spikeglx</span>
 <span class="kn">from</span> <span class="nn">phylib.stats</span> <span class="kn">import</span> <span class="n">correlograms</span>
 <span class="kn">from</span> <span class="nn">iblutil.util</span> <span class="kn">import</span> <span class="n">Bunch</span>
 <span class="kn">from</span> <span class="nn">iblutil.numerical</span> <span class="kn">import</span> <span class="n">ismember</span><span class="p">,</span> <span class="n">between_sorted</span>
+<span class="kn">from</span> <span class="nn">slidingRP</span> <span class="kn">import</span> <span class="n">metrics</span>
+
 <span class="kn">from</span> <span class="nn">brainbox</span> <span class="kn">import</span> <span class="n">singlecell</span>
 <span class="kn">from</span> <span class="nn">brainbox.io.spikeglx</span> <span class="kn">import</span> <span class="n">extract_waveforms</span>
 <span class="kn">from</span> <span class="nn">brainbox.processing</span> <span class="kn">import</span> <span class="n">bincount2D</span>
@@ -142,20 +148,15 @@
 
 <span class="c1"># Parameters to be used in `quick_unit_metrics`</span>
 <span class="n">METRICS_PARAMS</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s1">&#39;noise_cutoff&#39;</span><span class="p">:</span> <span class="nb">dict</span><span class="p">(</span><span class="n">quantile_length</span><span class="o">=</span><span class="mf">.25</span><span class="p">,</span> <span class="n">n_bins</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">nc_threshold</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">percent_threshold</span><span class="o">=</span><span class="mf">0.10</span><span class="p">),</span>
+    <span class="s1">&#39;missed_spikes_est&#39;</span><span class="p">:</span> <span class="nb">dict</span><span class="p">(</span><span class="n">spks_per_bin</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">sigma</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">min_num_bins</span><span class="o">=</span><span class="mi">50</span><span class="p">),</span>
     <span class="s1">&#39;acceptable_contamination&#39;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span>
     <span class="s1">&#39;bin_size&#39;</span><span class="p">:</span> <span class="mf">0.25</span><span class="p">,</span>
     <span class="s1">&#39;med_amp_thresh_uv&#39;</span><span class="p">:</span> <span class="mi">50</span><span class="p">,</span>
     <span class="s1">&#39;min_isi&#39;</span><span class="p">:</span> <span class="mf">0.0001</span><span class="p">,</span>
-    <span class="s1">&#39;min_num_bins_for_missed_spks_est&#39;</span><span class="p">:</span> <span class="mi">50</span><span class="p">,</span>
-    <span class="s1">&#39;nc_bins&#39;</span><span class="p">:</span> <span class="mi">100</span><span class="p">,</span>
-    <span class="s1">&#39;nc_n_low_bins&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
-    <span class="s1">&#39;nc_quartile_length&#39;</span><span class="p">:</span> <span class="mf">0.2</span><span class="p">,</span>
-    <span class="s1">&#39;nc_thresh&#39;</span><span class="p">:</span> <span class="mi">20</span><span class="p">,</span>
     <span class="s1">&#39;presence_window&#39;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>
     <span class="s1">&#39;refractory_period&#39;</span><span class="p">:</span> <span class="mf">0.0015</span><span class="p">,</span>
     <span class="s1">&#39;RPslide_thresh&#39;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span>
-    <span class="s1">&#39;spks_per_bin_for_missed_spks_est&#39;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>
-    <span class="s1">&#39;std_smoothing_kernel_for_missed_spks_est&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span>
 <span class="p">}</span>
 
 
@@ -862,20 +863,18 @@
     <span class="k">return</span> <span class="n">didpass</span></div>
 
 
-<div class="viewcode-block" id="noise_cutoff"><a class="viewcode-back" href="../../../_autosummary/brainbox.metrics.single_units.html#brainbox.metrics.single_units.noise_cutoff">[docs]</a><span class="k">def</span> <span class="nf">noise_cutoff</span><span class="p">(</span><span class="n">amps</span><span class="p">,</span> <span class="n">quartile_length</span><span class="o">=</span><span class="mf">.2</span><span class="p">,</span> <span class="n">n_bins</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">n_low_bins</span><span class="o">=</span><span class="mi">2</span><span class="p">):</span>
+<div class="viewcode-block" id="noise_cutoff"><a class="viewcode-back" href="../../../_autosummary/brainbox.metrics.single_units.html#brainbox.metrics.single_units.noise_cutoff">[docs]</a><span class="k">def</span> <span class="nf">noise_cutoff</span><span class="p">(</span><span class="n">amps</span><span class="p">,</span> <span class="n">quantile_length</span><span class="o">=</span><span class="mf">.25</span><span class="p">,</span> <span class="n">n_bins</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">nc_threshold</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">percent_threshold</span><span class="o">=</span><span class="mf">0.10</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    A metric to determine whether a unit&#39;s amplitude distribution is cut off</span>
+<span class="sd">    A new metric to determine whether a unit&#39;s amplitude distribution is cut off</span>
 <span class="sd">    (at floor), without assuming a Gaussian distribution.</span>
-
 <span class="sd">    This metric takes the amplitude distribution, computes the mean and std</span>
 <span class="sd">    of an upper quartile of the distribution, and determines how many standard</span>
 <span class="sd">    deviations away from that mean a lower quartile lies.</span>
-
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
 <span class="sd">    amps : ndarray_like</span>
 <span class="sd">        The amplitudes (in uV) of the spikes.</span>
-<span class="sd">    quartile_length : float</span>
+<span class="sd">    quantile_length : float</span>
 <span class="sd">        The size of the upper quartile of the amplitude distribution.</span>
 <span class="sd">    n_bins : int</span>
 <span class="sd">        The number of bins used to compute a histogram of the amplitude</span>
@@ -883,48 +882,56 @@
 <span class="sd">    n_low_bins : int</span>
 <span class="sd">        The number of bins used in the lower part of the distribution (where</span>
 <span class="sd">        cutoff is determined).</span>
+<span class="sd">     nc_threshold: float</span>
+<span class="sd">        the noise cutoff result has to be lower than this for a neuron to fail</span>
+<span class="sd">    percent_threshold: float</span>
+<span class="sd">        the first bin has to be greater than percent_threshold for neuron the to fail</span>
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
 <span class="sd">    cutoff : float</span>
 <span class="sd">        Number of standard deviations that the lower mean is outside of the</span>
 <span class="sd">        mean of the upper quartile.</span>
-
 <span class="sd">    See Also</span>
 <span class="sd">    --------</span>
 <span class="sd">    missed_spikes_est</span>
-
 <span class="sd">    Examples</span>
 <span class="sd">    --------</span>
 <span class="sd">    1) Compute whether a unit&#39;s amplitude distribution is cut off</span>
 <span class="sd">        &gt;&gt;&gt; amps = spks_b[&#39;amps&#39;][unit_idxs]</span>
-<span class="sd">        &gt;&gt;&gt; cutoff = bb.metrics.noise_cutoff(amps, quartile_length=.2,</span>
-<span class="sd">                                             n_bins=100, n_low_bins=2)</span>
+<span class="sd">        &gt;&gt;&gt; cutoff = bb.metrics.noise_cutoff(amps, quantile_length=.25, n_bins=100)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">cutoff</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+    <span class="n">first_low_quantile</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+    <span class="n">fail_criteria</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">bool</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 
-    <span class="k">if</span> <span class="n">amps</span><span class="o">.</span><span class="n">size</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
-        <span class="n">bins_list</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">amps</span><span class="p">),</span> <span class="n">n_bins</span><span class="p">)</span>
-        <span class="n">n</span><span class="p">,</span> <span class="n">bins</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">histogram</span><span class="p">(</span><span class="n">amps</span><span class="p">,</span> <span class="n">bins</span><span class="o">=</span><span class="n">bins_list</span><span class="p">)</span>
-        <span class="n">dx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
-        <span class="n">idx_nz</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nonzero</span><span class="p">(</span><span class="n">dx</span><span class="p">)</span>  <span class="c1"># indices of nonzeros</span>
-        <span class="n">idx_peak</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
-        <span class="n">length_top_half</span> <span class="o">=</span> <span class="n">idx_nz</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">idx_peak</span>
-        <span class="n">high_quartile</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">quartile_length</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">amps</span><span class="o">.</span><span class="n">size</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>  <span class="c1"># ensure there are amplitudes available to analyze</span>
+        <span class="n">bins_list</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">amps</span><span class="p">),</span> <span class="n">n_bins</span><span class="p">)</span>  <span class="c1"># list of bins to compute the amplitude histogram</span>
+        <span class="n">n</span><span class="p">,</span> <span class="n">bins</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">histogram</span><span class="p">(</span><span class="n">amps</span><span class="p">,</span> <span class="n">bins</span><span class="o">=</span><span class="n">bins_list</span><span class="p">)</span>  <span class="c1"># construct amplitude histogram</span>
+        <span class="n">idx_peak</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>  <span class="c1"># peak of amplitude distribution</span>
+        <span class="c1"># don&#39;t count zeros #len(n) - idx_peak, compute the length of the top half of the distribution -- ignoring zero bins</span>
+        <span class="n">length_top_half</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">n</span><span class="p">[</span><span class="n">idx_peak</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="c1"># the remaining part of the distribution, which we will compare the low quantile to</span>
+        <span class="n">high_quantile</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">quantile_length</span>
+        <span class="c1"># the first bin (index) of the high quantile part of the distribution</span>
+        <span class="n">high_quantile_start_ind</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">high_quantile</span> <span class="o">*</span> <span class="n">length_top_half</span> <span class="o">+</span> <span class="n">idx_peak</span><span class="p">))</span>
+        <span class="c1"># bins to consider in the high quantile (of all non-zero bins)</span>
+        <span class="n">indices_bins_high_quantile</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">high_quantile_start_ind</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">n</span><span class="p">))</span>
+        <span class="n">idx_use</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">n</span><span class="p">[</span><span class="n">indices_bins_high_quantile</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 
-        <span class="n">high_quartile_start_ind</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">high_quartile</span> <span class="o">*</span> <span class="n">length_top_half</span> <span class="o">+</span> <span class="n">idx_peak</span><span class="p">))</span>
-        <span class="n">xx</span> <span class="o">=</span> <span class="n">idx_nz</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">idx_nz</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">high_quartile_start_ind</span><span class="p">]</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">n</span><span class="p">[</span><span class="n">xx</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="n">mean_high_quartile</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">n</span><span class="p">[</span><span class="n">xx</span><span class="p">])</span>
-            <span class="n">std_high_quartile</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">n</span><span class="p">[</span><span class="n">xx</span><span class="p">])</span>
-            <span class="n">first_low_quartile</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">n</span><span class="p">[</span><span class="n">idx_nz</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">:</span><span class="n">n_low_bins</span><span class="p">]])</span>
-            <span class="k">if</span> <span class="n">std_high_quartile</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="n">cutoff</span> <span class="o">=</span> <span class="p">(</span><span class="n">first_low_quartile</span> <span class="o">-</span> <span class="n">mean_high_quartile</span><span class="p">)</span> <span class="o">/</span> <span class="n">std_high_quartile</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">cutoff</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">cutoff</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">cutoff</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">cutoff</span></div>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">n</span><span class="p">[</span><span class="n">indices_bins_high_quantile</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>  <span class="c1"># ensure there are amplitudes in these bins</span>
+            <span class="c1"># mean of all amp values in high quantile bins</span>
+            <span class="n">mean_high_quantile</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">n</span><span class="p">[</span><span class="n">indices_bins_high_quantile</span><span class="p">][</span><span class="n">idx_use</span><span class="p">])</span>
+            <span class="n">std_high_quantile</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">n</span><span class="p">[</span><span class="n">indices_bins_high_quantile</span><span class="p">][</span><span class="n">idx_use</span><span class="p">])</span>
+            <span class="k">if</span> <span class="n">std_high_quantile</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">first_low_quantile</span> <span class="o">=</span> <span class="n">n</span><span class="p">[(</span><span class="n">n</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)][</span><span class="mi">1</span><span class="p">]</span>  <span class="c1"># take the second bin</span>
+                <span class="n">cutoff</span> <span class="o">=</span> <span class="p">(</span><span class="n">first_low_quantile</span> <span class="o">-</span> <span class="n">mean_high_quantile</span><span class="p">)</span> <span class="o">/</span> <span class="n">std_high_quantile</span>
+                <span class="n">peak_bin_height</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+                <span class="n">percent_of_peak</span> <span class="o">=</span> <span class="n">percent_threshold</span> <span class="o">*</span> <span class="n">peak_bin_height</span>
+
+                <span class="n">fail_criteria</span> <span class="o">=</span> <span class="p">(</span><span class="n">cutoff</span> <span class="o">&gt;</span> <span class="n">nc_threshold</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">first_low_quantile</span> <span class="o">&gt;</span> <span class="n">percent_of_peak</span><span class="p">)</span>
+
+    <span class="n">nc_pass</span> <span class="o">=</span> <span class="o">~</span><span class="n">fail_criteria</span>
+    <span class="k">return</span> <span class="n">nc_pass</span><span class="p">,</span> <span class="n">cutoff</span><span class="p">,</span> <span class="n">first_low_quantile</span></div>
 
 
 <div class="viewcode-block" id="spike_sorting_metrics"><a class="viewcode-back" href="../../../_autosummary/brainbox.metrics.single_units.html#brainbox.metrics.single_units.spike_sorting_metrics">[docs]</a><span class="k">def</span> <span class="nf">spike_sorting_metrics</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">clusters</span><span class="p">,</span> <span class="n">amps</span><span class="p">,</span> <span class="n">depths</span><span class="p">,</span> <span class="n">cluster_ids</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">METRICS_PARAMS</span><span class="p">):</span>
@@ -1082,6 +1089,9 @@
     <span class="c1"># this is the geometric median</span>
     <span class="n">r</span><span class="o">.</span><span class="n">amp_median</span><span class="p">[</span><span class="n">ir</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="mi">10</span> <span class="o">**</span> <span class="p">(</span><span class="n">camp</span><span class="p">[</span><span class="s1">&#39;log_amps&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">median</span><span class="p">()</span> <span class="o">/</span> <span class="mi">20</span><span class="p">))</span>
     <span class="n">r</span><span class="o">.</span><span class="n">amp_std_dB</span><span class="p">[</span><span class="n">ir</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">camp</span><span class="p">[</span><span class="s1">&#39;log_amps&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">std</span><span class="p">())</span>
+    <span class="n">srp</span> <span class="o">=</span> <span class="n">metrics</span><span class="o">.</span><span class="n">slidingRP_all</span><span class="p">(</span><span class="n">spikeTimes</span><span class="o">=</span><span class="n">spike_times</span><span class="p">,</span> <span class="n">spikeClusters</span><span class="o">=</span><span class="n">spike_clusters</span><span class="p">,</span>
+                                <span class="o">**</span><span class="p">{</span><span class="s1">&#39;sampleRate&#39;</span><span class="p">:</span> <span class="mi">30000</span><span class="p">,</span> <span class="s1">&#39;binSizeCorr&#39;</span><span class="p">:</span> <span class="mi">1</span> <span class="o">/</span> <span class="mi">30000</span><span class="p">})</span>
+    <span class="n">r</span><span class="o">.</span><span class="n">slidingRP_viol</span><span class="p">[</span><span class="n">srp</span><span class="p">[</span><span class="s1">&#39;cidx&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">srp</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">]</span>
 
     <span class="c1"># loop over each cluster to compute the rest of the metrics</span>
     <span class="k">for</span> <span class="n">ic</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">nclust</span><span class="p">):</span>
@@ -1092,24 +1102,12 @@
         <span class="n">ts</span> <span class="o">=</span> <span class="n">spike_times</span><span class="p">[</span><span class="n">ispikes</span><span class="p">]</span>
         <span class="n">amps</span> <span class="o">=</span> <span class="n">spike_amps</span><span class="p">[</span><span class="n">ispikes</span><span class="p">]</span>
         <span class="n">depths</span> <span class="o">=</span> <span class="n">spike_depths</span><span class="p">[</span><span class="n">ispikes</span><span class="p">]</span>
-
         <span class="c1"># compute metrics</span>
         <span class="n">r</span><span class="o">.</span><span class="n">contamination_alt</span><span class="p">[</span><span class="n">ic</span><span class="p">]</span> <span class="o">=</span> <span class="n">contamination_alt</span><span class="p">(</span><span class="n">ts</span><span class="p">,</span> <span class="n">rp</span><span class="o">=</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;refractory_period&#39;</span><span class="p">])</span>
         <span class="n">r</span><span class="o">.</span><span class="n">contamination</span><span class="p">[</span><span class="n">ic</span><span class="p">],</span> <span class="n">_</span> <span class="o">=</span> <span class="n">contamination</span><span class="p">(</span>
             <span class="n">ts</span><span class="p">,</span> <span class="n">tmin</span><span class="p">,</span> <span class="n">tmax</span><span class="p">,</span> <span class="n">rp</span><span class="o">=</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;refractory_period&#39;</span><span class="p">],</span> <span class="n">min_isi</span><span class="o">=</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;min_isi&#39;</span><span class="p">])</span>
-        <span class="n">r</span><span class="o">.</span><span class="n">slidingRP_viol</span><span class="p">[</span><span class="n">ic</span><span class="p">]</span> <span class="o">=</span> <span class="n">slidingRP_viol</span><span class="p">(</span><span class="n">ts</span><span class="p">,</span>
-                                              <span class="n">bin_size</span><span class="o">=</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;bin_size&#39;</span><span class="p">],</span>
-                                              <span class="n">thresh</span><span class="o">=</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;RPslide_thresh&#39;</span><span class="p">],</span>
-                                              <span class="n">acceptThresh</span><span class="o">=</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;acceptable_contamination&#39;</span><span class="p">])</span>
-        <span class="n">r</span><span class="o">.</span><span class="n">noise_cutoff</span><span class="p">[</span><span class="n">ic</span><span class="p">]</span> <span class="o">=</span> <span class="n">noise_cutoff</span><span class="p">(</span><span class="n">amps</span><span class="p">,</span>
-                                          <span class="n">quartile_length</span><span class="o">=</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;nc_quartile_length&#39;</span><span class="p">],</span>
-                                          <span class="n">n_bins</span><span class="o">=</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;nc_bins&#39;</span><span class="p">],</span>
-                                          <span class="n">n_low_bins</span><span class="o">=</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;nc_n_low_bins&#39;</span><span class="p">])</span>
-        <span class="n">r</span><span class="o">.</span><span class="n">missed_spikes_est</span><span class="p">[</span><span class="n">ic</span><span class="p">],</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">missed_spikes_est</span><span class="p">(</span>
-            <span class="n">amps</span><span class="p">,</span> <span class="n">spks_per_bin</span><span class="o">=</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;spks_per_bin_for_missed_spks_est&#39;</span><span class="p">],</span>
-            <span class="n">sigma</span><span class="o">=</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;std_smoothing_kernel_for_missed_spks_est&#39;</span><span class="p">],</span>
-            <span class="n">min_num_bins</span><span class="o">=</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;min_num_bins_for_missed_spks_est&#39;</span><span class="p">])</span>
-
+        <span class="n">_</span><span class="p">,</span> <span class="n">r</span><span class="o">.</span><span class="n">noise_cutoff</span><span class="p">[</span><span class="n">ic</span><span class="p">],</span> <span class="n">_</span> <span class="o">=</span> <span class="n">noise_cutoff</span><span class="p">(</span><span class="n">amps</span><span class="p">,</span> <span class="o">**</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;noise_cutoff&#39;</span><span class="p">])</span>
+        <span class="n">r</span><span class="o">.</span><span class="n">missed_spikes_est</span><span class="p">[</span><span class="n">ic</span><span class="p">],</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">missed_spikes_est</span><span class="p">(</span><span class="n">amps</span><span class="p">,</span> <span class="o">**</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;missed_spikes_est&#39;</span><span class="p">])</span>
         <span class="c1"># wonder if there is a need to low-cut this</span>
         <span class="n">r</span><span class="o">.</span><span class="n">drift</span><span class="p">[</span><span class="n">ic</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">depths</span><span class="p">)))</span> <span class="o">/</span> <span class="p">(</span><span class="n">tmax</span> <span class="o">-</span> <span class="n">tmin</span><span class="p">)</span> <span class="o">*</span> <span class="mi">3600</span>
 
@@ -1128,7 +1126,7 @@
     <span class="c1"># we could eventually do a bitwise qc</span>
     <span class="n">labels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">c_</span><span class="p">[</span>
         <span class="n">r</span><span class="o">.</span><span class="n">slidingRP_viol</span><span class="p">,</span>
-        <span class="n">r</span><span class="o">.</span><span class="n">noise_cutoff</span> <span class="o">&lt;</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;nc_thresh&#39;</span><span class="p">],</span>
+        <span class="n">r</span><span class="o">.</span><span class="n">noise_cutoff</span> <span class="o">&lt;</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;noise_cutoff&#39;</span><span class="p">][</span><span class="s1">&#39;nc_threshold&#39;</span><span class="p">],</span>
         <span class="n">r</span><span class="o">.</span><span class="n">amp_median</span> <span class="o">&gt;</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;med_amp_thresh_uv&#39;</span><span class="p">]</span> <span class="o">/</span> <span class="mf">1e6</span><span class="p">,</span>
     <span class="p">]</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">return_details</span><span class="p">:</span>

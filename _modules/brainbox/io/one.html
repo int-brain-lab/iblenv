@@ -55,9 +55,13 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../public_docs/public_introduction.html">Publicly available IBL data</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../public_docs/data_release_pilot.html">Data Release - Pilot Dataset</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_release_repro_ephys.html">Data Release - Reproducible Ephys Paper</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_release_brainwidemap.html">Data Release - Brain Wide Map</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../public_docs/information_contact.html">Information and troubleshooting</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Exploring IBL Data</span></p>
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_structure.html">Get to know the datasets and folder structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_download.html">Download the public datasets</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../loading_examples.html">Loading Data</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Miscellaneous</span></p>
@@ -104,7 +108,7 @@
              
   <h1>Source code for brainbox.io.one</h1><div class="highlight"><pre>
 <span></span><span class="sd">&quot;&quot;&quot;Functions for loading IBL ephys and trial data using the Open Neurophysiology Environment.&quot;&quot;&quot;</span>
-<span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">dataclass</span>
+<span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
@@ -117,7 +121,7 @@
 <span class="kn">import</span> <span class="nn">one.alf.io</span> <span class="k">as</span> <span class="nn">alfio</span>
 <span class="kn">from</span> <span class="nn">one.alf.files</span> <span class="kn">import</span> <span class="n">get_alf_path</span>
 <span class="kn">from</span> <span class="nn">one.alf</span> <span class="kn">import</span> <span class="n">cache</span>
-<span class="kn">from</span> <span class="nn">neuropixel</span> <span class="kn">import</span> <span class="n">SITES_COORDINATES</span><span class="p">,</span> <span class="n">TIP_SIZE_UM</span><span class="p">,</span> <span class="n">trace_header</span>
+<span class="kn">from</span> <span class="nn">neuropixel</span> <span class="kn">import</span> <span class="n">TIP_SIZE_UM</span><span class="p">,</span> <span class="n">trace_header</span>
 <span class="kn">import</span> <span class="nn">spikeglx</span>
 
 <span class="kn">from</span> <span class="nn">iblutil.util</span> <span class="kn">import</span> <span class="n">Bunch</span>
@@ -126,15 +130,18 @@
 <span class="kn">from</span> <span class="nn">ibllib.pipes</span> <span class="kn">import</span> <span class="n">histology</span>
 <span class="kn">from</span> <span class="nn">ibllib.pipes.ephys_alignment</span> <span class="kn">import</span> <span class="n">EphysAlignment</span>
 
+<span class="kn">import</span> <span class="nn">brainbox.plot</span>
 <span class="kn">from</span> <span class="nn">brainbox.core</span> <span class="kn">import</span> <span class="n">TimeSeries</span>
 <span class="kn">from</span> <span class="nn">brainbox.processing</span> <span class="kn">import</span> <span class="n">sync</span>
 <span class="kn">from</span> <span class="nn">brainbox.metrics.single_units</span> <span class="kn">import</span> <span class="n">quick_unit_metrics</span>
+<span class="kn">from</span> <span class="nn">brainbox.behavior.wheel</span> <span class="kn">import</span> <span class="n">interpolate_position</span><span class="p">,</span> <span class="n">velocity_filtered</span>
+<span class="kn">from</span> <span class="nn">brainbox.behavior.dlc</span> <span class="kn">import</span> <span class="n">likelihood_threshold</span><span class="p">,</span> <span class="n">get_pupil_diameter</span><span class="p">,</span> <span class="n">get_smooth_pupil_diameter</span>
 
 <span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;ibllib&#39;</span><span class="p">)</span>
 
 
 <span class="n">SPIKES_ATTRIBUTES</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;clusters&#39;</span><span class="p">,</span> <span class="s1">&#39;times&#39;</span><span class="p">,</span> <span class="s1">&#39;amps&#39;</span><span class="p">,</span> <span class="s1">&#39;depths&#39;</span><span class="p">]</span>
-<span class="n">CLUSTERS_ATTRIBUTES</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;channels&#39;</span><span class="p">,</span> <span class="s1">&#39;depths&#39;</span><span class="p">,</span> <span class="s1">&#39;metrics&#39;</span><span class="p">]</span>
+<span class="n">CLUSTERS_ATTRIBUTES</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;channels&#39;</span><span class="p">,</span> <span class="s1">&#39;depths&#39;</span><span class="p">,</span> <span class="s1">&#39;metrics&#39;</span><span class="p">,</span> <span class="s1">&#39;uuids&#39;</span><span class="p">]</span>
 
 
 <div class="viewcode-block" id="load_lfp"><a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.load_lfp">[docs]</a><span class="k">def</span> <span class="nf">load_lfp</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dataset_types</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
@@ -439,7 +446,6 @@
             <span class="c1"># get the channels from histology tracing</span>
             <span class="n">xyz</span> <span class="o">=</span> <span class="n">xyz</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">xyz</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]),</span> <span class="p">:]</span>
             <span class="n">chans</span> <span class="o">=</span> <span class="n">histology</span><span class="o">.</span><span class="n">interpolate_along_track</span><span class="p">(</span><span class="n">xyz</span><span class="p">,</span> <span class="p">(</span><span class="n">depths</span> <span class="o">+</span> <span class="n">TIP_SIZE_UM</span><span class="p">)</span> <span class="o">/</span> <span class="mf">1e6</span><span class="p">)</span>
-
             <span class="n">channels</span><span class="p">[</span><span class="n">probe</span><span class="p">]</span> <span class="o">=</span> <span class="n">_channels_traj2bunch</span><span class="p">(</span><span class="n">chans</span><span class="p">,</span> <span class="n">brain_atlas</span><span class="p">)</span>
             <span class="n">source</span> <span class="o">=</span> <span class="s1">&#39;traced&#39;</span>
         <span class="n">channels</span><span class="p">[</span><span class="n">probe</span><span class="p">][</span><span class="s1">&#39;axial_um&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">chn_coords</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span>
@@ -852,6 +858,7 @@
 <span class="sd">        have a monotonic index. Has special columns trial_start and trial_end which define start</span>
 <span class="sd">        and end times via t_before and t_after</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;brainbox.one.load_trials_df is deprecated, use one.load_object([...]).to_df() instead&#39;</span><span class="p">)</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">one</span><span class="p">:</span>
         <span class="n">one</span> <span class="o">=</span> <span class="n">ONE</span><span class="p">()</span>
 
@@ -948,7 +955,7 @@
     <span class="n">idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
     <span class="n">traj</span> <span class="o">=</span> <span class="n">traj</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
     <span class="k">if</span> <span class="n">depths</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">depths</span> <span class="o">=</span> <span class="n">SITES_COORDINATES</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="n">depths</span> <span class="o">=</span> <span class="n">trace_header</span><span class="p">(</span><span class="n">version</span><span class="o">=</span><span class="mi">1</span><span class="p">)[:,</span> <span class="mi">1</span><span class="p">]</span>
     <span class="k">if</span> <span class="n">traj</span><span class="p">[</span><span class="s1">&#39;provenance&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;Planned&#39;</span> <span class="ow">or</span> <span class="n">traj</span><span class="p">[</span><span class="s1">&#39;provenance&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;Micro-manipulator&#39;</span><span class="p">:</span>
         <span class="n">ins</span> <span class="o">=</span> <span class="n">atlas</span><span class="o">.</span><span class="n">Insertion</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">traj</span><span class="p">)</span>
         <span class="c1"># Deepest coordinate first</span>
@@ -999,11 +1006,17 @@
     <span class="n">collection</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
     <span class="n">histology</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>  <span class="c1"># &#39;alf&#39;, &#39;resolved&#39;, &#39;aligned&#39; or &#39;traced&#39;</span>
     <span class="n">spike_sorting_path</span><span class="p">:</span> <span class="n">Path</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">_sync</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="kc">None</span>
 
     <span class="k">def</span> <span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="c1"># pid gets precedence</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">pid</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">eid</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">pname</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">pid2eid</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pid</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">eid</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">pname</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">pid2eid</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pid</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">NotImplementedError</span><span class="p">:</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">eid</span> <span class="o">==</span> <span class="s1">&#39;&#39;</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">pname</span> <span class="o">==</span> <span class="s1">&#39;&#39;</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="s2">&quot;Cannot infer session id and probe name from pid. &quot;</span>
+                                  <span class="s2">&quot;You need to pass eid and pname explicitly when instantiating SpikeSortingLoader.&quot;</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">eid2path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">eid</span><span class="p">)</span>
         <span class="c1"># then eid / pname combination</span>
         <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span> <span class="o">==</span> <span class="s1">&#39;&#39;</span><span class="p">:</span>
@@ -1049,13 +1062,14 @@
         <span class="n">_logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;selecting: </span><span class="si">{</span><span class="n">collection</span><span class="si">}</span><span class="s2"> to load amongst candidates: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">collections</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">collection</span>
 
-<div class="viewcode-block" id="SpikeSortingLoader.download_spike_sorting_object"><a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.SpikeSortingLoader.download_spike_sorting_object">[docs]</a>    <span class="k">def</span> <span class="nf">download_spike_sorting_object</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="n">spike_sorter</span><span class="o">=</span><span class="s1">&#39;pykilosort&#39;</span><span class="p">,</span> <span class="n">dataset_types</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="SpikeSortingLoader.download_spike_sorting_object"><a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.SpikeSortingLoader.download_spike_sorting_object">[docs]</a>    <span class="k">def</span> <span class="nf">download_spike_sorting_object</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="n">spike_sorter</span><span class="o">=</span><span class="s1">&#39;pykilosort&#39;</span><span class="p">,</span> <span class="n">dataset_types</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Downloads an ALF object</span>
 <span class="sd">        :param obj: object name, str between &#39;spikes&#39;, &#39;clusters&#39; or &#39;channels&#39;</span>
 <span class="sd">        :param spike_sorter: (defaults to &#39;pykilosort&#39;)</span>
 <span class="sd">        :param dataset_types: list of extra dataset types, for example [&#39;spikes.samples&#39;]</span>
 <span class="sd">        :param collection: string specifiying the collection, for example &#39;alf/probe01/pykilosort&#39;</span>
+<span class="sd">        :param kwargs: additional arguments to be passed to one.api.One.load_object</span>
 <span class="sd">        :return:</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">collections</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
@@ -1066,7 +1080,7 @@
         <span class="n">attributes</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;spikes&#39;</span><span class="p">:</span> <span class="n">spike_attributes</span><span class="p">,</span> <span class="s1">&#39;clusters&#39;</span><span class="p">:</span> <span class="n">cluster_attributes</span><span class="p">,</span> <span class="s1">&#39;channels&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
                       <span class="s1">&#39;templates&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;spikes_subset&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">}</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="p">[</span><span class="n">obj</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">eid</span><span class="p">,</span> <span class="n">obj</span><span class="o">=</span><span class="n">obj</span><span class="p">,</span> <span class="n">attribute</span><span class="o">=</span><span class="n">attributes</span><span class="p">[</span><span class="n">obj</span><span class="p">],</span>
-                                               <span class="n">collection</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">collection</span><span class="p">,</span> <span class="n">download_only</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
+                                               <span class="n">collection</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">collection</span><span class="p">,</span> <span class="n">download_only</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="SpikeSortingLoader.download_spike_sorting"><a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.SpikeSortingLoader.download_spike_sorting">[docs]</a>    <span class="k">def</span> <span class="nf">download_spike_sorting</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -1103,8 +1117,9 @@
         <span class="n">clusters</span> <span class="o">=</span> <span class="n">alfio</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="p">[</span><span class="s1">&#39;clusters&#39;</span><span class="p">],</span> <span class="n">wildcards</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">wildcards</span><span class="p">)</span>
         <span class="n">spikes</span> <span class="o">=</span> <span class="n">alfio</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="p">[</span><span class="s1">&#39;spikes&#39;</span><span class="p">],</span> <span class="n">wildcards</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">wildcards</span><span class="p">)</span>
         <span class="k">if</span> <span class="s1">&#39;brainLocationIds_ccf_2017&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">channels</span><span class="p">:</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;loading channels from alyx for </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="p">[</span><span class="s1">&#39;channels&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
             <span class="n">_channels</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">histology</span> <span class="o">=</span> <span class="n">_load_channel_locations_traj</span><span class="p">(</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">eid</span><span class="p">,</span> <span class="n">probe</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">pname</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">,</span> <span class="n">brain_atlas</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">atlas</span><span class="p">,</span> <span class="n">return_source</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">eid</span><span class="p">,</span> <span class="n">probe</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">pname</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">,</span> <span class="n">brain_atlas</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">atlas</span><span class="p">,</span> <span class="n">return_source</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">aligned</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">_channels</span><span class="p">:</span>
                 <span class="n">channels</span> <span class="o">=</span> <span class="n">_channels</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">pname</span><span class="p">]</span>
         <span class="k">else</span><span class="p">:</span>
@@ -1112,9 +1127,25 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">histology</span> <span class="o">=</span> <span class="s1">&#39;alf&#39;</span>
         <span class="k">return</span> <span class="n">spikes</span><span class="p">,</span> <span class="n">clusters</span><span class="p">,</span> <span class="n">channels</span></div>
 
+<div class="viewcode-block" id="SpikeSortingLoader.compute_metrics"><a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.SpikeSortingLoader.compute_metrics">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">compute_metrics</span><span class="p">(</span><span class="n">spikes</span><span class="p">,</span> <span class="n">clusters</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">nc</span> <span class="o">=</span> <span class="n">clusters</span><span class="p">[</span><span class="s1">&#39;channels&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">size</span> <span class="k">if</span> <span class="n">clusters</span> <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">spikes</span><span class="p">[</span><span class="s1">&#39;clusters&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">size</span>
+        <span class="n">metrics</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">quick_unit_metrics</span><span class="p">(</span>
+            <span class="n">spikes</span><span class="p">[</span><span class="s1">&#39;clusters&#39;</span><span class="p">],</span> <span class="n">spikes</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">],</span> <span class="n">spikes</span><span class="p">[</span><span class="s1">&#39;amps&#39;</span><span class="p">],</span> <span class="n">spikes</span><span class="p">[</span><span class="s1">&#39;depths&#39;</span><span class="p">],</span> <span class="n">cluster_ids</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">nc</span><span class="p">)))</span>
+        <span class="k">return</span> <span class="n">metrics</span></div>
+
 <div class="viewcode-block" id="SpikeSortingLoader.merge_clusters"><a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.SpikeSortingLoader.merge_clusters">[docs]</a>    <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">merge_clusters</span><span class="p">(</span><span class="n">spikes</span><span class="p">,</span> <span class="n">clusters</span><span class="p">,</span> <span class="n">channels</span><span class="p">,</span> <span class="n">cache_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;merge metrics and channels info - optionally saves a clusters.pqt dataframe&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">merge_clusters</span><span class="p">(</span><span class="n">spikes</span><span class="p">,</span> <span class="n">clusters</span><span class="p">,</span> <span class="n">channels</span><span class="p">,</span> <span class="n">cache_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">compute_metrics</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Merge the metrics and the channel information into the clusters dictionary</span>
+<span class="sd">        :param spikes:</span>
+<span class="sd">        :param clusters:</span>
+<span class="sd">        :param channels:</span>
+<span class="sd">        :param cache_dir: if specified, will look for a cached parquet file to speed up. This is to be used</span>
+<span class="sd">         for clusters or analysis applications (defaults to None).</span>
+<span class="sd">        :param compute_metrics: if True, will explicitly recompute metrics (defaults to false)</span>
+<span class="sd">        :return: cluster dictionary containing metrics and histology</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">spikes</span> <span class="o">==</span> <span class="p">{}:</span>
             <span class="k">return</span>
         <span class="n">nc</span> <span class="o">=</span> <span class="n">clusters</span><span class="p">[</span><span class="s1">&#39;channels&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">size</span>
@@ -1124,18 +1155,17 @@
             <span class="n">metrics</span> <span class="o">=</span> <span class="n">clusters</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;metrics&#39;</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">metrics</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">nc</span><span class="p">:</span>
                 <span class="n">metrics</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="k">if</span> <span class="n">metrics</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">metrics</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">compute_metrics</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
             <span class="n">_logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;recompute clusters metrics&quot;</span><span class="p">)</span>
-            <span class="n">metrics</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">quick_unit_metrics</span><span class="p">(</span>
-                <span class="n">spikes</span><span class="p">[</span><span class="s1">&#39;clusters&#39;</span><span class="p">],</span> <span class="n">spikes</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">],</span> <span class="n">spikes</span><span class="p">[</span><span class="s1">&#39;amps&#39;</span><span class="p">],</span> <span class="n">spikes</span><span class="p">[</span><span class="s1">&#39;depths&#39;</span><span class="p">],</span> <span class="n">cluster_ids</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">nc</span><span class="p">)))</span>
+            <span class="n">metrics</span> <span class="o">=</span> <span class="n">SpikeSortingLoader</span><span class="o">.</span><span class="n">compute_metrics</span><span class="p">(</span><span class="n">spikes</span><span class="p">,</span> <span class="n">clusters</span><span class="p">)</span>
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">cache_dir</span><span class="p">,</span> <span class="n">Path</span><span class="p">):</span>
                 <span class="n">metrics</span><span class="o">.</span><span class="n">to_parquet</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">cache_dir</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;clusters.metrics.pqt&#39;</span><span class="p">))</span>
         <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">metrics</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
             <span class="n">clusters</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">metrics</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span>
-
         <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">channels</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
             <span class="n">clusters</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">channels</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="n">clusters</span><span class="p">[</span><span class="s1">&#39;channels&#39;</span><span class="p">]]</span>
         <span class="k">if</span> <span class="n">cache_dir</span><span class="p">:</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;caching clusters metrics in </span><span class="si">{</span><span class="n">cache_dir</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
             <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">clusters</span><span class="p">)</span><span class="o">.</span><span class="n">to_parquet</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">cache_dir</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;clusters.pqt&#39;</span><span class="p">))</span>
         <span class="k">return</span> <span class="n">clusters</span></div>
 
@@ -1143,7 +1173,376 @@
     <span class="k">def</span> <span class="nf">url</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Gets flatiron URL for the session&quot;&quot;&quot;</span>
         <span class="n">webclient</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">,</span> <span class="s1">&#39;_web_client&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">webclient</span><span class="o">.</span><span class="n">rel_path2url</span><span class="p">(</span><span class="n">get_alf_path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">))</span> <span class="k">if</span> <span class="n">webclient</span> <span class="k">else</span> <span class="kc">None</span></div>
+        <span class="k">return</span> <span class="n">webclient</span><span class="o">.</span><span class="n">rel_path2url</span><span class="p">(</span><span class="n">get_alf_path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">))</span> <span class="k">if</span> <span class="n">webclient</span> <span class="k">else</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="SpikeSortingLoader.samples2times"><a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.SpikeSortingLoader.samples2times">[docs]</a>    <span class="k">def</span> <span class="nf">samples2times</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">direction</span><span class="o">=</span><span class="s1">&#39;forward&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param values: numpy array of times in seconds or samples to resync</span>
+<span class="sd">        :param direction: &#39;forward&#39; (samples probe time to seconds main time) or &#39;reverse&#39;</span>
+<span class="sd">         (seconds main time to samples probe time)</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sync</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">timestamps</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">load_dataset</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">eid</span><span class="p">,</span> <span class="n">dataset</span><span class="o">=</span><span class="s1">&#39;_spikeglx_*.timestamps.npy&#39;</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;raw_ephys_data/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">pname</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_sync</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s1">&#39;timestamps&#39;</span><span class="p">:</span> <span class="n">timestamps</span><span class="p">,</span>
+                <span class="s1">&#39;forward&#39;</span><span class="p">:</span> <span class="n">interp1d</span><span class="p">(</span><span class="n">timestamps</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">timestamps</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">fill_value</span><span class="o">=</span><span class="s1">&#39;extrapolate&#39;</span><span class="p">),</span>
+                <span class="s1">&#39;reverse&#39;</span><span class="p">:</span> <span class="n">interp1d</span><span class="p">(</span><span class="n">timestamps</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">timestamps</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">fill_value</span><span class="o">=</span><span class="s1">&#39;extrapolate&#39;</span><span class="p">),</span>
+            <span class="p">}</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sync</span><span class="p">[</span><span class="n">direction</span><span class="p">](</span><span class="n">values</span><span class="p">)</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">pid2ref</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">eid2ref</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">eid</span><span class="p">,</span> <span class="n">as_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">pname</span><span class="si">}</span><span class="s2">&quot;</span>
+
+<div class="viewcode-block" id="SpikeSortingLoader.raster"><a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.SpikeSortingLoader.raster">[docs]</a>    <span class="k">def</span> <span class="nf">raster</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">spikes</span><span class="p">,</span> <span class="n">save_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param save_dir: optional if specified</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+        <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">16</span><span class="p">,</span> <span class="mi">9</span><span class="p">))</span>
+        <span class="n">brainbox</span><span class="o">.</span><span class="n">plot</span><span class="o">.</span><span class="n">driftmap</span><span class="p">(</span><span class="n">spikes</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">],</span> <span class="n">spikes</span><span class="p">[</span><span class="s1">&#39;depths&#39;</span><span class="p">],</span> <span class="n">t_bin</span><span class="o">=</span><span class="mf">0.007</span><span class="p">,</span> <span class="n">d_bin</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">vmax</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
+        <span class="n">title_str</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">pid</span><span class="si">}</span><span class="s2"> </span><span class="se">\n</span><span class="s2">&quot;</span> \
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">pid2ref</span><span class="si">}</span><span class="s2"> </span><span class="se">\n</span><span class="s2">&quot;</span> \
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">spikes</span><span class="o">.</span><span class="n">clusters</span><span class="o">.</span><span class="n">size</span><span class="si">:</span><span class="s2">_</span><span class="si">}</span><span class="s2"> spikes, </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">spikes</span><span class="o">.</span><span class="n">clusters</span><span class="p">)</span><span class="o">.</span><span class="n">size</span><span class="si">:</span><span class="s2">_</span><span class="si">}</span><span class="s2"> clusters&quot;</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">title</span><span class="o">.</span><span class="n">set_text</span><span class="p">(</span><span class="n">title_str</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3800</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">save_dir</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">png_file</span> <span class="o">=</span> <span class="n">save_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">pid</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">pid2ref</span><span class="si">}</span><span class="s2">_raster.png&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="n">Path</span><span class="p">(</span><span class="n">save_dir</span><span class="p">)</span><span class="o">.</span><span class="n">is_dir</span><span class="p">()</span> <span class="k">else</span> <span class="n">Path</span><span class="p">(</span><span class="n">save_dir</span><span class="p">)</span>
+            <span class="n">fig</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">png_file</span><span class="p">)</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">close</span><span class="p">(</span><span class="n">fig</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span></div></div>
+
+
+<div class="viewcode-block" id="SessionLoader"><a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.SessionLoader">[docs]</a><span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">SessionLoader</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Object to load session data for a give session in the recommended way.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    one: one.api.ONE instance</span>
+<span class="sd">        Can be in remote or local mode (required)</span>
+<span class="sd">    session_path: string or pathlib.Path</span>
+<span class="sd">        The absolute path to the session (one of session_path or eid is required)</span>
+<span class="sd">    eid: string</span>
+<span class="sd">        database UUID of the session (one of session_path or eid is required)</span>
+
+<span class="sd">    If both are provided, session_path takes precedence over eid.</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    1) Load all available session data for one session:</span>
+<span class="sd">        &gt;&gt;&gt; from one.api import ONE</span>
+<span class="sd">        &gt;&gt;&gt; from brainbox.io.one import SessionLoader</span>
+<span class="sd">        &gt;&gt;&gt; one = ONE()</span>
+<span class="sd">        &gt;&gt;&gt; sess_loader = SessionLoader(one=one, session_path=&#39;/mnt/s0/Data/Subjects/cortexlab/KS022/2019-12-10/001/&#39;)</span>
+<span class="sd">        # Object is initiated, but no data is loaded as you can see in the data_info attribute</span>
+<span class="sd">        &gt;&gt;&gt; sess_loader.data_info</span>
+<span class="sd">                    name  is_loaded</span>
+<span class="sd">        0         trials      False</span>
+<span class="sd">        1          wheel      False</span>
+<span class="sd">        2           pose      False</span>
+<span class="sd">        3  motion_energy      False</span>
+<span class="sd">        4          pupil      False</span>
+
+<span class="sd">        # Loading all available session data, the data_info attribute now shows which data has been loaded</span>
+<span class="sd">        &gt;&gt;&gt; sess_loader.load_session_data()</span>
+<span class="sd">        &gt;&gt;&gt; sess_loader.data_info</span>
+<span class="sd">                    name  is_loaded</span>
+<span class="sd">        0         trials       True</span>
+<span class="sd">        1          wheel       True</span>
+<span class="sd">        2           pose       True</span>
+<span class="sd">        3  motion_energy       True</span>
+<span class="sd">        4          pupil      False</span>
+
+<span class="sd">        # The data is loaded in pandas dataframes that you can access via the respective attributes, e.g.</span>
+<span class="sd">        &gt;&gt;&gt; type(sess_loader.trials)</span>
+<span class="sd">        pandas.core.frame.DataFrame</span>
+<span class="sd">        &gt;&gt;&gt; sess_loader.trials.shape</span>
+<span class="sd">        (626, 18)</span>
+<span class="sd">        # Each data comes with its own timestamps in a column called &#39;times&#39;</span>
+<span class="sd">        &gt;&gt;&gt; sess_loader.wheel[&#39;times&#39;]</span>
+<span class="sd">        0             0.134286</span>
+<span class="sd">        1             0.135286</span>
+<span class="sd">        2             0.136286</span>
+<span class="sd">        3             0.137286</span>
+<span class="sd">        4             0.138286</span>
+<span class="sd">              ...</span>
+<span class="sd">        # For camera data (pose, motionEnergy) the respective functions load the data into one dataframe per camera.</span>
+<span class="sd">        # The dataframes of all cameras are collected in a dictionary</span>
+<span class="sd">        &gt;&gt;&gt; type(sess_loader.pose)</span>
+<span class="sd">        dict</span>
+<span class="sd">        &gt;&gt;&gt; sess_loader.pose.keys()</span>
+<span class="sd">        dict_keys([&#39;leftCamera&#39;, &#39;rightCamera&#39;, &#39;bodyCamera&#39;])</span>
+<span class="sd">        &gt;&gt;&gt; sess_loader.pose[&#39;bodyCamera&#39;].columns</span>
+<span class="sd">        Index([&#39;times&#39;, &#39;tail_start_x&#39;, &#39;tail_start_y&#39;, &#39;tail_start_likelihood&#39;], dtype=&#39;object&#39;)</span>
+<span class="sd">        # In order to control the loading of specific data by e.g. specifying parameters, use the individual loading</span>
+<span class="sd">        functions:</span>
+<span class="sd">        &gt;&gt;&gt; sess_loader.load_wheel(sampling_rate=100)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">one</span><span class="p">:</span> <span class="n">One</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">session_path</span><span class="p">:</span> <span class="n">Path</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+    <span class="n">eid</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+    <span class="n">data_info</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="nb">repr</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">trials</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="nb">repr</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">wheel</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="nb">repr</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">pose</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">,</span> <span class="nb">repr</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">motion_energy</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">,</span> <span class="nb">repr</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">pupil</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="nb">repr</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Function that runs automatically after initiation of the dataclass attributes.</span>
+<span class="sd">        Checks for required inputs, sets session_path and eid, creates data_info table.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;An input to one is required. If not connection to a database is desired, it can be &quot;</span>
+                             <span class="s2">&quot;a fully local instance of One.&quot;</span><span class="p">)</span>
+        <span class="c1"># If session path is given, takes precedence over eid</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span> <span class="o">!=</span> <span class="s1">&#39;&#39;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">eid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">to_eid</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="c1"># Providing no session path, try to infer from eid</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">eid</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">eid</span> <span class="o">!=</span> <span class="s1">&#39;&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">eid2path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">eid</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;If no session path is given, eid is required.&quot;</span><span class="p">)</span>
+
+        <span class="n">data_names</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="s1">&#39;trials&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;wheel&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;pose&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;motion_energy&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;pupil&#39;</span>
+        <span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data_info</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="s1">&#39;is_loaded&#39;</span><span class="p">],</span> <span class="n">data</span><span class="o">=</span><span class="nb">zip</span><span class="p">(</span><span class="n">data_names</span><span class="p">,</span> <span class="p">[</span><span class="kc">False</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">data_names</span><span class="p">)))</span>
+
+<div class="viewcode-block" id="SessionLoader.load_session_data"><a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.SessionLoader.load_session_data">[docs]</a>    <span class="k">def</span> <span class="nf">load_session_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">trials</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">wheel</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">pose</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">motion_energy</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">pupil</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">reload</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Function to load available session data into the SessionLoader object. Input parameters allow to control which</span>
+<span class="sd">        data is loaded. Data is loaded into an attribute of the SessionLoader object with the same name as the input</span>
+<span class="sd">        parameter (e.g. SessionLoader.trials, SessionLoader.pose). Information about which data is loaded is stored</span>
+<span class="sd">        in SessionLoader.data_info</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        trials: boolean</span>
+<span class="sd">            Whether to load all trials data into SessionLoader.trials, default is True</span>
+<span class="sd">        wheel: boolean</span>
+<span class="sd">            Whether to load wheel data (position, velocity, acceleration) into SessionLoader.wheel, default is True</span>
+<span class="sd">        pose: boolean</span>
+<span class="sd">            Whether to load pose tracking results (DLC) for each available camera into SessionLoader.pose,</span>
+<span class="sd">            default is True</span>
+<span class="sd">        motion_energy: boolean</span>
+<span class="sd">            Whether to load motion energy data (whisker pad for left/right camera, body for body camera)</span>
+<span class="sd">            into SessionLoader.motion_energy, default is True</span>
+<span class="sd">        pupil: boolean</span>
+<span class="sd">            Whether to load pupil diameter (raw and smooth) for the left/right camera into SessionLoader.pupil,</span>
+<span class="sd">            default is True</span>
+<span class="sd">        reload: boolean</span>
+<span class="sd">            Whether to reload data that has already been loaded into this SessionLoader object, default is False</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">load_df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_info</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">load_df</span><span class="p">[</span><span class="s1">&#39;to_load&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">trials</span><span class="p">,</span>
+            <span class="n">wheel</span><span class="p">,</span>
+            <span class="n">pose</span><span class="p">,</span>
+            <span class="n">motion_energy</span><span class="p">,</span>
+            <span class="n">pupil</span>
+        <span class="p">]</span>
+        <span class="n">load_df</span><span class="p">[</span><span class="s1">&#39;load_func&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">load_trials</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">load_wheel</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">load_pose</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">load_motion_energy</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">load_pupil</span>
+        <span class="p">]</span>
+
+        <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">load_df</span><span class="o">.</span><span class="n">iterrows</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="s1">&#39;to_load&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
+                <span class="n">_logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Not loading </span><span class="si">{</span><span class="n">row</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> data, set to False.&quot;</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">row</span><span class="p">[</span><span class="s1">&#39;is_loaded&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">True</span> <span class="ow">and</span> <span class="n">reload</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
+                <span class="n">_logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Not loading </span><span class="si">{</span><span class="n">row</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> data, is already loaded and reload=False.&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loading </span><span class="si">{</span><span class="n">row</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> data&quot;</span><span class="p">)</span>
+                    <span class="n">row</span><span class="p">[</span><span class="s1">&#39;load_func&#39;</span><span class="p">]()</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">data_info</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">idx</span><span class="p">,</span> <span class="s1">&#39;is_loaded&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="k">except</span> <span class="ne">BaseException</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not load </span><span class="si">{</span><span class="n">row</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> data.&quot;</span><span class="p">)</span>
+                    <span class="n">_logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">e</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SessionLoader.load_trials"><a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.SessionLoader.load_trials">[docs]</a>    <span class="k">def</span> <span class="nf">load_trials</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Function to load trials data into SessionLoader.trials</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># itiDuration frequently has a mismatched dimension, and we don&#39;t need it, exclude using regex</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">wildcards</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">trials</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">eid</span><span class="p">,</span> <span class="s1">&#39;trials&#39;</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="n">attribute</span><span class="o">=</span><span class="sa">r</span><span class="s1">&#39;(?!itiDuration).*&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">to_df</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">wildcards</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data_info</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">data_info</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;trials&#39;</span><span class="p">,</span> <span class="s1">&#39;is_loaded&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span></div>
+
+<div class="viewcode-block" id="SessionLoader.load_wheel"><a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.SessionLoader.load_wheel">[docs]</a>    <span class="k">def</span> <span class="nf">load_wheel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fs</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">corner_frequency</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="mi">8</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Function to load wheel data (position, velocity, acceleration) into SessionLoader.wheel. The wheel position</span>
+<span class="sd">        is first interpolated to a uniform sampling rate. Then velocity and acceleration are computed, during which</span>
+<span class="sd">        a Butterworth low-pass filter is applied.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        fs: int, float</span>
+<span class="sd">            Sampling frequency for the wheel position, default is 1000 Hz</span>
+<span class="sd">        corner_frequency: int, float</span>
+<span class="sd">            Corner frequency of Butterworth low-pass filter, default is 20</span>
+<span class="sd">        order: int, float</span>
+<span class="sd">            Order of Butterworth low_pass filter, default is 8</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">wheel_raw</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">eid</span><span class="p">,</span> <span class="s1">&#39;wheel&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">wheel_raw</span><span class="p">[</span><span class="s1">&#39;position&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">wheel_raw</span><span class="p">[</span><span class="s1">&#39;timestamps&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Length mismatch between &#39;wheel.position&#39; and &#39;wheel.timestamps&quot;</span><span class="p">)</span>
+        <span class="c1"># resample the wheel position and compute velocity, acceleration</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">wheel</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">,</span> <span class="s1">&#39;position&#39;</span><span class="p">,</span> <span class="s1">&#39;velocity&#39;</span><span class="p">,</span> <span class="s1">&#39;acceleration&#39;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">wheel</span><span class="p">[</span><span class="s1">&#39;position&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">wheel</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">interpolate_position</span><span class="p">(</span>
+            <span class="n">wheel_raw</span><span class="p">[</span><span class="s1">&#39;timestamps&#39;</span><span class="p">],</span> <span class="n">wheel_raw</span><span class="p">[</span><span class="s1">&#39;position&#39;</span><span class="p">],</span> <span class="n">freq</span><span class="o">=</span><span class="n">fs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">wheel</span><span class="p">[</span><span class="s1">&#39;velocity&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">wheel</span><span class="p">[</span><span class="s1">&#39;acceleration&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">velocity_filtered</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">wheel</span><span class="p">[</span><span class="s1">&#39;position&#39;</span><span class="p">],</span> <span class="n">fs</span><span class="o">=</span><span class="n">fs</span><span class="p">,</span> <span class="n">corner_frequency</span><span class="o">=</span><span class="n">corner_frequency</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="n">order</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">wheel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">wheel</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data_info</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">data_info</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;wheel&#39;</span><span class="p">,</span> <span class="s1">&#39;is_loaded&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span></div>
+
+<div class="viewcode-block" id="SessionLoader.load_pose"><a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.SessionLoader.load_pose">[docs]</a>    <span class="k">def</span> <span class="nf">load_pose</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">likelihood_thr</span><span class="o">=</span><span class="mf">0.9</span><span class="p">,</span> <span class="n">views</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;left&#39;</span><span class="p">,</span> <span class="s1">&#39;right&#39;</span><span class="p">,</span> <span class="s1">&#39;body&#39;</span><span class="p">]):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Function to load the pose estimation results (DLC) into SessionLoader.pose. SessionLoader.pose is a</span>
+<span class="sd">        dictionary where keys are the names of the cameras for which pose data is loaded, and values are pandas</span>
+<span class="sd">        Dataframes with the timestamps and pose data, one row for each body part tracked for that camera.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        likelihood_thr: float</span>
+<span class="sd">            The position of each tracked body part come with a likelihood of that estimate for each time point.</span>
+<span class="sd">            Estimates for time points with likelihood &lt; likelihood_thr are set to NaN. To skip thresholding set</span>
+<span class="sd">            likelihood_thr=1. Default is 0.9</span>
+<span class="sd">        views: list</span>
+<span class="sd">            List of camera views for which to try and load data. Possible options are {&#39;left&#39;, &#39;right&#39;, &#39;body&#39;}</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># empty the dictionary so that if one loads only one view, after having loaded several, the others don&#39;t linger</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pose</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">view</span> <span class="ow">in</span> <span class="n">views</span><span class="p">:</span>
+            <span class="n">pose_raw</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">eid</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">view</span><span class="si">}</span><span class="s1">Camera&#39;</span><span class="p">,</span> <span class="n">attribute</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;dlc&#39;</span><span class="p">,</span> <span class="s1">&#39;times&#39;</span><span class="p">])</span>
+            <span class="c1"># Double check if video timestamps are correct length or can be fixed</span>
+            <span class="n">times_fixed</span><span class="p">,</span> <span class="n">dlc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_check_video_timestamps</span><span class="p">(</span><span class="n">view</span><span class="p">,</span> <span class="n">pose_raw</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">],</span> <span class="n">pose_raw</span><span class="p">[</span><span class="s1">&#39;dlc&#39;</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pose</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">view</span><span class="si">}</span><span class="s1">Camera&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">likelihood_threshold</span><span class="p">(</span><span class="n">dlc</span><span class="p">,</span> <span class="n">likelihood_thr</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pose</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">view</span><span class="si">}</span><span class="s1">Camera&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;times&#39;</span><span class="p">,</span> <span class="n">times_fixed</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">data_info</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">data_info</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;pose&#39;</span><span class="p">,</span> <span class="s1">&#39;is_loaded&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span></div>
+
+<div class="viewcode-block" id="SessionLoader.load_motion_energy"><a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.SessionLoader.load_motion_energy">[docs]</a>    <span class="k">def</span> <span class="nf">load_motion_energy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">views</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;left&#39;</span><span class="p">,</span> <span class="s1">&#39;right&#39;</span><span class="p">,</span> <span class="s1">&#39;body&#39;</span><span class="p">]):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Function to load the motion energy data into SessionLoader.motion_energy. SessionLoader.motion_energy is a</span>
+<span class="sd">        dictionary where keys are the names of the cameras for which motion energy data is loaded, and values are</span>
+<span class="sd">        pandas Dataframes with the timestamps and motion energy data.</span>
+<span class="sd">        The motion energy for the left and right camera is calculated for a square roughly covering the whisker pad</span>
+<span class="sd">        (whiskerMotionEnergy). The motion energy for the body camera is calculated for a square covering much of the</span>
+<span class="sd">        body (bodyMotionEnergy).</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        views: list</span>
+<span class="sd">            List of camera views for which to try and load data. Possible options are {&#39;left&#39;, &#39;right&#39;, &#39;body&#39;}</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">names</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;left&#39;</span><span class="p">:</span> <span class="s1">&#39;whiskerMotionEnergy&#39;</span><span class="p">,</span>
+                 <span class="s1">&#39;right&#39;</span><span class="p">:</span> <span class="s1">&#39;whiskerMotionEnergy&#39;</span><span class="p">,</span>
+                 <span class="s1">&#39;body&#39;</span><span class="p">:</span> <span class="s1">&#39;bodyMotionEnergy&#39;</span><span class="p">}</span>
+        <span class="c1"># empty the dictionary so that if one loads only one view, after having loaded several, the others don&#39;t linger</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">motion_energy</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">view</span> <span class="ow">in</span> <span class="n">views</span><span class="p">:</span>
+            <span class="n">me_raw</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">eid</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">view</span><span class="si">}</span><span class="s1">Camera&#39;</span><span class="p">,</span> <span class="n">attribute</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;ROIMotionEnergy&#39;</span><span class="p">,</span> <span class="s1">&#39;times&#39;</span><span class="p">])</span>
+            <span class="c1"># Double check if video timestamps are correct length or can be fixed</span>
+            <span class="n">times_fixed</span><span class="p">,</span> <span class="n">motion_energy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_check_video_timestamps</span><span class="p">(</span>
+                <span class="n">view</span><span class="p">,</span> <span class="n">me_raw</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">],</span> <span class="n">me_raw</span><span class="p">[</span><span class="s1">&#39;ROIMotionEnergy&#39;</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">motion_energy</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">view</span><span class="si">}</span><span class="s1">Camera&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="n">names</span><span class="p">[</span><span class="n">view</span><span class="p">]],</span> <span class="n">data</span><span class="o">=</span><span class="n">motion_energy</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">motion_energy</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">view</span><span class="si">}</span><span class="s1">Camera&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;times&#39;</span><span class="p">,</span> <span class="n">times_fixed</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">data_info</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">data_info</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;motion_energy&#39;</span><span class="p">,</span> <span class="s1">&#39;is_loaded&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span></div>
+
+<div class="viewcode-block" id="SessionLoader.load_licks"><a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.SessionLoader.load_licks">[docs]</a>    <span class="k">def</span> <span class="nf">load_licks</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Not yet implemented</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="SessionLoader.load_pupil"><a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.SessionLoader.load_pupil">[docs]</a>    <span class="k">def</span> <span class="nf">load_pupil</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">snr_thresh</span><span class="o">=</span><span class="mf">5.</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Function to load raw and smoothed pupil diameter data from the left camera into SessionLoader.pupil.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        snr_thresh: float</span>
+<span class="sd">            An SNR is calculated from the raw and smoothed pupil diameter. If this snr &lt; snr_thresh the data</span>
+<span class="sd">            will be considered unusable and will be discarded.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Try to load from features</span>
+        <span class="n">feat_raw</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">eid</span><span class="p">,</span> <span class="s1">&#39;leftCamera&#39;</span><span class="p">,</span> <span class="n">attribute</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">,</span> <span class="s1">&#39;features&#39;</span><span class="p">])</span>
+        <span class="k">if</span> <span class="s1">&#39;features&#39;</span> <span class="ow">in</span> <span class="n">feat_raw</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">times_fixed</span><span class="p">,</span> <span class="n">feats</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_check_video_timestamps</span><span class="p">(</span><span class="s1">&#39;left&#39;</span><span class="p">,</span> <span class="n">feat_raw</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">],</span> <span class="n">feat_raw</span><span class="p">[</span><span class="s1">&#39;features&#39;</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pupil</span> <span class="o">=</span> <span class="n">feats</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pupil</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;times&#39;</span><span class="p">,</span> <span class="n">times_fixed</span><span class="p">)</span>
+
+        <span class="c1"># If unavailable compute on the fly</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Pupil diameter not available, trying to compute on the fly.&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data_info</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">data_info</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;pose&#39;</span><span class="p">][</span><span class="s1">&#39;is_loaded&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="ow">and</span> <span class="s1">&#39;leftCamera&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">pose</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+                <span class="c1"># If pose data is already loaded, we don&#39;t know if it was threshold at 0.9, so we need a little stunt</span>
+                <span class="n">copy_pose</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pose</span><span class="p">[</span><span class="s1">&#39;leftCamera&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>  <span class="c1"># Save the previously loaded pose data</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">load_pose</span><span class="p">(</span><span class="n">views</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;left&#39;</span><span class="p">],</span> <span class="n">likelihood_thr</span><span class="o">=</span><span class="mf">0.9</span><span class="p">)</span>  <span class="c1"># Load new with threshold 0.9</span>
+                <span class="n">dlc_thr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pose</span><span class="p">[</span><span class="s1">&#39;leftCamera&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>  <span class="c1"># Save the threshold pose data in new variable</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">pose</span><span class="p">[</span><span class="s1">&#39;leftCamera&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">copy_pose</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>  <span class="c1"># Get previously loaded pose data back in place</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">load_pose</span><span class="p">(</span><span class="n">views</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;left&#39;</span><span class="p">],</span> <span class="n">likelihood_thr</span><span class="o">=</span><span class="mf">0.9</span><span class="p">)</span>
+                <span class="n">dlc_thr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pose</span><span class="p">[</span><span class="s1">&#39;leftCamera&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">pupil</span><span class="p">[</span><span class="s1">&#39;pupilDiameter_raw&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">get_pupil_diameter</span><span class="p">(</span><span class="n">dlc_thr</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">pupil</span><span class="p">[</span><span class="s1">&#39;pupilDiameter_smooth&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">get_smooth_pupil_diameter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pupil</span><span class="p">[</span><span class="s1">&#39;pupilDiameter_raw&#39;</span><span class="p">],</span> <span class="s1">&#39;left&#39;</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">BaseException</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Loaded raw pupil diameter but computing smooth pupil diameter failed. &quot;</span>
+                              <span class="s2">&quot;Saving all NaNs for pupilDiameter_smooth.&quot;</span><span class="p">)</span>
+                <span class="n">_logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">pupil</span><span class="p">[</span><span class="s1">&#39;pupilDiameter_smooth&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pupil</span><span class="p">[</span><span class="s1">&#39;pupilDiameter_smooth&#39;</span><span class="p">])):</span>
+            <span class="n">good_idxs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
+                <span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pupil</span><span class="p">[</span><span class="s1">&#39;pupilDiameter_smooth&#39;</span><span class="p">])</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pupil</span><span class="p">[</span><span class="s1">&#39;pupilDiameter_raw&#39;</span><span class="p">]))[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">snr</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">var</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pupil</span><span class="p">[</span><span class="s1">&#39;pupilDiameter_smooth&#39;</span><span class="p">][</span><span class="n">good_idxs</span><span class="p">])</span> <span class="o">/</span>
+                   <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">var</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pupil</span><span class="p">[</span><span class="s1">&#39;pupilDiameter_smooth&#39;</span><span class="p">][</span><span class="n">good_idxs</span><span class="p">]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">pupil</span><span class="p">[</span><span class="s1">&#39;pupilDiameter_raw&#39;</span><span class="p">][</span><span class="n">good_idxs</span><span class="p">])))</span>
+            <span class="k">if</span> <span class="n">snr</span> <span class="o">&lt;</span> <span class="n">snr_thresh</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">pupil</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">()</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Pupil diameter SNR (</span><span class="si">{</span><span class="n">snr</span><span class="si">:</span><span class="s1">.2f</span><span class="si">}</span><span class="s1">) below threshold SNR (</span><span class="si">{</span><span class="n">snr_thresh</span><span class="si">}</span><span class="s1">), removing data.&#39;</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_check_video_timestamps</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">view</span><span class="p">,</span> <span class="n">video_timestamps</span><span class="p">,</span> <span class="n">video_data</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Helper function to check for the length of the video frames vs video timestamps and fix in case</span>
+<span class="sd">        timestamps are longer than video frames.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># If camera times are shorter than video data, or empty, no current fix</span>
+        <span class="k">if</span> <span class="n">video_timestamps</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">video_data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="n">video_timestamps</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;Camera times empty for </span><span class="si">{</span><span class="n">view</span><span class="si">}</span><span class="s1">Camera.&#39;</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;Camera times are shorter than video data for </span><span class="si">{</span><span class="n">view</span><span class="si">}</span><span class="s1">Camera.&#39;</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="c1"># For pre-GPIO sessions, it is possible that the camera times are longer than the actual video.</span>
+        <span class="c1"># This is because the first few frames are sometimes not recorded. We can remove the first few</span>
+        <span class="c1"># timestamps in this case</span>
+        <span class="k">elif</span> <span class="n">video_timestamps</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">video_data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+            <span class="n">video_timestamps_fixed</span> <span class="o">=</span> <span class="n">video_timestamps</span><span class="p">[</span><span class="o">-</span><span class="n">video_data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]:]</span>
+            <span class="k">return</span> <span class="n">video_timestamps_fixed</span><span class="p">,</span> <span class="n">video_data</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">video_timestamps</span><span class="p">,</span> <span class="n">video_data</span></div>
 </pre></div>
 
            </div>

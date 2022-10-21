@@ -55,9 +55,13 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../public_docs/public_introduction.html">Publicly available IBL data</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../public_docs/data_release_pilot.html">Data Release - Pilot Dataset</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_release_repro_ephys.html">Data Release - Reproducible Ephys Paper</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_release_brainwidemap.html">Data Release - Brain Wide Map</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../public_docs/information_contact.html">Information and troubleshooting</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Exploring IBL Data</span></p>
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_structure.html">Get to know the datasets and folder structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_download.html">Download the public datasets</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../loading_examples.html">Loading Data</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Miscellaneous</span></p>
@@ -107,7 +111,9 @@
 <span class="kn">import</span> <span class="nn">subprocess</span>
 <span class="kn">import</span> <span class="nn">logging</span>
 
-<span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;ibllib&#39;</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">ibllib.io.video</span> <span class="kn">import</span> <span class="n">get_video_meta</span>
+
+<span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="compress"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.ffmpeg.html#ibllib.io.ffmpeg.compress">[docs]</a><span class="k">def</span> <span class="nf">compress</span><span class="p">(</span><span class="n">file_in</span><span class="p">,</span> <span class="n">file_out</span><span class="p">,</span> <span class="n">command</span><span class="p">,</span> <span class="n">remove_original</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
@@ -123,6 +129,7 @@
 <span class="sd">    :param file_in: full file path of input</span>
 <span class="sd">    :param file_out: full file path of output</span>
 <span class="sd">    :param command: string ready to be formatted with `file_in` and `file_out`</span>
+<span class="sd">    :param remove_original: if true, remove uncompressed file</span>
 <span class="sd">    return: file_out</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
@@ -132,26 +139,22 @@
     <span class="k">if</span> <span class="n">file_out</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
         <span class="n">file_out</span><span class="o">.</span><span class="n">unlink</span><span class="p">()</span>
     <span class="n">command2run</span> <span class="o">=</span> <span class="n">command</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">file_in</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">file_in</span><span class="p">),</span> <span class="n">file_out</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">file_out</span><span class="p">))</span>
-    <span class="n">process</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">Popen</span><span class="p">(</span><span class="n">command2run</span><span class="p">,</span> <span class="n">shell</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">stdout</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span>
-                               <span class="n">stderr</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">)</span>
+    <span class="n">process</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">Popen</span><span class="p">(</span><span class="n">command2run</span><span class="p">,</span> <span class="n">shell</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">stdout</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span> <span class="n">stderr</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">)</span>
     <span class="n">info</span><span class="p">,</span> <span class="n">error</span> <span class="o">=</span> <span class="n">process</span><span class="o">.</span><span class="n">communicate</span><span class="p">()</span>
-    <span class="k">if</span> <span class="n">process</span><span class="o">.</span><span class="n">returncode</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
-        <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;compression failed for </span><span class="si">{</span><span class="n">file_in</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">error</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-        <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">command2run</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">process</span><span class="o">.</span><span class="n">returncode</span><span class="p">,</span> <span class="kc">None</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="c1"># if the command was successful delete the original file</span>
-        <span class="k">if</span> <span class="n">remove_original</span><span class="p">:</span>
-            <span class="n">file_in</span><span class="o">.</span><span class="n">unlink</span><span class="p">()</span>
-        <span class="k">return</span> <span class="n">process</span><span class="o">.</span><span class="n">returncode</span><span class="p">,</span> <span class="n">file_out</span></div>
+    <span class="k">assert</span> <span class="n">process</span><span class="o">.</span><span class="n">returncode</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;compression failed for </span><span class="si">{</span><span class="n">file_in</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">error</span><span class="si">}</span><span class="s1">&#39;</span>
+    <span class="c1"># if the command was successful delete the original file</span>
+    <span class="k">if</span> <span class="n">remove_original</span><span class="p">:</span>
+        <span class="n">file_in</span><span class="o">.</span><span class="n">unlink</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">process</span><span class="o">.</span><span class="n">returncode</span><span class="p">,</span> <span class="n">file_out</span></div>
 
 
-<div class="viewcode-block" id="iblrig_video_compression"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.ffmpeg.html#ibllib.io.ffmpeg.iblrig_video_compression">[docs]</a><span class="k">def</span> <span class="nf">iblrig_video_compression</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">command</span><span class="p">):</span>
+<div class="viewcode-block" id="iblrig_video_compression"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.ffmpeg.html#ibllib.io.ffmpeg.iblrig_video_compression">[docs]</a><span class="k">def</span> <span class="nf">iblrig_video_compression</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">command</span><span class="p">,</span> <span class="n">verify_output</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Compresses avi files from the raw_videao_data folder into mp4. Once the compression completes</span>
+<span class="sd">    Compresses avi files from the raw_video_data folder into mp4. Once the compression completes</span>
 <span class="sd">    the avi file is removed. If mp4 already exist, the funciton returns their file path</span>
-<span class="sd">    :param session_path:</span>
-<span class="sd">    :param command:</span>
+<span class="sd">    :param session_path: the session directory path</span>
+<span class="sd">    :param command: string ready to be formatted with `file_in` and `file_out`</span>
+<span class="sd">    :param verify_output: if true assert that output video is readable</span>
 <span class="sd">    for ephys:</span>
 <span class="sd">    &gt;&gt;&gt; command = (&#39;ffmpeg -i {file_in} -y -codec:v libx264 -preset slow -crf 17 &#39;</span>
 <span class="sd">    &gt;&gt;&gt;            &#39;-nostats -loglevel 0 -codec:a copy {file_out}&#39;)</span>
@@ -164,11 +167,17 @@
     <span class="n">rig_avi_files</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s2">&quot;raw_video_data&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="s1">&#39;_iblrig_*.avi&#39;</span><span class="p">))</span>
     <span class="c1"># first compress everything (the rationale is not to delete anything if there is a crash)</span>
     <span class="k">for</span> <span class="n">file_in</span> <span class="ow">in</span> <span class="n">rig_avi_files</span><span class="p">:</span>
-        <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot; compressing </span><span class="si">{</span><span class="n">file_in</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;compressing </span><span class="si">{</span><span class="n">file_in</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="n">file_out</span> <span class="o">=</span> <span class="n">file_in</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s1">&#39;.mp4&#39;</span><span class="p">)</span>
         <span class="n">status</span><span class="p">,</span> <span class="n">fout</span> <span class="o">=</span> <span class="n">compress</span><span class="p">(</span><span class="n">file_in</span><span class="o">=</span><span class="n">file_in</span><span class="p">,</span> <span class="n">file_out</span><span class="o">=</span><span class="n">file_out</span><span class="p">,</span>
                                 <span class="n">command</span><span class="o">=</span><span class="n">command</span><span class="p">,</span> <span class="n">remove_original</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
         <span class="n">output_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">fout</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">verify_output</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">file_out</span> <span class="ow">in</span> <span class="n">output_files</span><span class="p">:</span>
+            <span class="n">meta</span> <span class="o">=</span> <span class="n">get_video_meta</span><span class="p">(</span><span class="n">file_out</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="n">meta</span><span class="o">.</span><span class="n">length</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">meta</span><span class="o">.</span><span class="n">size</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;Video file empty: </span><span class="si">{</span><span class="n">file_out</span><span class="si">}</span><span class="s1">&#39;</span>
+
     <span class="c1"># then remove everything</span>
     <span class="k">for</span> <span class="n">file_in</span> <span class="ow">in</span> <span class="n">rig_avi_files</span><span class="p">:</span>
         <span class="n">file_in</span><span class="o">.</span><span class="n">unlink</span><span class="p">()</span>

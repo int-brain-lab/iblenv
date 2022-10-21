@@ -55,9 +55,13 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../public_docs/public_introduction.html">Publicly available IBL data</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../public_docs/data_release_pilot.html">Data Release - Pilot Dataset</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_release_repro_ephys.html">Data Release - Reproducible Ephys Paper</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_release_brainwidemap.html">Data Release - Brain Wide Map</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../public_docs/information_contact.html">Information and troubleshooting</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Exploring IBL Data</span></p>
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_structure.html">Get to know the datasets and folder structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_download.html">Download the public datasets</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../loading_examples.html">Loading Data</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Miscellaneous</span></p>
@@ -124,7 +128,7 @@
 <span class="kn">from</span> <span class="nn">one.alf.spec</span> <span class="kn">import</span> <span class="n">is_session_path</span>
 <span class="kn">from</span> <span class="nn">iblutil.util</span> <span class="kn">import</span> <span class="n">Bunch</span>
 
-<span class="n">_log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;ibllib&#39;</span><span class="p">)</span>
+<span class="n">_log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="DlcQC"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.dlc.html#ibllib.qc.dlc.DlcQC">[docs]</a><span class="k">class</span> <span class="nc">DlcQC</span><span class="p">(</span><span class="n">base</span><span class="o">.</span><span class="n">QC</span><span class="p">):</span>
@@ -151,10 +155,11 @@
         <span class="s1">&#39;body&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;_ibl_bodyCamera.dlc.*&#39;</span><span class="p">,</span> <span class="s1">&#39;_ibl_bodyCamera.times.*&#39;</span><span class="p">],</span>
     <span class="p">}</span>
 
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_path_or_eid</span><span class="p">,</span> <span class="n">side</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_path_or_eid</span><span class="p">,</span> <span class="n">side</span><span class="p">,</span> <span class="n">ignore_checks</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;check_pupil_diameter_snr&#39;</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        :param session_path_or_eid: A session eid or path</span>
 <span class="sd">        :param side: The camera to run QC on</span>
+<span class="sd">        :param ignore_checks: Checks that won&#39;t count towards aggregate QC, but will be run and added to extended QC</span>
 <span class="sd">        :param log: A logging.Logger instance, if None the &#39;ibllib&#39; logger is used</span>
 <span class="sd">        :param one: An ONE instance for fetching and setting the QC on Alyx</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -166,6 +171,8 @@
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">session_path_or_eid</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">Bunch</span><span class="p">()</span>
 
+        <span class="c1"># checks to be added to extended QC but not taken into account for aggregate QC</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ignore_checks</span> <span class="o">=</span> <span class="n">ignore_checks</span>
         <span class="c1"># QC outcomes map</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">metrics</span> <span class="o">=</span> <span class="kc">None</span>
 
@@ -244,9 +251,9 @@
         <span class="n">checks</span> <span class="o">=</span> <span class="n">getmembers</span><span class="p">(</span><span class="n">DlcQC</span><span class="p">,</span> <span class="n">is_metric</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">metrics</span> <span class="o">=</span> <span class="p">{</span><span class="sa">f</span><span class="s1">&#39;_</span><span class="si">{</span><span class="n">namespace</span><span class="si">}</span><span class="s1">_&#39;</span> <span class="o">+</span> <span class="n">k</span><span class="p">[</span><span class="mi">6</span><span class="p">:]:</span> <span class="n">fn</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">fn</span> <span class="ow">in</span> <span class="n">checks</span><span class="p">}</span>
 
-        <span class="n">values</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">else</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">metrics</span><span class="o">.</span><span class="n">values</span><span class="p">()]</span>
-        <span class="n">code</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">base</span><span class="o">.</span><span class="n">CRITERIA</span><span class="p">[</span><span class="n">x</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">values</span><span class="p">)</span>
-        <span class="n">outcome</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">base</span><span class="o">.</span><span class="n">CRITERIA</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">v</span> <span class="o">==</span> <span class="n">code</span><span class="p">)</span>
+        <span class="n">ignore_metrics</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;_</span><span class="si">{</span><span class="n">namespace</span><span class="si">}</span><span class="s1">_&#39;</span> <span class="o">+</span> <span class="n">i</span><span class="p">[</span><span class="mi">6</span><span class="p">:]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">ignore_checks</span><span class="p">]</span>
+        <span class="n">metrics_to_aggregate</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">metrics</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">ignore_metrics</span><span class="p">}</span>
+        <span class="n">outcome</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">overall_outcome</span><span class="p">(</span><span class="n">metrics_to_aggregate</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
 
         <span class="k">if</span> <span class="n">update</span><span class="p">:</span>
             <span class="n">extended</span> <span class="o">=</span> <span class="p">{</span>
