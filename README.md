@@ -15,6 +15,9 @@ cd iblenv
 pip install --requirement requirements.txt --upgrade
 ```
 
+If any errors are encountered, it is recommended to follow the "Removing an old installation" instructions and then the "Install 
+from scratch" instructions. 
+
 ## Install from scratch
 In order to create the unified environment for using IBL repositories, first download and install 
 [Anaconda](https://www.anaconda.com/distribution/#download-section) and [git](https://git-scm.com/downloads), and follow their 
@@ -45,15 +48,13 @@ IPython magic command `%gui qt`.
 [Additional documentation here for working with iblenv](https://int-brain-lab.github.io/iblenv/)
 
 ## Troubleshooting:
-Currently, the pip package for PyQt5 is locked down to a specific version in the `iblenv` repository. This was intended to ensure compatibility across multiple system configurations. Depending on a variety of factors, there may still be environment build problems with what is specified. If troubleshooting an environment build problem, removing the PyQt5 version lock within the `requirements.txt` file may be a good place to start. A typical error that you may see when encountering a build error related to PyQt5 could look like this:
-```
-Using cached PyQtWebEngine-5.15.0.tar.gz (48 kB)
-Installing build dependencies ... done
-Getting requirements to build wheel ... done
-Preparing metadata (pyproject.toml) ... error
-error: subprocess-exited-with-error
 
-× Preparing metadata (pyproject.toml) did not run successfully.
-│ exit code: 1
-...
-```
+### Spyder
+If using Anaconda's Spyder IDE, please take note. When installing Spyder in a virtual environment, like iblenv, conda 
+will add many packages to that virtual environment. In the case of iblenv, some packages installed by spyder are in direct 
+conflict with the pip installed packages. This will create an inconsistent and unstable environment, especially when attempting 
+to perform any sort of update on those packages. For more information about how to work with pip within conda, please read the 
+following [article](https://www.anaconda.com/blog/using-pip-in-a-conda-environment).
+
+It is not recommended to use the Spyder IDE in conjunction with iblenv. Please seek alternatives, like 
+[PyCharm](https://www.jetbrains.com/pycharm/) or [Visual Studio Code](https://code.visualstudio.com/).
