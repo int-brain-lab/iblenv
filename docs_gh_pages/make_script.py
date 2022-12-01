@@ -6,7 +6,6 @@ import subprocess
 from pathlib import Path
 import logging
 from scripts.execute_notebooks import process_notebooks
-from ibllib.misc import logger_config  # noqa
 
 _logger = logging.getLogger('ibllib')
 root = Path.cwd()
