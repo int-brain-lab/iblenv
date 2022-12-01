@@ -1,22 +1,46 @@
+name: Build Docs
 on:
-  workflow_dispatch:
+  workflow_dispatch:  # manual trigger to kick off workflow
     inputs:
       logLevel:
-        description: 'Log level'
+        description: "Log level"
         required: true
-        default: 'warning'
-      tags:
-        description: 'Test scenario tags'
+        default: "warning"
 
 jobs:
-  printInputs:
+  build_docs:
     runs-on: ubuntu-latest
     steps:
-      - run: |
-          echo "Log level: ${{ github.event.inputs.logLevel }}"
-          echo "Tags: ${{ github.event.inputs.tags }}" 
-            
-# manual trigger to kick off
+      - name: Checkout iblenv doc build branch
+        uses: actions/checkout@v3
+        with:
+          ref: build_docs_in_ci  # TODO: Change this for production
+
+      - name: Checkout ibllib doc build branch
+        uses: actions/checkout@v3
+        with:
+          repository: int-brain-lab/ibllib
+          ref: GC_Doc
+          path: ibllib-repo
+
+      - name: Move ibllib up a directory
+        run: |
+          pwd
+          ls -l
+          mv ibllib-repo ..
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.9
+
+      - name: Install docs requirements
+        run: |
+          sudo apt-get install -y pandoc
+          pip install -r docs_gh_pages/requirements-docs.txt
+          pip install -r ../ibllib-repo/requirements.txt
+          jupyter nbextension enable --py --sys-prefix ipyevents
+
 # git checkout the documentation branches for ibllib and iblenv
 # run documentation scripts
 # zip up results
