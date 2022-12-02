@@ -33,7 +33,8 @@ def make_documentation(execute, force, documentation, clean, specific, github, m
     # Case where we want to rebuild all examples
     if execute and not specific:
         # Execute notebooks in docs folder
-        status += process_notebooks(nb_path, execute=True, force=force)
+        #### remove the running of datajoint docs
+        # status += process_notebooks(nb_path, execute=True, force=force)
         # Execute notebooks in external folders
         for nb_path_ext, pattern in zip(nb_path_external, external_file_patterns):
             status += process_notebooks(nb_path_ext, execute=True, force=force,
