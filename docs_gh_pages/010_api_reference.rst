@@ -20,10 +20,3 @@ API Reference
    :recursive:
 
    brainbox
-
-.. autosummary::
-   :toctree: _autosummary
-   :template: custom-module-template.rst
-   :recursive:
-
-   iblviewer
