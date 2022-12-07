@@ -53,16 +53,10 @@ The IBL has released a handful of pilot datasets that are available for download
 * Please follow this [link](data_release_pilot) to explore these datasets 
 
 ### Reproducible ephys data associated with our 2022 preprint
-The IBL has released all data associated with the preprint 
-[Reproducibility of in vivo electrophysiological measurements in mice](https://www.biorxiv.org/content/10.1101/2022.05.09.491042v3). 
+The IBL has released all data associated with the preprint [Reproducibility of in vivo electrophysiological measurements in mice](https://www.biorxiv.org/content/10.1101/2022.05.09.491042v3). 
 * Please follow this [link](../notebooks_external/data_release_repro_ephys) to access this data
 
 
 ### Brain wide map data release - Q4 2022
-The IBL has released all data described in our 
-[technical wite paper](link_todo). 
+The IBL has released all data described in our [technical paper](https://doi.org/10.6084/m9.figshare.21400815). 
 * Please follow this [link](../notebooks_external/data_release_brainwidemap) to access this data
-
-# Information and troubleshooting
-- Issues with the data? Post an issue here: <https://github.com/int-brain-lab/iblenv/issues>
-- General questions about the datasets or publications?  Email: <info@internationalbrainlab.org>
