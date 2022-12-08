@@ -22,7 +22,7 @@ nb_path_external = [# Path(root.parent.parent).joinpath('ibllib-repo', 'examples
 # external_file_patterns = ['docs', 'loading', 'atlas', 'docs', 'quickstart']
 external_file_patterns = ['loading', 'atlas', 'data', 'data', 'docs_wheel', 'quickstart']
 
-def make_documentation(execute, force, documentation, clean, specific, github, message):
+def make_documentation(execute, force, documentation, clean, specific, github, message, pre_clean):
 
     # Clean up any nblink files
     nb_external_files = root.joinpath('notebooks_external').glob('*')
@@ -87,6 +87,21 @@ def make_documentation(execute, force, documentation, clean, specific, github, m
         _logger.info("Making documentation")
         os.system("make html")
         sys.exit(0)
+
+    if pre_clean:
+        # clean up for github but don't commit. In the examples only notebooks with an execute flag=True are kept,
+        # the rest are deleted.
+        # Clean up the build path regardless
+        build_nb_path = root.joinpath('_build', 'html', 'notebooks')
+        build_nb_external_path = root.joinpath('_build', 'html', 'notebooks_external')
+        process_notebooks(build_nb_path, execute=False, cleanup=True, remove_gh=True)
+        process_notebooks(build_nb_external_path, execute=False, cleanup=True, remove_gh=True)
+
+        # remove the _sources folder as we don't need this
+        build_nb_source_path = root.joinpath('_build', 'html', '_sources')
+        if build_nb_source_path.exists():
+            shutil.rmtree(build_nb_source_path)
+
 
     if github:
         # clean up for github. In the examples only notebooks with an execute flag=True are kept,
@@ -153,9 +168,11 @@ if __name__ == "__main__":
                         help='Cleanup notebooks once documentation made')
     parser.add_argument('-gh', '--github', default=False, action='store_true',
                         help='Push documentation to gh-pages')
+    parser.add_argument('-pc', '--preclean', default=False, action='store_true',
+                        help='Clean up documentation for gh-pages')
     parser.add_argument('-m', '--message', default=None, required=False, type=str,
                         help='Commit message')
     args = parser.parse_args()
     make_documentation(execute=args.execute, force=args.force, documentation=args.documentation,
                        clean=args.cleanup, specific=args.specific, github=args.github,
-                       message=args.message)
+                       message=args.message, pre_clean=args.preclean)
