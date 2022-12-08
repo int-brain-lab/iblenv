@@ -38,6 +38,8 @@ Two github actions workflows have been made available to automate th building an
 When testing and developing docs use the [Build docs workflow](https://github.com/int-brain-lab/iblenv/actions/workflows/build_docs.yml). Any changes to the documentation must be made on the `docs` branch of either ibllib and iblenv. At the moment the workflow requires the docs branch to exist in both repos (TODO if it doesn't exist make github action fallback to master). To run the workflow click on the `run_workflow` button in the top left corner and choose the branch you want to launch it from (this should normally be docs). After the docs build has completed succesfully your documentation will appear at this site http://testdocs.internationalbrainlab.org.s3-website-us-east-1.amazonaws.com
 
 ### Deploying docs
+**WARNING: Do not run this workflow unless you have run the build docs workflow above and checked that the documentation is correct**
+
 Once you are happy with the documentation, the docs branch/es you have been working on need to be merged into master in iblenv, and into develop in ibllib. Once those have been merged you should run the [Deploy docs workflow](https://github.com/int-brain-lab/iblenv/actions/workflows/deploy_docs.yml).  To run the workflow click on the `run_workflow` button in the top left corner and choose the branch you want to launch it from (this should be master). The new docs will then be deployed to the main documnetation website https://int-brain-lab.github.io/iblenv/
 
 
