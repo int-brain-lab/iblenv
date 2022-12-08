@@ -21,13 +21,13 @@ jobs:
       - name: Checkout iblenv doc build branch
         uses: actions/checkout@v3
         with:
-          ref: docs
+          ref: master
 
       - name: Checkout ibllib doc build branch
         uses: actions/checkout@v3
         with:
           repository: int-brain-lab/ibllib
-          ref: docs
+          ref: develop
           path: ibllib-repo
 
       - name: Checkout ONE-api
@@ -59,6 +59,31 @@ jobs:
           python scripts/one_setup.py
           python make_script.py -e
           ls -l _build
+
+      - name: Clean up documentation
+        run: |
+          cd docs_gh_pages
+          python make_script.py -pc
+
+      - name: Commit documentation changes
+        run: |
+          git clone https://github.com/int-brain-lab/iblenv.git --branch gh-pages --single-branch gh-pages
+          cp -r docs_gh_pages/_build/html/* gh-pages/
+          cd gh-pages
+          touch .nojekyll
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add .
+          git commit -m "Update documentation" -a || true
+
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        with:
+          branch: gh-pages
+          directory: gh-pages
+          force: True
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
 
       - name: Copy files to the production website with the AWS CLI
         run: |
