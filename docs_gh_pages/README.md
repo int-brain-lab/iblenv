@@ -32,7 +32,7 @@ The link should be made by adding in the following line `notebooks_external\name
 An example implementation can be seen in the `06_examples.rst` file
 
 ## Making documentation using github actions
-Two github actions workflows have been made available to automate th building and the deployment of the docs. These are located in the int-brain-lab/iblenv repository and can be accessed under the actions tab
+Two github actions workflows have been made available to automate the building and the deployment of the docs. These are located in the int-brain-lab/iblenv repository and can be accessed under the actions tab
 
 ### Developing docs
 When testing and developing docs use the [Build docs workflow](https://github.com/int-brain-lab/iblenv/actions/workflows/build_docs.yml). Any changes to the documentation must be made on the `docs` branch of either ibllib and iblenv. At the moment the workflow requires the docs branch to exist in both repos (TODO if it doesn't exist make github action fallback to master). To run the workflow click on the `run_workflow` button in the top left corner and choose the branch you want to launch it from (this should normally be docs). After the docs build has completed succesfully your documentation will appear at this site http://testdocs.internationalbrainlab.org.s3-website-us-east-1.amazonaws.com
