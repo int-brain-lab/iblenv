@@ -53,6 +53,7 @@ IBL has released a suite of tools to process and visualize our data.
    :maxdepth: 1
 
    public_docs/public_introduction
+   notebooks_external/data_release_behavior
    public_docs/data_release_pilot
    notebooks_external/data_release_repro_ephys
    notebooks_external/data_release_brainwidemap
