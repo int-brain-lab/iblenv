@@ -60,3 +60,6 @@ The IBL has released all data associated with the preprint [Reproducibility of i
 ### Brain wide map data release - Q4 2022
 The IBL has released all data described in our [technical paper](https://doi.org/10.6084/m9.figshare.21400815). 
 * Please follow this [link](../notebooks_external/data_release_brainwidemap) to access this data
+
+### Coming soon: benchmark dataset for spike sorting
+A list of insertion for which we will provide benchmarks is available [here](../notebooks_external/data_release_spikesorting_benchmarks).
