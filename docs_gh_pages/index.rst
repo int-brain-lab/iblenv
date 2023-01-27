@@ -57,6 +57,7 @@ IBL has released a suite of tools to process and visualize our data.
    public_docs/data_release_pilot
    notebooks_external/data_release_repro_ephys
    notebooks_external/data_release_brainwidemap
+   notebooks_external/data_release_spikesorting_benchmarks
    public_docs/information_contact
 
 .. toctree::
