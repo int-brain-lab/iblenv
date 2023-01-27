@@ -45,8 +45,8 @@ before being sent and stored onto our centralised database (see our [article on 
 ### Behavioral data associated to our 2020 publication
 The IBL has released all of the behavior sessions associated with the publication 
 [Standardized and reproducible measurement of decision-making in mice](https://elifesciences.org/articles/63711)
-via Datajoint. 
-* Please follow this [link](../dj_docs/dj_public) for instructions on how to access this dataset
+via ONE and Datajoint. 
+* Please follow this [link](../notebooks_external/data_release_behavior) for instructions on how to access this data
 
 ### Pilot neuropixels datasets
 The IBL has released a handful of pilot datasets that are available for download through ONE. 
