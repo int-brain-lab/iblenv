@@ -45,8 +45,8 @@ before being sent and stored onto our centralised database (see our [article on 
 ### Behavioral data associated to our 2020 publication
 The IBL has released all of the behavior sessions associated with the publication 
 [Standardized and reproducible measurement of decision-making in mice](https://elifesciences.org/articles/63711)
-via Datajoint. 
-* Please follow this [link](../dj_docs/dj_public) for instructions on how to access this dataset
+via ONE and Datajoint. 
+* Please follow this [link](../notebooks_external/data_release_behavior) for instructions on how to access this data
 
 ### Pilot neuropixels datasets
 The IBL has released a handful of pilot datasets that are available for download through ONE. 
@@ -60,3 +60,6 @@ The IBL has released all data associated with the preprint [Reproducibility of i
 ### Brain wide map data release - Q4 2022
 The IBL has released all data described in our [technical paper](https://doi.org/10.6084/m9.figshare.21400815). 
 * Please follow this [link](../notebooks_external/data_release_brainwidemap) to access this data
+
+### Coming soon: benchmark dataset for spike sorting
+A list of insertion for which we will provide benchmarks is available [here](../notebooks_external/data_release_spikesorting_benchmarks).
