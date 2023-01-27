@@ -58,3 +58,27 @@ following [article](https://www.anaconda.com/blog/using-pip-in-a-conda-environme
 
 It is not recommended to use the Spyder IDE in conjunction with iblenv. Please seek alternatives, like 
 [PyCharm](https://www.jetbrains.com/pycharm/) or [Visual Studio Code](https://code.visualstudio.com/).
+
+### brotli error
+If attempting to set up this environment in older versions of anaconda or a version of anaconda that has been upgraded from an older version of anaconda, you may be presented with the following error when attempting to import the ONE api:
+```
+activate iblenv
+python -c "from one.api import ONE"
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+...
+File "C:\Users\username\Anaconda3\envs\iblenv\lib\site-packages\urllib3\response.py", line 396, in HTTPResponse
+    DECODER_ERROR_CLASSES += (brotli.error,)
+AttributeError: module 'brotli' has no attribute 'error'
+```
+
+The source of this issue looks to be with the way anaconda handled the brolipy package. One potential solution is to run the following:
+```
+activate iblenv
+conda install brotlipy
+python -c "from one.api import ONE"
+```
+
+If this results in the same error, a full removal of anaconda (windows uninstall followed by the manual removal of various files and directories hiding in several areas) and then a fresh install of Anaconda should correct the problem.
+
+More details can be found in this github [issue](https://github.com/conda/conda/issues/9903).
