@@ -12,6 +12,7 @@ cd iblapps
 git pull
 cd ..
 cd iblenv
+git pull
 pip install --requirement requirements.txt --upgrade
 ```
 
