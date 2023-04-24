@@ -13,9 +13,6 @@
   <![endif]-->
   
         <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
-        <script src="../../../_static/jquery.js"></script>
-        <script src="../../../_static/underscore.js"></script>
-        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="../../../_static/doctools.js"></script>
         <script src="../../../_static/sphinx_highlight.js"></script>
         <script src="../../../_static/clipboard.min.js"></script>
@@ -31,11 +28,15 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-            <a href="../../../index.html" class="icon icon-home"> IBL Library
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            IBL Library
           </a>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
@@ -91,7 +92,7 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="../../../index.html" class="icon icon-home"></a></li>
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
           <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
       <li class="breadcrumb-item active">brainbox.behavior.training</li>
       <li class="wy-breadcrumbs-aside">
@@ -103,18 +104,22 @@
            <div itemprop="articleBody">
              
   <h1>Source code for brainbox.behavior.training</h1><div class="highlight"><pre>
-<span></span><span class="kn">from</span> <span class="nn">one.api</span> <span class="kn">import</span> <span class="n">ONE</span>
+<span></span><span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">datetime</span>
 <span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">from</span> <span class="nn">enum</span> <span class="kn">import</span> <span class="n">IntFlag</span><span class="p">,</span> <span class="n">auto</span><span class="p">,</span> <span class="n">unique</span>
+
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
-<span class="kn">from</span> <span class="nn">iblutil.util</span> <span class="kn">import</span> <span class="n">Bunch</span>
-<span class="kn">import</span> <span class="nn">brainbox.behavior.pyschofit</span> <span class="k">as</span> <span class="nn">psy</span>
-<span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">matplotlib</span>
 <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
 <span class="kn">import</span> <span class="nn">seaborn</span> <span class="k">as</span> <span class="nn">sns</span>
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
 <span class="kn">from</span> <span class="nn">scipy.stats</span> <span class="kn">import</span> <span class="n">bootstrap</span>
+<span class="kn">from</span> <span class="nn">iblutil.util</span> <span class="kn">import</span> <span class="n">Bunch</span>
+<span class="kn">from</span> <span class="nn">one.api</span> <span class="kn">import</span> <span class="n">ONE</span>
+<span class="kn">from</span> <span class="nn">one.alf.exceptions</span> <span class="kn">import</span> <span class="n">ALFObjectNotFound</span>
+
+<span class="kn">import</span> <span class="nn">brainbox.behavior.pyschofit</span> <span class="k">as</span> <span class="nn">psy</span>
 
 <span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;ibllib&#39;</span><span class="p">)</span>
 
@@ -125,6 +130,46 @@
                <span class="s1">&#39;choice&#39;</span><span class="p">,</span>
                <span class="s1">&#39;response_times&#39;</span><span class="p">,</span>
                <span class="s1">&#39;stimOn_times&#39;</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="TrainingStatus"><a class="viewcode-back" href="../../../_autosummary/brainbox.behavior.training.html#brainbox.behavior.training.TrainingStatus">[docs]</a><span class="nd">@unique</span>
+<span class="k">class</span> <span class="nc">TrainingStatus</span><span class="p">(</span><span class="n">IntFlag</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Standard IBL training criteria.</span>
+
+<span class="sd">    Enumeration allows for comparisons between training status.</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; status = &#39;ready4delay&#39;</span>
+<span class="sd">    ... assert TrainingStatus[status.upper()] is TrainingStatus.READY4DELAY</span>
+<span class="sd">    ... assert TrainingStatus[status.upper()] not in TrainingStatus.FAILED, &#39;Subject failed training&#39;</span>
+<span class="sd">    ... assert TrainingStatus[status.upper()] &gt;= TrainingStatus.TRAINED, &#39;Subject untrained&#39;</span>
+<span class="sd">    ... assert TrainingStatus[status.upper()] &gt; TrainingStatus.IN_TRAINING, &#39;Subject untrained&#39;</span>
+<span class="sd">    ... assert TrainingStatus[status.upper()] in ~TrainingStatus.FAILED, &#39;Subject untrained&#39;</span>
+<span class="sd">    ... assert TrainingStatus[status.upper()] in TrainingStatus.TRAINED ^ TrainingStatus.READY</span>
+
+<span class="sd">    # Get the next training status</span>
+<span class="sd">    &gt;&gt;&gt; next(member for member in sorted(TrainingStatus) if member &gt; TrainingStatus[status.upper()])</span>
+<span class="sd">    &lt;TrainingStatus.READY4RECORDING: 128&gt;</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    - ~TrainingStatus.TRAINED means any status but trained 1a or trained 1b.</span>
+<span class="sd">    - A subject may acheive both TRAINED_1A and TRAINED_1B within a single session, therefore it</span>
+<span class="sd">     is possible to have skipped the TRAINED_1A session status.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">UNTRAINABLE</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">UNBIASABLE</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">IN_TRAINING</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">TRAINED_1A</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">TRAINED_1B</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">READY4EPHYSRIG</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">READY4DELAY</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">READY4RECORDING</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="c1"># Compound training statuses for convenience</span>
+    <span class="n">FAILED</span> <span class="o">=</span> <span class="n">UNTRAINABLE</span> <span class="o">|</span> <span class="n">UNBIASABLE</span>
+    <span class="n">READY</span> <span class="o">=</span> <span class="n">READY4EPHYSRIG</span> <span class="o">|</span> <span class="n">READY4DELAY</span> <span class="o">|</span> <span class="n">READY4RECORDING</span>
+    <span class="n">TRAINED</span> <span class="o">=</span> <span class="n">TRAINED_1A</span> <span class="o">|</span> <span class="n">TRAINED_1B</span></div>
 
 
 <div class="viewcode-block" id="get_lab_training_status"><a class="viewcode-back" href="../../../_autosummary/brainbox.behavior.training.html#brainbox.behavior.training.get_lab_training_status">[docs]</a><span class="k">def</span> <span class="nf">get_lab_training_status</span><span class="p">(</span><span class="n">lab</span><span class="p">,</span> <span class="n">date</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">details</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
@@ -236,7 +281,10 @@
     <span class="n">sess_dates</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">sessions</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">3</span><span class="p">:</span>
         <span class="k">for</span> <span class="n">n</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">sessions</span><span class="p">):</span>
-            <span class="n">trials_</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="n">sessions</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="s1">&#39;url&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="s1">&#39;trials&#39;</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">trials_</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="n">sessions</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="s1">&#39;url&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="s1">&#39;trials&#39;</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">ALFObjectNotFound</span><span class="p">:</span>
+                <span class="n">trials_</span> <span class="o">=</span> <span class="kc">None</span>
 
             <span class="k">if</span> <span class="n">trials_</span><span class="p">:</span>
                 <span class="n">task_protocol</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s1">&#39;tasks_(.*)Choice&#39;</span><span class="p">,</span>
@@ -247,7 +295,11 @@
     <span class="k">else</span><span class="p">:</span>
         <span class="n">n</span> <span class="o">=</span> <span class="mi">0</span>
         <span class="k">while</span> <span class="nb">len</span><span class="p">(</span><span class="n">trials</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">3</span><span class="p">:</span>
-            <span class="n">trials_</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="n">sessions</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="s1">&#39;url&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="s1">&#39;trials&#39;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">sessions</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="s1">&#39;url&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">trials_</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="n">sessions</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="s1">&#39;url&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="s1">&#39;trials&#39;</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">ALFObjectNotFound</span><span class="p">:</span>
+                <span class="n">trials_</span> <span class="o">=</span> <span class="kc">None</span>
 
             <span class="k">if</span> <span class="n">trials_</span><span class="p">:</span>
                 <span class="n">task_protocol</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s1">&#39;tasks_(.*)Choice&#39;</span><span class="p">,</span>
@@ -861,6 +913,53 @@
         <span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="n">title</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span></div>
+
+
+<div class="viewcode-block" id="query_criterion"><a class="viewcode-back" href="../../../_autosummary/brainbox.behavior.training.html#brainbox.behavior.training.query_criterion">[docs]</a><span class="k">def</span> <span class="nf">query_criterion</span><span class="p">(</span><span class="n">subject</span><span class="p">,</span> <span class="n">status</span><span class="p">,</span> <span class="n">from_status</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">validate</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Get the session for which a given training criterion was met.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    subject : str</span>
+<span class="sd">        The subject name.</span>
+<span class="sd">    status : str</span>
+<span class="sd">        The training status to query for.</span>
+<span class="sd">    from_status : str, optional</span>
+<span class="sd">        Count number of sessions and days from reaching `from_status` to `status`.</span>
+<span class="sd">    one : one.api.OneAlyx, optional</span>
+<span class="sd">        An instance of ONE.</span>
+<span class="sd">    validate : bool</span>
+<span class="sd">        If true, check if status in TrainingStatus enumeration. Set to false for non-standard</span>
+<span class="sd">        training pipelines.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    str</span>
+<span class="sd">        The eID of the first session where this training status was reached.</span>
+<span class="sd">    int</span>
+<span class="sd">        The number of sessions it took to reach `status` (optionally from reaching `from_status`).</span>
+<span class="sd">    int</span>
+<span class="sd">        The number of days it tool to reach `status` (optionally from reaching `from_status`).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">validate</span><span class="p">:</span>
+        <span class="n">status</span> <span class="o">=</span> <span class="n">status</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39; &#39;</span><span class="p">,</span> <span class="s1">&#39;_&#39;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="n">TrainingStatus</span><span class="p">[</span><span class="n">status</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39; &#39;</span><span class="p">,</span> <span class="s1">&#39;_&#39;</span><span class="p">)]</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">KeyError</span> <span class="k">as</span> <span class="n">ex</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s1">&#39;Unknown status &quot;</span><span class="si">{</span><span class="n">status</span><span class="si">}</span><span class="s1">&quot;. For non-standard training protocols set validate=False&#39;</span>
+            <span class="p">)</span> <span class="kn">from</span> <span class="nn">ex</span>
+    <span class="n">one</span> <span class="o">=</span> <span class="n">one</span> <span class="ow">or</span> <span class="n">ONE</span><span class="p">()</span>
+    <span class="n">subject_json</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;subjects&#39;</span><span class="p">,</span> <span class="s1">&#39;read&#39;</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">subject</span><span class="p">)[</span><span class="s1">&#39;json&#39;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">criteria</span> <span class="o">:=</span> <span class="n">subject_json</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;trained_criteria&#39;</span><span class="p">))</span> <span class="ow">or</span> <span class="n">status</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">criteria</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span>
+    <span class="n">to_date</span><span class="p">,</span> <span class="n">eid</span> <span class="o">=</span> <span class="n">criteria</span><span class="p">[</span><span class="n">status</span><span class="p">]</span>
+    <span class="n">from_date</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">criteria</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">from_status</span><span class="p">,</span> <span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
+    <span class="n">eids</span><span class="p">,</span> <span class="n">det</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">subject</span><span class="o">=</span><span class="n">subject</span><span class="p">,</span> <span class="n">date_range</span><span class="o">=</span><span class="p">[</span><span class="n">from_date</span><span class="p">,</span> <span class="n">to_date</span><span class="p">],</span> <span class="n">details</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">eids</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">eid</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span>
+    <span class="n">delta_date</span> <span class="o">=</span> <span class="n">det</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;date&#39;</span><span class="p">]</span> <span class="o">-</span> <span class="n">det</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s1">&#39;date&#39;</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">eid</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">eids</span><span class="p">),</span> <span class="n">delta_date</span><span class="o">.</span><span class="n">days</span></div>
 </pre></div>
 
            </div>

@@ -13,9 +13,6 @@
   <![endif]-->
   
         <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
-        <script src="../../../_static/jquery.js"></script>
-        <script src="../../../_static/underscore.js"></script>
-        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="../../../_static/doctools.js"></script>
         <script src="../../../_static/sphinx_highlight.js"></script>
         <script src="../../../_static/clipboard.min.js"></script>
@@ -31,11 +28,15 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-            <a href="../../../index.html" class="icon icon-home"> IBL Library
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            IBL Library
           </a>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
@@ -91,7 +92,7 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="../../../index.html" class="icon icon-home"></a></li>
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
           <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
           <li class="breadcrumb-item"><a href="../pipes.html">ibllib.pipes</a></li>
       <li class="breadcrumb-item active">ibllib.pipes.dynamic_pipeline</li>
@@ -104,7 +105,9 @@
            <div itemprop="articleBody">
              
   <h1>Source code for ibllib.pipes.dynamic_pipeline</h1><div class="highlight"><pre>
-<span></span><span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">OrderedDict</span>
+<span></span><span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">OrderedDict</span>
 <span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
 <span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">chain</span>
 <span class="kn">import</span> <span class="nn">yaml</span>
@@ -124,6 +127,8 @@
 <span class="kn">import</span> <span class="nn">ibllib.pipes.audio_tasks</span> <span class="k">as</span> <span class="nn">atasks</span>
 <span class="kn">from</span> <span class="nn">ibllib.pipes.photometry_tasks</span> <span class="kn">import</span> <span class="n">TaskFibrePhotometryPreprocess</span><span class="p">,</span> <span class="n">TaskFibrePhotometryRegisterRaw</span>
 
+<span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
 
 <div class="viewcode-block" id="acquisition_description_legacy_session"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.dynamic_pipeline.html#ibllib.pipes.dynamic_pipeline.acquisition_description_legacy_session">[docs]</a><span class="k">def</span> <span class="nf">acquisition_description_legacy_session</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
@@ -141,7 +146,7 @@
 
 <div class="viewcode-block" id="get_acquisition_description"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.dynamic_pipeline.html#ibllib.pipes.dynamic_pipeline.get_acquisition_description">[docs]</a><span class="k">def</span> <span class="nf">get_acquisition_description</span><span class="p">(</span><span class="n">protocol</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;&quot;</span>
-<span class="sd">    This is a set of example acqusition descriptions for experiments</span>
+<span class="sd">    This is a set of example acquisition descriptions for experiments</span>
 <span class="sd">    -   choice_world_recording</span>
 <span class="sd">    -   choice_world_biased</span>
 <span class="sd">    -   choice_world_training</span>
@@ -166,10 +171,10 @@
         <span class="p">}</span>
         <span class="n">acquisition_description</span> <span class="o">=</span> <span class="p">{</span>  <span class="c1"># this is the current ephys pipeline description</span>
             <span class="s1">&#39;devices&#39;</span><span class="p">:</span> <span class="n">devices</span><span class="p">,</span>
-            <span class="s1">&#39;tasks&#39;</span><span class="p">:</span> <span class="p">{</span>
-                <span class="s1">&#39;ephysChoiceWorld&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;collection&#39;</span><span class="p">:</span> <span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">,</span> <span class="s1">&#39;sync_label&#39;</span><span class="p">:</span> <span class="s1">&#39;bpod&#39;</span><span class="p">},</span>
-                <span class="s1">&#39;passiveChoiceWorld&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;collection&#39;</span><span class="p">:</span> <span class="s1">&#39;raw_passive_data&#39;</span><span class="p">,</span> <span class="s1">&#39;sync_label&#39;</span><span class="p">:</span> <span class="s1">&#39;bpod&#39;</span><span class="p">},</span>
-            <span class="p">},</span>
+            <span class="s1">&#39;tasks&#39;</span><span class="p">:</span> <span class="p">[</span>
+                <span class="p">{</span><span class="s1">&#39;ephysChoiceWorld&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;collection&#39;</span><span class="p">:</span> <span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">,</span> <span class="s1">&#39;sync_label&#39;</span><span class="p">:</span> <span class="s1">&#39;bpod&#39;</span><span class="p">}},</span>
+                <span class="p">{</span><span class="s1">&#39;passiveChoiceWorld&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;collection&#39;</span><span class="p">:</span> <span class="s1">&#39;raw_passive_data&#39;</span><span class="p">,</span> <span class="s1">&#39;sync_label&#39;</span><span class="p">:</span> <span class="s1">&#39;bpod&#39;</span><span class="p">}}</span>
+            <span class="p">],</span>
             <span class="s1">&#39;sync&#39;</span><span class="p">:</span> <span class="p">{</span>
                 <span class="s1">&#39;nidq&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;collection&#39;</span><span class="p">:</span> <span class="s1">&#39;raw_ephys_data&#39;</span><span class="p">,</span> <span class="s1">&#39;extension&#39;</span><span class="p">:</span> <span class="s1">&#39;bin&#39;</span><span class="p">,</span> <span class="s1">&#39;acquisition_software&#39;</span><span class="p">:</span> <span class="s1">&#39;spikeglx&#39;</span><span class="p">}</span>
             <span class="p">},</span>
@@ -199,23 +204,40 @@
             <span class="n">key</span> <span class="o">=</span> <span class="s1">&#39;trainingChoiceWorld&#39;</span>
         <span class="k">elif</span> <span class="n">protocol</span> <span class="o">==</span> <span class="s1">&#39;choice_world_habituation&#39;</span><span class="p">:</span>
             <span class="n">key</span> <span class="o">=</span> <span class="s1">&#39;habituationChoiceWorld&#39;</span>
-        <span class="n">acquisition_description</span><span class="p">[</span><span class="s1">&#39;tasks&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="n">key</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;collection&#39;</span><span class="p">:</span> <span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">,</span> <span class="s1">&#39;sync_label&#39;</span><span class="p">:</span> <span class="s1">&#39;bpod&#39;</span><span class="p">,</span> <span class="s1">&#39;main&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">}}</span>
-    <span class="n">acquisition_description</span><span class="p">[</span><span class="s1">&#39;version&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sess_params</span><span class="o">.</span><span class="n">SPEC_VERSION</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Unknown protocol &quot;</span><span class="si">{</span><span class="n">protocol</span><span class="si">}</span><span class="s1">&quot;&#39;</span><span class="p">)</span>
+        <span class="n">acquisition_description</span><span class="p">[</span><span class="s1">&#39;tasks&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[{</span><span class="n">key</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s1">&#39;collection&#39;</span><span class="p">:</span> <span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;sync_label&#39;</span><span class="p">:</span> <span class="s1">&#39;bpod&#39;</span><span class="p">,</span> <span class="s1">&#39;main&#39;</span><span class="p">:</span> <span class="kc">True</span>
+        <span class="p">}}]</span>
+    <span class="n">acquisition_description</span><span class="p">[</span><span class="s1">&#39;version&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;1.0.0&#39;</span>
     <span class="k">return</span> <span class="n">acquisition_description</span></div>
 
 
-<div class="viewcode-block" id="make_pipeline"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.dynamic_pipeline.html#ibllib.pipes.dynamic_pipeline.make_pipeline">[docs]</a><span class="k">def</span> <span class="nf">make_pipeline</span><span class="p">(</span><span class="n">session_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">pkwargs</span><span class="p">):</span>
+<div class="viewcode-block" id="make_pipeline"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.dynamic_pipeline.html#ibllib.pipes.dynamic_pipeline.make_pipeline">[docs]</a><span class="k">def</span> <span class="nf">make_pipeline</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="o">**</span><span class="n">pkwargs</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    :param session_path:</span>
-<span class="sd">    :param one: passed to the Pipeline init: one instance to register tasks to</span>
-<span class="sd">    :param eid: passed to the Pipeline init</span>
-<span class="sd">    :return:</span>
+<span class="sd">    Creates a pipeline of extractor tasks from a session&#39;s experiment description file.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    session_path : str, Path</span>
+<span class="sd">        The absolute session path, i.e. &#39;/path/to/subject/yyyy-mm-dd/nnn&#39;.</span>
+<span class="sd">    **pkwargs</span>
+<span class="sd">        Optional arguments passed to the ibllib.pipes.tasks.Pipeline constructor.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    ibllib.pipes.tasks.Pipeline</span>
+<span class="sd">        A task pipeline object.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="c1"># NB: this pattern is a pattern for dynamic class creation</span>
     <span class="c1"># tasks[&#39;SyncPulses&#39;] = type(&#39;SyncPulses&#39;, (epp.EphysPulses,), {})(session_path=session_path)</span>
-    <span class="k">assert</span> <span class="n">session_path</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">session_path</span> <span class="ow">or</span> <span class="ow">not</span> <span class="p">(</span><span class="n">session_path</span> <span class="o">:=</span> <span class="n">Path</span><span class="p">(</span><span class="n">session_path</span><span class="p">))</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Session path does not exist&#39;</span><span class="p">)</span>
     <span class="n">tasks</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
     <span class="n">acquisition_description</span> <span class="o">=</span> <span class="n">sess_params</span><span class="o">.</span><span class="n">read_params</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">acquisition_description</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Experiment description file not found or is empty&#39;</span><span class="p">)</span>
     <span class="n">devices</span> <span class="o">=</span> <span class="n">acquisition_description</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;devices&#39;</span><span class="p">,</span> <span class="p">{})</span>
     <span class="n">kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;session_path&#39;</span><span class="p">:</span> <span class="n">session_path</span><span class="p">}</span>
 
@@ -247,39 +269,72 @@
         <span class="c1"># ATM we don&#39;t have anything for this not sure it will be needed in the future</span>
 
     <span class="c1"># Behavior tasks</span>
-    <span class="c1"># TODO this is not doing at all what we were envisaging and going back to the old way of protocol linked to hardware</span>
-    <span class="c1"># TODO change at next iteration of dynamic pipeline, once we have the basic workflow working</span>
-    <span class="k">for</span> <span class="n">protocol</span><span class="p">,</span> <span class="n">task_info</span> <span class="ow">in</span> <span class="n">chain</span><span class="p">(</span><span class="o">*</span><span class="nb">map</span><span class="p">(</span><span class="nb">dict</span><span class="o">.</span><span class="n">items</span><span class="p">,</span> <span class="n">acquisition_description</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;tasks&#39;</span><span class="p">,</span> <span class="p">[]))):</span>
-        <span class="n">task_kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;protocol&#39;</span><span class="p">:</span> <span class="n">protocol</span><span class="p">,</span> <span class="s1">&#39;collection&#39;</span><span class="p">:</span> <span class="n">task_info</span><span class="p">[</span><span class="s1">&#39;collection&#39;</span><span class="p">]}</span>
-        <span class="c1"># -   choice_world_recording</span>
-        <span class="c1"># -   choice_world_biased</span>
-        <span class="c1"># -   choice_world_training</span>
-        <span class="c1"># -   choice_world_habituation</span>
-        <span class="k">if</span> <span class="s1">&#39;habituation&#39;</span> <span class="ow">in</span> <span class="n">protocol</span><span class="p">:</span>
-            <span class="n">registration_class</span> <span class="o">=</span> <span class="n">btasks</span><span class="o">.</span><span class="n">HabituationRegisterRaw</span>
-            <span class="n">behaviour_class</span> <span class="o">=</span> <span class="n">btasks</span><span class="o">.</span><span class="n">HabituationTrialsBpod</span>
-            <span class="n">compute_status</span> <span class="o">=</span> <span class="kc">False</span>
-        <span class="k">elif</span> <span class="s1">&#39;passiveChoiceWorld&#39;</span> <span class="ow">in</span> <span class="n">protocol</span><span class="p">:</span>
-            <span class="n">registration_class</span> <span class="o">=</span> <span class="n">btasks</span><span class="o">.</span><span class="n">PassiveRegisterRaw</span>
-            <span class="n">behaviour_class</span> <span class="o">=</span> <span class="n">btasks</span><span class="o">.</span><span class="n">PassiveTask</span>
-            <span class="n">compute_status</span> <span class="o">=</span> <span class="kc">False</span>
-        <span class="k">elif</span> <span class="n">sync_kwargs</span><span class="p">[</span><span class="s1">&#39;sync&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;bpod&#39;</span><span class="p">:</span>
-            <span class="n">registration_class</span> <span class="o">=</span> <span class="n">btasks</span><span class="o">.</span><span class="n">TrialRegisterRaw</span>
-            <span class="n">behaviour_class</span> <span class="o">=</span> <span class="n">btasks</span><span class="o">.</span><span class="n">ChoiceWorldTrialsBpod</span>
-            <span class="n">compute_status</span> <span class="o">=</span> <span class="kc">True</span>
-        <span class="k">elif</span> <span class="n">sync_kwargs</span><span class="p">[</span><span class="s1">&#39;sync&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;nidq&#39;</span><span class="p">:</span>
-            <span class="n">registration_class</span> <span class="o">=</span> <span class="n">btasks</span><span class="o">.</span><span class="n">TrialRegisterRaw</span>
-            <span class="n">behaviour_class</span> <span class="o">=</span> <span class="n">btasks</span><span class="o">.</span><span class="n">ChoiceWorldTrialsNidq</span>
-            <span class="n">compute_status</span> <span class="o">=</span> <span class="kc">True</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">NotImplementedError</span>
-        <span class="n">tasks</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;RegisterRaw_</span><span class="si">{</span><span class="n">protocol</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;RegisterRaw_</span><span class="si">{</span><span class="n">protocol</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="p">(</span><span class="n">registration_class</span><span class="p">,),</span> <span class="p">{})(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">**</span><span class="n">task_kwargs</span><span class="p">)</span>
-        <span class="n">parents</span> <span class="o">=</span> <span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;RegisterRaw_</span><span class="si">{</span><span class="n">protocol</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">]]</span> <span class="o">+</span> <span class="n">sync_tasks</span>
-        <span class="n">tasks</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;Trials_</span><span class="si">{</span><span class="n">protocol</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Trials_</span><span class="si">{</span><span class="n">protocol</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="p">(</span><span class="n">behaviour_class</span><span class="p">,),</span> <span class="p">{})(</span>
-            <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">**</span><span class="n">sync_kwargs</span><span class="p">,</span> <span class="o">**</span><span class="n">task_kwargs</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="n">parents</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">compute_status</span><span class="p">:</span>
-            <span class="n">tasks</span><span class="p">[</span><span class="sa">f</span><span class="s2">&quot;TrainingStatus_</span><span class="si">{</span><span class="n">protocol</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;TrainingStatus_</span><span class="si">{</span><span class="n">protocol</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="p">(</span><span class="n">btasks</span><span class="o">.</span><span class="n">TrainingStatus</span><span class="p">,),</span> <span class="p">{})(</span>
-                <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">**</span><span class="n">task_kwargs</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;Trials_</span><span class="si">{</span><span class="n">protocol</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">]])</span>
+    <span class="n">task_protocols</span> <span class="o">=</span> <span class="n">acquisition_description</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;tasks&#39;</span><span class="p">,</span> <span class="p">[])</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">protocol</span><span class="p">,</span> <span class="n">task_info</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">chain</span><span class="p">(</span><span class="o">*</span><span class="nb">map</span><span class="p">(</span><span class="nb">dict</span><span class="o">.</span><span class="n">items</span><span class="p">,</span> <span class="n">task_protocols</span><span class="p">))):</span>
+        <span class="n">collection</span> <span class="o">=</span> <span class="n">task_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;collection&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;raw_task_data_</span><span class="si">{</span><span class="n">i</span><span class="si">:</span><span class="s1">02</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="n">task_kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;protocol&#39;</span><span class="p">:</span> <span class="n">protocol</span><span class="p">,</span> <span class="s1">&#39;collection&#39;</span><span class="p">:</span> <span class="n">collection</span><span class="p">}</span>
+        <span class="c1"># For now the order of protocols in the list will take precedence. If collections are numbered,</span>
+        <span class="c1"># check that the numbers match the order.  This may change in the future.</span>
+        <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;^raw_task_data_\d</span><span class="si">{2}</span><span class="s1">$&#39;</span><span class="p">,</span> <span class="n">collection</span><span class="p">):</span>
+            <span class="n">task_kwargs</span><span class="p">[</span><span class="s1">&#39;protocol_number&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">i</span>
+            <span class="k">if</span> <span class="nb">int</span><span class="p">(</span><span class="n">collection</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span> <span class="o">!=</span> <span class="n">i</span><span class="p">:</span>
+                <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Number in collection name does not match task order&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">extractors</span> <span class="o">:=</span> <span class="n">task_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;extractors&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+            <span class="n">extractors</span> <span class="o">=</span> <span class="p">(</span><span class="n">extractors</span><span class="p">,)</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">extractors</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">else</span> <span class="n">extractors</span>
+            <span class="n">task_name</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># to avoid unbound variable issue in the first round</span>
+            <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">task</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">extractors</span><span class="p">):</span>
+                <span class="c1"># Assume previous task in the list is parent</span>
+                <span class="n">parents</span> <span class="o">=</span> <span class="p">[]</span> <span class="k">if</span> <span class="n">j</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="n">task_name</span><span class="p">]]</span>
+                <span class="c1"># Make sure extractor and sync task don&#39;t collide</span>
+                <span class="k">for</span> <span class="n">sync_option</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;nidq&#39;</span><span class="p">,</span> <span class="s1">&#39;bpod&#39;</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="n">sync_option</span> <span class="ow">in</span> <span class="n">task</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">sync</span> <span class="o">==</span> <span class="n">sync_option</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Extractor &quot;</span><span class="si">{</span><span class="n">task</span><span class="si">}</span><span class="s1">&quot; and sync &quot;</span><span class="si">{</span><span class="n">sync</span><span class="si">}</span><span class="s1">&quot; do not match&#39;</span><span class="p">)</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">task</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">btasks</span><span class="p">,</span> <span class="n">task</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">NotImplementedError</span>  <span class="c1"># TODO Attempt to import from personal project repo</span>
+                <span class="c1"># Rename the class to something more informative</span>
+                <span class="n">task_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">task</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="n">i</span><span class="si">:</span><span class="s1">02</span><span class="si">}</span><span class="s1">&#39;</span>
+                <span class="c1"># For now we assume that the second task in the list is always the trials extractor, which is dependent</span>
+                <span class="c1"># on the sync task and sync arguments</span>
+                <span class="k">if</span> <span class="n">j</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="n">tasks</span><span class="p">[</span><span class="n">task_name</span><span class="p">]</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="n">task_name</span><span class="p">,</span> <span class="p">(</span><span class="n">task</span><span class="p">,),</span> <span class="p">{})(</span>
+                        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">**</span><span class="n">sync_kwargs</span><span class="p">,</span> <span class="o">**</span><span class="n">task_kwargs</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="n">parents</span> <span class="o">+</span> <span class="n">sync_tasks</span>
+                    <span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">tasks</span><span class="p">[</span><span class="n">task_name</span><span class="p">]</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="n">task_name</span><span class="p">,</span> <span class="p">(</span><span class="n">task</span><span class="p">,),</span> <span class="p">{})(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">**</span><span class="n">task_kwargs</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="n">parents</span><span class="p">)</span>
+                <span class="c1"># For the next task, we assume that the previous task is the parent</span>
+        <span class="k">else</span><span class="p">:</span>  <span class="c1"># Legacy block to handle sessions without defined extractors</span>
+            <span class="c1"># -   choice_world_recording</span>
+            <span class="c1"># -   choice_world_biased</span>
+            <span class="c1"># -   choice_world_training</span>
+            <span class="c1"># -   choice_world_habituation</span>
+            <span class="k">if</span> <span class="s1">&#39;habituation&#39;</span> <span class="ow">in</span> <span class="n">protocol</span><span class="p">:</span>
+                <span class="n">registration_class</span> <span class="o">=</span> <span class="n">btasks</span><span class="o">.</span><span class="n">HabituationRegisterRaw</span>
+                <span class="n">behaviour_class</span> <span class="o">=</span> <span class="n">btasks</span><span class="o">.</span><span class="n">HabituationTrialsBpod</span>
+                <span class="n">compute_status</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">elif</span> <span class="s1">&#39;passiveChoiceWorld&#39;</span> <span class="ow">in</span> <span class="n">protocol</span><span class="p">:</span>
+                <span class="n">registration_class</span> <span class="o">=</span> <span class="n">btasks</span><span class="o">.</span><span class="n">PassiveRegisterRaw</span>
+                <span class="n">behaviour_class</span> <span class="o">=</span> <span class="n">btasks</span><span class="o">.</span><span class="n">PassiveTask</span>
+                <span class="n">compute_status</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">elif</span> <span class="n">sync_kwargs</span><span class="p">[</span><span class="s1">&#39;sync&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;bpod&#39;</span><span class="p">:</span>
+                <span class="n">registration_class</span> <span class="o">=</span> <span class="n">btasks</span><span class="o">.</span><span class="n">TrialRegisterRaw</span>
+                <span class="n">behaviour_class</span> <span class="o">=</span> <span class="n">btasks</span><span class="o">.</span><span class="n">ChoiceWorldTrialsBpod</span>
+                <span class="n">compute_status</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">elif</span> <span class="n">sync_kwargs</span><span class="p">[</span><span class="s1">&#39;sync&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;nidq&#39;</span><span class="p">:</span>
+                <span class="n">registration_class</span> <span class="o">=</span> <span class="n">btasks</span><span class="o">.</span><span class="n">TrialRegisterRaw</span>
+                <span class="n">behaviour_class</span> <span class="o">=</span> <span class="n">btasks</span><span class="o">.</span><span class="n">ChoiceWorldTrialsNidq</span>
+                <span class="n">compute_status</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+            <span class="n">tasks</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;RegisterRaw_</span><span class="si">{</span><span class="n">protocol</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="n">i</span><span class="si">:</span><span class="s1">02</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;RegisterRaw_</span><span class="si">{</span><span class="n">protocol</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="n">i</span><span class="si">:</span><span class="s1">02</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="p">(</span><span class="n">registration_class</span><span class="p">,),</span> <span class="p">{})(</span>
+                <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">**</span><span class="n">task_kwargs</span><span class="p">)</span>
+            <span class="n">parents</span> <span class="o">=</span> <span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;RegisterRaw_</span><span class="si">{</span><span class="n">protocol</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="n">i</span><span class="si">:</span><span class="s1">02</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">]]</span> <span class="o">+</span> <span class="n">sync_tasks</span>
+            <span class="n">tasks</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;Trials_</span><span class="si">{</span><span class="n">protocol</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="n">i</span><span class="si">:</span><span class="s1">02</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Trials_</span><span class="si">{</span><span class="n">protocol</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="n">i</span><span class="si">:</span><span class="s1">02</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="p">(</span><span class="n">behaviour_class</span><span class="p">,),</span> <span class="p">{})(</span>
+                <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">**</span><span class="n">sync_kwargs</span><span class="p">,</span> <span class="o">**</span><span class="n">task_kwargs</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="n">parents</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">compute_status</span><span class="p">:</span>
+                <span class="n">tasks</span><span class="p">[</span><span class="sa">f</span><span class="s2">&quot;TrainingStatus_</span><span class="si">{</span><span class="n">protocol</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">i</span><span class="si">:</span><span class="s2">02</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;TrainingStatus_</span><span class="si">{</span><span class="n">protocol</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="n">i</span><span class="si">:</span><span class="s1">02</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="p">(</span>
+                    <span class="n">btasks</span><span class="o">.</span><span class="n">TrainingStatus</span><span class="p">,),</span> <span class="p">{})(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">**</span><span class="n">task_kwargs</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;Trials_</span><span class="si">{</span><span class="n">protocol</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="n">i</span><span class="si">:</span><span class="s1">02</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">]])</span>
 
     <span class="c1"># Ephys tasks</span>
     <span class="k">if</span> <span class="s1">&#39;neuropixel&#39;</span> <span class="ow">in</span> <span class="n">devices</span><span class="p">:</span>
@@ -339,18 +394,20 @@
 
         <span class="k">if</span> <span class="n">video_compressed</span><span class="p">:</span>
             <span class="c1"># This is for widefield case where the video is already compressed</span>
-            <span class="n">tasks</span><span class="p">[</span><span class="n">tn</span><span class="p">]</span> <span class="o">=</span> <span class="nb">type</span><span class="p">((</span><span class="n">tn</span> <span class="o">:=</span> <span class="s1">&#39;VideoConvert&#39;</span><span class="p">),</span> <span class="p">(</span><span class="n">vtasks</span><span class="o">.</span><span class="n">VideoConvert</span><span class="p">,),</span> <span class="p">{})(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">**</span><span class="n">video_kwargs</span><span class="p">)</span>
+            <span class="n">tasks</span><span class="p">[</span><span class="n">tn</span><span class="p">]</span> <span class="o">=</span> <span class="nb">type</span><span class="p">((</span><span class="n">tn</span> <span class="o">:=</span> <span class="s1">&#39;VideoConvert&#39;</span><span class="p">),</span> <span class="p">(</span><span class="n">vtasks</span><span class="o">.</span><span class="n">VideoConvert</span><span class="p">,),</span> <span class="p">{})(</span>
+                <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">**</span><span class="n">video_kwargs</span><span class="p">)</span>
             <span class="n">dlc_parent_task</span> <span class="o">=</span> <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;VideoConvert&#39;</span><span class="p">]</span>
-            <span class="n">tasks</span><span class="p">[</span><span class="n">tn</span><span class="p">]</span> <span class="o">=</span> <span class="nb">type</span><span class="p">((</span><span class="n">tn</span> <span class="o">:=</span> <span class="sa">f</span><span class="s1">&#39;VideoSyncQC_</span><span class="si">{</span><span class="n">sync</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">),</span> <span class="p">(</span><span class="n">vtasks</span><span class="o">.</span><span class="n">VideoSyncQcCamlog</span><span class="p">,),</span> <span class="p">{})(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">**</span><span class="n">video_kwargs</span><span class="p">,</span>
-                                                                                             <span class="o">**</span><span class="n">sync_kwargs</span><span class="p">)</span>
+            <span class="n">tasks</span><span class="p">[</span><span class="n">tn</span><span class="p">]</span> <span class="o">=</span> <span class="nb">type</span><span class="p">((</span><span class="n">tn</span> <span class="o">:=</span> <span class="sa">f</span><span class="s1">&#39;VideoSyncQC_</span><span class="si">{</span><span class="n">sync</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">),</span> <span class="p">(</span><span class="n">vtasks</span><span class="o">.</span><span class="n">VideoSyncQcCamlog</span><span class="p">,),</span> <span class="p">{})(</span>
+                <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">**</span><span class="n">video_kwargs</span><span class="p">,</span> <span class="o">**</span><span class="n">sync_kwargs</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">tasks</span><span class="p">[</span><span class="n">tn</span><span class="p">]</span> <span class="o">=</span> <span class="nb">type</span><span class="p">((</span><span class="n">tn</span> <span class="o">:=</span> <span class="s1">&#39;VideoRegisterRaw&#39;</span><span class="p">),</span> <span class="p">(</span><span class="n">vtasks</span><span class="o">.</span><span class="n">VideoRegisterRaw</span><span class="p">,),</span> <span class="p">{})(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">**</span><span class="n">video_kwargs</span><span class="p">)</span>
-            <span class="n">tasks</span><span class="p">[</span><span class="n">tn</span><span class="p">]</span> <span class="o">=</span> <span class="nb">type</span><span class="p">((</span><span class="n">tn</span> <span class="o">:=</span> <span class="s1">&#39;VideoCompress&#39;</span><span class="p">),</span> <span class="p">(</span><span class="n">vtasks</span><span class="o">.</span><span class="n">VideoCompress</span><span class="p">,),</span> <span class="p">{})(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">**</span><span class="n">video_kwargs</span><span class="p">,</span> <span class="o">**</span><span class="n">sync_kwargs</span><span class="p">)</span>
+            <span class="n">tasks</span><span class="p">[</span><span class="n">tn</span><span class="p">]</span> <span class="o">=</span> <span class="nb">type</span><span class="p">((</span><span class="n">tn</span> <span class="o">:=</span> <span class="s1">&#39;VideoRegisterRaw&#39;</span><span class="p">),</span> <span class="p">(</span><span class="n">vtasks</span><span class="o">.</span><span class="n">VideoRegisterRaw</span><span class="p">,),</span> <span class="p">{})(</span>
+                <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">**</span><span class="n">video_kwargs</span><span class="p">)</span>
+            <span class="n">tasks</span><span class="p">[</span><span class="n">tn</span><span class="p">]</span> <span class="o">=</span> <span class="nb">type</span><span class="p">((</span><span class="n">tn</span> <span class="o">:=</span> <span class="s1">&#39;VideoCompress&#39;</span><span class="p">),</span> <span class="p">(</span><span class="n">vtasks</span><span class="o">.</span><span class="n">VideoCompress</span><span class="p">,),</span> <span class="p">{})(</span>
+                <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">**</span><span class="n">video_kwargs</span><span class="p">,</span> <span class="o">**</span><span class="n">sync_kwargs</span><span class="p">)</span>
             <span class="n">dlc_parent_task</span> <span class="o">=</span> <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;VideoCompress&#39;</span><span class="p">]</span>
             <span class="k">if</span> <span class="n">sync</span> <span class="o">==</span> <span class="s1">&#39;bpod&#39;</span><span class="p">:</span>
-                <span class="n">collection</span> <span class="o">=</span> <span class="n">sess_params</span><span class="o">.</span><span class="n">get_task_collection</span><span class="p">(</span><span class="n">acquisition_description</span><span class="p">)</span>
                 <span class="n">tasks</span><span class="p">[</span><span class="n">tn</span><span class="p">]</span> <span class="o">=</span> <span class="nb">type</span><span class="p">((</span><span class="n">tn</span> <span class="o">:=</span> <span class="sa">f</span><span class="s1">&#39;VideoSyncQC_</span><span class="si">{</span><span class="n">sync</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">),</span> <span class="p">(</span><span class="n">vtasks</span><span class="o">.</span><span class="n">VideoSyncQcBpod</span><span class="p">,),</span> <span class="p">{})(</span>
-                    <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">**</span><span class="n">video_kwargs</span><span class="p">,</span> <span class="o">**</span><span class="n">sync_kwargs</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="n">collection</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;VideoCompress&#39;</span><span class="p">]])</span>
+                    <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">**</span><span class="n">video_kwargs</span><span class="p">,</span> <span class="o">**</span><span class="n">sync_kwargs</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;VideoCompress&#39;</span><span class="p">]])</span>
             <span class="k">elif</span> <span class="n">sync</span> <span class="o">==</span> <span class="s1">&#39;nidq&#39;</span><span class="p">:</span>
                 <span class="n">tasks</span><span class="p">[</span><span class="n">tn</span><span class="p">]</span> <span class="o">=</span> <span class="nb">type</span><span class="p">((</span><span class="n">tn</span> <span class="o">:=</span> <span class="sa">f</span><span class="s1">&#39;VideoSyncQC_</span><span class="si">{</span><span class="n">sync</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">),</span> <span class="p">(</span><span class="n">vtasks</span><span class="o">.</span><span class="n">VideoSyncQcNidq</span><span class="p">,),</span> <span class="p">{})(</span>
                     <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">**</span><span class="n">video_kwargs</span><span class="p">,</span> <span class="o">**</span><span class="n">sync_kwargs</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;VideoCompress&#39;</span><span class="p">]]</span> <span class="o">+</span> <span class="n">sync_tasks</span><span class="p">)</span>

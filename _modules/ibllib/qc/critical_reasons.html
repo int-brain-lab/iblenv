@@ -13,9 +13,6 @@
   <![endif]-->
   
         <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
-        <script src="../../../_static/jquery.js"></script>
-        <script src="../../../_static/underscore.js"></script>
-        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="../../../_static/doctools.js"></script>
         <script src="../../../_static/sphinx_highlight.js"></script>
         <script src="../../../_static/clipboard.min.js"></script>
@@ -31,11 +28,15 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-            <a href="../../../index.html" class="icon icon-home"> IBL Library
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            IBL Library
           </a>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
@@ -91,7 +92,7 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="../../../index.html" class="icon icon-home"></a></li>
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
           <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
       <li class="breadcrumb-item active">ibllib.qc.critical_reasons</li>
       <li class="wy-breadcrumbs-aside">
@@ -109,194 +110,42 @@
 <span class="sd">Places info in Alyx session note in a format that is machine retrievable (text-&gt;json)</span>
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="c1"># Author: Gaelle</span>
+<span class="kn">import</span> <span class="nn">abc</span>
+<span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">from</span> <span class="nn">requests.exceptions</span> <span class="kn">import</span> <span class="n">HTTPError</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
 <span class="kn">from</span> <span class="nn">one.api</span> <span class="kn">import</span> <span class="n">ONE</span>
 
-<span class="c1"># Global var</span>
-
-<span class="c1"># Reasons for marking a session as critical</span>
-<span class="n">REASONS_SESS_CRIT</span> <span class="o">=</span> <span class="p">(</span>
-    <span class="s1">&#39;within experiment system crash&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;synching impossible&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;dud or mock session&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;essential dataset missing&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;Other&#39;</span>
-<span class="p">)</span>
-
-<span class="c1"># Reasons for marking an insertion as critical</span>
-<span class="c1"># Note: Split the reasons labelled in the GUI versus those to be seen</span>
-<span class="c1"># when marking the insertion programmatically</span>
-<span class="n">REASONS_INS_CRIT_GUI</span> <span class="o">=</span> <span class="p">(</span>
-    <span class="s1">&#39;Noise and artifact&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;Drift&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;Poor neural yield&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;Brain Damage&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;Other&#39;</span>
-<span class="p">)</span>
-
-<span class="n">REASONS_INS_CRIT</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">([</span><span class="s1">&#39;Histological images missing&#39;</span><span class="p">,</span>
-                          <span class="s1">&#39;Track not visible on imaging data&#39;</span><span class="p">]</span>
-                         <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="n">REASONS_INS_CRIT_GUI</span><span class="p">))</span>
+<span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s2">&quot;ibllib&quot;</span><span class="p">)</span>
 
 
-<span class="c1"># Util functions</span>
-<span class="k">def</span> <span class="nf">_create_note_str</span><span class="p">(</span><span class="n">ins_or_sess</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    :param ins_or_sess: str containing either &#39;insertion&#39; or &#39;session&#39;</span>
-<span class="sd">    :return:</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">str_static</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;=== EXPERIMENTER REASON(S) FOR MARKING THE &#39;</span> \
-                 <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">ins_or_sess</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span><span class="si">}</span><span class="s1"> AS CRITICAL ===&#39;</span>
-    <span class="k">return</span> <span class="n">str_static</span>
-
-
-<span class="k">def</span> <span class="nf">_reason_addnumberstr</span><span class="p">(</span><span class="n">reason_list</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Adding number at the beginning of the str for ease of selection by user</span>
-<span class="sd">    :param reason_list : list of str ; default: None</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s1">) </span><span class="si">{</span><span class="n">r</span><span class="si">}</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">r</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">reason_list</span><span class="p">)]</span>
-
-
-<span class="n">REASONS_SESS_WITH_NUMBERS</span> <span class="o">=</span> <span class="n">_reason_addnumberstr</span><span class="p">(</span><span class="n">reason_list</span><span class="o">=</span><span class="n">REASONS_SESS_CRIT</span><span class="p">)</span>
-<span class="n">REASONS_INS_WITH_NUMBERS</span> <span class="o">=</span> <span class="n">_reason_addnumberstr</span><span class="p">(</span><span class="n">reason_list</span><span class="o">=</span><span class="n">REASONS_INS_CRIT</span><span class="p">)</span>
-
-
-<span class="k">def</span> <span class="nf">_reason_question_prompt</span><span class="p">(</span><span class="n">reason_list</span><span class="p">,</span> <span class="n">reasons_with_numbers</span><span class="p">,</span> <span class="n">ins_or_sess</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Function asking the user to enter the criteria for marking a session/insertion as CRITICAL.</span>
-<span class="sd">    :param reason_list: list of reasons (str)</span>
-<span class="sd">    :param reasons_with_numbers: list of reasons (str), with added number in front</span>
-<span class="sd">    :param ins_or_sess: str containing either &#39;insertion&#39; or &#39;session&#39;</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-
-    <span class="n">prompt</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;Select from this list the reason(s) why you are marking the &#39;</span> \
-             <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">ins_or_sess</span><span class="si">}</span><span class="s1"> as CRITICAL:&#39;</span> \
-             <span class="sa">f</span><span class="s1">&#39; </span><span class="se">\n</span><span class="s1"> </span><span class="si">{</span><span class="n">reasons_with_numbers</span><span class="si">}</span><span class="s1"> </span><span class="se">\n</span><span class="s1">&#39;</span> \
-             <span class="sa">f</span><span class="s1">&#39;and enter the corresponding numbers separated by commas, e.g. 1,3 -&gt; enter: &#39;</span>
-    <span class="n">ans</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="n">prompt</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
-    <span class="c1"># turn str into numbers</span>
-    <span class="n">string_list</span> <span class="o">=</span> <span class="n">ans</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">)</span>
-    <span class="k">try</span><span class="p">:</span>  <span class="c1"># try-except inc ase users enters something else than a number</span>
-        <span class="n">integer_map</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">string_list</span><span class="p">)</span>
-        <span class="n">integer_list</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">integer_map</span><span class="p">)</span>
-    <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">ans</span><span class="si">}</span><span class="s1"> is invalid, please try again...&#39;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">_reason_question_prompt</span><span class="p">()</span>
-
-    <span class="k">if</span> <span class="nb">all</span><span class="p">(</span><span class="n">elem</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">reasons_with_numbers</span><span class="p">))</span> <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">integer_list</span><span class="p">):</span>
-        <span class="n">reasons_out</span> <span class="o">=</span> <span class="p">[</span><span class="n">reason_list</span><span class="p">[</span><span class="n">integer_n</span><span class="p">]</span> <span class="k">for</span> <span class="n">integer_n</span> <span class="ow">in</span> <span class="n">integer_list</span><span class="p">]</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;You selected reason(s): </span><span class="si">{</span><span class="n">reasons_out</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">reasons_out</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">ans</span><span class="si">}</span><span class="s1"> is invalid, please try again...&#39;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">_reason_question_prompt</span><span class="p">()</span>
-
-
-<span class="k">def</span> <span class="nf">_enquire_why_other</span><span class="p">():</span>
-    <span class="n">prompt</span> <span class="o">=</span> <span class="s1">&#39;Explain why you selected &quot;other&quot; (free text): &#39;</span>
-    <span class="n">ans</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="n">prompt</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
-    <span class="k">return</span> <span class="n">ans</span>
-
-
-<span class="k">def</span> <span class="nf">_create_note_json</span><span class="p">(</span><span class="n">reasons_selected</span><span class="p">,</span> <span class="n">reason_for_other</span><span class="p">,</span> <span class="n">note_title</span><span class="p">):</span>
-    <span class="n">note_session</span> <span class="o">=</span> <span class="p">{</span>
-        <span class="s2">&quot;title&quot;</span><span class="p">:</span> <span class="n">note_title</span><span class="p">,</span>
-        <span class="s2">&quot;reasons_selected&quot;</span><span class="p">:</span> <span class="n">reasons_selected</span><span class="p">,</span>
-        <span class="s2">&quot;reason_for_other&quot;</span><span class="p">:</span> <span class="n">reason_for_other</span>
-    <span class="p">}</span>
-    <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">note_session</span><span class="p">)</span>
-
-
-<span class="k">def</span> <span class="nf">_delete_note_yesno</span><span class="p">(</span><span class="n">notes</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Function asking user whether notes are to be deleted.</span>
-<span class="sd">    :param notes: Alyx notes, from ONE query</span>
-<span class="sd">    :return: y / n (string)</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">prompt</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;You are about to delete </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">notes</span><span class="p">)</span><span class="si">}</span><span class="s1"> existing notes; &#39;</span> \
-             <span class="sa">f</span><span class="s1">&#39;do you want to proceed? y/n: &#39;</span>
-    <span class="n">ans</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="n">prompt</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
-    <span class="k">if</span> <span class="n">ans</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="s1">&#39;n&#39;</span><span class="p">]:</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">ans</span><span class="si">}</span><span class="s1"> is invalid, please try again...&#39;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">_delete_note_yesno</span><span class="p">()</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">ans</span>
-
-
-<span class="k">def</span> <span class="nf">_upload_note_alyx</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">note_text</span><span class="p">,</span> <span class="n">content_type</span><span class="p">,</span> <span class="n">str_notes_static</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Function to upload a note to Alyx.</span>
-<span class="sd">    It will check if notes with STR_NOTES_STATIC already exists for this session,</span>
-<span class="sd">    and ask if OK to overwrite.</span>
-<span class="sd">    :param eid: session or isnertion eid</span>
-<span class="sd">    :param note_text: text to enter within the note object</span>
-<span class="sd">    :param one: default: None -&gt; ONE()</span>
-<span class="sd">    :param str_notes_static: string within the notes that will be searched for</span>
-<span class="sd">    :param content_type: &#39;session&#39; or &#39;insertion&#39;</span>
-<span class="sd">    :param overwrite: if set to False, will check whether other notes exists and ask</span>
-<span class="sd">    if deleting is OK.</span>
-<span class="sd">    If set to True, will delete any previous note without asking.</span>
-<span class="sd">    :return:</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">one</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">one</span> <span class="o">=</span> <span class="n">ONE</span><span class="p">()</span>
-    <span class="n">my_note</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;user&#39;</span><span class="p">:</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">user</span><span class="p">,</span>
-               <span class="s1">&#39;content_type&#39;</span><span class="p">:</span> <span class="n">content_type</span><span class="p">,</span>
-               <span class="s1">&#39;object_id&#39;</span><span class="p">:</span> <span class="n">eid</span><span class="p">,</span>
-               <span class="s1">&#39;text&#39;</span><span class="p">:</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">note_text</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">}</span>
-    <span class="c1"># check if such a note already exists, ask if OK to overwrite</span>
-    <span class="n">notes</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;notes&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span>
-                          <span class="n">django</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;text__icontains,</span><span class="si">{</span><span class="n">str_notes_static</span><span class="si">}</span><span class="s1">,object_id,</span><span class="si">{</span><span class="n">eid</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span>
-                          <span class="n">no_cache</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">notes</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-        <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;notes&#39;</span><span class="p">,</span> <span class="s1">&#39;create&#39;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">my_note</span><span class="p">)</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;The selected reasons were saved on Alyx.&#39;</span><span class="p">)</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">overwrite</span><span class="p">:</span>
-            <span class="n">ans</span> <span class="o">=</span> <span class="s1">&#39;y&#39;</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">ans</span> <span class="o">=</span> <span class="n">_delete_note_yesno</span><span class="p">(</span><span class="n">notes</span><span class="o">=</span><span class="n">notes</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">ans</span> <span class="o">==</span> <span class="s1">&#39;y&#39;</span><span class="p">:</span>
-            <span class="k">for</span> <span class="n">note</span> <span class="ow">in</span> <span class="n">notes</span><span class="p">:</span>
-                <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;notes&#39;</span><span class="p">,</span> <span class="s1">&#39;delete&#39;</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">note</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">])</span>
-            <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;notes&#39;</span><span class="p">,</span> <span class="s1">&#39;create&#39;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">my_note</span><span class="p">)</span>
-            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;The selected reasons were saved on Alyx; old notes were deleted&#39;</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;The selected reasons were NOT saved on Alyx; old notes remain.&#39;</span><span class="p">)</span>
-
-
-<div class="viewcode-block" id="main_gui"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.critical_reasons.html#ibllib.qc.critical_reasons.main_gui">[docs]</a><span class="k">def</span> <span class="nf">main_gui</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">reasons_selected</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="main_gui"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.critical_reasons.html#ibllib.qc.critical_reasons.main_gui">[docs]</a><span class="k">def</span> <span class="nf">main_gui</span><span class="p">(</span><span class="n">uuid</span><span class="p">,</span> <span class="n">reasons_selected</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Main function to call to input a reason for marking an insertion as</span>
 <span class="sd">    CRITICAL from the alignment GUI. It will:</span>
 <span class="sd">    - create note text, after deleting any similar notes existing already</span>
 
-<span class="sd">    :param: eid: insertion id</span>
+<span class="sd">    :param: uuid: insertion id</span>
 <span class="sd">    :param: reasons_selected: list of str, str are picked within REASONS_INS_CRIT_GUI</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="c1"># hit the database to check if eid is insertion eid</span>
-    <span class="n">ins_list</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;insertions&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">eid</span><span class="p">,</span> <span class="n">no_cache</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="c1"># hit the database to check if uuid is insertion uuid</span>
+    <span class="n">ins_list</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;insertions&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">uuid</span><span class="p">,</span> <span class="n">no_cache</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">ins_list</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;N=</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">ins_list</span><span class="p">)</span><span class="si">}</span><span class="s1"> insertion found, expected N=1. Check eid provided.&#39;</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;N=</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">ins_list</span><span class="p">)</span><span class="si">}</span><span class="s1"> insertion found, expected N=1. Check uuid provided.&#39;</span><span class="p">)</span>
+
+    <span class="n">note</span> <span class="o">=</span> <span class="n">CriticalInsertionNote</span><span class="p">(</span><span class="n">uuid</span><span class="p">,</span> <span class="n">one</span><span class="p">)</span>
 
     <span class="c1"># assert that reasons are all within REASONS_INS_CRIT_GUI</span>
     <span class="k">for</span> <span class="n">item_str</span> <span class="ow">in</span> <span class="n">reasons_selected</span><span class="p">:</span>
-        <span class="k">assert</span> <span class="n">item_str</span> <span class="ow">in</span> <span class="n">REASONS_INS_CRIT_GUI</span>
+        <span class="k">assert</span> <span class="n">item_str</span> <span class="ow">in</span> <span class="n">note</span><span class="o">.</span><span class="n">descriptions_gui</span>
 
-    <span class="c1"># create note title and text</span>
-    <span class="n">note_title</span> <span class="o">=</span> <span class="n">_create_note_str</span><span class="p">(</span><span class="s1">&#39;insertion&#39;</span><span class="p">)</span>
-
-    <span class="n">note_text</span> <span class="o">=</span> <span class="n">_create_note_json</span><span class="p">(</span><span class="n">reasons_selected</span><span class="o">=</span><span class="n">reasons_selected</span><span class="p">,</span>
-                                  <span class="n">reason_for_other</span><span class="o">=</span><span class="p">[],</span>
-                                  <span class="n">note_title</span><span class="o">=</span><span class="n">note_title</span><span class="p">)</span>
-
-    <span class="c1"># upload note to Alyx</span>
-    <span class="n">_upload_note_alyx</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">note_text</span><span class="p">,</span> <span class="n">content_type</span><span class="o">=</span><span class="s1">&#39;probeinsertion&#39;</span><span class="p">,</span>
-                      <span class="n">str_notes_static</span><span class="o">=</span><span class="n">note_title</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
+    <span class="n">note</span><span class="o">.</span><span class="n">selected_reasons</span> <span class="o">=</span> <span class="n">reasons_selected</span>
+    <span class="n">note</span><span class="o">.</span><span class="n">other_reason</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">note</span><span class="o">.</span><span class="n">_upload_note</span><span class="p">(</span><span class="n">overwrite</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="main"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.critical_reasons.html#ibllib.qc.critical_reasons.main">[docs]</a><span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="main"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.critical_reasons.html#ibllib.qc.critical_reasons.main">[docs]</a><span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="n">uuid</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Main function to call to input a reason for marking a session/insertion</span>
 <span class="sd">    as CRITICAL programmatically. It will:</span>
@@ -309,16 +158,16 @@
 <span class="sd">    Example:</span>
 <span class="sd">    # Retrieve Alyx note to test</span>
 <span class="sd">    one = ONE(base_url=&#39;https://dev.alyx.internationalbrainlab.org&#39;)</span>
-<span class="sd">    eid = &#39;2ffd3ed5-477e-4153-9af7-7fdad3c6946b&#39;</span>
-<span class="sd">    main(eid=eid, one=one)</span>
+<span class="sd">    uuid = &#39;2ffd3ed5-477e-4153-9af7-7fdad3c6946b&#39;</span>
+<span class="sd">    main(uuid=uuid, one=one)</span>
 
 <span class="sd">    # Get notes with pattern</span>
 <span class="sd">    notes = one.alyx.rest(&#39;notes&#39;, &#39;list&#39;,</span>
 <span class="sd">                          django=f&#39;text__icontains,{STR_NOTES_STATIC},&#39;</span>
-<span class="sd">                                 f&#39;object_id,{eid}&#39;)</span>
+<span class="sd">                                 f&#39;object_id,{uuid}&#39;)</span>
 <span class="sd">    test_json_read = json.loads(notes[0][&#39;text&#39;])</span>
 
-<span class="sd">    :param eid: session/insertion eid</span>
+<span class="sd">    :param uuid: session/insertion uuid</span>
 <span class="sd">    :param one: default: None -&gt; ONE()</span>
 <span class="sd">    :return:</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -326,45 +175,554 @@
         <span class="n">one</span> <span class="o">=</span> <span class="n">ONE</span><span class="p">()</span>
     <span class="c1"># ask reasons for selection of critical status</span>
 
-    <span class="c1"># hit the database to know if eid is insertion or session eid</span>
-    <span class="n">sess_list</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;/sessions?&amp;django=pk,&#39;</span> <span class="o">+</span> <span class="n">eid</span><span class="p">,</span> <span class="n">clobber</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-    <span class="n">ins_list</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;/insertions?&amp;django=pk,&#39;</span> <span class="o">+</span> <span class="n">eid</span><span class="p">,</span> <span class="n">clobber</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="c1"># hit the database to know if uuid is insertion or session uuid</span>
+    <span class="n">sess_list</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;/sessions?&amp;django=pk,&#39;</span> <span class="o">+</span> <span class="n">uuid</span><span class="p">,</span> <span class="n">clobber</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">ins_list</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;/insertions?&amp;django=pk,&#39;</span> <span class="o">+</span> <span class="n">uuid</span><span class="p">,</span> <span class="n">clobber</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">sess_list</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">ins_list</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>  <span class="c1"># session</span>
-        <span class="n">reason_list</span> <span class="o">=</span> <span class="n">REASONS_SESS_CRIT</span>
-        <span class="n">reasons_with_numbers</span> <span class="o">=</span> <span class="n">REASONS_SESS_WITH_NUMBERS</span>
-        <span class="n">ins_or_sess</span> <span class="o">=</span> <span class="s1">&#39;session&#39;</span>
-        <span class="n">content_type</span> <span class="o">=</span> <span class="s1">&#39;session&#39;</span>
+        <span class="n">note</span> <span class="o">=</span> <span class="n">CriticalSessionNote</span><span class="p">(</span><span class="n">uuid</span><span class="p">,</span> <span class="n">one</span><span class="p">)</span>
     <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">ins_list</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">sess_list</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>  <span class="c1"># insertion</span>
-        <span class="n">reason_list</span> <span class="o">=</span> <span class="n">REASONS_INS_CRIT</span>
-        <span class="n">reasons_with_numbers</span> <span class="o">=</span> <span class="n">REASONS_INS_WITH_NUMBERS</span>
-        <span class="n">content_type</span> <span class="o">=</span> <span class="s1">&#39;probeinsertion&#39;</span>
-        <span class="n">ins_or_sess</span> <span class="o">=</span> <span class="s1">&#39;insertion&#39;</span>
+        <span class="n">note</span> <span class="o">=</span> <span class="n">CriticalInsertionNote</span><span class="p">(</span><span class="n">uuid</span><span class="p">,</span> <span class="n">one</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Inadequate number of session (n=</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">sess_list</span><span class="p">)</span><span class="si">}</span><span class="s1">) &#39;</span>
-                         <span class="sa">f</span><span class="s1">&#39;or insertion (n=</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">ins_list</span><span class="p">)</span><span class="si">}</span><span class="s1">) found for eid </span><span class="si">{</span><span class="n">eid</span><span class="si">}</span><span class="s1">.&#39;</span>
+                         <span class="sa">f</span><span class="s1">&#39;or insertion (n=</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">ins_list</span><span class="p">)</span><span class="si">}</span><span class="s1">) found for uuid </span><span class="si">{</span><span class="n">uuid</span><span class="si">}</span><span class="s1">.&#39;</span>
                          <span class="sa">f</span><span class="s1">&#39;The query output should be of length 1.&#39;</span><span class="p">)</span>
 
-    <span class="n">reasons_selected</span> <span class="o">=</span> <span class="n">_reason_question_prompt</span><span class="p">(</span><span class="n">reason_list</span><span class="o">=</span><span class="n">reason_list</span><span class="p">,</span>
-                                               <span class="n">reasons_with_numbers</span><span class="o">=</span><span class="n">reasons_with_numbers</span><span class="p">,</span>
-                                               <span class="n">ins_or_sess</span><span class="o">=</span><span class="n">ins_or_sess</span><span class="p">)</span>
+    <span class="n">note</span><span class="o">.</span><span class="n">upload_note</span><span class="p">()</span></div>
 
-    <span class="c1"># check if &#39;other&#39; reason has been selected, inquire why</span>
-    <span class="k">if</span> <span class="s1">&#39;Other&#39;</span> <span class="ow">in</span> <span class="n">reasons_selected</span><span class="p">:</span>
-        <span class="n">reason_for_other</span> <span class="o">=</span> <span class="n">_enquire_why_other</span><span class="p">()</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">reason_for_other</span> <span class="o">=</span> <span class="p">[]</span>
 
-    <span class="c1"># create note title and text</span>
-    <span class="n">note_title</span> <span class="o">=</span> <span class="n">_create_note_str</span><span class="p">(</span><span class="n">ins_or_sess</span><span class="p">)</span>
+<div class="viewcode-block" id="Note"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.critical_reasons.html#ibllib.qc.critical_reasons.Note">[docs]</a><span class="k">class</span> <span class="nc">Note</span><span class="p">(</span><span class="n">abc</span><span class="o">.</span><span class="n">ABC</span><span class="p">):</span>
+    <span class="n">descriptions</span> <span class="o">=</span> <span class="p">[]</span>
 
-    <span class="n">note_text</span> <span class="o">=</span> <span class="n">_create_note_json</span><span class="p">(</span><span class="n">reasons_selected</span><span class="o">=</span><span class="n">reasons_selected</span><span class="p">,</span>
-                                  <span class="n">reason_for_other</span><span class="o">=</span><span class="n">reason_for_other</span><span class="p">,</span>
-                                  <span class="n">note_title</span><span class="o">=</span><span class="n">note_title</span><span class="p">)</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">default_descriptions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">descriptions</span> <span class="o">+</span> <span class="p">[</span><span class="s1">&#39;Other&#39;</span><span class="p">]</span>
 
-    <span class="c1"># upload note to Alyx</span>
-    <span class="n">_upload_note_alyx</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">note_text</span><span class="p">,</span> <span class="n">content_type</span><span class="o">=</span><span class="n">content_type</span><span class="p">,</span>
-                      <span class="n">str_notes_static</span><span class="o">=</span><span class="n">note_title</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">)</span></div>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">extra_prompt</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s1">&#39;&#39;</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">note_title</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s1">&#39;&#39;</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">n_description</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">default_descriptions</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">uuid</span><span class="p">,</span> <span class="n">one</span><span class="p">,</span> <span class="n">content_type</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Base class for attaching notes to an alyx endpoint. Do not use this class directly but use parent classes that inherit</span>
+<span class="sd">        this base class</span>
+
+<span class="sd">        :param uuid: uuid of session/ insertion or other model to attach note to</span>
+<span class="sd">        :param one: ONE instance</span>
+<span class="sd">        :param content_type: alyx endpoint of uuid</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">uuid</span> <span class="o">=</span> <span class="n">uuid</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">one</span> <span class="o">=</span> <span class="n">one</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">selected_reasons</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">other_reason</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="n">content_type</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">content_type</span> <span class="o">=</span> <span class="n">content_type</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">content_type</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_content_type</span><span class="p">()</span>
+
+<div class="viewcode-block" id="Note.get_content_type"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.critical_reasons.html#ibllib.qc.critical_reasons.Note.get_content_type">[docs]</a>    <span class="k">def</span> <span class="nf">get_content_type</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Infer the content_type from the uuid. Only checks to see if uuid is a session or insertion. If not recognised will raise</span>
+<span class="sd">        an error and the content_type must be specified on note initialisation e.g Note(uuid, one, content_type=&#39;subject&#39;)</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># see if it as session or an insertion</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">uuid2path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">uuid</span><span class="p">):</span>
+            <span class="n">content_type</span> <span class="o">=</span> <span class="s1">&#39;session&#39;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">pid2uuid</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">uuid</span><span class="p">)</span>
+                <span class="n">content_type</span> <span class="o">=</span> <span class="s1">&#39;probeinsertion&#39;</span>
+            <span class="k">except</span> <span class="n">HTTPError</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Content type cannot be recognised from </span><span class="si">{uuid}</span><span class="s1">. Specify on &#39;</span>
+                                 <span class="s1">&#39;initialistion e.g Note(uuid, one, content_type=&quot;subject&quot;&#39;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">content_type</span></div>
+
+<div class="viewcode-block" id="Note.describe"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.critical_reasons.html#ibllib.qc.critical_reasons.Note.describe">[docs]</a>    <span class="k">def</span> <span class="nf">describe</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Print list of default reasons that can be chosen from</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">d</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">descriptions</span><span class="p">):</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s1">. </span><span class="si">{</span><span class="n">d</span><span class="si">}</span><span class="s1"> </span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Note.numbered_descriptions"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.critical_reasons.html#ibllib.qc.critical_reasons.Note.numbered_descriptions">[docs]</a>    <span class="k">def</span> <span class="nf">numbered_descriptions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return list of numbered default reasons</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s1">) </span><span class="si">{</span><span class="n">d</span><span class="si">}</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">d</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">default_descriptions</span><span class="p">)]</span></div>
+
+<div class="viewcode-block" id="Note.upload_note"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.critical_reasons.html#ibllib.qc.critical_reasons.Note.upload_note">[docs]</a>    <span class="k">def</span> <span class="nf">upload_note</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nums</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">other_reason</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Upload note to alyx. If no values for nums and other_reason are specified, user will receive a prompt in command line</span>
+<span class="sd">        asking them to choose from default list of reasons to add to note as well as option for free text. To upload without</span>
+<span class="sd">        receiving prompt a value for either nums or other_reason must be given</span>
+
+<span class="sd">        :param nums: string of numbers matching those in default descrptions, e.g, &#39;1,3&#39;. Options can be see using note.describe()</span>
+<span class="sd">        :param other_reason: other comment or reasons to add to note (string)</span>
+<span class="sd">        :param kwargs:</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="n">nums</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">other_reason</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">selected_reasons</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">other_reason</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reasons_prompt</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">selected_reasons</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_map_num_to_description</span><span class="p">(</span><span class="n">nums</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">other_reason</span> <span class="o">=</span> <span class="n">other_reason</span> <span class="ow">or</span> <span class="p">[]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_upload_note</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_upload_note</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">existing_note</span><span class="p">,</span> <span class="n">notes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_check_existing_note</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">existing_note</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">update_existing_note</span><span class="p">(</span><span class="n">notes</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">text</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">format_note</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_create_note</span><span class="p">(</span><span class="n">text</span><span class="p">)</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;The selected reasons were saved on Alyx.&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_create_note</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">):</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;user&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">user</span><span class="p">,</span>
+                <span class="s1">&#39;content_type&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">content_type</span><span class="p">,</span>
+                <span class="s1">&#39;object_id&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">uuid</span><span class="p">,</span>
+                <span class="s1">&#39;text&#39;</span><span class="p">:</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">text</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;notes&#39;</span><span class="p">,</span> <span class="s1">&#39;create&#39;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">data</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_update_note</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">note_id</span><span class="p">,</span> <span class="n">text</span><span class="p">):</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;user&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">user</span><span class="p">,</span>
+                <span class="s1">&#39;content_type&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">content_type</span><span class="p">,</span>
+                <span class="s1">&#39;object_id&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">uuid</span><span class="p">,</span>
+                <span class="s1">&#39;text&#39;</span><span class="p">:</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">text</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;notes&#39;</span><span class="p">,</span> <span class="s1">&#39;partial_update&#39;</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">note_id</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">data</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_delete_note</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">note_id</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;notes&#39;</span><span class="p">,</span> <span class="s1">&#39;delete&#39;</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">note_id</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_delete_notes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">notes</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">note</span> <span class="ow">in</span> <span class="n">notes</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_delete_note</span><span class="p">(</span><span class="n">note</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">])</span>
+
+    <span class="k">def</span> <span class="nf">_check_existing_note</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">notes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;notes&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span> <span class="n">django</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;text__icontains,</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">note_title</span><span class="si">}</span><span class="s1">,object_id,</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">uuid</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span>
+                                   <span class="n">no_cache</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">notes</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span><span class="p">,</span> <span class="kc">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">True</span><span class="p">,</span> <span class="n">notes</span>
+
+    <span class="k">def</span> <span class="nf">_map_num_to_description</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nums</span><span class="p">):</span>
+
+        <span class="k">if</span> <span class="n">nums</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[]</span>
+
+        <span class="n">string_list</span> <span class="o">=</span> <span class="n">nums</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">)</span>
+        <span class="n">int_list</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">string_list</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="nb">max</span><span class="p">(</span><span class="n">int_list</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_description</span> <span class="ow">or</span> <span class="nb">min</span><span class="p">(</span><span class="n">int_list</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Chosen values out of range, must be between 0 and </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">n_description</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">default_descriptions</span><span class="p">[</span><span class="n">n</span><span class="p">]</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">int_list</span><span class="p">]</span>
+
+<div class="viewcode-block" id="Note.reasons_prompt"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.critical_reasons.html#ibllib.qc.critical_reasons.Note.reasons_prompt">[docs]</a>    <span class="k">def</span> <span class="nf">reasons_prompt</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Prompt for user to enter reasons</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">prompt</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">extra_prompt</span><span class="si">}</span><span class="s1"> &#39;</span> \
+                 <span class="sa">f</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1"> </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">numbered_descriptions</span><span class="p">()</span><span class="si">}</span><span class="s1"> </span><span class="se">\n</span><span class="s1"> &#39;</span> \
+                 <span class="sa">f</span><span class="s1">&#39;and enter the corresponding numbers separated by commas, e.g. 1,3 -&gt; enter: &#39;</span>
+
+        <span class="n">ans</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="n">prompt</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">selected_reasons</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_map_num_to_description</span><span class="p">(</span><span class="n">ans</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;You selected reason(s): </span><span class="si">{</span><span class="n">selected_reasons</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="s1">&#39;Other&#39;</span> <span class="ow">in</span> <span class="n">selected_reasons</span><span class="p">:</span>
+                <span class="n">other_reasons</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">other_reason_prompt</span><span class="p">()</span>
+                <span class="k">return</span> <span class="n">selected_reasons</span><span class="p">,</span> <span class="n">other_reasons</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">selected_reasons</span><span class="p">,</span> <span class="p">[]</span>
+
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">ans</span><span class="si">}</span><span class="s1"> is invalid, please try again...&#39;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">reasons_prompt</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="Note.other_reason_prompt"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.critical_reasons.html#ibllib.qc.critical_reasons.Note.other_reason_prompt">[docs]</a>    <span class="k">def</span> <span class="nf">other_reason_prompt</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Prompt for user to enter other reasons</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">prompt</span> <span class="o">=</span> <span class="s1">&#39;Explain why you selected &quot;other&quot; (free text): &#39;</span>
+        <span class="n">ans</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="n">prompt</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">ans</span></div>
+
+<div class="viewcode-block" id="Note.format_note"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.critical_reasons.html#ibllib.qc.critical_reasons.Note.format_note">[docs]</a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+    <span class="k">def</span> <span class="nf">format_note</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Method to format text field of note according to type of note wanting to be uploaded</span>
+<span class="sd">        :param kwargs:</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span></div>
+
+<div class="viewcode-block" id="Note.update_existing_note"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.critical_reasons.html#ibllib.qc.critical_reasons.Note.update_existing_note">[docs]</a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+    <span class="k">def</span> <span class="nf">update_existing_note</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">note</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Method to specify behavior in the case of a note with the same title already existing</span>
+<span class="sd">        :param note:</span>
+<span class="sd">        :param kwargs:</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span></div></div>
+
+
+<div class="viewcode-block" id="CriticalNote"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.critical_reasons.html#ibllib.qc.critical_reasons.CriticalNote">[docs]</a><span class="k">class</span> <span class="nc">CriticalNote</span><span class="p">(</span><span class="n">Note</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Class for uploading a critical note to a session or insertion. Do not use directly but use CriticalSessionNote or</span>
+<span class="sd">    CriticalInsertionNote instead</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="CriticalNote.format_note"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.critical_reasons.html#ibllib.qc.critical_reasons.CriticalNote.format_note">[docs]</a>    <span class="k">def</span> <span class="nf">format_note</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">note_text</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;title&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">note_title</span><span class="p">,</span>
+            <span class="s2">&quot;reasons_selected&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">selected_reasons</span><span class="p">,</span>
+            <span class="s2">&quot;reason_for_other&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">other_reason</span>
+        <span class="p">}</span>
+        <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">note_text</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="CriticalNote.update_existing_note"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.critical_reasons.html#ibllib.qc.critical_reasons.CriticalNote.update_existing_note">[docs]</a>    <span class="k">def</span> <span class="nf">update_existing_note</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">notes</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+
+        <span class="n">overwrite</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;overwrite&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">overwrite</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">overwrite</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">delete_note_prompt</span><span class="p">(</span><span class="n">notes</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">overwrite</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_delete_notes</span><span class="p">(</span><span class="n">notes</span><span class="p">)</span>
+            <span class="n">text</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">format_note</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_create_note</span><span class="p">(</span><span class="n">text</span><span class="p">)</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;The selected reasons were saved on Alyx; old notes were deleted&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;The selected reasons were NOT saved on Alyx; old notes remain.&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="CriticalNote.delete_note_prompt"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.critical_reasons.html#ibllib.qc.critical_reasons.CriticalNote.delete_note_prompt">[docs]</a>    <span class="k">def</span> <span class="nf">delete_note_prompt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">notes</span><span class="p">):</span>
+
+        <span class="n">prompt</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;You are about to delete </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">notes</span><span class="p">)</span><span class="si">}</span><span class="s1"> existing notes; &#39;</span> \
+                 <span class="sa">f</span><span class="s1">&#39;do you want to proceed? y/n: &#39;</span>
+
+        <span class="n">ans</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="n">prompt</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">ans</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="s1">&#39;n&#39;</span><span class="p">]:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">ans</span><span class="si">}</span><span class="s1"> is invalid, please try again...&#39;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">delete_note_prompt</span><span class="p">(</span><span class="n">notes</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">True</span> <span class="k">if</span> <span class="n">ans</span> <span class="o">==</span> <span class="s1">&#39;y&#39;</span> <span class="k">else</span> <span class="kc">False</span></div></div>
+
+
+<div class="viewcode-block" id="CriticalInsertionNote"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.critical_reasons.html#ibllib.qc.critical_reasons.CriticalInsertionNote">[docs]</a><span class="k">class</span> <span class="nc">CriticalInsertionNote</span><span class="p">(</span><span class="n">CriticalNote</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Class for uploading a critical note to an insertion.</span>
+
+<span class="sd">    Example</span>
+<span class="sd">    -------</span>
+<span class="sd">    note = CriticalInsertionNote(pid, one)</span>
+<span class="sd">    # print list of default reasons</span>
+<span class="sd">    note.describe()</span>
+<span class="sd">    # to receive a command line prompt to fill in note</span>
+<span class="sd">    note.upload_note()</span>
+<span class="sd">    # to upload note automatically without prompt</span>
+<span class="sd">    note.upload_note(nums=&#39;1,4&#39;, other_reason=&#39;lots of bad channels&#39;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">descriptions_gui</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="s1">&#39;Noise and artifact&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;Drift&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;Poor neural yield&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;Brain Damage&#39;</span>
+        <span class="s1">&#39;Other&#39;</span>
+    <span class="p">]</span>
+
+    <span class="n">descriptions</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="s1">&#39;Histological images missing&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;Track not visible on imaging data&#39;</span>
+    <span class="p">]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">default_descriptions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">descriptions</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">descriptions_gui</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">extra_prompt</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s1">&#39;Select from this list the reason(s) why you are marking the insertion as CRITICAL:&#39;</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">note_title</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s1">&#39;=== EXPERIMENTER REASON(S) FOR MARKING THE INSERTION AS CRITICAL ===&#39;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">uuid</span><span class="p">,</span> <span class="n">one</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">CriticalInsertionNote</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">uuid</span><span class="p">,</span> <span class="n">one</span><span class="p">,</span> <span class="n">content_type</span><span class="o">=</span><span class="s1">&#39;probeinsertion&#39;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CriticalSessionNote"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.critical_reasons.html#ibllib.qc.critical_reasons.CriticalSessionNote">[docs]</a><span class="k">class</span> <span class="nc">CriticalSessionNote</span><span class="p">(</span><span class="n">CriticalNote</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Class for uploading a critical note to a session.</span>
+
+<span class="sd">    Example</span>
+<span class="sd">    -------</span>
+<span class="sd">    note = CriticalInsertionNote(uuid, one)</span>
+<span class="sd">    # print list of default reasons</span>
+<span class="sd">    note.describe()</span>
+<span class="sd">    # to receive a command line prompt to fill in note</span>
+<span class="sd">    note.upload_note()</span>
+<span class="sd">    # to upload note automatically without prompt</span>
+<span class="sd">    note.upload_note(nums=&#39;1,4&#39;, other_reason=&#39;session with no ephys recording&#39;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">descriptions</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="s1">&#39;within experiment system crash&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;synching impossible&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;dud or mock session&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;essential dataset missing&#39;</span><span class="p">,</span>
+    <span class="p">]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">extra_prompt</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s1">&#39;Select from this list the reason(s) why you are marking the session as CRITICAL:&#39;</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">note_title</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s1">&#39;=== EXPERIMENTER REASON(S) FOR MARKING THE SESSION AS CRITICAL ===&#39;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">uuid</span><span class="p">,</span> <span class="n">one</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">CriticalSessionNote</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">uuid</span><span class="p">,</span> <span class="n">one</span><span class="p">,</span> <span class="n">content_type</span><span class="o">=</span><span class="s1">&#39;session&#39;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SignOffNote"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.critical_reasons.html#ibllib.qc.critical_reasons.SignOffNote">[docs]</a><span class="k">class</span> <span class="nc">SignOffNote</span><span class="p">(</span><span class="n">Note</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Class for signing off a session and optionally adding a related explanation note.</span>
+<span class="sd">    Do not use directly but use classes that inherit from this class e.g TaskSignOffNote, RawEphysSignOffNote</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">extra_prompt</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s1">&#39;Select from this list the reason(s) that describe issues with this session:&#39;</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">note_title</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s1">&#39;=== SIGN-OFF NOTE FOR </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">sign_off_key</span><span class="si">}</span><span class="s1"> ===&#39;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">uuid</span><span class="p">,</span> <span class="n">one</span><span class="p">,</span> <span class="n">sign_off_key</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sign_off_key</span> <span class="o">=</span> <span class="n">sign_off_key</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">SignOffNote</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">uuid</span><span class="p">,</span> <span class="n">one</span><span class="p">,</span> <span class="n">content_type</span><span class="o">=</span><span class="s1">&#39;session&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">datetime_key</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_datetime_key</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">session</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;sessions&#39;</span><span class="p">,</span> <span class="s1">&#39;read&#39;</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">uuid</span><span class="p">,</span> <span class="n">no_cache</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<div class="viewcode-block" id="SignOffNote.upload_note"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.critical_reasons.html#ibllib.qc.critical_reasons.SignOffNote.upload_note">[docs]</a>    <span class="k">def</span> <span class="nf">upload_note</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nums</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">other_reason</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">SignOffNote</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">upload_note</span><span class="p">(</span><span class="n">nums</span><span class="o">=</span><span class="n">nums</span><span class="p">,</span> <span class="n">other_reason</span><span class="o">=</span><span class="n">other_reason</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sign_off</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="SignOffNote.sign_off"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.critical_reasons.html#ibllib.qc.critical_reasons.SignOffNote.sign_off">[docs]</a>    <span class="k">def</span> <span class="nf">sign_off</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+        <span class="n">json</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="p">[</span><span class="s1">&#39;json&#39;</span><span class="p">]</span>
+        <span class="n">json</span><span class="p">[</span><span class="s1">&#39;sign_off_checklist&#39;</span><span class="p">][</span><span class="bp">self</span><span class="o">.</span><span class="n">sign_off_key</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;date&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">datetime_key</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">],</span>
+                                                         <span class="s1">&#39;user&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">datetime_key</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]}</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">json_field_update</span><span class="p">(</span><span class="s2">&quot;sessions&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">uuid</span><span class="p">,</span> <span class="s1">&#39;json&#39;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">json</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SignOffNote.format_note"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.critical_reasons.html#ibllib.qc.critical_reasons.SignOffNote.format_note">[docs]</a>    <span class="k">def</span> <span class="nf">format_note</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+
+        <span class="n">note_text</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;title&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">note_title</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">datetime_key</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;reasons_selected&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">selected_reasons</span><span class="p">,</span>
+                                     <span class="s2">&quot;reason_for_other&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">other_reason</span><span class="p">}</span>
+        <span class="p">}</span>
+
+        <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">note_text</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SignOffNote.format_existing_note"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.critical_reasons.html#ibllib.qc.critical_reasons.SignOffNote.format_existing_note">[docs]</a>    <span class="k">def</span> <span class="nf">format_existing_note</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">orignal_note</span><span class="p">):</span>
+
+        <span class="n">extra_note</span> <span class="o">=</span> <span class="p">{</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">datetime_key</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;reasons_selected&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">selected_reasons</span><span class="p">,</span>
+                                               <span class="s2">&quot;reason_for_other&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">other_reason</span><span class="p">}</span>
+                      <span class="p">}</span>
+
+        <span class="n">orignal_note</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">extra_note</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">orignal_note</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SignOffNote.update_existing_note"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.critical_reasons.html#ibllib.qc.critical_reasons.SignOffNote.update_existing_note">[docs]</a>    <span class="k">def</span> <span class="nf">update_existing_note</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">notes</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">notes</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">notes</span><span class="p">)</span><span class="si">}</span><span class="s1"> with same title found, only expect at most 1. Clean up before proceeding&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">original_note</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">notes</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;text&#39;</span><span class="p">])</span>
+            <span class="n">text</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">format_existing_note</span><span class="p">(</span><span class="n">original_note</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_update_note</span><span class="p">(</span><span class="n">notes</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;id&#39;</span><span class="p">],</span> <span class="n">text</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SignOffNote.get_datetime_key"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.critical_reasons.html#ibllib.qc.critical_reasons.SignOffNote.get_datetime_key">[docs]</a>    <span class="k">def</span> <span class="nf">get_datetime_key</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">user</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">user</span>
+        <span class="n">date</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">date</span><span class="p">()</span><span class="o">.</span><span class="n">isoformat</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">date</span> <span class="o">+</span> <span class="s1">&#39;_&#39;</span> <span class="o">+</span> <span class="n">user</span></div></div>
+
+
+<div class="viewcode-block" id="TaskSignOffNote"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.critical_reasons.html#ibllib.qc.critical_reasons.TaskSignOffNote">[docs]</a><span class="k">class</span> <span class="nc">TaskSignOffNote</span><span class="p">(</span><span class="n">SignOffNote</span><span class="p">):</span>
+
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Class for signing off a task part of a session and optionally adding a related explanation note.</span>
+
+<span class="sd">    Example</span>
+<span class="sd">    -------</span>
+<span class="sd">    note = TaskSignOffNote(uuid, one, &#39;_ephysChoiceWorld_00&#39;)</span>
+<span class="sd">    # to sign off session without any note</span>
+<span class="sd">    note.sign_off()</span>
+<span class="sd">    # print list of default reasons</span>
+<span class="sd">    note.describe()</span>
+<span class="sd">    # to upload note and sign off with prompt</span>
+<span class="sd">    note.upload_note()</span>
+<span class="sd">    # to upload note automatically without prompt</span>
+<span class="sd">    note.upload_note(nums=&#39;1,4&#39;, other_reason=&#39;session with no ephys recording&#39;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">descriptions</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="s1">&#39;raw trial data does not exist&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;wheel data corrupt&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;task data could not be synced&#39;</span><span class="p">,</span>
+    <span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="PassiveSignOffNote"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.critical_reasons.html#ibllib.qc.critical_reasons.PassiveSignOffNote">[docs]</a><span class="k">class</span> <span class="nc">PassiveSignOffNote</span><span class="p">(</span><span class="n">SignOffNote</span><span class="p">):</span>
+
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Class for signing off a passive part of a session and optionally adding a related explanation note.</span>
+
+<span class="sd">    Example</span>
+<span class="sd">    -------</span>
+<span class="sd">    note = PassiveSignOffNote(uuid, one, &#39;_passiveChoiceWorld_00&#39;)</span>
+<span class="sd">    # to sign off session without any note</span>
+<span class="sd">    note.sign_off()</span>
+<span class="sd">    # print list of default reasons</span>
+<span class="sd">    note.describe()</span>
+<span class="sd">    # to upload note and sign off with prompt</span>
+<span class="sd">    note.upload_note()</span>
+<span class="sd">    # to upload note automatically without prompt</span>
+<span class="sd">    note.upload_note(nums=&#39;1,4&#39;, other_reason=&#39;session with no ephys recording&#39;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">descriptions</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="s1">&#39;Raw passive data doesn’t exist (no. of spacers = 0)&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;Incorrect number or spacers (i.e passive cutoff midway)&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;RFmap file doesn’t exist&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;Gabor patches couldn’t be extracted&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;Trial playback couldn’t be extracted&#39;</span><span class="p">,</span>
+    <span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="VideoSignOffNote"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.critical_reasons.html#ibllib.qc.critical_reasons.VideoSignOffNote">[docs]</a><span class="k">class</span> <span class="nc">VideoSignOffNote</span><span class="p">(</span><span class="n">SignOffNote</span><span class="p">):</span>
+
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Class for signing off a video part of a session and optionally adding a related explanation note.</span>
+
+<span class="sd">    Example</span>
+<span class="sd">    -------</span>
+<span class="sd">    note = VideoSignOffNote(uuid, one, &#39;_camera_left&#39;)</span>
+<span class="sd">    # to sign off session without any note</span>
+<span class="sd">    note.sign_off()</span>
+<span class="sd">    # print list of default reasons</span>
+<span class="sd">    note.describe()</span>
+<span class="sd">    # to upload note and sign off with prompt</span>
+<span class="sd">    note.upload_note()</span>
+<span class="sd">    # to upload note automatically without prompt</span>
+<span class="sd">    note.upload_note(nums=&#39;1,4&#39;, other_reason=&#39;session with no ephys recording&#39;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">descriptions</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="s1">&#39;The video timestamps are not the same length as the video file (either empty or slightly longer/shorter)&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;The rotary encoder trace doesn’t not appear synced with the video&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;The QC fails because the GPIO file is missing or empty&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;The frame rate in the video header is wrong (the video plays too slow or fast)&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;The resolution is not what is defined in the experiment description file&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;The DLC QC fails because something is obscuring the pupil&#39;</span><span class="p">,</span>
+    <span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="RawEphysSignOffNote"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.critical_reasons.html#ibllib.qc.critical_reasons.RawEphysSignOffNote">[docs]</a><span class="k">class</span> <span class="nc">RawEphysSignOffNote</span><span class="p">(</span><span class="n">SignOffNote</span><span class="p">):</span>
+
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Class for signing off a raw ephys part of a session and optionally adding a related explanation note.</span>
+
+<span class="sd">    Example</span>
+<span class="sd">    -------</span>
+<span class="sd">    note = RawEphysSignOffNote(uuid, one, &#39;_neuropixel_raw_probe00&#39;)</span>
+<span class="sd">    # to sign off session without any note</span>
+<span class="sd">    note.sign_off()</span>
+<span class="sd">    # print list of default reasons</span>
+<span class="sd">    note.describe()</span>
+<span class="sd">    # to upload note and sign off with prompt</span>
+<span class="sd">    note.upload_note()</span>
+<span class="sd">    # to upload note automatically without prompt</span>
+<span class="sd">    note.upload_note(nums=&#39;1,4&#39;, other_reason=&#39;session with no ephys recording&#39;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">descriptions</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="s1">&#39;Data has striping&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;Horizontal band&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;Discontunuity&#39;</span><span class="p">,</span>
+    <span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="SpikeSortingSignOffNote"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.critical_reasons.html#ibllib.qc.critical_reasons.SpikeSortingSignOffNote">[docs]</a><span class="k">class</span> <span class="nc">SpikeSortingSignOffNote</span><span class="p">(</span><span class="n">SignOffNote</span><span class="p">):</span>
+
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Class for signing off a spikesorting part of a session and optionally adding a related explanation note.</span>
+
+<span class="sd">    Example</span>
+<span class="sd">    -------</span>
+<span class="sd">    note = SpikeSortingSignOffNote(uuid, one, &#39;_neuropixel_spike_sorting_probe00&#39;)</span>
+<span class="sd">    # to sign off session without any note</span>
+<span class="sd">    note.sign_off()</span>
+<span class="sd">    # print list of default reasons</span>
+<span class="sd">    note.describe()</span>
+<span class="sd">    # to upload note and sign off with prompt</span>
+<span class="sd">    note.upload_note()</span>
+<span class="sd">    # to upload note automatically without prompt</span>
+<span class="sd">    note.upload_note(nums=&#39;1,4&#39;, other_reason=&#39;session with no ephys recording&#39;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">descriptions</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="s1">&#39;Spikesorting could not be run&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;Poor quality spikesorting&#39;</span><span class="p">,</span>
+    <span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="AlignmentSignOffNote"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.critical_reasons.html#ibllib.qc.critical_reasons.AlignmentSignOffNote">[docs]</a><span class="k">class</span> <span class="nc">AlignmentSignOffNote</span><span class="p">(</span><span class="n">SignOffNote</span><span class="p">):</span>
+
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Class for signing off a alignment part of a session and optionally adding a related explanation note.</span>
+
+<span class="sd">    Example</span>
+<span class="sd">    -------</span>
+<span class="sd">    note = AlignmentSignOffNote(uuid, one, &#39;_neuropixel_alignment_probe00&#39;)</span>
+<span class="sd">    # to sign off session without any note</span>
+<span class="sd">    note.sign_off()</span>
+<span class="sd">    # print list of default reasons</span>
+<span class="sd">    note.describe()</span>
+<span class="sd">    # to upload note and sign off with prompt</span>
+<span class="sd">    note.upload_note()</span>
+<span class="sd">    # to upload note automatically without prompt</span>
+<span class="sd">    note.upload_note(nums=&#39;1,4&#39;, other_reason=&#39;session with no ephys recording&#39;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">descriptions</span> <span class="o">=</span> <span class="p">[]</span></div>
 </pre></div>
 
            </div>

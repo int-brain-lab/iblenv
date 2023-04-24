@@ -13,9 +13,6 @@
   <![endif]-->
   
         <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
-        <script src="../../../_static/jquery.js"></script>
-        <script src="../../../_static/underscore.js"></script>
-        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="../../../_static/doctools.js"></script>
         <script src="../../../_static/sphinx_highlight.js"></script>
         <script src="../../../_static/clipboard.min.js"></script>
@@ -31,11 +28,15 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-            <a href="../../../index.html" class="icon icon-home"> IBL Library
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            IBL Library
           </a>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
@@ -91,7 +92,7 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="../../../index.html" class="icon icon-home"></a></li>
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
           <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
       <li class="breadcrumb-item active">ibllib.qc.camera</li>
       <li class="wy-breadcrumbs-aside">
@@ -140,10 +141,13 @@
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">from</span> <span class="nn">inspect</span> <span class="kn">import</span> <span class="n">getmembers</span><span class="p">,</span> <span class="n">isfunction</span>
 <span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">chain</span>
+<span class="kn">import</span> <span class="nn">copy</span>
 
 <span class="kn">import</span> <span class="nn">cv2</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
 <span class="kn">from</span> <span class="nn">matplotlib.patches</span> <span class="kn">import</span> <span class="n">Rectangle</span>
 <span class="kn">from</span> <span class="nn">labcams</span> <span class="kn">import</span> <span class="n">parse_cam_log</span>
 
@@ -159,6 +163,7 @@
 <span class="kn">from</span> <span class="nn">ibllib.io.extractors.video_motion</span> <span class="kn">import</span> <span class="n">MotionAlignment</span>
 <span class="kn">from</span> <span class="nn">ibllib.io.extractors.base</span> <span class="kn">import</span> <span class="n">get_session_extractor_type</span>
 <span class="kn">from</span> <span class="nn">ibllib.io</span> <span class="kn">import</span> <span class="n">raw_data_loaders</span> <span class="k">as</span> <span class="n">raw</span>
+<span class="kn">from</span> <span class="nn">ibllib.io.session_params</span> <span class="kn">import</span> <span class="n">read_params</span><span class="p">,</span> <span class="n">get_sync</span>
 <span class="kn">import</span> <span class="nn">brainbox.behavior.wheel</span> <span class="k">as</span> <span class="nn">wh</span>
 <span class="kn">from</span> <span class="nn">ibllib.io.video</span> <span class="kn">import</span> <span class="n">get_video_meta</span><span class="p">,</span> <span class="n">get_video_frames_preload</span><span class="p">,</span> <span class="n">assert_valid_label</span>
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">base</span>
@@ -169,6 +174,7 @@
 <div class="viewcode-block" id="CameraQC"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.camera.html#ibllib.qc.camera.CameraQC">[docs]</a><span class="k">class</span> <span class="nc">CameraQC</span><span class="p">(</span><span class="n">base</span><span class="o">.</span><span class="n">QC</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;A class for computing camera QC metrics&quot;&quot;&quot;</span>
     <span class="n">dstypes</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="s1">&#39;_ibl_experiment.description&#39;</span><span class="p">,</span>
         <span class="s1">&#39;_iblrig_Camera.frameData&#39;</span><span class="p">,</span>  <span class="c1"># Replaces the next 3 datasets</span>
         <span class="s1">&#39;_iblrig_Camera.frame_counter&#39;</span><span class="p">,</span>
         <span class="s1">&#39;_iblrig_Camera.GPIO&#39;</span><span class="p">,</span>
@@ -231,7 +237,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">download_data</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;download_data&#39;</span><span class="p">,</span> <span class="n">download_data</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">stream</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;stream&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">n_samples</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;n_samples&#39;</span><span class="p">,</span> <span class="mi">100</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">sync_collection</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;sync_collection&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sync_collection</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;sync_collection&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">sync</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;sync_type&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">session_path_or_eid</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
@@ -250,14 +256,6 @@
                 <span class="n">_log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;No remote or local video file found&#39;</span><span class="p">)</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">video_path</span> <span class="o">=</span> <span class="kc">None</span>
 
-        <span class="n">logging</span><span class="o">.</span><span class="n">disable</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">CRITICAL</span><span class="p">)</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">_type</span> <span class="o">=</span> <span class="n">get_session_extractor_type</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span> <span class="ow">or</span> <span class="kc">None</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">sync_type</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync</span> <span class="ow">or</span> <span class="s1">&#39;nidq&#39;</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_type</span> <span class="o">==</span> <span class="s1">&#39;ephys&#39;</span> <span class="k">else</span> <span class="kc">None</span>
-        <span class="c1"># For now if we have nidq we assume we have 3 cameras</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync_type</span> <span class="o">==</span> <span class="s1">&#39;nidq&#39;</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_type</span> <span class="o">=</span> <span class="s1">&#39;ephys&#39;</span>
-
         <span class="n">logging</span><span class="o">.</span><span class="n">disable</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">NOTSET</span><span class="p">)</span>
         <span class="n">keys</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;count&#39;</span><span class="p">,</span> <span class="s1">&#39;pin_state&#39;</span><span class="p">,</span> <span class="s1">&#39;audio&#39;</span><span class="p">,</span> <span class="s1">&#39;fpga_times&#39;</span><span class="p">,</span> <span class="s1">&#39;wheel&#39;</span><span class="p">,</span> <span class="s1">&#39;video&#39;</span><span class="p">,</span>
                 <span class="s1">&#39;frame_samples&#39;</span><span class="p">,</span> <span class="s1">&#39;timestamps&#39;</span><span class="p">,</span> <span class="s1">&#39;camera_times&#39;</span><span class="p">,</span> <span class="s1">&#39;bonsai_times&#39;</span><span class="p">)</span>
@@ -270,6 +268,7 @@
 
         <span class="c1"># Specify any checks to remove</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">checks_to_remove</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_type</span> <span class="o">=</span> <span class="kc">None</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">type</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -282,8 +281,7 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="s1">&#39;ephys&#39;</span> <span class="k">if</span> <span class="s1">&#39;ephys&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_type</span> <span class="k">else</span> <span class="s1">&#39;training&#39;</span>
 
-<div class="viewcode-block" id="CameraQC.load_data"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.camera.html#ibllib.qc.camera.CameraQC.load_data">[docs]</a>    <span class="k">def</span> <span class="nf">load_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">download_data</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-                  <span class="n">extract_times</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">load_video</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<div class="viewcode-block" id="CameraQC.load_data"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.camera.html#ibllib.qc.camera.CameraQC.load_data">[docs]</a>    <span class="k">def</span> <span class="nf">load_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">download_data</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">extract_times</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">load_video</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Extract the data from raw data files</span>
 <span class="sd">        Extracts all the required task data from the raw data files.</span>
 
@@ -315,8 +313,19 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;count&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;pin_state&#39;</span><span class="p">]</span> <span class="o">=</span> \
             <span class="n">raw</span><span class="o">.</span><span class="n">load_embedded_frame_data</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">,</span> <span class="n">raw</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
+        <span class="c1"># If there is an experiment description and there are video parameters</span>
+        <span class="n">sess_params</span> <span class="o">=</span> <span class="n">read_params</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{}</span>
+        <span class="n">task_collection</span> <span class="o">=</span> <span class="n">get_task_collection</span><span class="p">(</span><span class="n">sess_params</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_sync</span><span class="p">(</span><span class="n">sess_params</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">type</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_type</span> <span class="o">=</span> <span class="n">get_session_extractor_type</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sync</span> <span class="o">=</span> <span class="s1">&#39;nidq&#39;</span> <span class="k">if</span> <span class="s1">&#39;ephys&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">type</span> <span class="k">else</span> <span class="s1">&#39;bpod&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_update_meta_from_session_params</span><span class="p">(</span><span class="n">sess_params</span><span class="p">)</span>
+
         <span class="c1"># Load the audio and raw FPGA times</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync_type</span> <span class="o">!=</span> <span class="s1">&#39;bpod&#39;</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync_type</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync</span> <span class="o">!=</span> <span class="s1">&#39;bpod&#39;</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sync_collection</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync_collection</span> <span class="ow">or</span> <span class="s1">&#39;raw_ephys_data&#39;</span>
             <span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span> <span class="o">=</span> <span class="n">ephys_fpga</span><span class="o">.</span><span class="n">get_sync_and_chn_map</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync_collection</span><span class="p">)</span>
             <span class="n">audio_ttls</span> <span class="o">=</span> <span class="n">ephys_fpga</span><span class="o">.</span><span class="n">get_sync_fronts</span><span class="p">(</span><span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span><span class="p">[</span><span class="s1">&#39;audio&#39;</span><span class="p">])</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;audio&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">audio_ttls</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">]</span>  <span class="c1"># Get rises</span>
@@ -324,8 +333,10 @@
             <span class="n">cam_ts</span> <span class="o">=</span> <span class="n">extract_camera_sync</span><span class="p">(</span><span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;fpga_times&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">cam_ts</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">]</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">bpod_data</span> <span class="o">=</span> <span class="n">raw</span><span class="o">.</span><span class="n">load_data</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
-            <span class="n">_</span><span class="p">,</span> <span class="n">audio_ttls</span> <span class="o">=</span> <span class="n">raw</span><span class="o">.</span><span class="n">load_bpod_fronts</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">bpod_data</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sync_collection</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync_collection</span> <span class="ow">or</span> <span class="n">task_collection</span>
+            <span class="n">bpod_data</span> <span class="o">=</span> <span class="n">raw</span><span class="o">.</span><span class="n">load_data</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="p">)</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">audio_ttls</span> <span class="o">=</span> <span class="n">raw</span><span class="o">.</span><span class="n">load_bpod_fronts</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">bpod_data</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="n">task_collection</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;audio&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">audio_ttls</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">]</span>
 
         <span class="c1"># Load extracted frame times</span>
@@ -336,9 +347,9 @@
                 <span class="n">alf_path</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="si">}</span><span class="s1">Camera&#39;</span><span class="p">,</span> <span class="n">short_keys</span><span class="o">=</span><span class="kc">True</span><span class="p">)[</span><span class="s1">&#39;times&#39;</span><span class="p">]</span>
         <span class="k">except</span> <span class="ne">AssertionError</span><span class="p">:</span>  <span class="c1"># Re-extract</span>
             <span class="n">kwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">video_path</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">video_path</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">)</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync_type</span> <span class="o">!=</span> <span class="s1">&#39;bpod&#39;</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync_type</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync</span> <span class="o">!=</span> <span class="s1">&#39;bpod&#39;</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="s1">&#39;sync&#39;</span><span class="p">:</span> <span class="n">sync</span><span class="p">,</span> <span class="s1">&#39;chmap&#39;</span><span class="p">:</span> <span class="n">chmap</span><span class="p">}</span>  <span class="c1"># noqa</span>
-            <span class="n">outputs</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">extract_all</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">type</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">sync_type</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">sync_type</span><span class="p">,</span>
+            <span class="n">outputs</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">extract_all</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
                                      <span class="n">sync_collection</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">sync_collection</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;timestamps&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">outputs</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="si">}</span><span class="s1">_camera_timestamps&#39;</span><span class="p">]</span>
         <span class="k">except</span> <span class="n">ALFObjectNotFound</span><span class="p">:</span>
@@ -347,13 +358,16 @@
         <span class="c1"># Get audio and wheel data</span>
         <span class="n">wheel_keys</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;timestamps&#39;</span><span class="p">,</span> <span class="s1">&#39;position&#39;</span><span class="p">)</span>
         <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># glob in case wheel data are in sub-collections</span>
+            <span class="n">alf_path</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">alf_path</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="s1">&#39;*wheel.timestamps*&#39;</span><span class="p">))</span><span class="o">.</span><span class="n">parent</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;wheel&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">alfio</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="n">alf_path</span><span class="p">,</span> <span class="s1">&#39;wheel&#39;</span><span class="p">,</span> <span class="n">short_keys</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-        <span class="k">except</span> <span class="n">ALFObjectNotFound</span><span class="p">:</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">StopIteration</span><span class="p">,</span> <span class="n">ALFObjectNotFound</span><span class="p">):</span>
             <span class="c1"># Extract from raw data</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync_type</span> <span class="o">!=</span> <span class="s1">&#39;bpod&#39;</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync_type</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync</span> <span class="o">!=</span> <span class="s1">&#39;bpod&#39;</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">wheel_data</span> <span class="o">=</span> <span class="n">ephys_fpga</span><span class="o">.</span><span class="n">extract_wheel_sync</span><span class="p">(</span><span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="n">wheel_data</span> <span class="o">=</span> <span class="n">training_wheel</span><span class="o">.</span><span class="n">get_wheel_position</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
+                <span class="n">wheel_data</span> <span class="o">=</span> <span class="n">training_wheel</span><span class="o">.</span><span class="n">get_wheel_position</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="n">task_collection</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;wheel&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">Bunch</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">wheel_keys</span><span class="p">,</span> <span class="n">wheel_data</span><span class="p">))</span>
 
         <span class="c1"># Find short period of wheel motion for motion correlation.</span>
@@ -424,14 +438,25 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;ONE required to download data&#39;</span>
 
+        <span class="n">sess_params</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">download_data</span><span class="p">:</span>
+            <span class="n">dset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">list_datasets</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="s1">&#39;*experiment.description*&#39;</span><span class="p">,</span> <span class="n">details</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">_check_filesystem</span><span class="p">(</span><span class="n">dset</span><span class="p">):</span>
+                <span class="n">sess_params</span> <span class="o">=</span> <span class="n">read_params</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{}</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">sess_params</span> <span class="o">=</span> <span class="n">read_params</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_sync</span><span class="p">(</span><span class="n">sess_params</span><span class="p">)</span>
+
         <span class="c1"># Get extractor type</span>
         <span class="n">is_ephys</span> <span class="o">=</span> <span class="s1">&#39;ephys&#39;</span> <span class="ow">in</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">type</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">get_details</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">eid</span><span class="p">)[</span><span class="s1">&#39;task_protocol&#39;</span><span class="p">])</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">sync_type</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync_type</span> <span class="ow">or</span> <span class="s1">&#39;nidq&#39;</span> <span class="k">if</span> <span class="n">is_ephys</span> <span class="k">else</span> <span class="s1">&#39;bpod&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sync</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync</span> <span class="ow">or</span> <span class="p">(</span><span class="s1">&#39;nidq&#39;</span> <span class="k">if</span> <span class="n">is_ephys</span> <span class="k">else</span> <span class="s1">&#39;bpod&#39;</span><span class="p">)</span>
 
-        <span class="n">is_fpga</span> <span class="o">=</span> <span class="s1">&#39;bpod&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync_type</span>
+        <span class="n">is_fpga</span> <span class="o">=</span> <span class="s1">&#39;bpod&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync</span>
 
         <span class="c1"># dataset collections outside this list are ignored (e.g. probe00, raw_passive_data)</span>
-        <span class="n">collections</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync_collection</span><span class="p">,</span> <span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_video_data&#39;</span><span class="p">)</span>
+        <span class="n">collections</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">get_task_collection</span><span class="p">(</span><span class="n">sess_params</span><span class="p">),</span> <span class="n">get_video_collection</span><span class="p">(</span><span class="n">sess_params</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">)</span>
+        <span class="p">)</span>
         <span class="n">dtypes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dstypes</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">dstypes_fpga</span> <span class="k">if</span> <span class="n">is_fpga</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">dstypes</span>
         <span class="n">assert_unique</span> <span class="o">=</span> <span class="kc">True</span>
         <span class="c1"># Check we have raw ephys data for session</span>
@@ -440,22 +465,33 @@
             <span class="n">det</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">get_details</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">eid</span><span class="p">,</span> <span class="n">full</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
             <span class="n">probe_model</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="s1">&#39;model&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">det</span><span class="p">[</span><span class="s1">&#39;probe_insertion&#39;</span><span class="p">])</span>
             <span class="k">assert</span> <span class="n">probe_model</span> <span class="o">==</span> <span class="s1">&#39;3A&#39;</span><span class="p">,</span> <span class="s1">&#39;raw ephys data missing&#39;</span>
-            <span class="n">collections</span> <span class="o">+=</span> <span class="p">(</span><span class="s1">&#39;raw_ephys_data/probe00&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data/probe01&#39;</span><span class="p">)</span>
+            <span class="n">collections</span> <span class="o">+=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sync_collection</span> <span class="ow">or</span> <span class="s1">&#39;raw_ephys_data&#39;</span><span class="p">,)</span>
+            <span class="k">if</span> <span class="n">sess_params</span><span class="p">:</span>
+                <span class="n">probes</span> <span class="o">=</span> <span class="n">sess_params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;devices&#39;</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;neuropixel&#39;</span><span class="p">,</span> <span class="p">{})</span>
+                <span class="n">probes</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;collection&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">chain</span><span class="p">(</span><span class="o">*</span><span class="nb">map</span><span class="p">(</span><span class="nb">dict</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">probes</span><span class="p">)))</span>
+                <span class="n">collections</span> <span class="o">+=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">probes</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">collections</span> <span class="o">+=</span> <span class="p">(</span><span class="s1">&#39;raw_ephys_data/probe00&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data/probe01&#39;</span><span class="p">)</span>
             <span class="n">assert_unique</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="k">for</span> <span class="n">dstype</span> <span class="ow">in</span> <span class="n">dtypes</span><span class="p">:</span>
             <span class="n">datasets</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">type2datasets</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">eid</span><span class="p">,</span> <span class="n">dstype</span><span class="p">,</span> <span class="n">details</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
             <span class="k">if</span> <span class="s1">&#39;camera&#39;</span> <span class="ow">in</span> <span class="n">dstype</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>  <span class="c1"># Download individual camera file</span>
                 <span class="n">datasets</span> <span class="o">=</span> <span class="n">filter_datasets</span><span class="p">(</span><span class="n">datasets</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;.*</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="si">}</span><span class="s1">.*&#39;</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>  <span class="c1"># Ignore probe datasets, etc.</span>
-                <span class="n">datasets</span> <span class="o">=</span> <span class="n">filter_datasets</span><span class="p">(</span><span class="n">datasets</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="n">collections</span><span class="p">,</span>
-                                           <span class="n">assert_unique</span><span class="o">=</span><span class="n">assert_unique</span><span class="p">)</span>
+                <span class="n">_datasets</span> <span class="o">=</span> <span class="n">filter_datasets</span><span class="p">(</span><span class="n">datasets</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="n">collections</span><span class="p">,</span> <span class="n">assert_unique</span><span class="o">=</span><span class="n">assert_unique</span><span class="p">)</span>
+                <span class="k">if</span> <span class="s1">&#39;&#39;</span> <span class="ow">in</span> <span class="n">collections</span><span class="p">:</span>  <span class="c1"># Must be handled as a separate query</span>
+                    <span class="n">datasets</span> <span class="o">=</span> <span class="n">filter_datasets</span><span class="p">(</span><span class="n">datasets</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">assert_unique</span><span class="o">=</span><span class="n">assert_unique</span><span class="p">)</span>
+                    <span class="n">datasets</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">datasets</span><span class="p">,</span> <span class="n">_datasets</span><span class="p">])</span><span class="o">.</span><span class="n">sort_index</span><span class="p">()</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">datasets</span> <span class="o">=</span> <span class="n">_datasets</span>
+
             <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;.mp4&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">datasets</span><span class="o">.</span><span class="n">rel_path</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">stream</span><span class="p">:</span>
                 <span class="n">names</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">list_datasets</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">eid</span><span class="p">,</span> <span class="n">details</span><span class="o">=</span><span class="kc">False</span><span class="p">)]</span>
                 <span class="k">assert</span> <span class="sa">f</span><span class="s1">&#39;_iblrig_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="si">}</span><span class="s1">Camera.raw.mp4&#39;</span> <span class="ow">in</span> <span class="n">names</span><span class="p">,</span> <span class="s1">&#39;No remote video file found&#39;</span>
                 <span class="k">continue</span>
             <span class="n">optional</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;camera.times&#39;</span><span class="p">,</span> <span class="s1">&#39;_iblrig_Camera.raw&#39;</span><span class="p">,</span> <span class="s1">&#39;wheel.position&#39;</span><span class="p">,</span> <span class="s1">&#39;wheel.timestamps&#39;</span><span class="p">,</span>
                         <span class="s1">&#39;_iblrig_Camera.timestamps&#39;</span><span class="p">,</span> <span class="s1">&#39;_iblrig_Camera.frame_counter&#39;</span><span class="p">,</span> <span class="s1">&#39;_iblrig_Camera.GPIO&#39;</span><span class="p">,</span>
-                        <span class="s1">&#39;_iblrig_Camera.frameData&#39;</span><span class="p">)</span>
+                        <span class="s1">&#39;_iblrig_Camera.frameData&#39;</span><span class="p">,</span> <span class="s1">&#39;_ibl_experiment.description&#39;</span><span class="p">)</span>
             <span class="n">present</span> <span class="o">=</span> <span class="p">(</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">_check_filesystem</span><span class="p">(</span><span class="n">datasets</span><span class="p">)</span>
                 <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">download_data</span>
@@ -466,7 +502,55 @@
             <span class="n">all_present</span> <span class="o">=</span> <span class="ow">not</span> <span class="n">datasets</span><span class="o">.</span><span class="n">empty</span> <span class="ow">and</span> <span class="nb">all</span><span class="p">(</span><span class="n">present</span><span class="p">)</span>
             <span class="k">assert</span> <span class="n">all_present</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">required</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;Dataset </span><span class="si">{</span><span class="n">dstype</span><span class="si">}</span><span class="s1"> not found&#39;</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">_type</span> <span class="o">=</span> <span class="s1">&#39;ephys&#39;</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync_type</span> <span class="o">==</span> <span class="s1">&#39;nidq&#39;</span> <span class="k">else</span> <span class="n">get_session_extractor_type</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span></div>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">type</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync</span> <span class="o">!=</span> <span class="s1">&#39;nidq&#39;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_type</span> <span class="o">=</span> <span class="n">get_session_extractor_type</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_set_sync</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_params</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set the sync and sync_collection attributes if not already set.</span>
+
+<span class="sd">        Also set the type attribute based on the sync. NB The type attribute is for legacy sessions.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        session_params : dict, bool</span>
+<span class="sd">            The loaded experiment description file.  If False, attempts to load it from the session_path.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">session_params</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;No session path set&#39;</span><span class="p">)</span>
+            <span class="n">session_params</span> <span class="o">=</span> <span class="n">read_params</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="n">sync</span><span class="p">,</span> <span class="n">sync_dict</span> <span class="o">=</span> <span class="n">get_sync</span><span class="p">(</span><span class="n">session_params</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sync</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync</span> <span class="ow">or</span> <span class="n">sync</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sync_collection</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync_collection</span> <span class="ow">or</span> <span class="n">sync_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;collection&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_type</span> <span class="o">=</span> <span class="s1">&#39;ephys&#39;</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync</span> <span class="o">==</span> <span class="s1">&#39;nidq&#39;</span> <span class="k">else</span> <span class="s1">&#39;training&#39;</span>
+
+    <span class="k">def</span> <span class="nf">_update_meta_from_session_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sess_params</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Update the default expected video properties with those defined in the experiment</span>
+<span class="sd">        description file (if any).  This updates the `video_meta` property with the fps, width and</span>
+<span class="sd">        height for the type and camera label.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        sess_params : dict</span>
+<span class="sd">            The loaded experiment.description file.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="n">sess_params</span>
+            <span class="n">video_pars</span> <span class="o">=</span> <span class="n">sess_params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;devices&#39;</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;cameras&#39;</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">)</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">AssertionError</span><span class="p">,</span> <span class="ne">KeyError</span><span class="p">):</span>
+            <span class="k">return</span>
+        <span class="n">PROPERTIES</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;width&#39;</span><span class="p">,</span> <span class="s1">&#39;height&#39;</span><span class="p">,</span> <span class="s1">&#39;fps&#39;</span><span class="p">)</span>
+        <span class="n">video_meta</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">video_meta</span><span class="p">)</span>  <span class="c1"># must re-assign as it&#39;s a class attribute</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">type</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">video_meta</span><span class="p">:</span>
+            <span class="n">video_meta</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">type</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">label</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">video_meta</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">type</span><span class="p">]:</span>
+            <span class="n">video_meta</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">type</span><span class="p">][</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">video_meta</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">type</span><span class="p">][</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+            <span class="o">**</span><span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">video_pars</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">PROPERTIES</span><span class="p">}</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">video_meta</span> <span class="o">=</span> <span class="n">video_meta</span>
 
 <div class="viewcode-block" id="CameraQC.run"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.camera.html#ibllib.qc.camera.CameraQC.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">update</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
@@ -604,8 +688,7 @@
         <span class="k">return</span> <span class="s1">&#39;PASS&#39;</span> <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">Fs</span> <span class="o">-</span> <span class="n">fps</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">threshold</span> <span class="k">else</span> <span class="s1">&#39;FAIL&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">Fs</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span></div>
 
 <div class="viewcode-block" id="CameraQC.check_pin_state"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.camera.html#ibllib.qc.camera.CameraQC.check_pin_state">[docs]</a>    <span class="k">def</span> <span class="nf">check_pin_state</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">display</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check the pin state reflects Bpod TTLs</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check the pin state reflects Bpod TTLs&quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">data_for_keys</span><span class="p">((</span><span class="s1">&#39;video&#39;</span><span class="p">,</span> <span class="s1">&#39;pin_state&#39;</span><span class="p">,</span> <span class="s1">&#39;audio&#39;</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">):</span>
             <span class="k">return</span> <span class="s1">&#39;NOT_SET&#39;</span>
         <span class="n">size_diff</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;pin_state&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;video&#39;</span><span class="p">][</span><span class="s1">&#39;length&#39;</span><span class="p">])</span>
@@ -1083,7 +1166,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">checks_to_remove</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;check_pin_state&#39;</span><span class="p">]</span>
 
 <div class="viewcode-block" id="CameraQCCamlog.load_data"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.camera.html#ibllib.qc.camera.CameraQCCamlog.load_data">[docs]</a>    <span class="k">def</span> <span class="nf">load_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">download_data</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-                  <span class="n">extract_times</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">load_video</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+                  <span class="n">extract_times</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">load_video</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Extract the data from raw data files</span>
 <span class="sd">        Extracts all the required task data from the raw data files.</span>
 
@@ -1111,12 +1194,19 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">ensure_required_data</span><span class="p">()</span>
         <span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Gathering data for QC&#39;</span><span class="p">)</span>
 
+        <span class="c1"># If there is an experiment description and there are video parameters</span>
+        <span class="n">sess_params</span> <span class="o">=</span> <span class="n">read_params</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{}</span>
+        <span class="n">video_collection</span> <span class="o">=</span> <span class="n">get_video_collection</span><span class="p">(</span><span class="n">sess_params</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">)</span>
+        <span class="n">task_collection</span> <span class="o">=</span> <span class="n">get_task_collection</span><span class="p">(</span><span class="n">sess_params</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_sync</span><span class="p">(</span><span class="n">sess_params</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_update_meta_from_session_params</span><span class="p">(</span><span class="n">sess_params</span><span class="p">)</span>
+
         <span class="c1"># Get frame count</span>
-        <span class="n">log</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">parse_cam_log</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;raw_video_data&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;_iblrig_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="si">}</span><span class="s1">Camera.raw.camlog&#39;</span><span class="p">))</span>
+        <span class="n">log</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">parse_cam_log</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">video_collection</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;_iblrig_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="si">}</span><span class="s1">Camera.raw.camlog&#39;</span><span class="p">))</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;count&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">log</span><span class="o">.</span><span class="n">frame_id</span><span class="o">.</span><span class="n">values</span>
 
         <span class="c1"># Load the audio and raw FPGA times</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync_type</span> <span class="o">!=</span> <span class="s1">&#39;bpod&#39;</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync_type</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync</span> <span class="o">!=</span> <span class="s1">&#39;bpod&#39;</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span> <span class="o">=</span> <span class="n">ephys_fpga</span><span class="o">.</span><span class="n">get_sync_and_chn_map</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync_collection</span><span class="p">)</span>
             <span class="n">audio_ttls</span> <span class="o">=</span> <span class="n">ephys_fpga</span><span class="o">.</span><span class="n">get_sync_fronts</span><span class="p">(</span><span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span><span class="p">[</span><span class="s1">&#39;audio&#39;</span><span class="p">])</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;audio&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">audio_ttls</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">]</span>  <span class="c1"># Get rises</span>
@@ -1124,8 +1214,8 @@
             <span class="n">cam_ts</span> <span class="o">=</span> <span class="n">extract_camera_sync</span><span class="p">(</span><span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;fpga_times&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">cam_ts</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">]</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">bpod_data</span> <span class="o">=</span> <span class="n">raw</span><span class="o">.</span><span class="n">load_data</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
-            <span class="n">_</span><span class="p">,</span> <span class="n">audio_ttls</span> <span class="o">=</span> <span class="n">raw</span><span class="o">.</span><span class="n">load_bpod_fronts</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">bpod_data</span><span class="p">)</span>
+            <span class="n">bpod_data</span> <span class="o">=</span> <span class="n">raw</span><span class="o">.</span><span class="n">load_data</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="n">task_collection</span><span class="p">)</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">audio_ttls</span> <span class="o">=</span> <span class="n">raw</span><span class="o">.</span><span class="n">load_bpod_fronts</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">bpod_data</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="n">task_collection</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;audio&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">audio_ttls</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">]</span>
 
         <span class="c1"># Load extracted frame times</span>
@@ -1136,10 +1226,11 @@
                 <span class="n">alf_path</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="si">}</span><span class="s1">Camera&#39;</span><span class="p">,</span> <span class="n">short_keys</span><span class="o">=</span><span class="kc">True</span><span class="p">)[</span><span class="s1">&#39;times&#39;</span><span class="p">]</span>
         <span class="k">except</span> <span class="ne">AssertionError</span><span class="p">:</span>  <span class="c1"># Re-extract</span>
             <span class="n">kwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">video_path</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">video_path</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">)</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync_type</span> <span class="o">!=</span> <span class="s1">&#39;bpod&#39;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync</span> <span class="o">==</span> <span class="s1">&#39;bpod&#39;</span><span class="p">:</span>
+                <span class="n">kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="s1">&#39;task_collection&#39;</span><span class="p">:</span> <span class="n">task_collection</span><span class="p">}</span>
+            <span class="k">else</span><span class="p">:</span>
                 <span class="n">kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="s1">&#39;sync&#39;</span><span class="p">:</span> <span class="n">sync</span><span class="p">,</span> <span class="s1">&#39;chmap&#39;</span><span class="p">:</span> <span class="n">chmap</span><span class="p">}</span>  <span class="c1"># noqa</span>
-            <span class="n">outputs</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">extract_all</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">session_type</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">type</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">camlog</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">sync_type</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">sync_type</span><span class="p">,</span>
-                                     <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="n">outputs</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">extract_all</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">camlog</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;timestamps&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">outputs</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="si">}</span><span class="s1">_camera_timestamps&#39;</span><span class="p">]</span>
         <span class="k">except</span> <span class="n">ALFObjectNotFound</span><span class="p">:</span>
             <span class="n">_log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;no camera.times ALF found for session&#39;</span><span class="p">)</span>
@@ -1147,13 +1238,15 @@
         <span class="c1"># Get audio and wheel data</span>
         <span class="n">wheel_keys</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;timestamps&#39;</span><span class="p">,</span> <span class="s1">&#39;position&#39;</span><span class="p">)</span>
         <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># glob in case wheel data are in sub-collections</span>
+            <span class="n">alf_path</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">alf_path</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="s1">&#39;*wheel.timestamps*&#39;</span><span class="p">))</span><span class="o">.</span><span class="n">parent</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;wheel&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">alfio</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="n">alf_path</span><span class="p">,</span> <span class="s1">&#39;wheel&#39;</span><span class="p">,</span> <span class="n">short_keys</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="k">except</span> <span class="n">ALFObjectNotFound</span><span class="p">:</span>
             <span class="c1"># Extract from raw data</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync_type</span> <span class="o">!=</span> <span class="s1">&#39;bpod&#39;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync</span> <span class="o">!=</span> <span class="s1">&#39;bpod&#39;</span><span class="p">:</span>
                 <span class="n">wheel_data</span> <span class="o">=</span> <span class="n">ephys_fpga</span><span class="o">.</span><span class="n">extract_wheel_sync</span><span class="p">(</span><span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="n">wheel_data</span> <span class="o">=</span> <span class="n">training_wheel</span><span class="o">.</span><span class="n">get_wheel_position</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
+                <span class="n">wheel_data</span> <span class="o">=</span> <span class="n">training_wheel</span><span class="o">.</span><span class="n">get_wheel_position</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="n">task_collection</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;wheel&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">Bunch</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">wheel_keys</span><span class="p">,</span> <span class="n">wheel_data</span><span class="p">))</span>
 
         <span class="c1"># Find short period of wheel motion for motion correlation.</span>
@@ -1178,8 +1271,21 @@
 <span class="sd">        :return:</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;ONE required to download data&#39;</span>
+
+        <span class="n">sess_params</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">download_data</span><span class="p">:</span>
+            <span class="n">dset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">list_datasets</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="s1">&#39;*experiment.description*&#39;</span><span class="p">,</span> <span class="n">details</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">_check_filesystem</span><span class="p">(</span><span class="n">dset</span><span class="p">):</span>
+                <span class="n">sess_params</span> <span class="o">=</span> <span class="n">read_params</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{}</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">sess_params</span> <span class="o">=</span> <span class="n">read_params</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_sync</span><span class="p">(</span><span class="n">sess_params</span><span class="p">)</span>
+
         <span class="c1"># dataset collections outside this list are ignored (e.g. probe00, raw_passive_data)</span>
-        <span class="n">collections</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync_collection</span><span class="p">,</span> <span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_video_data&#39;</span><span class="p">)</span>
+        <span class="n">collections</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync_collection</span><span class="p">,</span> <span class="n">get_task_collection</span><span class="p">(</span><span class="n">sess_params</span><span class="p">),</span>
+            <span class="n">get_video_collection</span><span class="p">(</span><span class="n">sess_params</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">))</span>
+
         <span class="c1"># Get extractor type</span>
         <span class="n">dtypes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dstypes</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">dstypes_fpga</span>
         <span class="n">assert_unique</span> <span class="o">=</span> <span class="kc">True</span>
@@ -1219,6 +1325,51 @@
 <div class="viewcode-block" id="data_for_keys"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.camera.html#ibllib.qc.camera.data_for_keys">[docs]</a><span class="k">def</span> <span class="nf">data_for_keys</span><span class="p">(</span><span class="n">keys</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Check keys exist in &#39;data&#39; dict and contain values other than None&quot;&quot;&quot;</span>
     <span class="k">return</span> <span class="n">data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">all</span><span class="p">(</span><span class="n">k</span> <span class="ow">in</span> <span class="n">data</span> <span class="ow">and</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">keys</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="get_task_collection"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.camera.html#ibllib.qc.camera.get_task_collection">[docs]</a><span class="k">def</span> <span class="nf">get_task_collection</span><span class="p">(</span><span class="n">sess_params</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns the first task collection from the experiment description whose task name does not</span>
+<span class="sd">    contain &#39;passive&#39;, otherwise returns &#39;raw_behavior_data&#39;.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    sess_params : dict</span>
+<span class="sd">        The loaded experiment description file.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    str:</span>
+<span class="sd">        The collection presumed to contain wheel data.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">sess_params</span> <span class="o">=</span> <span class="n">sess_params</span> <span class="ow">or</span> <span class="p">{}</span>
+    <span class="n">tasks</span> <span class="o">=</span> <span class="p">(</span><span class="n">chain</span><span class="p">(</span><span class="o">*</span><span class="nb">map</span><span class="p">(</span><span class="nb">dict</span><span class="o">.</span><span class="n">items</span><span class="p">,</span> <span class="n">sess_params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;tasks&#39;</span><span class="p">,</span> <span class="p">[]))))</span>
+    <span class="k">return</span> <span class="nb">next</span><span class="p">((</span><span class="n">v</span><span class="p">[</span><span class="s1">&#39;collection&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">tasks</span> <span class="k">if</span> <span class="s1">&#39;passive&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">k</span><span class="p">),</span> <span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="get_video_collection"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.camera.html#ibllib.qc.camera.get_video_collection">[docs]</a><span class="k">def</span> <span class="nf">get_video_collection</span><span class="p">(</span><span class="n">sess_params</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns the collection containing the raw video data for a given camera.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    sess_params : dict</span>
+<span class="sd">        The loaded experiment description file.</span>
+<span class="sd">    label : str</span>
+<span class="sd">        The camera label.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    str:</span>
+<span class="sd">        The collection presumed to contain the video data.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">DEFAULT</span> <span class="o">=</span> <span class="s1">&#39;raw_video_data&#39;</span>
+    <span class="n">value</span> <span class="o">=</span> <span class="n">sess_params</span> <span class="ow">or</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;devices&#39;</span><span class="p">,</span> <span class="s1">&#39;cameras&#39;</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="s1">&#39;collection&#39;</span><span class="p">):</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">value</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">DEFAULT</span>
+    <span class="k">return</span> <span class="n">value</span></div>
 
 
 <div class="viewcode-block" id="run_all_qc"><a class="viewcode-back" href="../../../_autosummary/ibllib.qc.camera.html#ibllib.qc.camera.run_all_qc">[docs]</a><span class="k">def</span> <span class="nf">run_all_qc</span><span class="p">(</span><span class="n">session</span><span class="p">,</span> <span class="n">cameras</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;left&#39;</span><span class="p">,</span> <span class="s1">&#39;right&#39;</span><span class="p">,</span> <span class="s1">&#39;body&#39;</span><span class="p">),</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>

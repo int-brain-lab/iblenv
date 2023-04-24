@@ -13,9 +13,6 @@
   <![endif]-->
   
         <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
-        <script src="../../../_static/jquery.js"></script>
-        <script src="../../../_static/underscore.js"></script>
-        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="../../../_static/doctools.js"></script>
         <script src="../../../_static/sphinx_highlight.js"></script>
         <script src="../../../_static/clipboard.min.js"></script>
@@ -31,11 +28,15 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-            <a href="../../../index.html" class="icon icon-home"> IBL Library
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            IBL Library
           </a>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
@@ -91,7 +92,7 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="../../../index.html" class="icon icon-home"></a></li>
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
           <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
       <li class="breadcrumb-item active">ibllib.io.raw_data_loaders</li>
       <li class="wy-breadcrumbs-aside">
@@ -117,16 +118,17 @@
 <span class="kn">import</span> <span class="nn">wave</span>
 <span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">OrderedDict</span>
 <span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
-<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span><span class="p">,</span> <span class="n">PureWindowsPath</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Union</span>
 
+<span class="kn">from</span> <span class="nn">dateutil</span> <span class="kn">import</span> <span class="n">parser</span> <span class="k">as</span> <span class="n">dateparser</span>
 <span class="kn">from</span> <span class="nn">pkg_resources</span> <span class="kn">import</span> <span class="n">parse_version</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
 
 <span class="kn">from</span> <span class="nn">iblutil.io</span> <span class="kn">import</span> <span class="n">jsonable</span>
 <span class="kn">from</span> <span class="nn">ibllib.io.video</span> <span class="kn">import</span> <span class="n">assert_valid_label</span>
-<span class="kn">from</span> <span class="nn">ibllib.time</span> <span class="kn">import</span> <span class="n">uncycle_pgts</span><span class="p">,</span> <span class="n">convert_pgts</span>
+<span class="kn">from</span> <span class="nn">ibllib.time</span> <span class="kn">import</span> <span class="n">uncycle_pgts</span><span class="p">,</span> <span class="n">convert_pgts</span><span class="p">,</span> <span class="n">date2isostr</span>
 
 <span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
@@ -196,12 +198,12 @@
 <span class="sd">    :rtype: list of dicts</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">session_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;No data loaded: session_path is None&quot;</span><span class="p">)</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;No data loaded: session_path is None&#39;</span><span class="p">)</span>
         <span class="k">return</span>
     <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">task_collection</span><span class="p">)</span>
-    <span class="n">path</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">&quot;_iblrig_taskData.raw*.jsonable&quot;</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s1">&#39;_iblrig_taskData.raw*.jsonable&#39;</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">path</span><span class="p">:</span>
-        <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;No data loaded: could not find raw data file&quot;</span><span class="p">)</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;No data loaded: could not find raw data file&#39;</span><span class="p">)</span>
         <span class="k">return</span> <span class="kc">None</span>
     <span class="n">data</span> <span class="o">=</span> <span class="n">jsonable</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">time</span> <span class="o">==</span> <span class="s1">&#39;absolute&#39;</span><span class="p">:</span>
@@ -406,6 +408,50 @@
     <span class="k">return</span> <span class="n">gpio</span></div>
 
 
+<span class="k">def</span> <span class="nf">_read_settings_json_compatibility_enforced</span><span class="p">(</span><span class="n">settings</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Patch iblrig settings for compatibility across rig versions.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    settings : pathlib.Path, dict</span>
+<span class="sd">        Either a _iblrig_taskSettings.raw.json file path or the loaded settings.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    dict</span>
+<span class="sd">        The task settings patched for compatibility.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">settings</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+        <span class="n">md</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">settings</span><span class="p">)</span> <span class="k">as</span> <span class="n">js</span><span class="p">:</span>
+            <span class="n">md</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">js</span><span class="p">)</span>
+    <span class="k">if</span> <span class="s1">&#39;IS_MOCK&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">md</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="n">md</span><span class="p">[</span><span class="s1">&#39;IS_MOCK&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="k">if</span> <span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">md</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="n">md</span><span class="p">[</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">md</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;IBLRIG_VERSION&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
+    <span class="c1"># 2018-12-05 Version 3.2.3 fixes (permanent fixes in IBL_RIG from 3.2.4 on)</span>
+    <span class="k">if</span> <span class="n">md</span><span class="p">[</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;&#39;</span><span class="p">:</span>
+        <span class="k">pass</span>
+    <span class="k">elif</span> <span class="n">parse_version</span><span class="p">(</span><span class="n">md</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">))</span> <span class="o">&lt;=</span> <span class="n">parse_version</span><span class="p">(</span><span class="s1">&#39;3.2.3&#39;</span><span class="p">):</span>
+        <span class="k">if</span> <span class="s1">&#39;LAST_TRIAL_DATA&#39;</span> <span class="ow">in</span> <span class="n">md</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">md</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;LAST_TRIAL_DATA&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s1">&#39;weighings&#39;</span> <span class="ow">in</span> <span class="n">md</span><span class="p">[</span><span class="s1">&#39;PYBPOD_SUBJECT_EXTRA&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">md</span><span class="p">[</span><span class="s1">&#39;PYBPOD_SUBJECT_EXTRA&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;weighings&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s1">&#39;water_administration&#39;</span> <span class="ow">in</span> <span class="n">md</span><span class="p">[</span><span class="s1">&#39;PYBPOD_SUBJECT_EXTRA&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">md</span><span class="p">[</span><span class="s1">&#39;PYBPOD_SUBJECT_EXTRA&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;water_administration&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s1">&#39;IBLRIG_COMMIT_HASH&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">md</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">md</span><span class="p">[</span><span class="s1">&#39;IBLRIG_COMMIT_HASH&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;f9d8905647dbafe1f9bdf78f73b286197ae2647b&#39;</span>
+        <span class="c1">#  parse the date format to Django supported ISO</span>
+        <span class="n">dt</span> <span class="o">=</span> <span class="n">dateparser</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">md</span><span class="p">[</span><span class="s1">&#39;SESSION_DATETIME&#39;</span><span class="p">])</span>
+        <span class="n">md</span><span class="p">[</span><span class="s1">&#39;SESSION_DATETIME&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">date2isostr</span><span class="p">(</span><span class="n">dt</span><span class="p">)</span>
+        <span class="c1"># add the weight key if it doesn&#39;t already exist</span>
+        <span class="k">if</span> <span class="s1">&#39;SUBJECT_WEIGHT&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">md</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">md</span><span class="p">[</span><span class="s1">&#39;SUBJECT_WEIGHT&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">return</span> <span class="n">md</span>
+
+
 <div class="viewcode-block" id="load_settings"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.raw_data_loaders.html#ibllib.io.raw_data_loaders.load_settings">[docs]</a><span class="k">def</span> <span class="nf">load_settings</span><span class="p">(</span><span class="n">session_path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span> <span class="n">task_collection</span><span class="o">=</span><span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Load PyBpod Settings files (.json).</span>
@@ -425,10 +471,7 @@
     <span class="k">if</span> <span class="ow">not</span> <span class="n">path</span><span class="p">:</span>
         <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;No data loaded: could not find raw settings file&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="kc">None</span>
-    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-        <span class="n">settings</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
-    <span class="k">if</span> <span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">settings</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
-        <span class="n">settings</span><span class="p">[</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+    <span class="n">settings</span> <span class="o">=</span> <span class="n">_read_settings_json_compatibility_enforced</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">settings</span></div>
 
 
@@ -470,7 +513,7 @@
     <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">task_collection</span><span class="p">)</span>
     <span class="n">path</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">&quot;_iblrig_encoderEvents.raw*.ssv&quot;</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">settings</span><span class="p">:</span>
-        <span class="n">settings</span> <span class="o">=</span> <span class="n">load_settings</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="n">settings</span> <span class="o">=</span> <span class="n">load_settings</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="n">task_collection</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">settings</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">settings</span><span class="p">[</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;&#39;</span><span class="p">:</span>
         <span class="n">settings</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">:</span> <span class="s1">&#39;100.0.0&#39;</span><span class="p">}</span>
         <span class="c1"># auto-detect old files when version is not labeled</span>
@@ -574,7 +617,7 @@
     <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">task_collection</span><span class="p">)</span>
     <span class="n">path</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">&quot;_iblrig_encoderPositions.raw*.ssv&quot;</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">settings</span><span class="p">:</span>
-        <span class="n">settings</span> <span class="o">=</span> <span class="n">load_settings</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="n">settings</span> <span class="o">=</span> <span class="n">load_settings</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="n">task_collection</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">settings</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">settings</span><span class="p">[</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;&#39;</span><span class="p">:</span>
         <span class="n">settings</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">:</span> <span class="s1">&#39;100.0.0&#39;</span><span class="p">}</span>
         <span class="c1"># auto-detect old files when version is not labeled</span>
@@ -667,7 +710,7 @@
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Load Microphone wav file to np.array of len nSamples</span>
 
-<span class="sd">    :param session_path: Absoulte path of session folder</span>
+<span class="sd">    :param session_path: Absolute path of session folder</span>
 <span class="sd">    :type session_path: str</span>
 <span class="sd">    :return: An array of values of the sound waveform</span>
 <span class="sd">    :rtype: numpy.array</span>
@@ -938,6 +981,88 @@
         <span class="n">n_frames</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">filepath</span><span class="o">.</span><span class="n">stat</span><span class="p">()</span><span class="o">.</span><span class="n">st_size</span> <span class="o">/</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span> <span class="o">*</span> <span class="n">dtype</span><span class="o">.</span><span class="n">itemsize</span><span class="p">))</span>
 
     <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">memmap</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">filepath</span><span class="p">),</span> <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">n_frames</span><span class="p">),</span> <span class="o">*</span><span class="n">shape</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="patch_settings"><a class="viewcode-back" href="../../../_autosummary/ibllib.io.raw_data_loaders.html#ibllib.io.raw_data_loaders.patch_settings">[docs]</a><span class="k">def</span> <span class="nf">patch_settings</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">,</span>
+                   <span class="n">new_collection</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">subject</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">number</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">date</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Modify various details in a settings file.</span>
+
+<span class="sd">    This function makes it easier to change things like subject name in a settings as it will</span>
+<span class="sd">    modify the subject name in the myriad paths. NB: This saves the settings into the same location</span>
+<span class="sd">    it was loaded from.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    session_path : str, pathlib.Path</span>
+<span class="sd">        The session path containing the settings file.</span>
+<span class="sd">    collection : str</span>
+<span class="sd">        The subfolder containing the settings file.</span>
+<span class="sd">    new_collection : str</span>
+<span class="sd">        An optional new subfolder to change in the settings paths.</span>
+<span class="sd">    subject : str</span>
+<span class="sd">        An optional new subject name to change in the settings.</span>
+<span class="sd">    number : str, int</span>
+<span class="sd">        An optional new number to change in the settings.</span>
+<span class="sd">    date : str, datetime.date</span>
+<span class="sd">        An optional date to change in the settings.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    dict</span>
+<span class="sd">        The modified settings.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">settings</span> <span class="o">=</span> <span class="n">load_settings</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">collection</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">settings</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="s1">&#39;Settings file not found&#39;</span><span class="p">)</span>
+
+    <span class="n">filename</span> <span class="o">=</span> <span class="n">PureWindowsPath</span><span class="p">(</span><span class="n">settings</span><span class="p">[</span><span class="s1">&#39;SETTINGS_FILE_PATH&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">name</span>
+    <span class="n">file_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">collection</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">subject</span><span class="p">:</span>
+        <span class="c1"># Patch subject name</span>
+        <span class="n">old_subject</span> <span class="o">=</span> <span class="n">settings</span><span class="p">[</span><span class="s1">&#39;SUBJECT_NAME&#39;</span><span class="p">]</span>
+        <span class="n">settings</span><span class="p">[</span><span class="s1">&#39;SUBJECT_NAME&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">subject</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">settings</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">settings</span><span class="p">[</span><span class="n">k</span><span class="p">],</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="n">settings</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">settings</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="se">\\</span><span class="s1">Subjects</span><span class="se">\\</span><span class="si">{</span><span class="n">old_subject</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="se">\\</span><span class="s1">Subjects</span><span class="se">\\</span><span class="si">{</span><span class="n">subject</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="n">settings</span><span class="p">[</span><span class="s1">&#39;SESSION_NAME&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">subject</span><span class="p">,</span> <span class="o">*</span><span class="n">settings</span><span class="p">[</span><span class="s1">&#39;SESSION_NAME&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">:]])</span>
+        <span class="n">settings</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;PYBPOD_SUBJECT_EXTRA&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>  <span class="c1"># Get rid of Alyx subject info</span>
+
+    <span class="k">if</span> <span class="n">date</span><span class="p">:</span>
+        <span class="c1"># Patch session datetime</span>
+        <span class="n">date</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">date</span><span class="p">)</span>
+        <span class="n">old_date</span> <span class="o">=</span> <span class="n">settings</span><span class="p">[</span><span class="s1">&#39;SESSION_DATE&#39;</span><span class="p">]</span>
+        <span class="n">settings</span><span class="p">[</span><span class="s1">&#39;SESSION_DATE&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">date</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">settings</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">settings</span><span class="p">[</span><span class="n">k</span><span class="p">],</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="n">settings</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">settings</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s1">&#39;</span><span class="se">\\</span><span class="si">{</span><span class="n">settings</span><span class="p">[</span><span class="s2">&quot;SUBJECT_NAME&quot;</span><span class="p">]</span><span class="si">}</span><span class="se">\\</span><span class="si">{</span><span class="n">old_date</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span>
+                    <span class="sa">f</span><span class="s1">&#39;</span><span class="se">\\</span><span class="si">{</span><span class="n">settings</span><span class="p">[</span><span class="s2">&quot;SUBJECT_NAME&quot;</span><span class="p">]</span><span class="si">}</span><span class="se">\\</span><span class="si">{</span><span class="n">date</span><span class="si">}</span><span class="s1">&#39;</span>
+                <span class="p">)</span>
+        <span class="n">settings</span><span class="p">[</span><span class="s1">&#39;SESSION_DATETIME&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">date</span> <span class="o">+</span> <span class="n">settings</span><span class="p">[</span><span class="s1">&#39;SESSION_DATETIME&#39;</span><span class="p">][</span><span class="mi">10</span><span class="p">:]</span>
+
+    <span class="k">if</span> <span class="n">number</span><span class="p">:</span>
+        <span class="c1"># Patch session number</span>
+        <span class="n">old_number</span> <span class="o">=</span> <span class="n">settings</span><span class="p">[</span><span class="s1">&#39;SESSION_NUMBER&#39;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">number</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+            <span class="n">number</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">number</span><span class="si">:</span><span class="s1">03</span><span class="si">}</span><span class="s1">&#39;</span>
+        <span class="n">settings</span><span class="p">[</span><span class="s1">&#39;SESSION_NUMBER&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">number</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">settings</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">settings</span><span class="p">[</span><span class="n">k</span><span class="p">],</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="n">settings</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">settings</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s1">&#39;</span><span class="se">\\</span><span class="si">{</span><span class="n">settings</span><span class="p">[</span><span class="s2">&quot;SESSION_DATE&quot;</span><span class="p">]</span><span class="si">}</span><span class="se">\\</span><span class="si">{</span><span class="n">old_number</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span>
+                    <span class="sa">f</span><span class="s1">&#39;</span><span class="se">\\</span><span class="si">{</span><span class="n">settings</span><span class="p">[</span><span class="s2">&quot;SESSION_DATE&quot;</span><span class="p">]</span><span class="si">}</span><span class="se">\\</span><span class="si">{</span><span class="n">number</span><span class="si">}</span><span class="s1">&#39;</span>
+                <span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">new_collection</span><span class="p">:</span>
+        <span class="n">old_path</span> <span class="o">=</span> <span class="n">settings</span><span class="p">[</span><span class="s1">&#39;SESSION_RAW_DATA_FOLDER&#39;</span><span class="p">]</span>
+        <span class="n">new_path</span> <span class="o">=</span> <span class="n">PureWindowsPath</span><span class="p">(</span><span class="n">settings</span><span class="p">[</span><span class="s1">&#39;SESSION_RAW_DATA_FOLDER&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">with_name</span><span class="p">(</span><span class="n">new_collection</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">settings</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">settings</span><span class="p">[</span><span class="n">k</span><span class="p">],</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="n">settings</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">settings</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">old_path</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">new_path</span><span class="p">))</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fp</span><span class="p">:</span>
+        <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">settings</span><span class="p">,</span> <span class="n">fp</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="s1">&#39; &#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">settings</span></div>
 </pre></div>
 
            </div>
