@@ -488,8 +488,9 @@
 <span class="sd">        The name of the parameters to load/save.</span>
 <span class="sd">    local_data_path : str, pathlib.Path</span>
 <span class="sd">        The local root data path, stored with the DATA_FOLDER_PATH key.  If None, user is prompted.</span>
-<span class="sd">    remote_data_path : str, pathlib.Path</span>
+<span class="sd">    remote_data_path : str, pathlib.Path, bool</span>
 <span class="sd">        The local root data path, stored with the REMOTE_DATA_FOLDER_PATH key.  If None, user is prompted.</span>
+<span class="sd">        If False, the REMOTE_DATA_PATH key is not updated or is set to False if clobber = True.</span>
 <span class="sd">    clobber : bool</span>
 <span class="sd">        If True, any parameters in existing parameter file not found as keyword args will be removed,</span>
 <span class="sd">        otherwise the user is prompted for these also.</span>
@@ -518,6 +519,11 @@
 <span class="sd">    &gt;&gt;&gt; from functools import partial</span>
 <span class="sd">    &gt;&gt;&gt; par = create_basic_transfer_params(</span>
 <span class="sd">    ...     custom_arg=partial(cli_ask_default, &#39;Please enter custom arg value&#39;))</span>
+
+<span class="sd">    Set up with no remote path (NB: if not the first time, use clobber=True to save param key)</span>
+
+<span class="sd">    &gt;&gt;&gt; par = create_basic_transfer_params(remote_data_path=False)</span>
+
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">parameters</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">as_dict</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">param_str</span><span class="p">,</span> <span class="p">{}))</span> <span class="ow">or</span> <span class="p">{}</span>
     <span class="k">if</span> <span class="n">local_data_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -528,9 +534,12 @@
 
     <span class="k">if</span> <span class="n">remote_data_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">remote_data_path</span> <span class="o">=</span> <span class="n">parameters</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;REMOTE_DATA_FOLDER_PATH&#39;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">remote_data_path</span> <span class="ow">or</span> <span class="n">clobber</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">remote_data_path</span> <span class="ow">in</span> <span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">clobber</span><span class="p">:</span>
             <span class="n">remote_data_path</span> <span class="o">=</span> <span class="n">cli_ask_default</span><span class="p">(</span><span class="s2">&quot;Where&#39;s your REMOTE &#39;Subjects&#39; data folder?&quot;</span><span class="p">,</span> <span class="n">remote_data_path</span><span class="p">)</span>
-    <span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;REMOTE_DATA_FOLDER_PATH&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">remote_data_path</span>
+    <span class="k">if</span> <span class="n">remote_data_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">False</span><span class="p">:</span>
+        <span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;REMOTE_DATA_FOLDER_PATH&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">remote_data_path</span>
+    <span class="k">elif</span> <span class="s1">&#39;REMOTE_DATA_FOLDER_PATH&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">parameters</span> <span class="ow">or</span> <span class="n">clobber</span><span class="p">:</span>
+        <span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;REMOTE_DATA_FOLDER_PATH&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>  <span class="c1"># Always assume no remote path</span>
 
     <span class="c1"># Deal with extraneous parameters</span>
     <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>

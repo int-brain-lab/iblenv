@@ -107,12 +107,18 @@
            <div itemprop="articleBody">
              
   <h1>Source code for ibllib.pipes.base_tasks</h1><div class="highlight"><pre>
-<span></span><span class="kn">from</span> <span class="nn">one.webclient</span> <span class="kn">import</span> <span class="n">no_cache</span>
+<span></span><span class="sd">&quot;&quot;&quot;Abstract base classes for dynamic pipeline tasks.&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+
+<span class="kn">from</span> <span class="nn">pkg_resources</span> <span class="kn">import</span> <span class="n">parse_version</span>
+<span class="kn">from</span> <span class="nn">one.webclient</span> <span class="kn">import</span> <span class="n">no_cache</span>
+<span class="kn">from</span> <span class="nn">iblutil.util</span> <span class="kn">import</span> <span class="n">flatten</span>
 
 <span class="kn">from</span> <span class="nn">ibllib.pipes.tasks</span> <span class="kn">import</span> <span class="n">Task</span>
 <span class="kn">import</span> <span class="nn">ibllib.io.session_params</span> <span class="k">as</span> <span class="nn">sess_params</span>
 <span class="kn">from</span> <span class="nn">ibllib.qc.base</span> <span class="kn">import</span> <span class="n">sign_off_dict</span><span class="p">,</span> <span class="n">SIGN_OFF_CATEGORIES</span>
-<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">from</span> <span class="nn">ibllib.io.raw_daq_loaders</span> <span class="kn">import</span> <span class="n">load_timeline_sync_and_chmap</span>
 
 <span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
@@ -207,7 +213,26 @@
             <span class="n">number</span> <span class="o">=</span> <span class="n">sess_params</span><span class="o">.</span><span class="n">get_task_protocol_number</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_params</span><span class="p">,</span> <span class="n">task_protocol</span><span class="p">)</span>
         <span class="c1"># If inferring the number from the experiment description, assert only one returned (or something went wrong)</span>
         <span class="k">assert</span> <span class="n">number</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">number</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">number</span></div></div>
+        <span class="k">return</span> <span class="n">number</span></div>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_spacer_support</span><span class="p">(</span><span class="n">settings</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Spacer support was introduced in v7.1 for iblrig v7 and v8.0.1 in v8.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        settings : dict</span>
+<span class="sd">            The task settings dict.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        bool</span>
+<span class="sd">            True if task spacers are to be expected.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">v</span> <span class="o">=</span> <span class="n">parse_version</span>
+        <span class="n">version</span> <span class="o">=</span> <span class="n">v</span><span class="p">(</span><span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">version</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="n">v</span><span class="p">(</span><span class="s1">&#39;100.0.0&#39;</span><span class="p">),</span> <span class="n">v</span><span class="p">(</span><span class="s1">&#39;8.0.0&#39;</span><span class="p">))</span> <span class="ow">and</span> <span class="n">version</span> <span class="o">&gt;=</span> <span class="n">v</span><span class="p">(</span><span class="s1">&#39;7.1.0&#39;</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="VideoTask"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.base_tasks.html#ibllib.pipes.base_tasks.VideoTask">[docs]</a><span class="k">class</span> <span class="nc">VideoTask</span><span class="p">(</span><span class="n">DynamicTask</span><span class="p">):</span>
@@ -258,7 +283,54 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">device_collection</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_device_collection</span><span class="p">(</span><span class="s1">&#39;widefield&#39;</span><span class="p">,</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;device_collection&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_widefield_data&#39;</span><span class="p">))</span></div>
 
 
-<div class="viewcode-block" id="RegisterRawDataTask"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.base_tasks.html#ibllib.pipes.base_tasks.RegisterRawDataTask">[docs]</a><span class="k">class</span> <span class="nc">RegisterRawDataTask</span><span class="p">(</span><span class="n">DynamicTask</span><span class="p">):</span>  <span class="c1"># TODO write test</span>
+<div class="viewcode-block" id="MesoscopeTask"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.base_tasks.html#ibllib.pipes.base_tasks.MesoscopeTask">[docs]</a><span class="k">class</span> <span class="nc">MesoscopeTask</span><span class="p">(</span><span class="n">DynamicTask</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_path</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">device_collection</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_device_collection</span><span class="p">(</span>
+            <span class="s1">&#39;mesoscope&#39;</span><span class="p">,</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;device_collection&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_imaging_data_[0-9]*&#39;</span><span class="p">))</span>
+
+<div class="viewcode-block" id="MesoscopeTask.get_signatures"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.base_tasks.html#ibllib.pipes.base_tasks.MesoscopeTask.get_signatures">[docs]</a>    <span class="k">def</span> <span class="nf">get_signatures</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        From the template signature of the task, create the exact list of inputs and outputs to expect based on the</span>
+<span class="sd">        available device collection folders</span>
+
+<span class="sd">        Necessary because we don&#39;t know in advance how many device collection folders (&quot;imaging bouts&quot;) to expect</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="c1"># Glob for all device collection (raw imaging data) folders</span>
+        <span class="n">raw_imaging_folders</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device_collection</span><span class="p">)]</span>
+        <span class="c1"># For all inputs and outputs that are part of the device collection, expand to one file per folder</span>
+        <span class="c1"># All others keep unchanged</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">input_files</span> <span class="o">=</span> <span class="p">[(</span><span class="n">sig</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">sig</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device_collection</span><span class="p">,</span> <span class="n">folder</span><span class="p">),</span> <span class="n">sig</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+                            <span class="k">for</span> <span class="n">folder</span> <span class="ow">in</span> <span class="n">raw_imaging_folders</span> <span class="k">for</span> <span class="n">sig</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="p">[</span><span class="s1">&#39;input_files&#39;</span><span class="p">]]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">output_files</span> <span class="o">=</span> <span class="p">[(</span><span class="n">sig</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">sig</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device_collection</span><span class="p">,</span> <span class="n">folder</span><span class="p">),</span> <span class="n">sig</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+                             <span class="k">for</span> <span class="n">folder</span> <span class="ow">in</span> <span class="n">raw_imaging_folders</span> <span class="k">for</span> <span class="n">sig</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="p">[</span><span class="s1">&#39;output_files&#39;</span><span class="p">]]</span></div>
+
+<div class="viewcode-block" id="MesoscopeTask.load_sync"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.base_tasks.html#ibllib.pipes.base_tasks.MesoscopeTask.load_sync">[docs]</a>    <span class="k">def</span> <span class="nf">load_sync</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Load the sync and channel map.</span>
+
+<span class="sd">        This method may be expanded to support other raw DAQ data formats.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        one.alf.io.AlfBunch</span>
+<span class="sd">            A dictionary with keys (&#39;times&#39;, &#39;polarities&#39;, &#39;channels&#39;), containing the sync pulses</span>
+<span class="sd">            and the corresponding channel numbers.</span>
+<span class="sd">        dict</span>
+<span class="sd">            A map of channel names and their corresponding indices.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">alf_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync_collection</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_sync_namespace</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;timeline&#39;</span><span class="p">:</span>
+            <span class="c1"># Load the sync and channel map from the raw DAQ data</span>
+            <span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span> <span class="o">=</span> <span class="n">load_timeline_sync_and_chmap</span><span class="p">(</span><span class="n">alf_path</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+        <span class="k">return</span> <span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span></div></div>
+
+
+<div class="viewcode-block" id="RegisterRawDataTask"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.base_tasks.html#ibllib.pipes.base_tasks.RegisterRawDataTask">[docs]</a><span class="k">class</span> <span class="nc">RegisterRawDataTask</span><span class="p">(</span><span class="n">DynamicTask</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Base register raw task.</span>
 <span class="sd">    To rename files</span>
@@ -269,10 +341,10 @@
     <span class="n">priority</span> <span class="o">=</span> <span class="mi">100</span>
     <span class="n">job_size</span> <span class="o">=</span> <span class="s1">&#39;small&#39;</span>
 
-<div class="viewcode-block" id="RegisterRawDataTask.rename_files"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.base_tasks.html#ibllib.pipes.base_tasks.RegisterRawDataTask.rename_files">[docs]</a>    <span class="k">def</span> <span class="nf">rename_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">symlink_old</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<div class="viewcode-block" id="RegisterRawDataTask.rename_files"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.base_tasks.html#ibllib.pipes.base_tasks.RegisterRawDataTask.rename_files">[docs]</a>    <span class="k">def</span> <span class="nf">rename_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">symlink_old</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
 
-        <span class="c1"># If no inputs are given, we don&#39;t do any renaming</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">input_files</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="c1"># If either no inputs or no outputs are given, we don&#39;t do any renaming</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">len</span><span class="p">,</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">input_files</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_files</span><span class="p">))):</span>
             <span class="k">return</span>
 
         <span class="c1"># Otherwise we need to make sure there is one to one correspondence for renaming files</span>
@@ -283,8 +355,11 @@
             <span class="n">old_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">old_collection</span><span class="p">)</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">old_file</span><span class="p">)</span>
             <span class="n">old_path</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">old_path</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
             <span class="c1"># if the file doesn&#39;t exist and it is not required we are okay to continue</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="n">old_path</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">required</span><span class="p">:</span>
-                <span class="k">continue</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">old_path</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">required</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">old_file</span><span class="p">))</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">continue</span>
 
             <span class="n">new_file</span><span class="p">,</span> <span class="n">new_collection</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">after</span>
             <span class="n">new_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">new_collection</span><span class="p">,</span> <span class="n">new_file</span><span class="p">)</span>
@@ -292,6 +367,66 @@
             <span class="n">old_path</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">new_path</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">symlink_old</span><span class="p">:</span>
                 <span class="n">old_path</span><span class="o">.</span><span class="n">symlink_to</span><span class="p">(</span><span class="n">new_path</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="RegisterRawDataTask.register_snapshots"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.base_tasks.html#ibllib.pipes.base_tasks.RegisterRawDataTask.register_snapshots">[docs]</a>    <span class="k">def</span> <span class="nf">register_snapshots</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">unlink</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Register any photos in the snapshots folder to the session. Typically imaging users will</span>
+<span class="sd">        take numerous photos for reference.  Supported extensions: .jpg, .jpeg, .png, .tif, .tiff</span>
+
+<span class="sd">        If a .txt file with the same name exists in the same location, the contents will be added</span>
+<span class="sd">        to the note text.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        unlink : bool</span>
+<span class="sd">            If true, files are deleted after upload.</span>
+<span class="sd">        collection : str, list, optional</span>
+<span class="sd">            Location of &#39;snapshots&#39; folder relative to the session path. If None, uses</span>
+<span class="sd">            &#39;device_collection&#39; attribute (if exists) or root session path.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        list of dict</span>
+<span class="sd">            The newly registered Alyx notes.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">collection</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;device_collection&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="k">if</span> <span class="n">collection</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">collection</span>
+        <span class="n">collection</span> <span class="o">=</span> <span class="n">collection</span> <span class="ow">or</span> <span class="s1">&#39;&#39;</span>  <span class="c1"># If not defined, use no collection</span>
+        <span class="k">if</span> <span class="n">collection</span> <span class="ow">and</span> <span class="s1">&#39;*&#39;</span> <span class="ow">in</span> <span class="n">collection</span><span class="p">:</span>
+            <span class="n">collection</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">collection</span><span class="p">)]</span>
+            <span class="c1"># Check whether folders on disk contain &#39;*&#39;; this is to stop an infinite recursion</span>
+            <span class="k">assert</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">(</span><span class="s1">&#39;*&#39;</span> <span class="ow">in</span> <span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">collection</span><span class="p">),</span> <span class="s1">&#39;folders containing asterisks not supported&#39;</span>
+        <span class="c1"># If more that one collection exists, register snapshots in each collection</span>
+        <span class="k">if</span> <span class="n">collection</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">collection</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">flatten</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">register_snapshots</span><span class="p">(</span><span class="n">unlink</span><span class="p">,</span> <span class="n">c</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">collection</span><span class="p">]))</span>
+        <span class="n">snapshots_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="o">*</span><span class="nb">filter</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="p">(</span><span class="n">collection</span><span class="p">,</span> <span class="s1">&#39;snapshots&#39;</span><span class="p">)))</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">snapshots_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">return</span>
+
+        <span class="n">eid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">path2eid</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">query_type</span><span class="o">=</span><span class="s1">&#39;remote&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">eid</span><span class="p">:</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Failed to upload snapshots: session not found on Alyx&#39;</span><span class="p">)</span>
+            <span class="k">return</span>
+        <span class="n">note</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">user</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">user</span><span class="p">,</span> <span class="n">content_type</span><span class="o">=</span><span class="s1">&#39;session&#39;</span><span class="p">,</span> <span class="n">object_id</span><span class="o">=</span><span class="n">eid</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
+
+        <span class="n">notes</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">exts</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;.jpg&#39;</span><span class="p">,</span> <span class="s1">&#39;.jpeg&#39;</span><span class="p">,</span> <span class="s1">&#39;.png&#39;</span><span class="p">,</span> <span class="s1">&#39;.tif&#39;</span><span class="p">,</span> <span class="s1">&#39;.tiff&#39;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">snapshot</span> <span class="ow">in</span> <span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">suffix</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">exts</span><span class="p">,</span> <span class="n">snapshots_path</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s1">&#39;*.*&#39;</span><span class="p">)):</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Uploading &quot;</span><span class="si">%s</span><span class="s1">&quot;...&#39;</span><span class="p">,</span> <span class="n">snapshot</span><span class="o">.</span><span class="n">relative_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">snapshot</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s1">&#39;.txt&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+                <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">snapshot</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s1">&#39;.txt&#39;</span><span class="p">),</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">txt_file</span><span class="p">:</span>
+                    <span class="n">note</span><span class="p">[</span><span class="s1">&#39;text&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">txt_file</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">note</span><span class="p">[</span><span class="s1">&#39;text&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">snapshot</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">img_file</span><span class="p">:</span>
+                <span class="n">files</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;image&#39;</span><span class="p">:</span> <span class="n">img_file</span><span class="p">}</span>
+                <span class="n">notes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;notes&#39;</span><span class="p">,</span> <span class="s1">&#39;create&#39;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">note</span><span class="p">,</span> <span class="n">files</span><span class="o">=</span><span class="n">files</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">unlink</span><span class="p">:</span>
+                <span class="n">snapshot</span><span class="o">.</span><span class="n">unlink</span><span class="p">()</span>
+        <span class="c1"># If nothing else in the snapshots folder, delete the folder</span>
+        <span class="k">if</span> <span class="n">unlink</span> <span class="ow">and</span> <span class="nb">next</span><span class="p">(</span><span class="n">snapshots_path</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="s1">&#39;*&#39;</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">snapshots_path</span><span class="o">.</span><span class="n">rmdir</span><span class="p">()</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%i</span><span class="s1"> snapshots uploaded to Alyx&#39;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">notes</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">notes</span></div>
 
     <span class="k">def</span> <span class="nf">_run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">rename_files</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>

@@ -138,7 +138,8 @@
 
     <span class="n">session_path</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">save_names</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="n">default_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;alf&quot;</span><span class="p">)</span>  <span class="c1"># relative to session</span>
+    <span class="n">var_names</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">default_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s1">&#39;alf&#39;</span><span class="p">)</span>  <span class="c1"># relative to session</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_path</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="c1"># If session_path is None Path(session_path) will fail</span>
@@ -146,8 +147,7 @@
 
 <div class="viewcode-block" id="BaseExtractor.extract"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.base.html#ibllib.io.extractors.base.BaseExtractor.extract">[docs]</a>    <span class="k">def</span> <span class="nf">extract</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">path_out</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        :return: numpy.ndarray or list of ndarrays, list of filenames</span>
-<span class="sd">        :rtype: dtype(&#39;float64&#39;)</span>
+<span class="sd">        :return: dict of numpy.array, list of filenames</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_extract</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="n">files</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_save</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="n">path_out</span><span class="o">=</span><span class="n">path_out</span><span class="p">)</span> <span class="k">if</span> <span class="n">save</span> <span class="k">else</span> <span class="kc">None</span>
@@ -199,6 +199,13 @@
         <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">save_names</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
             <span class="n">file_paths</span> <span class="o">=</span> <span class="n">path_out</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">save_names</span><span class="p">)</span>
             <span class="n">_write_to_disk</span><span class="p">(</span><span class="n">file_paths</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="n">file_paths</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">var</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">fn</span> <span class="o">:=</span> <span class="bp">self</span><span class="o">.</span><span class="n">save_names</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">var_names</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">var</span><span class="p">)]:</span>
+                    <span class="n">fpath</span> <span class="o">=</span> <span class="n">path_out</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span>
+                    <span class="n">_write_to_disk</span><span class="p">(</span><span class="n">fpath</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+                    <span class="n">file_paths</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">fpath</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>  <span class="c1"># Should be list or tuple...</span>
             <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">save_names</span><span class="p">)</span>
             <span class="n">file_paths</span> <span class="o">=</span> <span class="p">[]</span>
@@ -247,7 +254,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">settings</span> <span class="o">=</span> <span class="n">raw</span><span class="o">.</span><span class="n">load_settings</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">task_collection</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">settings</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;IBLRIG_VERSION_TAG&quot;</span><span class="p">:</span> <span class="s2">&quot;100.0.0&quot;</span><span class="p">}</span>
-        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s2">&quot;IBLRIG_VERSION_TAG&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;IBLRIG_VERSION_TAG&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s2">&quot;IBLRIG_VERSION_TAG&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;100.0.0&quot;</span>
         <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">BaseBpodTrialsExtractor</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div></div>
 
@@ -276,7 +283,9 @@
             <span class="n">files</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">fil</span><span class="p">)</span>
         <span class="k">elif</span> <span class="n">fil</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">fil</span><span class="p">)</span>
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">var_names</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="n">outputs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">var_names</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
             <span class="n">outputs</span><span class="p">[</span><span class="bp">cls</span><span class="o">.</span><span class="n">var_names</span><span class="p">]</span> <span class="o">=</span> <span class="n">out</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">var_names</span><span class="p">):</span>
@@ -299,11 +308,11 @@
     <span class="k">return</span> <span class="n">task_types</span>
 
 
-<div class="viewcode-block" id="get_task_protocol"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.base.html#ibllib.io.extractors.base.get_task_protocol">[docs]</a><span class="k">def</span> <span class="nf">get_task_protocol</span><span class="p">(</span><span class="n">session_path</span><span class="p">):</span>
+<div class="viewcode-block" id="get_task_protocol"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.base.html#ibllib.io.extractors.base.get_task_protocol">[docs]</a><span class="k">def</span> <span class="nf">get_task_protocol</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">):</span>
     <span class="k">try</span><span class="p">:</span>
-        <span class="n">settings</span> <span class="o">=</span> <span class="n">load_settings</span><span class="p">(</span><span class="n">get_session_path</span><span class="p">(</span><span class="n">session_path</span><span class="p">))</span>
+        <span class="n">settings</span> <span class="o">=</span> <span class="n">load_settings</span><span class="p">(</span><span class="n">get_session_path</span><span class="p">(</span><span class="n">session_path</span><span class="p">),</span> <span class="n">task_collection</span><span class="o">=</span><span class="n">task_collection</span><span class="p">)</span>
     <span class="k">except</span> <span class="n">json</span><span class="o">.</span><span class="n">decoder</span><span class="o">.</span><span class="n">JSONDecodeError</span><span class="p">:</span>
-        <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Can&#39;t read settings for </span><span class="si">{</span><span class="n">session_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Can</span><span class="se">\&#39;</span><span class="s1">t read settings for </span><span class="si">{</span><span class="n">session_path</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
         <span class="k">return</span>
     <span class="k">if</span> <span class="n">settings</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;PYBPOD_PROTOCOL&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
@@ -326,10 +335,10 @@
     <span class="n">task_types</span> <span class="o">=</span> <span class="n">_get_task_types_json_config</span><span class="p">()</span>
 
     <span class="n">task_type</span> <span class="o">=</span> <span class="n">task_types</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_name</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">task_type</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">task_type</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>  <span class="c1"># Try lazy matching of name</span>
         <span class="n">task_type</span> <span class="o">=</span> <span class="nb">next</span><span class="p">((</span><span class="n">task_types</span><span class="p">[</span><span class="n">tt</span><span class="p">]</span> <span class="k">for</span> <span class="n">tt</span> <span class="ow">in</span> <span class="n">task_types</span> <span class="k">if</span> <span class="n">tt</span> <span class="ow">in</span> <span class="n">task_name</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">task_type</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No extractor type found for </span><span class="si">{</span><span class="n">task_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;No extractor type found for </span><span class="si">{</span><span class="n">task_name</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">task_type</span></div>
 
 
@@ -342,7 +351,7 @@
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">settings</span> <span class="o">=</span> <span class="n">load_settings</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="n">task_collection</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">settings</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;ABORT: No data found in &quot;raw_behavior_data&quot; folder </span><span class="si">{</span><span class="n">session_path</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;ABORT: No data found in &quot;</span><span class="si">{</span><span class="n">task_collection</span><span class="si">}</span><span class="s1">&quot; folder </span><span class="si">{</span><span class="n">session_path</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
         <span class="k">return</span> <span class="kc">False</span>
     <span class="n">extractor_type</span> <span class="o">=</span> <span class="n">get_task_extractor_type</span><span class="p">(</span><span class="n">settings</span><span class="p">[</span><span class="s1">&#39;PYBPOD_PROTOCOL&#39;</span><span class="p">])</span>
     <span class="k">if</span> <span class="n">extractor_type</span><span class="p">:</span>
@@ -375,6 +384,83 @@
         <span class="k">return</span> <span class="s1">&#39;widefield&#39;</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">stype</span>
+
+
+<span class="k">def</span> <span class="nf">_get_task_extractor_map</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Load the task protocol extractor map.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    dict(str, str)</span>
+<span class="sd">        A map of task protocol to Bpod trials extractor class.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">FILENAME</span> <span class="o">=</span> <span class="s1">&#39;task_extractor_map.json&#39;</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">FILENAME</span><span class="p">))</span> <span class="k">as</span> <span class="n">fp</span><span class="p">:</span>
+        <span class="n">task_extractors</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">fp</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="c1"># look if there are custom extractor types in the personal projects repo</span>
+        <span class="kn">import</span> <span class="nn">projects.base</span>
+        <span class="n">custom_extractors</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">projects</span><span class="o">.</span><span class="n">base</span><span class="o">.</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">FILENAME</span><span class="p">)</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">custom_extractors</span><span class="p">)</span> <span class="k">as</span> <span class="n">fp</span><span class="p">:</span>
+            <span class="n">custom_task_types</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">fp</span><span class="p">)</span>
+        <span class="n">task_extractors</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">custom_task_types</span><span class="p">)</span>
+    <span class="k">except</span> <span class="p">(</span><span class="ne">ModuleNotFoundError</span><span class="p">,</span> <span class="ne">FileNotFoundError</span><span class="p">):</span>
+        <span class="k">pass</span>
+    <span class="k">return</span> <span class="n">task_extractors</span>
+
+
+<div class="viewcode-block" id="get_bpod_extractor_class"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.base.html#ibllib.io.extractors.base.get_bpod_extractor_class">[docs]</a><span class="k">def</span> <span class="nf">get_bpod_extractor_class</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Get the Bpod trials extractor class associated with a given Bpod session.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    session_path : str, pathlib.Path</span>
+<span class="sd">        The session path containing Bpod behaviour data.</span>
+<span class="sd">    task_collection : str</span>
+<span class="sd">        The session_path subfolder containing the Bpod settings file.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    str</span>
+<span class="sd">        The extractor class name.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Attempt to load settings files</span>
+    <span class="n">settings</span> <span class="o">=</span> <span class="n">load_settings</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="n">task_collection</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">settings</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;No data found in &quot;</span><span class="si">{</span><span class="n">task_collection</span><span class="si">}</span><span class="s1">&quot; folder </span><span class="si">{</span><span class="n">session_path</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="c1"># Attempt to get task protocol</span>
+    <span class="n">protocol</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;PYBPOD_PROTOCOL&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">protocol</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;No task protocol found in </span><span class="si">{</span><span class="n">session_path</span><span class="o">/</span><span class="n">task_collection</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">protocol2extractor</span><span class="p">(</span><span class="n">protocol</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="protocol2extractor"><a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.base.html#ibllib.io.extractors.base.protocol2extractor">[docs]</a><span class="k">def</span> <span class="nf">protocol2extractor</span><span class="p">(</span><span class="n">protocol</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Get the Bpod trials extractor class associated with a given Bpod task protocol.</span>
+
+<span class="sd">    The Bpod task protocol can be found in the &#39;PYBPOD_PROTOCOL&#39; field of _iblrig_taskSettings.raw.json.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    protocol : str</span>
+<span class="sd">        A Bpod task protocol name.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    str</span>
+<span class="sd">        The extractor class name.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Attempt to get extractor class from protocol</span>
+    <span class="n">extractor_map</span> <span class="o">=</span> <span class="n">_get_task_extractor_map</span><span class="p">()</span>
+    <span class="n">extractor</span> <span class="o">=</span> <span class="n">extractor_map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">protocol</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">extractor</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>  <span class="c1"># Try lazy matching of name</span>
+        <span class="n">extractor</span> <span class="o">=</span> <span class="nb">next</span><span class="p">((</span><span class="n">extractor_map</span><span class="p">[</span><span class="n">tt</span><span class="p">]</span> <span class="k">for</span> <span class="n">tt</span> <span class="ow">in</span> <span class="n">extractor_map</span> <span class="k">if</span> <span class="n">tt</span> <span class="ow">in</span> <span class="n">protocol</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">extractor</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;No extractor associated with &quot;</span><span class="si">{</span><span class="n">protocol</span><span class="si">}</span><span class="s1">&quot;&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">extractor</span></div>
 </pre></div>
 
            </div>
