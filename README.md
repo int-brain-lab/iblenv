@@ -13,7 +13,7 @@ git pull
 cd ..
 cd iblenv
 git pull
-pip install --requirement requirements.txt --upgrade
+pip install -r requirements.txt --upgrade
 ```
 
 If any errors are encountered, it is recommended to follow the "Removing an old installation" instructions and then the "Install 
@@ -29,9 +29,9 @@ multiple repositories within this environment.
 In your git terminal, navigate to the directory in which you want to install the IBL repositories (e.g. create a folder named 
 something like `int-brain-lab` and work from within it). Then run the following commands:
 
-```bash
-conda create --name iblenv python=3.9 --yes
-conda activate iblenv
+```commandline
+conda update -n base -c defaults conda
+conda create --name iblenv python=3.10 --yes
 git clone https://github.com/int-brain-lab/iblapps
 pip install --editable iblapps
 git clone https://github.com/int-brain-lab/iblenv
