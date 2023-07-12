@@ -107,10 +107,15 @@
              
   <h1>Source code for brainbox.behavior.wheel</h1><div class="highlight"><pre>
 <span></span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">Set of functions to handle wheel data</span>
+<span class="sd">Set of functions to handle wheel data.</span>
 <span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">import</span> <span class="nn">traceback</span>
+
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">from</span> <span class="nn">numpy</span> <span class="kn">import</span> <span class="n">pi</span>
+<span class="kn">from</span> <span class="nn">iblutil.numerical</span> <span class="kn">import</span> <span class="n">between_sorted</span>
 <span class="kn">import</span> <span class="nn">scipy.interpolate</span> <span class="k">as</span> <span class="nn">interpolate</span>
 <span class="kn">import</span> <span class="nn">scipy.signal</span>
 <span class="kn">from</span> <span class="nn">scipy.linalg</span> <span class="kn">import</span> <span class="n">hankel</span>
@@ -121,11 +126,11 @@
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;cm_to_deg&#39;</span><span class="p">,</span>
            <span class="s1">&#39;cm_to_rad&#39;</span><span class="p">,</span>
            <span class="s1">&#39;interpolate_position&#39;</span><span class="p">,</span>
-           <span class="s1">&#39;last_movement_onset&#39;</span><span class="p">,</span>
+           <span class="s1">&#39;get_movement_onset&#39;</span><span class="p">,</span>
            <span class="s1">&#39;movements&#39;</span><span class="p">,</span>
            <span class="s1">&#39;samples_to_cm&#39;</span><span class="p">,</span>
            <span class="s1">&#39;traces_by_trial&#39;</span><span class="p">,</span>
-           <span class="s1">&#39;velocity_smoothed&#39;</span><span class="p">]</span>
+           <span class="s1">&#39;velocity_filtered&#39;</span><span class="p">]</span>
 
 <span class="c1"># Define some constants</span>
 <span class="n">ENC_RES</span> <span class="o">=</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">4</span>  <span class="c1"># Rotary encoder resolution, assumes X4 encoding</span>
@@ -173,7 +178,7 @@
 
 <span class="k">def</span> <span class="nf">velocity</span><span class="p">(</span><span class="n">re_ts</span><span class="p">,</span> <span class="n">re_pos</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Compute wheel velocity from non-uniformly sampled wheel data. Returns the velocity</span>
+<span class="sd">    (DEPRECATED) Compute wheel velocity from non-uniformly sampled wheel data. Returns the velocity</span>
 <span class="sd">    at the same samples locations as the position through interpolation.</span>
 
 <span class="sd">    Parameters</span>
@@ -188,6 +193,13 @@
 <span class="sd">    np.ndarray</span>
 <span class="sd">        numpy array of velocities</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">traceback</span><span class="o">.</span><span class="n">format_stack</span><span class="p">():</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+
+    <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;brainbox.behavior.wheel.velocity has been deprecated. Use velocity_filtered instead.&#39;</span>
+    <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="ne">DeprecationWarning</span><span class="p">)</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
     <span class="n">dp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">re_pos</span><span class="p">)</span>
     <span class="n">dt</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">re_ts</span><span class="p">)</span>
     <span class="c1"># Compute raw velocity</span>
@@ -200,24 +212,35 @@
         <span class="k">return</span> <span class="n">ifcn</span><span class="p">(</span><span class="n">re_ts</span><span class="p">)</span>
 
 
-<span class="k">def</span> <span class="nf">velocity_filtered</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span> <span class="n">fs</span><span class="p">,</span> <span class="n">corner_frequency</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="mi">8</span><span class="p">):</span>
+<div class="viewcode-block" id="velocity_filtered"><a class="viewcode-back" href="../../../_autosummary/brainbox.behavior.wheel.html#brainbox.behavior.wheel.velocity_filtered">[docs]</a><span class="k">def</span> <span class="nf">velocity_filtered</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span> <span class="n">fs</span><span class="p">,</span> <span class="n">corner_frequency</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="mi">8</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Compute wheel velocity from uniformly sampled wheel data</span>
+<span class="sd">    Compute wheel velocity from uniformly sampled wheel data.</span>
 
-<span class="sd">    :param pos: vector of uniformly sampled wheel positions</span>
-<span class="sd">    :param fs: scalar, sampling frequency</span>
-<span class="sd">    :param corner_frequency: scalar, corner frequency of low-pass filter</span>
-<span class="sd">    :param order: scalar, order of Butterworth filter</span>
+<span class="sd">    pos: array_like</span>
+<span class="sd">        Vector of uniformly sampled wheel positions.</span>
+<span class="sd">    fs : float</span>
+<span class="sd">        Frequency in Hz of the sampling frequency.</span>
+<span class="sd">    corner_frequency : float</span>
+<span class="sd">       Corner frequency of low-pass filter.</span>
+<span class="sd">    order : int</span>
+<span class="sd">        Order of Butterworth filter.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    vel : np.ndarray</span>
+<span class="sd">        Array of velocity values.</span>
+<span class="sd">    acc : np.ndarray</span>
+<span class="sd">        Array of acceleration values.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">sos</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">signal</span><span class="o">.</span><span class="n">butter</span><span class="p">(</span><span class="o">**</span><span class="p">{</span><span class="s1">&#39;N&#39;</span><span class="p">:</span> <span class="n">order</span><span class="p">,</span> <span class="s1">&#39;Wn&#39;</span><span class="p">:</span> <span class="n">corner_frequency</span> <span class="o">/</span> <span class="n">fs</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;btype&#39;</span><span class="p">:</span> <span class="s1">&#39;lowpass&#39;</span><span class="p">},</span> <span class="n">output</span><span class="o">=</span><span class="s1">&#39;sos&#39;</span><span class="p">)</span>
     <span class="n">vel</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">scipy</span><span class="o">.</span><span class="n">signal</span><span class="o">.</span><span class="n">sosfiltfilt</span><span class="p">(</span><span class="n">sos</span><span class="p">,</span> <span class="n">pos</span><span class="p">)),</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">*</span> <span class="n">fs</span>
     <span class="n">acc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">vel</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">*</span> <span class="n">fs</span>
-    <span class="k">return</span> <span class="n">vel</span><span class="p">,</span> <span class="n">acc</span>
+    <span class="k">return</span> <span class="n">vel</span><span class="p">,</span> <span class="n">acc</span></div>
 
 
-<div class="viewcode-block" id="velocity_smoothed"><a class="viewcode-back" href="../../../_autosummary/brainbox.behavior.wheel.html#brainbox.behavior.wheel.velocity_smoothed">[docs]</a><span class="k">def</span> <span class="nf">velocity_smoothed</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span> <span class="n">freq</span><span class="p">,</span> <span class="n">smooth_size</span><span class="o">=</span><span class="mf">0.03</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">velocity_smoothed</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span> <span class="n">freq</span><span class="p">,</span> <span class="n">smooth_size</span><span class="o">=</span><span class="mf">0.03</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Compute wheel velocity from uniformly sampled wheel data</span>
+<span class="sd">    (DEPRECATED) Compute wheel velocity from uniformly sampled wheel data.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -235,6 +258,13 @@
 <span class="sd">    acc : np.ndarray</span>
 <span class="sd">        Array of acceleration values</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">traceback</span><span class="o">.</span><span class="n">format_stack</span><span class="p">():</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+
+    <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;brainbox.behavior.wheel.velocity_smoothed has been deprecated. Use velocity_filtered instead.&#39;</span>
+    <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="ne">DeprecationWarning</span><span class="p">)</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
     <span class="c1"># Define our smoothing window with an area of 1 so the units won&#39;t be changed</span>
     <span class="n">std_samps</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">smooth_size</span> <span class="o">*</span> <span class="n">freq</span><span class="p">)</span>  <span class="c1"># Standard deviation relative to sampling frequency</span>
     <span class="n">N</span> <span class="o">=</span> <span class="n">std_samps</span> <span class="o">*</span> <span class="mi">6</span>  <span class="c1"># Number of points in the Gaussian covering +/-3 standard deviations</span>
@@ -246,20 +276,29 @@
     <span class="n">vel</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="n">scipy</span><span class="o">.</span><span class="n">signal</span><span class="o">.</span><span class="n">convolve</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">pos</span><span class="p">),</span> <span class="n">win</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;same&#39;</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">*</span> <span class="n">freq</span>
     <span class="n">acc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="n">scipy</span><span class="o">.</span><span class="n">signal</span><span class="o">.</span><span class="n">convolve</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">vel</span><span class="p">),</span> <span class="n">win</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;same&#39;</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">*</span> <span class="n">freq</span>
 
-    <span class="k">return</span> <span class="n">vel</span><span class="p">,</span> <span class="n">acc</span></div>
+    <span class="k">return</span> <span class="n">vel</span><span class="p">,</span> <span class="n">acc</span>
 
 
-<div class="viewcode-block" id="last_movement_onset"><a class="viewcode-back" href="../../../_autosummary/brainbox.behavior.wheel.html#brainbox.behavior.wheel.last_movement_onset">[docs]</a><span class="k">def</span> <span class="nf">last_movement_onset</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">vel</span><span class="p">,</span> <span class="n">event_time</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">last_movement_onset</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">vel</span><span class="p">,</span> <span class="n">event_time</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Find the time at which movement started, given an event timestamp that occurred during the</span>
-<span class="sd">    movement.  Movement start is defined as the first sample after the velocity has been zero</span>
-<span class="sd">    for at least 50ms.  Wheel inputs should be evenly sampled.</span>
+<span class="sd">    (DEPRECATED) Find the time at which movement started, given an event timestamp that occurred during the</span>
+<span class="sd">    movement.</span>
+
+<span class="sd">    Movement start is defined as the first sample after the velocity has been zero for at least 50ms.</span>
+<span class="sd">    Wheel inputs should be evenly sampled.</span>
 
 <span class="sd">    :param t: numpy array of wheel timestamps in seconds</span>
 <span class="sd">    :param vel: numpy array of wheel velocities</span>
 <span class="sd">    :param event_time: timestamp anywhere during movement of interest, e.g. peak velocity</span>
 <span class="sd">    :return: timestamp of movement onset</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">traceback</span><span class="o">.</span><span class="n">format_stack</span><span class="p">():</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+
+    <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;brainbox.behavior.wheel.last_movement_onset has been deprecated. Use get_movement_onset instead.&#39;</span>
+    <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="ne">DeprecationWarning</span><span class="p">)</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
     <span class="c1"># Look back from timestamp</span>
     <span class="n">threshold</span> <span class="o">=</span> <span class="mf">50e-3</span>
     <span class="n">mask</span> <span class="o">=</span> <span class="n">t</span> <span class="o">&lt;</span> <span class="n">event_time</span>
@@ -273,7 +312,43 @@
             <span class="k">break</span>
 
     <span class="c1"># Return timestamp</span>
-    <span class="k">return</span> <span class="n">t</span></div>
+    <span class="k">return</span> <span class="n">t</span>
+
+
+<div class="viewcode-block" id="get_movement_onset"><a class="viewcode-back" href="../../../_autosummary/brainbox.behavior.wheel.html#brainbox.behavior.wheel.get_movement_onset">[docs]</a><span class="k">def</span> <span class="nf">get_movement_onset</span><span class="p">(</span><span class="n">intervals</span><span class="p">,</span> <span class="n">event_times</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Find the time at which movement started, given an event timestamp that occurred during the</span>
+<span class="sd">    movement.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    intervals : numpy.array</span>
+<span class="sd">        The wheel movement intervals.</span>
+<span class="sd">    event_times : numpy.array</span>
+<span class="sd">        Sorted event timestamps anywhere during movement of interest, e.g. peak velocity, feedback</span>
+<span class="sd">        time.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    numpy.array</span>
+<span class="sd">        An array the length of event_time of intervals.</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    Find the last movement onset before each trial response time</span>
+
+<span class="sd">    &gt;&gt;&gt; trials = one.load_object(eid, &#39;trials&#39;)</span>
+<span class="sd">    &gt;&gt;&gt; wheelMoves = one.load_object(eid, &#39;wheelMoves&#39;)</span>
+<span class="sd">    &gt;&gt;&gt; onsets = last_movement_onset(wheelMoves.intervals, trials.response_times)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">event_times</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;event_times must be in ascending order.&#39;</span><span class="p">)</span>
+    <span class="n">onsets</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">event_times</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">intervals</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+        <span class="n">onset</span> <span class="o">=</span> <span class="n">between_sorted</span><span class="p">(</span><span class="n">event_times</span><span class="p">,</span> <span class="n">intervals</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="p">:])</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">onset</span><span class="p">):</span>
+            <span class="n">onsets</span><span class="p">[</span><span class="n">onset</span><span class="p">]</span> <span class="o">=</span> <span class="n">intervals</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">onsets</span></div>
 
 
 <div class="viewcode-block" id="movements"><a class="viewcode-back" href="../../../_autosummary/brainbox.behavior.wheel.html#brainbox.behavior.wheel.movements">[docs]</a><span class="k">def</span> <span class="nf">movements</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">pos</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">pos_thresh</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">t_thresh</span><span class="o">=</span><span class="mf">.2</span><span class="p">,</span> <span class="n">min_gap</span><span class="o">=</span><span class="mf">.1</span><span class="p">,</span> <span class="n">pos_thresh_onset</span><span class="o">=</span><span class="mf">1.5</span><span class="p">,</span>
@@ -406,7 +481,7 @@
     <span class="k">if</span> <span class="n">make_plots</span><span class="p">:</span>
         <span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">nrows</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">sharex</span><span class="o">=</span><span class="s1">&#39;all&#39;</span><span class="p">)</span>
         <span class="n">indices</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">((</span><span class="n">onset_samps</span><span class="p">,</span> <span class="n">offset_samps</span><span class="p">)))</span>  <span class="c1"># Points to split trace</span>
-        <span class="n">vel</span><span class="p">,</span> <span class="n">acc</span> <span class="o">=</span> <span class="n">velocity_smoothed</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span> <span class="n">freq</span><span class="p">,</span> <span class="mf">0.015</span><span class="p">)</span>
+        <span class="n">vel</span><span class="p">,</span> <span class="n">acc</span> <span class="o">=</span> <span class="n">velocity_filtered</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span> <span class="n">freq</span><span class="p">)</span>
 
         <span class="c1"># Plot the wheel position and velocity</span>
         <span class="k">for</span> <span class="n">ax</span><span class="p">,</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">axes</span><span class="p">,</span> <span class="p">(</span><span class="n">pos</span><span class="p">,</span> <span class="n">vel</span><span class="p">)):</span>
@@ -550,7 +625,7 @@
     <span class="k">return</span> <span class="p">[(</span><span class="n">cuts</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="mi">0</span><span class="p">,</span> <span class="p">:],</span> <span class="n">cuts</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="mi">1</span><span class="p">,</span> <span class="p">:])</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">cuts</span><span class="p">))]</span> <span class="k">if</span> <span class="n">separate</span> <span class="k">else</span> <span class="n">cuts</span></div>
 
 
-<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
     <span class="kn">import</span> <span class="nn">doctest</span>
     <span class="n">doctest</span><span class="o">.</span><span class="n">testmod</span><span class="p">()</span>
 </pre></div>
