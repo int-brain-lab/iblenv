@@ -12,13 +12,13 @@
     <script src="../../../_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
-        <script src="../../../_static/jquery.js"></script>
-        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
-        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
-        <script src="../../../_static/doctools.js"></script>
-        <script src="../../../_static/sphinx_highlight.js"></script>
-        <script src="../../../_static/clipboard.min.js"></script>
-        <script src="../../../_static/copybutton.js"></script>
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script src="../../../_static/clipboard.min.js?v=a7894cd8"></script>
+        <script src="../../../_static/copybutton.js?v=f281be69"></script>
         <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
     <script src="../../../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../../../genindex.html" />
@@ -113,7 +113,10 @@
 <span class="kn">from</span> <span class="nn">ibllib.io.raw_data_loaders</span> <span class="kn">import</span> <span class="n">load_bpod</span>
 <span class="kn">from</span> <span class="nn">ibllib.oneibl.registration</span> <span class="kn">import</span> <span class="n">_get_session_times</span>
 <span class="kn">from</span> <span class="nn">ibllib.io.extractors.base</span> <span class="kn">import</span> <span class="n">get_pipeline</span><span class="p">,</span> <span class="n">get_session_extractor_type</span>
+<span class="kn">from</span> <span class="nn">ibllib.io.session_params</span> <span class="kn">import</span> <span class="n">read_params</span>
+<span class="kn">import</span> <span class="nn">ibllib.pipes.dynamic_pipeline</span> <span class="k">as</span> <span class="nn">dyn</span>
 
+<span class="kn">from</span> <span class="nn">iblutil.util</span> <span class="kn">import</span> <span class="n">setup_logger</span>
 <span class="kn">from</span> <span class="nn">ibllib.plots.snapshot</span> <span class="kn">import</span> <span class="n">ReportSnapshot</span>
 <span class="kn">from</span> <span class="nn">iblutil.numerical</span> <span class="kn">import</span> <span class="n">ismember</span>
 <span class="kn">from</span> <span class="nn">brainbox.behavior</span> <span class="kn">import</span> <span class="n">training</span>
@@ -126,6 +129,10 @@
 <span class="kn">from</span> <span class="nn">matplotlib.lines</span> <span class="kn">import</span> <span class="n">Line2D</span>
 <span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
 <span class="kn">import</span> <span class="nn">seaborn</span> <span class="k">as</span> <span class="nn">sns</span>
+<span class="kn">import</span> <span class="nn">boto3</span>
+<span class="kn">from</span> <span class="nn">botocore.exceptions</span> <span class="kn">import</span> <span class="n">ProfileNotFound</span><span class="p">,</span> <span class="n">ClientError</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">setup_logger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
 
 <span class="n">TRAINING_STATUS</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;untrainable&#39;</span><span class="p">:</span> <span class="p">(</span><span class="o">-</span><span class="mi">4</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)),</span>
@@ -140,35 +147,111 @@
                    <span class="s1">&#39;ready4recording&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="p">(</span><span class="mi">20</span><span class="p">,</span> <span class="mi">255</span><span class="p">,</span> <span class="mi">91</span><span class="p">,</span> <span class="mi">255</span><span class="p">))}</span>
 
 
-<div class="viewcode-block" id="get_trials_task"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.get_trials_task">[docs]</a><span class="k">def</span> <span class="nf">get_trials_task</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="p">):</span>
-    <span class="c1"># TODO this eventually needs to be updated for dynamic pipeline tasks</span>
-    <span class="n">pipeline</span> <span class="o">=</span> <span class="n">get_pipeline</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">pipeline</span> <span class="o">==</span> <span class="s1">&#39;training&#39;</span><span class="p">:</span>
-        <span class="kn">from</span> <span class="nn">ibllib.pipes.training_preprocessing</span> <span class="kn">import</span> <span class="n">TrainingTrials</span>
-        <span class="n">task</span> <span class="o">=</span> <span class="n">TrainingTrials</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">)</span>
-    <span class="k">elif</span> <span class="n">pipeline</span> <span class="o">==</span> <span class="s1">&#39;ephys&#39;</span><span class="p">:</span>
-        <span class="kn">from</span> <span class="nn">ibllib.pipes.ephys_preprocessing</span> <span class="kn">import</span> <span class="n">EphysTrials</span>
-        <span class="n">task</span> <span class="o">=</span> <span class="n">EphysTrials</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">)</span>
+<div class="viewcode-block" id="get_training_table_from_aws">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.get_training_table_from_aws">[docs]</a>
+<span class="k">def</span> <span class="nf">get_training_table_from_aws</span><span class="p">(</span><span class="n">lab</span><span class="p">,</span> <span class="n">subject</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    If aws credentials exist on the local server download the latest training table from aws s3 private bucket</span>
+<span class="sd">    :param lab:</span>
+<span class="sd">    :param subject:</span>
+<span class="sd">    :return:</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">session</span> <span class="o">=</span> <span class="n">boto3</span><span class="o">.</span><span class="n">Session</span><span class="p">(</span><span class="n">profile_name</span><span class="o">=</span><span class="s1">&#39;ibl_training&#39;</span><span class="p">)</span>
+    <span class="k">except</span> <span class="n">ProfileNotFound</span><span class="p">:</span>
+        <span class="k">return</span>
+
+    <span class="n">local_file_path</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;/mnt/s0/Data/Subjects/</span><span class="si">{</span><span class="n">subject</span><span class="si">}</span><span class="s1">/training.csv&#39;</span>
+    <span class="n">dst_bucket_name</span> <span class="o">=</span> <span class="s1">&#39;ibl-brain-wide-map-private&#39;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">s3</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">resource</span><span class="p">(</span><span class="s1">&#39;s3&#39;</span><span class="p">)</span>
+        <span class="n">bucket</span> <span class="o">=</span> <span class="n">s3</span><span class="o">.</span><span class="n">Bucket</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">dst_bucket_name</span><span class="p">)</span>
+        <span class="n">bucket</span><span class="o">.</span><span class="n">download_file</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;resources/training/</span><span class="si">{</span><span class="n">lab</span><span class="si">}</span><span class="s1">/</span><span class="si">{</span><span class="n">subject</span><span class="si">}</span><span class="s1">/training.csv&#39;</span><span class="p">,</span>
+                             <span class="n">local_file_path</span><span class="p">)</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">local_file_path</span><span class="p">)</span>
+    <span class="k">except</span> <span class="n">ClientError</span><span class="p">:</span>
+        <span class="k">return</span>
+
+    <span class="k">return</span> <span class="n">df</span></div>
+
+
+
+<div class="viewcode-block" id="upload_training_table_to_aws">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.upload_training_table_to_aws">[docs]</a>
+<span class="k">def</span> <span class="nf">upload_training_table_to_aws</span><span class="p">(</span><span class="n">lab</span><span class="p">,</span> <span class="n">subject</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    If aws credentials exist on the local server upload the training table to aws s3 private bucket</span>
+<span class="sd">    :param lab:</span>
+<span class="sd">    :param subject:</span>
+<span class="sd">    :return:</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">session</span> <span class="o">=</span> <span class="n">boto3</span><span class="o">.</span><span class="n">Session</span><span class="p">(</span><span class="n">profile_name</span><span class="o">=</span><span class="s1">&#39;ibl_training&#39;</span><span class="p">)</span>
+    <span class="k">except</span> <span class="n">ProfileNotFound</span><span class="p">:</span>
+        <span class="k">return</span>
+
+    <span class="n">local_file_path</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;/mnt/s0/Data/Subjects/</span><span class="si">{</span><span class="n">subject</span><span class="si">}</span><span class="s1">/training.csv&#39;</span>
+    <span class="n">dst_bucket_name</span> <span class="o">=</span> <span class="s1">&#39;ibl-brain-wide-map-private&#39;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">s3</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">resource</span><span class="p">(</span><span class="s1">&#39;s3&#39;</span><span class="p">)</span>
+        <span class="n">bucket</span> <span class="o">=</span> <span class="n">s3</span><span class="o">.</span><span class="n">Bucket</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">dst_bucket_name</span><span class="p">)</span>
+        <span class="n">bucket</span><span class="o">.</span><span class="n">upload_file</span><span class="p">(</span><span class="n">local_file_path</span><span class="p">,</span>
+                           <span class="sa">f</span><span class="s1">&#39;resources/training/</span><span class="si">{</span><span class="n">lab</span><span class="si">}</span><span class="s1">/</span><span class="si">{</span><span class="n">subject</span><span class="si">}</span><span class="s1">/training.csv&#39;</span><span class="p">)</span>
+    <span class="k">except</span> <span class="p">(</span><span class="n">ClientError</span><span class="p">,</span> <span class="ne">FileNotFoundError</span><span class="p">):</span>
+        <span class="k">return</span></div>
+
+
+
+<div class="viewcode-block" id="get_trials_task">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.get_trials_task">[docs]</a>
+<span class="k">def</span> <span class="nf">get_trials_task</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="p">):</span>
+    <span class="c1"># If experiment description file then process this</span>
+    <span class="n">experiment_description_file</span> <span class="o">=</span> <span class="n">read_params</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">experiment_description_file</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">tasks</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">pipeline</span> <span class="o">=</span> <span class="n">dyn</span><span class="o">.</span><span class="n">make_pipeline</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="n">trials_tasks</span> <span class="o">=</span> <span class="p">[</span><span class="n">t</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">tasks</span> <span class="k">if</span> <span class="s1">&#39;Trials&#39;</span> <span class="ow">in</span> <span class="n">t</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="n">trials_tasks</span><span class="p">:</span>
+            <span class="n">t</span> <span class="o">=</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
+            <span class="n">t</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="o">**</span><span class="n">t</span><span class="o">.</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="n">tasks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="c1"># try and look if there is a custom extractor in the personal projects extraction class</span>
-            <span class="kn">import</span> <span class="nn">projects.base</span>
-            <span class="n">task_type</span> <span class="o">=</span> <span class="n">get_session_extractor_type</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
-            <span class="n">PipelineClass</span> <span class="o">=</span> <span class="n">projects</span><span class="o">.</span><span class="n">base</span><span class="o">.</span><span class="n">get_pipeline</span><span class="p">(</span><span class="n">task_type</span><span class="p">)</span>
-            <span class="n">pipeline</span> <span class="o">=</span> <span class="n">PipelineClass</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="p">)</span>
-            <span class="n">trials_task_name</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">task</span> <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">tasks</span> <span class="k">if</span> <span class="s1">&#39;Trials&#39;</span> <span class="ow">in</span> <span class="n">task</span><span class="p">)</span>
-            <span class="n">task</span> <span class="o">=</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">trials_task_name</span><span class="p">)</span>
-        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
-            <span class="n">task</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="c1"># Otherwise default to old way of doing things</span>
+        <span class="n">pipeline</span> <span class="o">=</span> <span class="n">get_pipeline</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">pipeline</span> <span class="o">==</span> <span class="s1">&#39;training&#39;</span><span class="p">:</span>
+            <span class="kn">from</span> <span class="nn">ibllib.pipes.training_preprocessing</span> <span class="kn">import</span> <span class="n">TrainingTrials</span>
+            <span class="n">tasks</span> <span class="o">=</span> <span class="p">[</span><span class="n">TrainingTrials</span><span class="p">(</span><span class="n">session_path</span><span class="p">)]</span>
+        <span class="k">elif</span> <span class="n">pipeline</span> <span class="o">==</span> <span class="s1">&#39;ephys&#39;</span><span class="p">:</span>
+            <span class="kn">from</span> <span class="nn">ibllib.pipes.ephys_preprocessing</span> <span class="kn">import</span> <span class="n">EphysTrials</span>
+            <span class="n">tasks</span> <span class="o">=</span> <span class="p">[</span><span class="n">EphysTrials</span><span class="p">(</span><span class="n">session_path</span><span class="p">)]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="c1"># try and look if there is a custom extractor in the personal projects extraction class</span>
+                <span class="kn">import</span> <span class="nn">projects.base</span>
+                <span class="n">task_type</span> <span class="o">=</span> <span class="n">get_session_extractor_type</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
+                <span class="n">PipelineClass</span> <span class="o">=</span> <span class="n">projects</span><span class="o">.</span><span class="n">base</span><span class="o">.</span><span class="n">get_pipeline</span><span class="p">(</span><span class="n">task_type</span><span class="p">)</span>
+                <span class="n">pipeline</span> <span class="o">=</span> <span class="n">PipelineClass</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="p">)</span>
+                <span class="n">trials_task_name</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">task</span> <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">tasks</span> <span class="k">if</span> <span class="s1">&#39;Trials&#39;</span> <span class="ow">in</span> <span class="n">task</span><span class="p">)</span>
+                <span class="n">task</span> <span class="o">=</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">trials_task_name</span><span class="p">)</span>
+                <span class="n">task</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
+                <span class="n">tasks</span> <span class="o">=</span> <span class="p">[</span><span class="n">task</span><span class="p">]</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                <span class="n">tasks</span> <span class="o">=</span> <span class="p">[]</span>
 
-    <span class="k">return</span> <span class="n">task</span></div>
+    <span class="k">return</span> <span class="n">tasks</span></div>
 
 
-<div class="viewcode-block" id="save_path"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.save_path">[docs]</a><span class="k">def</span> <span class="nf">save_path</span><span class="p">(</span><span class="n">subj_path</span><span class="p">):</span>
+
+<div class="viewcode-block" id="save_path">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.save_path">[docs]</a>
+<span class="k">def</span> <span class="nf">save_path</span><span class="p">(</span><span class="n">subj_path</span><span class="p">):</span>
     <span class="k">return</span> <span class="n">Path</span><span class="p">(</span><span class="n">subj_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;training.csv&#39;</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="save_dataframe"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.save_dataframe">[docs]</a><span class="k">def</span> <span class="nf">save_dataframe</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">subj_path</span><span class="p">):</span>
+
+<div class="viewcode-block" id="save_dataframe">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.save_dataframe">[docs]</a>
+<span class="k">def</span> <span class="nf">save_dataframe</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">subj_path</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Save training dataframe to disk</span>
 <span class="sd">    :param df: dataframe to save</span>
@@ -178,7 +261,10 @@
     <span class="n">df</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">save_path</span><span class="p">(</span><span class="n">subj_path</span><span class="p">),</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="load_existing_dataframe"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.load_existing_dataframe">[docs]</a><span class="k">def</span> <span class="nf">load_existing_dataframe</span><span class="p">(</span><span class="n">subj_path</span><span class="p">):</span>
+
+<div class="viewcode-block" id="load_existing_dataframe">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.load_existing_dataframe">[docs]</a>
+<span class="k">def</span> <span class="nf">load_existing_dataframe</span><span class="p">(</span><span class="n">subj_path</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Load training dataframe from disk, if dataframe doesn&#39;t exist returns None</span>
 <span class="sd">    :param subj_path: path to subject folder</span>
@@ -192,44 +278,91 @@
         <span class="k">return</span> <span class="kc">None</span></div>
 
 
-<div class="viewcode-block" id="load_trials"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.load_trials">[docs]</a><span class="k">def</span> <span class="nf">load_trials</span><span class="p">(</span><span class="n">sess_path</span><span class="p">,</span> <span class="n">one</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+
+<div class="viewcode-block" id="load_trials">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.load_trials">[docs]</a>
+<span class="k">def</span> <span class="nf">load_trials</span><span class="p">(</span><span class="n">sess_path</span><span class="p">,</span> <span class="n">one</span><span class="p">,</span> <span class="n">collections</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;raise&#39;</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Load trials data for session. First attempts to load from local session path, if this fails will attempt to download via ONE,</span>
 <span class="sd">    if this also fails, will then attempt to re-extraxt locally</span>
 <span class="sd">    :param sess_path: session path</span>
 <span class="sd">    :param one: ONE instance</span>
+<span class="sd">    :param force: when True and if the session trials can&#39;t be found, will attempt to re-extract from the disk</span>
+<span class="sd">    :param mode: &#39;raise&#39; or &#39;warn&#39;, if &#39;raise&#39;, will error when forcing re-extraction of past sessions</span>
 <span class="sd">    :return:</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="c1"># try and load trials locally</span>
     <span class="k">try</span><span class="p">:</span>
-        <span class="n">trials</span> <span class="o">=</span> <span class="n">alfio</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="n">sess_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;alf&#39;</span><span class="p">),</span> <span class="s1">&#39;trials&#39;</span><span class="p">,</span> <span class="n">short_keys</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="c1"># try and load all trials that are found locally in the session path locally</span>
+        <span class="k">if</span> <span class="n">collections</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">trial_locations</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">sess_path</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="s1">&#39;_ibl_trials.goCueTrigger_times.npy&#39;</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">trial_locations</span> <span class="o">=</span> <span class="p">[</span><span class="n">Path</span><span class="p">(</span><span class="n">sess_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="s1">&#39;_ibl_trials.goCueTrigger_times.npy&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">collections</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">trial_locations</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">trial_dict</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">loc</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">trial_locations</span><span class="p">):</span>
+                <span class="n">trial_dict</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">alfio</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="n">loc</span><span class="o">.</span><span class="n">parent</span><span class="p">,</span> <span class="s1">&#39;trials&#39;</span><span class="p">,</span> <span class="n">short_keys</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">trials</span> <span class="o">=</span> <span class="n">training</span><span class="o">.</span><span class="n">concatenate_trials</span><span class="p">(</span><span class="n">trial_dict</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">trial_locations</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">trials</span> <span class="o">=</span> <span class="n">alfio</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="n">trial_locations</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">parent</span><span class="p">,</span> <span class="s1">&#39;trials&#39;</span><span class="p">,</span> <span class="n">short_keys</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">ALFObjectNotFound</span>
+
         <span class="k">if</span> <span class="s1">&#39;probabilityLeft&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">trials</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
             <span class="k">raise</span> <span class="n">ALFObjectNotFound</span>
     <span class="k">except</span> <span class="n">ALFObjectNotFound</span><span class="p">:</span>
+        <span class="c1"># Next try and load all trials data through ONE</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">force</span><span class="p">:</span>
                 <span class="k">return</span> <span class="kc">None</span>
-            <span class="c1"># attempt to download trials using ONE</span>
-            <span class="n">trials</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="n">one</span><span class="o">.</span><span class="n">path2eid</span><span class="p">(</span><span class="n">sess_path</span><span class="p">),</span> <span class="s1">&#39;trials&#39;</span><span class="p">)</span>
+            <span class="n">eid</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">path2eid</span><span class="p">(</span><span class="n">sess_path</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">collections</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">trial_collections</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">list_datasets</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="s1">&#39;_ibl_trials.goCueTrigger_times.npy&#39;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">trial_collections</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">trial_collections</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;/&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">trial_collections</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">trial_collections</span> <span class="o">=</span> <span class="n">collections</span>
+
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">trial_collections</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">trial_dict</span> <span class="o">=</span> <span class="p">{}</span>
+                <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">collection</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">trial_collections</span><span class="p">):</span>
+                    <span class="n">trial_dict</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="s1">&#39;trials&#39;</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="n">collection</span><span class="p">)</span>
+                <span class="n">trials</span> <span class="o">=</span> <span class="n">training</span><span class="o">.</span><span class="n">concatenate_trials</span><span class="p">(</span><span class="n">trial_dict</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">trial_collections</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">trials</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="s1">&#39;trials&#39;</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="n">trial_collections</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">ALFObjectNotFound</span>
+
             <span class="k">if</span> <span class="s1">&#39;probabilityLeft&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">trials</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
                 <span class="k">raise</span> <span class="n">ALFObjectNotFound</span>
         <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="c1"># Finally try to rextract the trials data locally</span>
             <span class="k">try</span><span class="p">:</span>
-                <span class="n">task</span> <span class="o">=</span> <span class="n">get_trials_task</span><span class="p">(</span><span class="n">sess_path</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">)</span>
-                <span class="k">if</span> <span class="n">task</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                    <span class="n">task</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
-                    <span class="n">trials</span> <span class="o">=</span> <span class="n">alfio</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="n">sess_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;alf&#39;</span><span class="p">),</span> <span class="s1">&#39;trials&#39;</span><span class="p">)</span>
-                    <span class="k">if</span> <span class="s1">&#39;probabilityLeft&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">trials</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
-                        <span class="k">raise</span> <span class="n">ALFObjectNotFound</span>
+                <span class="c1"># Get the tasks that need to be run</span>
+                <span class="n">tasks</span> <span class="o">=</span> <span class="n">get_trials_task</span><span class="p">(</span><span class="n">sess_path</span><span class="p">,</span> <span class="n">one</span><span class="p">)</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tasks</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="n">tasks</span><span class="p">:</span>
+                        <span class="n">status</span> <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+                        <span class="k">if</span> <span class="n">status</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                            <span class="k">return</span> <span class="n">load_trials</span><span class="p">(</span><span class="n">sess_path</span><span class="p">,</span> <span class="n">collections</span><span class="o">=</span><span class="n">collections</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="k">return</span>
                 <span class="k">else</span><span class="p">:</span>
                     <span class="n">trials</span> <span class="o">=</span> <span class="kc">None</span>
-            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>  <span class="c1"># TODO how can i make this more specific</span>
-                <span class="n">trials</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s1">&#39;raise&#39;</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Exhausted all possibilities for loading trials for </span><span class="si">{</span><span class="n">sess_path</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span> <span class="kn">from</span> <span class="nn">e</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Exhausted all possibilities for loading trials for </span><span class="si">{</span><span class="n">sess_path</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+                    <span class="k">return</span>
 
     <span class="k">return</span> <span class="n">trials</span></div>
 
 
-<div class="viewcode-block" id="load_combined_trials"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.load_combined_trials">[docs]</a><span class="k">def</span> <span class="nf">load_combined_trials</span><span class="p">(</span><span class="n">sess_paths</span><span class="p">,</span> <span class="n">one</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+
+<div class="viewcode-block" id="load_combined_trials">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.load_combined_trials">[docs]</a>
+<span class="k">def</span> <span class="nf">load_combined_trials</span><span class="p">(</span><span class="n">sess_paths</span><span class="p">,</span> <span class="n">one</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Load and concatenate trials for multiple sessions. Used when we want to concatenate trials for two sessions on the same day</span>
 <span class="sd">    :param sess_paths: list of paths to sessions</span>
@@ -245,7 +378,10 @@
     <span class="k">return</span> <span class="n">training</span><span class="o">.</span><span class="n">concatenate_trials</span><span class="p">(</span><span class="n">trials_dict</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="get_latest_training_information"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.get_latest_training_information">[docs]</a><span class="k">def</span> <span class="nf">get_latest_training_information</span><span class="p">(</span><span class="n">sess_path</span><span class="p">,</span> <span class="n">one</span><span class="p">):</span>
+
+<div class="viewcode-block" id="get_latest_training_information">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.get_latest_training_information">[docs]</a>
+<span class="k">def</span> <span class="nf">get_latest_training_information</span><span class="p">(</span><span class="n">sess_path</span><span class="p">,</span> <span class="n">one</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Extracts the latest training status.</span>
 
@@ -263,7 +399,15 @@
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">subj_path</span> <span class="o">=</span> <span class="n">sess_path</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">parent</span>
-    <span class="n">df</span> <span class="o">=</span> <span class="n">load_existing_dataframe</span><span class="p">(</span><span class="n">subj_path</span><span class="p">)</span>
+    <span class="n">sub</span> <span class="o">=</span> <span class="n">subj_path</span><span class="o">.</span><span class="n">parts</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">one</span><span class="o">.</span><span class="n">mode</span> <span class="o">!=</span> <span class="s1">&#39;local&#39;</span><span class="p">:</span>
+        <span class="n">lab</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;subjects&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span> <span class="n">nickname</span><span class="o">=</span><span class="n">sub</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;lab&#39;</span><span class="p">]</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">get_training_table_from_aws</span><span class="p">(</span><span class="n">lab</span><span class="p">,</span> <span class="n">sub</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">if</span> <span class="n">df</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">load_existing_dataframe</span><span class="p">(</span><span class="n">subj_path</span><span class="p">)</span>
 
     <span class="c1"># Find the dates and associated session paths where we don&#39;t have data stored in our dataframe</span>
     <span class="n">missing_dates</span> <span class="o">=</span> <span class="n">check_up_to_date</span><span class="p">(</span><span class="n">subj_path</span><span class="p">,</span> <span class="n">df</span><span class="p">)</span>
@@ -294,26 +438,35 @@
         <span class="n">df</span> <span class="o">=</span> <span class="n">compute_training_status</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">date</span><span class="p">,</span> <span class="n">one</span><span class="p">)</span>
 
     <span class="n">df_lim</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">drop_duplicates</span><span class="p">(</span><span class="n">subset</span><span class="o">=</span><span class="s1">&#39;session_path&#39;</span><span class="p">,</span> <span class="n">keep</span><span class="o">=</span><span class="s1">&#39;first&#39;</span><span class="p">)</span>
+
     <span class="c1"># Detect untrainable</span>
-    <span class="n">un_df</span> <span class="o">=</span> <span class="n">df_lim</span><span class="p">[</span><span class="n">df_lim</span><span class="p">[</span><span class="s1">&#39;training_status&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;in training&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="s1">&#39;date&#39;</span><span class="p">)</span>
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">un_df</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">40</span><span class="p">:</span>
-        <span class="n">sess</span> <span class="o">=</span> <span class="n">un_df</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">39</span><span class="p">]</span><span class="o">.</span><span class="n">session_path</span>
-        <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;session_path&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">sess</span><span class="p">,</span> <span class="s1">&#39;training_status&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;untrainable&#39;</span>
+    <span class="k">if</span> <span class="s1">&#39;untrainable&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">df_lim</span><span class="o">.</span><span class="n">training_status</span><span class="o">.</span><span class="n">values</span><span class="p">:</span>
+        <span class="n">un_df</span> <span class="o">=</span> <span class="n">df_lim</span><span class="p">[</span><span class="n">df_lim</span><span class="p">[</span><span class="s1">&#39;training_status&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;in training&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="s1">&#39;date&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">un_df</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">40</span><span class="p">:</span>
+            <span class="n">sess</span> <span class="o">=</span> <span class="n">un_df</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">39</span><span class="p">]</span><span class="o">.</span><span class="n">session_path</span>
+            <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;session_path&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">sess</span><span class="p">,</span> <span class="s1">&#39;training_status&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;untrainable&#39;</span>
 
     <span class="c1"># Detect unbiasable</span>
-    <span class="n">un_df</span> <span class="o">=</span> <span class="n">df_lim</span><span class="p">[</span><span class="n">df_lim</span><span class="p">[</span><span class="s1">&#39;task_protocol&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;biased&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="s1">&#39;date&#39;</span><span class="p">)</span>
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">un_df</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">40</span><span class="p">:</span>
-        <span class="n">tr_st</span> <span class="o">=</span> <span class="n">un_df</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">40</span><span class="p">]</span><span class="o">.</span><span class="n">training_status</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span>
-        <span class="k">if</span> <span class="s1">&#39;ready4ephysrig&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">tr_st</span><span class="p">:</span>
-            <span class="n">sess</span> <span class="o">=</span> <span class="n">un_df</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">39</span><span class="p">]</span><span class="o">.</span><span class="n">session_path</span>
-            <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;session_path&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">sess</span><span class="p">,</span> <span class="s1">&#39;training_status&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;unbiasable&#39;</span>
+    <span class="k">if</span> <span class="s1">&#39;unbiasable&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">df_lim</span><span class="o">.</span><span class="n">training_status</span><span class="o">.</span><span class="n">values</span><span class="p">:</span>
+        <span class="n">un_df</span> <span class="o">=</span> <span class="n">df_lim</span><span class="p">[</span><span class="n">df_lim</span><span class="p">[</span><span class="s1">&#39;task_protocol&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;biased&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="s1">&#39;date&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">un_df</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">40</span><span class="p">:</span>
+            <span class="n">tr_st</span> <span class="o">=</span> <span class="n">un_df</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">40</span><span class="p">]</span><span class="o">.</span><span class="n">training_status</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span>
+            <span class="k">if</span> <span class="s1">&#39;ready4ephysrig&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">tr_st</span><span class="p">:</span>
+                <span class="n">sess</span> <span class="o">=</span> <span class="n">un_df</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">39</span><span class="p">]</span><span class="o">.</span><span class="n">session_path</span>
+                <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;session_path&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">sess</span><span class="p">,</span> <span class="s1">&#39;training_status&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;unbiasable&#39;</span>
 
     <span class="n">save_dataframe</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">subj_path</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">one</span><span class="o">.</span><span class="n">mode</span> <span class="o">!=</span> <span class="s1">&#39;local&#39;</span><span class="p">:</span>
+        <span class="n">upload_training_table_to_aws</span><span class="p">(</span><span class="n">lab</span><span class="p">,</span> <span class="n">sub</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">df</span></div>
 
 
-<div class="viewcode-block" id="find_earliest_recompute_date"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.find_earliest_recompute_date">[docs]</a><span class="k">def</span> <span class="nf">find_earliest_recompute_date</span><span class="p">(</span><span class="n">df</span><span class="p">):</span>
+
+<div class="viewcode-block" id="find_earliest_recompute_date">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.find_earliest_recompute_date">[docs]</a>
+<span class="k">def</span> <span class="nf">find_earliest_recompute_date</span><span class="p">(</span><span class="n">df</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Find the earliest date that we need to compute the training status from. Training status depends on previous sessions</span>
 <span class="sd">    so if a session was missing and now has been added we need to recompute everything from that date onwards</span>
@@ -329,7 +482,10 @@
     <span class="k">return</span> <span class="n">df</span><span class="p">[</span><span class="n">first_index</span><span class="p">:]</span><span class="o">.</span><span class="n">date</span><span class="o">.</span><span class="n">values</span></div>
 
 
-<div class="viewcode-block" id="compute_training_status"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.compute_training_status">[docs]</a><span class="k">def</span> <span class="nf">compute_training_status</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">compute_date</span><span class="p">,</span> <span class="n">one</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+
+<div class="viewcode-block" id="compute_training_status">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.compute_training_status">[docs]</a>
+<span class="k">def</span> <span class="nf">compute_training_status</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">compute_date</span><span class="p">,</span> <span class="n">one</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Compute the training status for compute date based on training from that session and two previous days</span>
 <span class="sd">    :param df: training dataframe</span>
@@ -340,13 +496,16 @@
 
     <span class="c1"># compute_date = str(one.path2ref(session_path)[&#39;date&#39;])</span>
     <span class="n">df_temp</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;date&#39;</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">compute_date</span><span class="p">]</span>
-    <span class="n">df_temp</span> <span class="o">=</span> <span class="n">df_temp</span><span class="o">.</span><span class="n">drop_duplicates</span><span class="p">(</span><span class="s1">&#39;session_path&#39;</span><span class="p">)</span>
+    <span class="n">df_temp</span> <span class="o">=</span> <span class="n">df_temp</span><span class="o">.</span><span class="n">drop_duplicates</span><span class="p">(</span><span class="n">subset</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;session_path&#39;</span><span class="p">,</span> <span class="s1">&#39;task_protocol&#39;</span><span class="p">])</span>
     <span class="n">df_temp</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="s1">&#39;date&#39;</span><span class="p">)</span>
 
     <span class="n">dates</span> <span class="o">=</span> <span class="n">df_temp</span><span class="o">.</span><span class="n">date</span><span class="o">.</span><span class="n">values</span>
 
-    <span class="n">n_dates</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">([</span><span class="mi">3</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">dates</span><span class="p">)])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+    <span class="n">n_sess_for_date</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">dates</span> <span class="o">==</span> <span class="n">compute_date</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">n_dates</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">([</span><span class="mi">2</span> <span class="o">+</span> <span class="n">n_sess_for_date</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">dates</span><span class="p">)])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
     <span class="n">compute_dates</span> <span class="o">=</span> <span class="n">dates</span><span class="p">[(</span><span class="o">-</span><span class="mi">1</span> <span class="o">*</span> <span class="n">n_dates</span><span class="p">):]</span>
+    <span class="k">if</span> <span class="n">n_sess_for_date</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">compute_dates</span> <span class="o">=</span> <span class="n">compute_dates</span><span class="p">[:(</span><span class="o">-</span><span class="mi">1</span> <span class="o">*</span> <span class="p">(</span><span class="n">n_sess_for_date</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))]</span>
 
     <span class="k">assert</span> <span class="n">compute_dates</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="n">compute_date</span>
 
@@ -364,6 +523,8 @@
         <span class="c1"># If habituation skip</span>
         <span class="k">if</span> <span class="n">df_date</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s1">&#39;task_protocol&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;habituation&#39;</span><span class="p">:</span>
             <span class="k">continue</span>
+        <span class="c1"># Here we should split by protocol in an ideal world but that world isn&#39;t today. This is only really relevant for</span>
+        <span class="c1"># chained protocols</span>
         <span class="n">trials</span><span class="p">[</span><span class="n">df_date</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s1">&#39;date&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">load_combined_trials</span><span class="p">(</span><span class="n">df_date</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">one</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="n">force</span><span class="p">)</span>
         <span class="n">protocol</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">df_date</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s1">&#39;task_protocol&#39;</span><span class="p">])</span>
         <span class="n">status</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">df_date</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s1">&#39;training_status&#39;</span><span class="p">])</span>
@@ -380,7 +541,10 @@
     <span class="k">return</span> <span class="n">df</span></div>
 
 
-<div class="viewcode-block" id="pass_through_training_hierachy"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.pass_through_training_hierachy">[docs]</a><span class="k">def</span> <span class="nf">pass_through_training_hierachy</span><span class="p">(</span><span class="n">status_new</span><span class="p">,</span> <span class="n">status_old</span><span class="p">):</span>
+
+<div class="viewcode-block" id="pass_through_training_hierachy">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.pass_through_training_hierachy">[docs]</a>
+<span class="k">def</span> <span class="nf">pass_through_training_hierachy</span><span class="p">(</span><span class="n">status_new</span><span class="p">,</span> <span class="n">status_old</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Makes sure that the new training status is not less than the one from the previous day. e.g Subject cannot regress in</span>
 <span class="sd">    performance</span>
@@ -395,7 +559,10 @@
         <span class="k">return</span> <span class="n">status_new</span></div>
 
 
-<div class="viewcode-block" id="compute_session_duration_delay_location"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.compute_session_duration_delay_location">[docs]</a><span class="k">def</span> <span class="nf">compute_session_duration_delay_location</span><span class="p">(</span><span class="n">sess_path</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+
+<div class="viewcode-block" id="compute_session_duration_delay_location">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.compute_session_duration_delay_location">[docs]</a>
+<span class="k">def</span> <span class="nf">compute_session_duration_delay_location</span><span class="p">(</span><span class="n">sess_path</span><span class="p">,</span> <span class="n">collections</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Get meta information about task. Extracts session duration, delay before session start and location of session</span>
 
@@ -403,7 +570,7 @@
 <span class="sd">    ----------</span>
 <span class="sd">    sess_path : pathlib.Path, str</span>
 <span class="sd">        The session path with the pattern subject/yyyy-mm-dd/nnn.</span>
-<span class="sd">    task_collection : str</span>
+<span class="sd">    collections : list</span>
 <span class="sd">        The location within the session path directory of task settings and data.</span>
 
 <span class="sd">    Returns</span>
@@ -415,21 +582,123 @@
 <span class="sd">    str {&#39;ephys_rig&#39;, &#39;training_rig&#39;}</span>
 <span class="sd">        The location of the session.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">md</span><span class="p">,</span> <span class="n">sess_data</span> <span class="o">=</span> <span class="n">load_bpod</span><span class="p">(</span><span class="n">sess_path</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-    <span class="n">start_time</span><span class="p">,</span> <span class="n">end_time</span> <span class="o">=</span> <span class="n">_get_session_times</span><span class="p">(</span><span class="n">sess_path</span><span class="p">,</span> <span class="n">md</span><span class="p">,</span> <span class="n">sess_data</span><span class="p">)</span>
-    <span class="n">session_duration</span> <span class="o">=</span> <span class="nb">int</span><span class="p">((</span><span class="n">end_time</span> <span class="o">-</span> <span class="n">start_time</span><span class="p">)</span><span class="o">.</span><span class="n">total_seconds</span><span class="p">()</span> <span class="o">/</span> <span class="mi">60</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">collections</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">collections</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">get_data_collection</span><span class="p">(</span><span class="n">sess_path</span><span class="p">)</span>
 
-    <span class="n">session_delay</span> <span class="o">=</span> <span class="n">md</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;SESSION_START_DELAY_SEC&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="n">session_duration</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">session_delay</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">session_location</span> <span class="o">=</span> <span class="s1">&#39;training_rig&#39;</span>
+    <span class="k">for</span> <span class="n">collection</span> <span class="ow">in</span> <span class="n">collections</span><span class="p">:</span>
+        <span class="n">md</span><span class="p">,</span> <span class="n">sess_data</span> <span class="o">=</span> <span class="n">load_bpod</span><span class="p">(</span><span class="n">sess_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="n">collection</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">md</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">start_time</span><span class="p">,</span> <span class="n">end_time</span> <span class="o">=</span> <span class="n">_get_session_times</span><span class="p">(</span><span class="n">sess_path</span><span class="p">,</span> <span class="n">md</span><span class="p">,</span> <span class="n">sess_data</span><span class="p">)</span>
+            <span class="n">session_duration</span> <span class="o">=</span> <span class="n">session_duration</span> <span class="o">+</span> <span class="nb">int</span><span class="p">((</span><span class="n">end_time</span> <span class="o">-</span> <span class="n">start_time</span><span class="p">)</span><span class="o">.</span><span class="n">total_seconds</span><span class="p">()</span> <span class="o">/</span> <span class="mi">60</span><span class="p">)</span>
+            <span class="n">session_delay</span> <span class="o">=</span> <span class="n">session_delay</span> <span class="o">+</span> <span class="n">md</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;SESSION_START_DELAY_SEC&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="n">session_duration</span> <span class="o">=</span> <span class="n">session_duration</span> <span class="o">+</span> <span class="mi">0</span>
+            <span class="n">session_delay</span> <span class="o">=</span> <span class="n">session_delay</span> <span class="o">+</span> <span class="mi">0</span>
 
-    <span class="k">if</span> <span class="s1">&#39;ephys&#39;</span> <span class="ow">in</span> <span class="n">md</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;PYBPOD_BOARD&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">):</span>
-        <span class="n">session_location</span> <span class="o">=</span> <span class="s1">&#39;ephys_rig&#39;</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">session_location</span> <span class="o">=</span> <span class="s1">&#39;training_rig&#39;</span>
+        <span class="k">if</span> <span class="s1">&#39;ephys&#39;</span> <span class="ow">in</span> <span class="n">md</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;PYBPOD_BOARD&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">):</span>
+            <span class="n">session_location</span> <span class="o">=</span> <span class="s1">&#39;ephys_rig&#39;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">session_location</span> <span class="o">=</span> <span class="s1">&#39;training_rig&#39;</span>
 
     <span class="k">return</span> <span class="n">session_duration</span><span class="p">,</span> <span class="n">session_delay</span><span class="p">,</span> <span class="n">session_location</span></div>
 
 
-<div class="viewcode-block" id="get_training_info_for_session"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.get_training_info_for_session">[docs]</a><span class="k">def</span> <span class="nf">get_training_info_for_session</span><span class="p">(</span><span class="n">session_paths</span><span class="p">,</span> <span class="n">one</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+
+<div class="viewcode-block" id="get_data_collection">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.get_data_collection">[docs]</a>
+<span class="k">def</span> <span class="nf">get_data_collection</span><span class="p">(</span><span class="n">session_path</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns the location of the raw behavioral data and extracted trials data for the session path. If</span>
+<span class="sd">    multiple locations in one session (e.g for dynamic) returns all of these</span>
+<span class="sd">    :param session_path: path of session</span>
+<span class="sd">    :return:</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">experiment_description_file</span> <span class="o">=</span> <span class="n">read_params</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">experiment_description_file</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">pipeline</span> <span class="o">=</span> <span class="n">dyn</span><span class="o">.</span><span class="n">make_pipeline</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="n">trials_tasks</span> <span class="o">=</span> <span class="p">[</span><span class="n">t</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">tasks</span> <span class="k">if</span> <span class="s1">&#39;Trials&#39;</span> <span class="ow">in</span> <span class="n">t</span><span class="p">]</span>
+        <span class="n">collections</span> <span class="o">=</span> <span class="p">[</span><span class="n">pipeline</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task</span><span class="p">)</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;collection&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="n">trials_tasks</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">collections</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">collections</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">:</span>
+            <span class="n">alf_collections</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;alf&#39;</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="nb">all</span><span class="p">([</span><span class="s1">&#39;raw_task_data&#39;</span> <span class="ow">in</span> <span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">collections</span><span class="p">]):</span>
+            <span class="n">alf_collections</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;alf/task_</span><span class="si">{</span><span class="n">c</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">:]</span><span class="si">}</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">collections</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">alf_collections</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">collections</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">]</span>
+        <span class="n">alf_collections</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;alf&#39;</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">collections</span><span class="p">,</span> <span class="n">alf_collections</span></div>
+
+
+
+<div class="viewcode-block" id="get_sess_dict">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.get_sess_dict">[docs]</a>
+<span class="k">def</span> <span class="nf">get_sess_dict</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="p">,</span> <span class="n">protocol</span><span class="p">,</span> <span class="n">alf_collections</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">raw_collections</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+
+    <span class="n">sess_dict</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;date&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">one</span><span class="o">.</span><span class="n">path2ref</span><span class="p">(</span><span class="n">session_path</span><span class="p">)[</span><span class="s1">&#39;date&#39;</span><span class="p">])</span>
+    <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;session_path&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
+    <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;task_protocol&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">protocol</span>
+
+    <span class="k">if</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;task_protocol&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;habituation&#39;</span><span class="p">:</span>
+        <span class="n">nan_array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">])</span>
+        <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;performance&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;contrasts&#39;</span><span class="p">],</span> <span class="n">_</span> <span class="o">=</span> <span class="p">(</span><span class="n">nan_array</span><span class="p">,</span> <span class="n">nan_array</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+        <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;performance_easy&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+        <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;reaction_time&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+        <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;n_trials&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+        <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;sess_duration&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+        <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;n_delay&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+        <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;location&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+        <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;training_status&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;habituation&#39;</span>
+        <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;bias_50&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;thres_50&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;lapsehigh_50&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;lapselow_50&#39;</span><span class="p">]</span> <span class="o">=</span> \
+            <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+        <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;bias_20&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;thres_20&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;lapsehigh_20&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;lapselow_20&#39;</span><span class="p">]</span> <span class="o">=</span> \
+            <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+        <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;bias_80&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;thres_80&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;lapsehigh_80&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;lapselow_80&#39;</span><span class="p">]</span> <span class="o">=</span> \
+            <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># if we can&#39;t compute trials then we need to pass</span>
+        <span class="n">trials</span> <span class="o">=</span> <span class="n">load_trials</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="p">,</span> <span class="n">collections</span><span class="o">=</span><span class="n">alf_collections</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="n">force</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;warn&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">trials</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;performance&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;contrasts&#39;</span><span class="p">],</span> <span class="n">_</span> <span class="o">=</span> <span class="n">training</span><span class="o">.</span><span class="n">compute_performance</span><span class="p">(</span><span class="n">trials</span><span class="p">,</span> <span class="n">prob_right</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;task_protocol&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;training&#39;</span><span class="p">:</span>
+            <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;bias_50&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;thres_50&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;lapsehigh_50&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;lapselow_50&#39;</span><span class="p">]</span> <span class="o">=</span> \
+                <span class="n">training</span><span class="o">.</span><span class="n">compute_psychometric</span><span class="p">(</span><span class="n">trials</span><span class="p">)</span>
+            <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;bias_20&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;thres_20&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;lapsehigh_20&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;lapselow_20&#39;</span><span class="p">]</span> <span class="o">=</span> \
+                <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+            <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;bias_80&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;thres_80&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;lapsehigh_80&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;lapselow_80&#39;</span><span class="p">]</span> <span class="o">=</span> \
+                <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;bias_50&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;thres_50&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;lapsehigh_50&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;lapselow_50&#39;</span><span class="p">]</span> <span class="o">=</span> \
+                <span class="n">training</span><span class="o">.</span><span class="n">compute_psychometric</span><span class="p">(</span><span class="n">trials</span><span class="p">,</span> <span class="n">block</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
+            <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;bias_20&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;thres_20&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;lapsehigh_20&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;lapselow_20&#39;</span><span class="p">]</span> <span class="o">=</span> \
+                <span class="n">training</span><span class="o">.</span><span class="n">compute_psychometric</span><span class="p">(</span><span class="n">trials</span><span class="p">,</span> <span class="n">block</span><span class="o">=</span><span class="mf">0.2</span><span class="p">)</span>
+            <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;bias_80&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;thres_80&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;lapsehigh_80&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;lapselow_80&#39;</span><span class="p">]</span> <span class="o">=</span> \
+                <span class="n">training</span><span class="o">.</span><span class="n">compute_psychometric</span><span class="p">(</span><span class="n">trials</span><span class="p">,</span> <span class="n">block</span><span class="o">=</span><span class="mf">0.8</span><span class="p">)</span>
+
+        <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;performance_easy&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">training</span><span class="o">.</span><span class="n">compute_performance_easy</span><span class="p">(</span><span class="n">trials</span><span class="p">)</span>
+        <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;reaction_time&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">training</span><span class="o">.</span><span class="n">compute_median_reaction_time</span><span class="p">(</span><span class="n">trials</span><span class="p">)</span>
+        <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;n_trials&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">training</span><span class="o">.</span><span class="n">compute_n_trials</span><span class="p">(</span><span class="n">trials</span><span class="p">)</span>
+        <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;sess_duration&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;n_delay&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;location&#39;</span><span class="p">]</span> <span class="o">=</span> \
+            <span class="n">compute_session_duration_delay_location</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">collections</span><span class="o">=</span><span class="n">raw_collections</span><span class="p">)</span>
+        <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;training_status&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;not_computed&#39;</span>
+
+    <span class="k">return</span> <span class="n">sess_dict</span></div>
+
+
+
+<div class="viewcode-block" id="get_training_info_for_session">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.get_training_info_for_session">[docs]</a>
+<span class="k">def</span> <span class="nf">get_training_info_for_session</span><span class="p">(</span><span class="n">session_paths</span><span class="p">,</span> <span class="n">one</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Extract the training information needed for plots for each session</span>
 <span class="sd">    :param session_paths: list of session paths on same date</span>
@@ -440,59 +709,33 @@
     <span class="c1"># return list of dicts to add</span>
     <span class="n">sess_dicts</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="k">for</span> <span class="n">session_path</span> <span class="ow">in</span> <span class="n">session_paths</span><span class="p">:</span>
+        <span class="n">collections</span><span class="p">,</span> <span class="n">alf_collections</span> <span class="o">=</span> <span class="n">get_data_collection</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
         <span class="n">session_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
-        <span class="n">sess_dict</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;date&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">one</span><span class="o">.</span><span class="n">path2ref</span><span class="p">(</span><span class="n">session_path</span><span class="p">)[</span><span class="s1">&#39;date&#39;</span><span class="p">])</span>
-        <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;session_path&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
-        <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;task_protocol&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">get_session_extractor_type</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="n">protocols</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">collections</span><span class="p">:</span>
+            <span class="n">protocols</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">get_session_extractor_type</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="n">c</span><span class="p">))</span>
 
-        <span class="k">if</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;task_protocol&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;habituation&#39;</span><span class="p">:</span>
-            <span class="n">nan_array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">])</span>
-            <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;performance&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;contrasts&#39;</span><span class="p">],</span> <span class="n">_</span> <span class="o">=</span> <span class="p">(</span><span class="n">nan_array</span><span class="p">,</span> <span class="n">nan_array</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
-            <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;performance_easy&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
-            <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;reaction_time&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
-            <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;n_trials&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
-            <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;sess_duration&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
-            <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;n_delay&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
-            <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;location&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
-            <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;training_status&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;habituation&#39;</span>
-            <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;bias_50&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;thres_50&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;lapsehigh_50&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;lapselow_50&#39;</span><span class="p">]</span> <span class="o">=</span> \
-                <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
-            <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;bias_20&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;thres_20&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;lapsehigh_20&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;lapselow_20&#39;</span><span class="p">]</span> <span class="o">=</span> \
-                <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
-            <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;bias_80&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;thres_80&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;lapsehigh_80&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;lapselow_80&#39;</span><span class="p">]</span> <span class="o">=</span> \
-                <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
-
+        <span class="n">un_protocols</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">protocols</span><span class="p">)</span>
+        <span class="c1"># Example, training, training, biased - training would be combined, biased not</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">un_protocols</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Different protocols in same session </span><span class="si">{</span><span class="n">session_path</span><span class="si">}</span><span class="s1"> : </span><span class="si">{</span><span class="n">protocols</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">prot</span> <span class="ow">in</span> <span class="n">un_protocols</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">prot</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">alf</span> <span class="o">=</span> <span class="n">alf_collections</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">protocols</span> <span class="o">==</span> <span class="n">prot</span><span class="p">)[</span><span class="mi">0</span><span class="p">]]</span>
+                    <span class="n">raw</span> <span class="o">=</span> <span class="n">collections</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">protocols</span> <span class="o">==</span> <span class="n">prot</span><span class="p">)[</span><span class="mi">0</span><span class="p">]]</span>
+                <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span>
+                    <span class="n">alf</span> <span class="o">=</span> <span class="kc">None</span>
+                    <span class="n">raw</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="n">sess_dict</span> <span class="o">=</span> <span class="n">get_sess_dict</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="p">,</span> <span class="n">prot</span><span class="p">,</span> <span class="n">alf_collections</span><span class="o">=</span><span class="n">alf</span><span class="p">,</span> <span class="n">raw_collections</span><span class="o">=</span><span class="n">raw</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="n">force</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="c1"># if we can&#39;t compute trials then we need to pass</span>
-            <span class="n">trials</span> <span class="o">=</span> <span class="n">load_trials</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="n">force</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">trials</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="k">continue</span>
+            <span class="n">prot</span> <span class="o">=</span> <span class="n">un_protocols</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">sess_dict</span> <span class="o">=</span> <span class="n">get_sess_dict</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="p">,</span> <span class="n">prot</span><span class="p">,</span> <span class="n">alf_collections</span><span class="o">=</span><span class="n">alf_collections</span><span class="p">,</span> <span class="n">raw_collections</span><span class="o">=</span><span class="n">collections</span><span class="p">,</span>
+                                      <span class="n">force</span><span class="o">=</span><span class="n">force</span><span class="p">)</span>
 
-            <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;performance&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;contrasts&#39;</span><span class="p">],</span> <span class="n">_</span> <span class="o">=</span> <span class="n">training</span><span class="o">.</span><span class="n">compute_performance</span><span class="p">(</span><span class="n">trials</span><span class="p">,</span> <span class="n">prob_right</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;task_protocol&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;training&#39;</span><span class="p">:</span>
-                <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;bias_50&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;thres_50&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;lapsehigh_50&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;lapselow_50&#39;</span><span class="p">]</span> <span class="o">=</span> \
-                    <span class="n">training</span><span class="o">.</span><span class="n">compute_psychometric</span><span class="p">(</span><span class="n">trials</span><span class="p">)</span>
-                <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;bias_20&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;thres_20&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;lapsehigh_20&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;lapselow_20&#39;</span><span class="p">]</span> <span class="o">=</span> \
-                    <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
-                <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;bias_80&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;thres_80&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;lapsehigh_80&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;lapselow_80&#39;</span><span class="p">]</span> <span class="o">=</span> \
-                    <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;bias_50&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;thres_50&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;lapsehigh_50&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;lapselow_50&#39;</span><span class="p">]</span> <span class="o">=</span> \
-                    <span class="n">training</span><span class="o">.</span><span class="n">compute_psychometric</span><span class="p">(</span><span class="n">trials</span><span class="p">,</span> <span class="n">block</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
-                <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;bias_20&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;thres_20&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;lapsehigh_20&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;lapselow_20&#39;</span><span class="p">]</span> <span class="o">=</span> \
-                    <span class="n">training</span><span class="o">.</span><span class="n">compute_psychometric</span><span class="p">(</span><span class="n">trials</span><span class="p">,</span> <span class="n">block</span><span class="o">=</span><span class="mf">0.2</span><span class="p">)</span>
-                <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;bias_80&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;thres_80&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;lapsehigh_80&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;lapselow_80&#39;</span><span class="p">]</span> <span class="o">=</span> \
-                    <span class="n">training</span><span class="o">.</span><span class="n">compute_psychometric</span><span class="p">(</span><span class="n">trials</span><span class="p">,</span> <span class="n">block</span><span class="o">=</span><span class="mf">0.8</span><span class="p">)</span>
-
-            <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;performance_easy&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">training</span><span class="o">.</span><span class="n">compute_performance_easy</span><span class="p">(</span><span class="n">trials</span><span class="p">)</span>
-            <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;reaction_time&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">training</span><span class="o">.</span><span class="n">compute_median_reaction_time</span><span class="p">(</span><span class="n">trials</span><span class="p">)</span>
-            <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;n_trials&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">training</span><span class="o">.</span><span class="n">compute_n_trials</span><span class="p">(</span><span class="n">trials</span><span class="p">)</span>
-            <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;sess_duration&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;n_delay&#39;</span><span class="p">],</span> <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;location&#39;</span><span class="p">]</span> <span class="o">=</span> \
-                <span class="n">compute_session_duration_delay_location</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
-            <span class="n">sess_dict</span><span class="p">[</span><span class="s1">&#39;training_status&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;not_computed&#39;</span>
-
-        <span class="n">sess_dicts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">sess_dict</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">sess_dict</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">sess_dicts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">sess_dict</span><span class="p">)</span>
 
     <span class="n">protocols</span> <span class="o">=</span> <span class="p">[</span><span class="n">s</span><span class="p">[</span><span class="s1">&#39;task_protocol&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">sess_dicts</span><span class="p">]</span>
 
@@ -504,9 +747,9 @@
         <span class="n">combined_trials</span> <span class="o">=</span> <span class="n">load_combined_trials</span><span class="p">(</span><span class="n">session_paths</span><span class="p">,</span> <span class="n">one</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="n">force</span><span class="p">)</span>
         <span class="n">performance</span><span class="p">,</span> <span class="n">contrasts</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">training</span><span class="o">.</span><span class="n">compute_performance</span><span class="p">(</span><span class="n">combined_trials</span><span class="p">,</span> <span class="n">prob_right</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="n">psychs</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="n">psychs</span><span class="p">[</span><span class="s1">&#39;50&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">training</span><span class="o">.</span><span class="n">compute_psychometric</span><span class="p">(</span><span class="n">trials</span><span class="p">,</span> <span class="n">block</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
-        <span class="n">psychs</span><span class="p">[</span><span class="s1">&#39;20&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">training</span><span class="o">.</span><span class="n">compute_psychometric</span><span class="p">(</span><span class="n">trials</span><span class="p">,</span> <span class="n">block</span><span class="o">=</span><span class="mf">0.2</span><span class="p">)</span>
-        <span class="n">psychs</span><span class="p">[</span><span class="s1">&#39;80&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">training</span><span class="o">.</span><span class="n">compute_psychometric</span><span class="p">(</span><span class="n">trials</span><span class="p">,</span> <span class="n">block</span><span class="o">=</span><span class="mf">0.8</span><span class="p">)</span>
+        <span class="n">psychs</span><span class="p">[</span><span class="s1">&#39;50&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">training</span><span class="o">.</span><span class="n">compute_psychometric</span><span class="p">(</span><span class="n">combined_trials</span><span class="p">,</span> <span class="n">block</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
+        <span class="n">psychs</span><span class="p">[</span><span class="s1">&#39;20&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">training</span><span class="o">.</span><span class="n">compute_psychometric</span><span class="p">(</span><span class="n">combined_trials</span><span class="p">,</span> <span class="n">block</span><span class="o">=</span><span class="mf">0.2</span><span class="p">)</span>
+        <span class="n">psychs</span><span class="p">[</span><span class="s1">&#39;80&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">training</span><span class="o">.</span><span class="n">compute_psychometric</span><span class="p">(</span><span class="n">combined_trials</span><span class="p">,</span> <span class="n">block</span><span class="o">=</span><span class="mf">0.8</span><span class="p">)</span>
 
         <span class="n">performance_easy</span> <span class="o">=</span> <span class="n">training</span><span class="o">.</span><span class="n">compute_performance_easy</span><span class="p">(</span><span class="n">combined_trials</span><span class="p">)</span>
         <span class="n">reaction_time</span> <span class="o">=</span> <span class="n">training</span><span class="o">.</span><span class="n">compute_median_reaction_time</span><span class="p">(</span><span class="n">combined_trials</span><span class="p">)</span>
@@ -558,7 +801,10 @@
     <span class="k">return</span> <span class="n">sess_dicts</span></div>
 
 
-<div class="viewcode-block" id="check_up_to_date"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.check_up_to_date">[docs]</a><span class="k">def</span> <span class="nf">check_up_to_date</span><span class="p">(</span><span class="n">subj_path</span><span class="p">,</span> <span class="n">df</span><span class="p">):</span>
+
+<div class="viewcode-block" id="check_up_to_date">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.check_up_to_date">[docs]</a>
+<span class="k">def</span> <span class="nf">check_up_to_date</span><span class="p">(</span><span class="n">subj_path</span><span class="p">,</span> <span class="n">df</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Check which sessions on local file system are missing from the computed training table.</span>
 
@@ -589,7 +835,10 @@
         <span class="k">return</span> <span class="n">df_session</span><span class="p">[</span><span class="n">df_session</span><span class="p">[</span><span class="s1">&#39;date&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">missing_dates</span><span class="p">)]</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="s1">&#39;date&#39;</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="plot_trial_count_and_session_duration"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.plot_trial_count_and_session_duration">[docs]</a><span class="k">def</span> <span class="nf">plot_trial_count_and_session_duration</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">subject</span><span class="p">):</span>
+
+<div class="viewcode-block" id="plot_trial_count_and_session_duration">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.plot_trial_count_and_session_duration">[docs]</a>
+<span class="k">def</span> <span class="nf">plot_trial_count_and_session_duration</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">subject</span><span class="p">):</span>
 
     <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">drop_duplicates</span><span class="p">(</span><span class="s1">&#39;date&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
@@ -611,7 +860,10 @@
     <span class="k">return</span> <span class="n">ax</span></div>
 
 
-<div class="viewcode-block" id="plot_performance_easy_median_reaction_time"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.plot_performance_easy_median_reaction_time">[docs]</a><span class="k">def</span> <span class="nf">plot_performance_easy_median_reaction_time</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">subject</span><span class="p">):</span>
+
+<div class="viewcode-block" id="plot_performance_easy_median_reaction_time">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.plot_performance_easy_median_reaction_time">[docs]</a>
+<span class="k">def</span> <span class="nf">plot_performance_easy_median_reaction_time</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">subject</span><span class="p">):</span>
     <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">drop_duplicates</span><span class="p">(</span><span class="s1">&#39;date&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
     <span class="n">y1</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;column&#39;</span><span class="p">:</span> <span class="s1">&#39;combined_performance_easy&#39;</span><span class="p">,</span>
@@ -631,7 +883,10 @@
     <span class="k">return</span> <span class="n">ax</span></div>
 
 
-<div class="viewcode-block" id="plot_fit_params"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.plot_fit_params">[docs]</a><span class="k">def</span> <span class="nf">plot_fit_params</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">subject</span><span class="p">):</span>
+
+<div class="viewcode-block" id="plot_fit_params">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.plot_fit_params">[docs]</a>
+<span class="k">def</span> <span class="nf">plot_fit_params</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">subject</span><span class="p">):</span>
     <span class="n">fig</span><span class="p">,</span> <span class="n">axs</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="mi">6</span><span class="p">))</span>
     <span class="n">axs</span> <span class="o">=</span> <span class="n">axs</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>
 
@@ -721,7 +976,10 @@
     <span class="k">return</span> <span class="n">axs</span></div>
 
 
-<div class="viewcode-block" id="plot_psychometric_curve"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.plot_psychometric_curve">[docs]</a><span class="k">def</span> <span class="nf">plot_psychometric_curve</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">subject</span><span class="p">,</span> <span class="n">one</span><span class="p">):</span>
+
+<div class="viewcode-block" id="plot_psychometric_curve">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.plot_psychometric_curve">[docs]</a>
+<span class="k">def</span> <span class="nf">plot_psychometric_curve</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">subject</span><span class="p">,</span> <span class="n">one</span><span class="p">):</span>
     <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">drop_duplicates</span><span class="p">(</span><span class="s1">&#39;date&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="n">sess_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s2">&quot;session_path&quot;</span><span class="p">])</span>
     <span class="n">trials</span> <span class="o">=</span> <span class="n">load_trials</span><span class="p">(</span><span class="n">sess_path</span><span class="p">,</span> <span class="n">one</span><span class="p">)</span>
@@ -733,7 +991,10 @@
     <span class="k">return</span> <span class="n">ax1</span></div>
 
 
-<div class="viewcode-block" id="plot_over_days"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.plot_over_days">[docs]</a><span class="k">def</span> <span class="nf">plot_over_days</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">subject</span><span class="p">,</span> <span class="n">y1</span><span class="p">,</span> <span class="n">y2</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">legend</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">training_lines</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+
+<div class="viewcode-block" id="plot_over_days">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.plot_over_days">[docs]</a>
+<span class="k">def</span> <span class="nf">plot_over_days</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">subject</span><span class="p">,</span> <span class="n">y1</span><span class="p">,</span> <span class="n">y2</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">legend</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">training_lines</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
 
     <span class="k">if</span> <span class="n">ax</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">fig</span><span class="p">,</span> <span class="n">ax1</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="mi">6</span><span class="p">))</span>
@@ -792,7 +1053,10 @@
     <span class="k">return</span> <span class="n">ax1</span></div>
 
 
-<div class="viewcode-block" id="add_training_lines"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.add_training_lines">[docs]</a><span class="k">def</span> <span class="nf">add_training_lines</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">ax</span><span class="p">):</span>
+
+<div class="viewcode-block" id="add_training_lines">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.add_training_lines">[docs]</a>
+<span class="k">def</span> <span class="nf">add_training_lines</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">ax</span><span class="p">):</span>
 
     <span class="n">status</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">drop_duplicates</span><span class="p">(</span><span class="n">subset</span><span class="o">=</span><span class="s1">&#39;training_status&#39;</span><span class="p">,</span> <span class="n">keep</span><span class="o">=</span><span class="s1">&#39;first&#39;</span><span class="p">)</span>
     <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">st</span> <span class="ow">in</span> <span class="n">status</span><span class="o">.</span><span class="n">iterrows</span><span class="p">():</span>
@@ -809,7 +1073,10 @@
     <span class="k">return</span> <span class="n">ax</span></div>
 
 
-<div class="viewcode-block" id="plot_heatmap_performance_over_days"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.plot_heatmap_performance_over_days">[docs]</a><span class="k">def</span> <span class="nf">plot_heatmap_performance_over_days</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">subject</span><span class="p">):</span>
+
+<div class="viewcode-block" id="plot_heatmap_performance_over_days">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.plot_heatmap_performance_over_days">[docs]</a>
+<span class="k">def</span> <span class="nf">plot_heatmap_performance_over_days</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">subject</span><span class="p">):</span>
 
     <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">drop_duplicates</span><span class="p">(</span><span class="n">subset</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;date&#39;</span><span class="p">,</span> <span class="s1">&#39;combined_contrasts&#39;</span><span class="p">])</span>
     <span class="n">df_perf</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">pivot</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;date&#39;</span><span class="p">],</span> <span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;combined_contrasts&#39;</span><span class="p">],</span> <span class="n">values</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;combined_performance&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span>
@@ -856,7 +1123,10 @@
     <span class="k">return</span> <span class="n">ax1</span></div>
 
 
-<div class="viewcode-block" id="make_plots"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.make_plots">[docs]</a><span class="k">def</span> <span class="nf">make_plots</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="p">,</span> <span class="n">df</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">upload</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+
+<div class="viewcode-block" id="make_plots">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.make_plots">[docs]</a>
+<span class="k">def</span> <span class="nf">make_plots</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="p">,</span> <span class="n">df</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">upload</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">):</span>
     <span class="n">subject</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">path2ref</span><span class="p">(</span><span class="n">session_path</span><span class="p">)[</span><span class="s1">&#39;subject&#39;</span><span class="p">]</span>
     <span class="n">subj_path</span> <span class="o">=</span> <span class="n">session_path</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">parent</span>
 
@@ -901,6 +1171,7 @@
         <span class="n">snp</span> <span class="o">=</span> <span class="n">ReportSnapshot</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">subj</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">],</span> <span class="n">content_type</span><span class="o">=</span><span class="s1">&#39;subject&#39;</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">)</span>
         <span class="n">snp</span><span class="o">.</span><span class="n">outputs</span> <span class="o">=</span> <span class="n">outputs</span>
         <span class="n">snp</span><span class="o">.</span><span class="n">register_images</span><span class="p">(</span><span class="n">widths</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;orig&#39;</span><span class="p">])</span></div>
+
 </pre></div>
 
            </div>

@@ -12,13 +12,13 @@
     <script src="../../../_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
-        <script src="../../../_static/jquery.js"></script>
-        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
-        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
-        <script src="../../../_static/doctools.js"></script>
-        <script src="../../../_static/sphinx_highlight.js"></script>
-        <script src="../../../_static/clipboard.min.js"></script>
-        <script src="../../../_static/copybutton.js"></script>
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script src="../../../_static/clipboard.min.js?v=a7894cd8"></script>
+        <script src="../../../_static/copybutton.js?v=f281be69"></script>
         <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
     <script src="../../../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../../../genindex.html" />
@@ -106,33 +106,136 @@
            <div itemprop="articleBody">
              
   <h1>Source code for ibllib.atlas.flatmaps</h1><div class="highlight"><pre>
-<span></span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">Module that hold techniques to project the brain volume onto 2D images for visualisation purposes</span>
-<span class="sd">&quot;&quot;&quot;</span>
-<span class="kn">import</span> <span class="nn">copy</span>
+<span></span><span class="sd">&quot;&quot;&quot;Techniques to project the brain volume onto 2D images for visualisation purposes.&quot;&quot;&quot;</span>
 <span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">lru_cache</span>
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">json</span>
 
+<span class="kn">import</span> <span class="nn">nrrd</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">from</span> <span class="nn">scipy.interpolate</span> <span class="kn">import</span> <span class="n">interp1d</span>
 <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
-<span class="kn">import</span> <span class="nn">matplotlib.colors</span>
-<span class="kn">import</span> <span class="nn">matplotlib</span>
 
-<span class="kn">from</span> <span class="nn">iblutil.numerical</span> <span class="kn">import</span> <span class="n">ismember</span>
 <span class="kn">from</span> <span class="nn">iblutil.util</span> <span class="kn">import</span> <span class="n">Bunch</span>
 <span class="kn">from</span> <span class="nn">iblutil.io.hashfile</span> <span class="kn">import</span> <span class="n">md5</span>
 <span class="kn">import</span> <span class="nn">one.remote.aws</span> <span class="k">as</span> <span class="nn">aws</span>
 
-<span class="kn">from</span> <span class="nn">ibllib.atlas.atlas</span> <span class="kn">import</span> <span class="n">AllenAtlas</span><span class="p">,</span> <span class="n">BrainRegions</span>
-<span class="kn">from</span> <span class="nn">ibllib.atlas.plots</span> <span class="kn">import</span> <span class="n">plot_polygon</span><span class="p">,</span> <span class="n">plot_polygon_with_hole</span><span class="p">,</span> <span class="n">coords_for_poly_hole</span>
+<span class="kn">from</span> <span class="nn">ibllib.atlas.atlas</span> <span class="kn">import</span> <span class="n">AllenAtlas</span>
 
 
 <span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
 
-<div class="viewcode-block" id="circles"><a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.flatmaps.html#ibllib.atlas.flatmaps.circles">[docs]</a><span class="nd">@lru_cache</span><span class="p">(</span><span class="n">maxsize</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">typed</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<div class="viewcode-block" id="FlatMap">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.flatmaps.html#ibllib.atlas.flatmaps.FlatMap">[docs]</a>
+<span class="k">class</span> <span class="nc">FlatMap</span><span class="p">(</span><span class="n">AllenAtlas</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The Allen Atlas flatmap.</span>
+
+<span class="sd">    FIXME Document! How are these flatmaps determined? Are they related to the Swansan atlas or is</span>
+<span class="sd">     that something else?</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">flatmap</span><span class="o">=</span><span class="s1">&#39;dorsal_cortex&#39;</span><span class="p">,</span> <span class="n">res_um</span><span class="o">=</span><span class="mi">25</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Available flatmaps are currently &#39;dorsal_cortex&#39;, &#39;circles&#39; and &#39;pyramid&#39;</span>
+<span class="sd">        :param flatmap:</span>
+<span class="sd">        :param res_um:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">res_um</span><span class="o">=</span><span class="n">res_um</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">flatmap</span>
+        <span class="k">if</span> <span class="n">flatmap</span> <span class="o">==</span> <span class="s1">&#39;dorsal_cortex&#39;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_get_flatmap_from_file</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="n">flatmap</span> <span class="o">==</span> <span class="s1">&#39;circles&#39;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">res_um</span> <span class="o">!=</span> <span class="mi">25</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;Pyramid circles not implemented for resolution other than 25um&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">flatmap</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ml_scale</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ap_scale</span> <span class="o">=</span> <span class="n">circles</span><span class="p">(</span><span class="n">N</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">atlas</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="n">display</span><span class="o">=</span><span class="s1">&#39;flat&#39;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">flatmap</span> <span class="o">==</span> <span class="s1">&#39;pyramid&#39;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">res_um</span> <span class="o">!=</span> <span class="mi">25</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;Pyramid circles not implemented for resolution other than 25um&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">flatmap</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ml_scale</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ap_scale</span> <span class="o">=</span> <span class="n">circles</span><span class="p">(</span><span class="n">N</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">atlas</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="n">display</span><span class="o">=</span><span class="s1">&#39;pyramid&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_get_flatmap_from_file</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># gets the file in the ONE cache for the flatmap name in the property, downloads it if needed</span>
+        <span class="n">file_flatmap</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_cache_dir</span><span class="p">()</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">res_um</span><span class="si">}</span><span class="s1">.nrrd&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">file_flatmap</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="n">file_flatmap</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">aws</span><span class="o">.</span><span class="n">s3_download_file</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;atlas/</span><span class="si">{</span><span class="n">file_flatmap</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">file_flatmap</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">flatmap</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">nrrd</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">file_flatmap</span><span class="p">)</span>
+
+<div class="viewcode-block" id="FlatMap.plot_flatmap">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.flatmaps.html#ibllib.atlas.flatmaps.FlatMap.plot_flatmap">[docs]</a>
+    <span class="k">def</span> <span class="nf">plot_flatmap</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">depth</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">volume</span><span class="o">=</span><span class="s1">&#39;annotation&#39;</span><span class="p">,</span> <span class="n">mapping</span><span class="o">=</span><span class="s1">&#39;Allen&#39;</span><span class="p">,</span> <span class="n">region_values</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Displays the 2D image corresponding to the flatmap.</span>
+
+<span class="sd">        If there are several depths, by default it will display the first one.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        depth : int</span>
+<span class="sd">            Index of the depth to display in the flatmap volume (the last dimension).</span>
+<span class="sd">        volume : {&#39;image&#39;, &#39;annotation&#39;, &#39;boundary&#39;, &#39;value&#39;}</span>
+<span class="sd">            - &#39;image&#39; - Allen image volume.</span>
+<span class="sd">            - &#39;annotation&#39; - Allen annotation volume.</span>
+<span class="sd">            - &#39;boundary&#39; - outline of boundaries between all regions.</span>
+<span class="sd">            - &#39;volume&#39; - custom volume, must pass in volume of shape BrainAtlas.image.shape as</span>
+<span class="sd">               regions_value argument.</span>
+<span class="sd">        mapping : str, default=&#39;Allen&#39;</span>
+<span class="sd">            The brain region mapping to use.</span>
+<span class="sd">        region_values : numpy.array</span>
+<span class="sd">            An array the shape of the brain atlas image containing custom region values. Used when</span>
+<span class="sd">            `volume` value is &#39;volume&#39;.</span>
+<span class="sd">        ax : matplotlib.pyplot.Axes, optional</span>
+<span class="sd">            A set of axes to plot to.</span>
+<span class="sd">        **kwargs</span>
+<span class="sd">            See matplotlib.pyplot.imshow.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        matplotlib.pyplot.Axes</span>
+<span class="sd">            The plotted image axes.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">flatmap</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="n">inds</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">flatmap</span><span class="p">[:,</span> <span class="p">:,</span> <span class="n">depth</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">inds</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">flatmap</span><span class="p">[:,</span> <span class="p">:])</span>
+        <span class="n">regions</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_mapping</span><span class="p">(</span><span class="n">mapping</span><span class="o">=</span><span class="n">mapping</span><span class="p">)[</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="o">.</span><span class="n">flat</span><span class="p">[</span><span class="n">inds</span><span class="p">]]</span>
+        <span class="k">if</span> <span class="n">volume</span> <span class="o">==</span> <span class="s1">&#39;annotation&#39;</span><span class="p">:</span>
+            <span class="n">im</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_label2rgb</span><span class="p">(</span><span class="n">regions</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">volume</span> <span class="o">==</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span>
+            <span class="n">im</span> <span class="o">=</span> <span class="n">region_values</span><span class="p">[</span><span class="n">regions</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="n">volume</span> <span class="o">==</span> <span class="s1">&#39;boundary&#39;</span><span class="p">:</span>
+            <span class="n">im</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_boundaries</span><span class="p">(</span><span class="n">regions</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">volume</span> <span class="o">==</span> <span class="s1">&#39;image&#39;</span><span class="p">:</span>
+            <span class="n">im</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">flat</span><span class="p">[</span><span class="n">inds</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Volume type &quot;</span><span class="si">{</span><span class="n">volume</span><span class="si">}</span><span class="s1">&quot; not supported&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">ax</span><span class="p">:</span>
+            <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">gca</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_plot_slice</span><span class="p">(</span><span class="n">im</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">extent_flmap</span><span class="p">(),</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">volume</span><span class="o">=</span><span class="n">volume</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="FlatMap.extent_flmap">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.flatmaps.html#ibllib.atlas.flatmaps.FlatMap.extent_flmap">[docs]</a>
+    <span class="k">def</span> <span class="nf">extent_flmap</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the boundary coordinates of the flat map.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        numpy.array</span>
+<span class="sd">            The bounding coordinates of the flat map image, specified as (left, right, bottom, top).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">extent</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">flatmap</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">flatmap</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+        <span class="k">return</span> <span class="n">extent</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="circles">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.flatmaps.html#ibllib.atlas.flatmaps.circles">[docs]</a>
+<span class="nd">@lru_cache</span><span class="p">(</span><span class="n">maxsize</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">typed</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">circles</span><span class="p">(</span><span class="n">N</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">atlas</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">display</span><span class="o">=</span><span class="s1">&#39;flat&#39;</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    :param N: number of circles</span>
@@ -218,6 +321,7 @@
             <span class="n">image_map</span><span class="p">[</span><span class="n">ih</span><span class="p">,</span> <span class="n">iw</span><span class="p">]</span> <span class="o">=</span> <span class="n">i3d</span>
     <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="p">(</span><span class="n">atlas</span><span class="o">.</span><span class="n">bc</span><span class="o">.</span><span class="n">i2x</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">x</span><span class="p">),</span> <span class="n">atlas</span><span class="o">.</span><span class="n">bc</span><span class="o">.</span><span class="n">i2y</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">y</span><span class="p">))</span>
     <span class="k">return</span> <span class="n">image_map</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span></div>
+
     <span class="c1"># if display == &#39;flat&#39;:</span>
     <span class="c1">#     fig, ax = plt.subplots(2, 1, figsize=(16, 5))</span>
     <span class="c1"># elif display == &#39;pyramid&#39;:</span>
@@ -228,7 +332,21 @@
     <span class="c1"># ax[1].plot(s.x, s.y)</span>
 
 
-<div class="viewcode-block" id="swanson"><a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.flatmaps.html#ibllib.atlas.flatmaps.swanson">[docs]</a><span class="k">def</span> <span class="nf">swanson</span><span class="p">(</span><span class="n">filename</span><span class="o">=</span><span class="s2">&quot;swanson2allen.npz&quot;</span><span class="p">):</span>
+<div class="viewcode-block" id="swanson">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.flatmaps.html#ibllib.atlas.flatmaps.swanson">[docs]</a>
+<span class="k">def</span> <span class="nf">swanson</span><span class="p">(</span><span class="n">filename</span><span class="o">=</span><span class="s2">&quot;swanson2allen.npz&quot;</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    FIXME Document! Which publication to reference? Are these specifically for flat maps?</span>
+<span class="sd">     Shouldn&#39;t this be made into an Atlas class with a mapping or scaling applied?</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    filename</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="c1"># filename could be &quot;swanson2allen_original.npz&quot;, or &quot;swanson2allen.npz&quot; for remapped indices to match</span>
     <span class="c1"># existing labels in the brain atlas</span>
     <span class="n">OLD_MD5</span> <span class="o">=</span> <span class="p">[</span>
@@ -244,8 +362,24 @@
     <span class="k">return</span> <span class="n">s2a</span></div>
 
 
-<div class="viewcode-block" id="swanson_json"><a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.flatmaps.html#ibllib.atlas.flatmaps.swanson_json">[docs]</a><span class="k">def</span> <span class="nf">swanson_json</span><span class="p">(</span><span class="n">filename</span><span class="o">=</span><span class="s2">&quot;swansonpaths.json&quot;</span><span class="p">,</span> <span class="n">remap</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
 
+<div class="viewcode-block" id="swanson_json">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.flatmaps.html#ibllib.atlas.flatmaps.swanson_json">[docs]</a>
+<span class="k">def</span> <span class="nf">swanson_json</span><span class="p">(</span><span class="n">filename</span><span class="o">=</span><span class="s2">&quot;swansonpaths.json&quot;</span><span class="p">,</span> <span class="n">remap</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Vectorized version of the swanson bitmap file. The vectorized version was generated from swanson() using matlab</span>
+<span class="sd">    contour to find the paths for each region. The paths for each region were then simplified using the</span>
+<span class="sd">    Ramer Douglas Peucker algorithm https://rdp.readthedocs.io/en/latest/</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    filename</span>
+<span class="sd">    remap</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">OLD_MD5</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;97ccca2b675b28ba9b15ca8af5ba4111&#39;</span><span class="p">,</span>  <span class="c1"># errored map with FOTU and CUL4, 5 mixed up</span>
                <span class="s1">&#39;56daa7022b5e03080d8623814cda6f38&#39;</span><span class="p">,</span>  <span class="c1"># old md5 of swanson json without CENT and PTLp</span>
                <span class="c1"># and CUL4 split (on s3 called swansonpaths_56daa.json)</span>
@@ -260,6 +394,9 @@
     <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">json_file</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
         <span class="n">sw_json</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
 
+    <span class="c1"># The swanson contains regions that are children of regions contained within the Allen</span>
+    <span class="c1"># annotation volume. Here we remap these regions to the parent that is contained with the</span>
+    <span class="c1"># annotation volume</span>
     <span class="k">if</span> <span class="n">remap</span><span class="p">:</span>
         <span class="n">id_map</span> <span class="o">=</span> <span class="p">{</span><span class="mi">391</span><span class="p">:</span> <span class="p">[</span><span class="mi">392</span><span class="p">,</span> <span class="mi">393</span><span class="p">,</span> <span class="mi">394</span><span class="p">,</span> <span class="mi">395</span><span class="p">,</span> <span class="mi">396</span><span class="p">],</span>
                   <span class="mi">474</span><span class="p">:</span> <span class="p">[</span><span class="mi">483</span><span class="p">,</span> <span class="mi">487</span><span class="p">],</span>
@@ -293,253 +430,22 @@
     <span class="k">return</span> <span class="n">sw_json</span></div>
 
 
-<div class="viewcode-block" id="plot_swanson_vector"><a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.flatmaps.html#ibllib.atlas.flatmaps.plot_swanson_vector">[docs]</a><span class="k">def</span> <span class="nf">plot_swanson_vector</span><span class="p">(</span><span class="n">acronyms</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">values</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">hemisphere</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">br</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">orientation</span><span class="o">=</span><span class="s1">&#39;landscape&#39;</span><span class="p">,</span>
-                        <span class="n">empty_color</span><span class="o">=</span><span class="s1">&#39;silver&#39;</span><span class="p">,</span> <span class="n">vmin</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">vmax</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s1">&#39;viridis&#39;</span><span class="p">,</span> <span class="n">annotate</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">annotate_n</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
-                        <span class="n">annotate_order</span><span class="o">=</span><span class="s1">&#39;top&#39;</span><span class="p">,</span> <span class="n">annotate_list</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">mask_color</span><span class="o">=</span><span class="s1">&#39;w&#39;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-
-    <span class="n">br</span> <span class="o">=</span> <span class="n">BrainRegions</span><span class="p">()</span> <span class="k">if</span> <span class="n">br</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">br</span>
-    <span class="n">br</span><span class="o">.</span><span class="n">compute_hierarchy</span><span class="p">()</span>
-    <span class="n">sw_shape</span> <span class="o">=</span> <span class="p">(</span><span class="mi">2968</span><span class="p">,</span> <span class="mi">6820</span><span class="p">)</span>
-
-    <span class="k">if</span> <span class="n">ax</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">()</span>
-        <span class="n">ax</span><span class="o">.</span><span class="n">set_axis_off</span><span class="p">()</span>
-
-    <span class="k">if</span> <span class="n">hemisphere</span> <span class="o">!=</span> <span class="s1">&#39;both&#39;</span> <span class="ow">and</span> <span class="n">acronyms</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">acronyms</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">str</span><span class="p">):</span>
-        <span class="c1"># If negative atlas ids are passed in and we are not going to lateralise (e.g hemisphere=&#39;both&#39;)</span>
-        <span class="c1"># transfer them over to one hemisphere</span>
-        <span class="n">acronyms</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">acronyms</span><span class="p">)</span>
-
-    <span class="k">if</span> <span class="n">acronyms</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">ibr</span><span class="p">,</span> <span class="n">vals</span> <span class="o">=</span> <span class="n">br</span><span class="o">.</span><span class="n">propagate_down</span><span class="p">(</span><span class="n">acronyms</span><span class="p">,</span> <span class="n">values</span><span class="p">)</span>
-        <span class="n">colormap</span> <span class="o">=</span> <span class="n">matplotlib</span><span class="o">.</span><span class="n">colormaps</span><span class="o">.</span><span class="n">get_cmap</span><span class="p">(</span><span class="n">cmap</span><span class="p">)</span>
-        <span class="n">vmin</span> <span class="o">=</span> <span class="n">vmin</span> <span class="ow">or</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmin</span><span class="p">(</span><span class="n">vals</span><span class="p">)</span>
-        <span class="n">vmax</span> <span class="o">=</span> <span class="n">vmax</span> <span class="ow">or</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmax</span><span class="p">(</span><span class="n">vals</span><span class="p">)</span>
-        <span class="n">norm</span> <span class="o">=</span> <span class="n">matplotlib</span><span class="o">.</span><span class="n">colors</span><span class="o">.</span><span class="n">Normalize</span><span class="p">(</span><span class="n">vmin</span><span class="o">=</span><span class="n">vmin</span><span class="p">,</span> <span class="n">vmax</span><span class="o">=</span><span class="n">vmax</span><span class="p">)</span>
-        <span class="n">rgba_color</span> <span class="o">=</span> <span class="n">colormap</span><span class="p">(</span><span class="n">norm</span><span class="p">(</span><span class="n">vals</span><span class="p">),</span> <span class="nb">bytes</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-
-    <span class="k">if</span> <span class="n">mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">imr</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">br</span><span class="o">.</span><span class="n">propagate_down</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">mask</span><span class="p">))</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">imr</span> <span class="o">=</span> <span class="p">[]</span>
-
-    <span class="n">sw_json</span> <span class="o">=</span> <span class="n">swanson_json</span><span class="p">()</span>
-    <span class="k">if</span> <span class="n">hemisphere</span> <span class="o">==</span> <span class="s1">&#39;both&#39;</span><span class="p">:</span>
-        <span class="n">sw_rev</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">sw_json</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">sw</span> <span class="ow">in</span> <span class="n">sw_rev</span><span class="p">:</span>
-            <span class="n">sw</span><span class="p">[</span><span class="s1">&#39;thisID&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sw</span><span class="p">[</span><span class="s1">&#39;thisID&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="n">br</span><span class="o">.</span><span class="n">n_lr</span>
-        <span class="n">sw_json</span> <span class="o">=</span> <span class="n">sw_json</span> <span class="o">+</span> <span class="n">sw_rev</span>
-
-    <span class="n">plot_idx</span> <span class="o">=</span> <span class="p">[]</span>
-    <span class="n">plot_val</span> <span class="o">=</span> <span class="p">[]</span>
-    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">reg</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">sw_json</span><span class="p">):</span>
-
-        <span class="n">coords</span> <span class="o">=</span> <span class="n">reg</span><span class="p">[</span><span class="s1">&#39;coordsReg&#39;</span><span class="p">]</span>
-        <span class="n">reg_id</span> <span class="o">=</span> <span class="n">reg</span><span class="p">[</span><span class="s1">&#39;thisID&#39;</span><span class="p">]</span>
-
-        <span class="k">if</span> <span class="n">acronyms</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">color</span> <span class="o">=</span> <span class="n">br</span><span class="o">.</span><span class="n">rgba</span><span class="p">[</span><span class="n">br</span><span class="o">.</span><span class="n">mappings</span><span class="p">[</span><span class="s1">&#39;Swanson&#39;</span><span class="p">][</span><span class="n">reg</span><span class="p">[</span><span class="s1">&#39;thisID&#39;</span><span class="p">]]]</span> <span class="o">/</span> <span class="mi">255</span>
-            <span class="k">if</span> <span class="n">hemisphere</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">col_l</span> <span class="o">=</span> <span class="kc">None</span>
-                <span class="n">col_r</span> <span class="o">=</span> <span class="n">color</span>
-            <span class="k">elif</span> <span class="n">hemisphere</span> <span class="o">==</span> <span class="s1">&#39;left&#39;</span><span class="p">:</span>
-                <span class="n">col_l</span> <span class="o">=</span> <span class="n">empty_color</span> <span class="k">if</span> <span class="n">orientation</span> <span class="o">==</span> <span class="s1">&#39;portrait&#39;</span> <span class="k">else</span> <span class="n">color</span>
-                <span class="n">col_r</span> <span class="o">=</span> <span class="n">color</span> <span class="k">if</span> <span class="n">orientation</span> <span class="o">==</span> <span class="s1">&#39;portrait&#39;</span> <span class="k">else</span> <span class="n">empty_color</span>
-            <span class="k">elif</span> <span class="n">hemisphere</span> <span class="o">==</span> <span class="s1">&#39;right&#39;</span><span class="p">:</span>
-                <span class="n">col_l</span> <span class="o">=</span> <span class="n">color</span> <span class="k">if</span> <span class="n">orientation</span> <span class="o">==</span> <span class="s1">&#39;portrait&#39;</span> <span class="k">else</span> <span class="n">empty_color</span>
-                <span class="n">col_r</span> <span class="o">=</span> <span class="n">empty_color</span> <span class="k">if</span> <span class="n">orientation</span> <span class="o">==</span> <span class="s1">&#39;portrait&#39;</span> <span class="k">else</span> <span class="n">color</span>
-            <span class="k">elif</span> <span class="n">hemisphere</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;both&#39;</span><span class="p">,</span> <span class="s1">&#39;mirror&#39;</span><span class="p">]:</span>
-                <span class="n">col_l</span> <span class="o">=</span> <span class="n">color</span>
-                <span class="n">col_r</span> <span class="o">=</span> <span class="n">color</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">ibr</span> <span class="o">==</span> <span class="n">reg</span><span class="p">[</span><span class="s1">&#39;thisID&#39;</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
-            <span class="n">idxm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">imr</span> <span class="o">==</span> <span class="n">reg</span><span class="p">[</span><span class="s1">&#39;thisID&#39;</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
-            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="n">plot_idx</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ibr</span><span class="p">[</span><span class="n">idx</span><span class="p">[</span><span class="mi">0</span><span class="p">]])</span>
-                <span class="n">plot_val</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">vals</span><span class="p">[</span><span class="n">idx</span><span class="p">[</span><span class="mi">0</span><span class="p">]])</span>
-                <span class="n">color</span> <span class="o">=</span> <span class="n">rgba_color</span><span class="p">[</span><span class="n">idx</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span> <span class="o">/</span> <span class="mi">255</span>
-            <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">idxm</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="n">color</span> <span class="o">=</span> <span class="n">mask_color</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">color</span> <span class="o">=</span> <span class="n">empty_color</span>
-
-            <span class="k">if</span> <span class="n">hemisphere</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">col_l</span> <span class="o">=</span> <span class="kc">None</span>
-                <span class="n">col_r</span> <span class="o">=</span> <span class="n">color</span>
-            <span class="k">elif</span> <span class="n">hemisphere</span> <span class="o">==</span> <span class="s1">&#39;left&#39;</span><span class="p">:</span>
-                <span class="n">col_l</span> <span class="o">=</span> <span class="n">empty_color</span> <span class="k">if</span> <span class="n">orientation</span> <span class="o">==</span> <span class="s1">&#39;portrait&#39;</span> <span class="k">else</span> <span class="n">color</span>
-                <span class="n">col_r</span> <span class="o">=</span> <span class="n">color</span> <span class="k">if</span> <span class="n">orientation</span> <span class="o">==</span> <span class="s1">&#39;portrait&#39;</span> <span class="k">else</span> <span class="n">empty_color</span>
-            <span class="k">elif</span> <span class="n">hemisphere</span> <span class="o">==</span> <span class="s1">&#39;right&#39;</span><span class="p">:</span>
-                <span class="n">col_l</span> <span class="o">=</span> <span class="n">color</span> <span class="k">if</span> <span class="n">orientation</span> <span class="o">==</span> <span class="s1">&#39;portrait&#39;</span> <span class="k">else</span> <span class="n">empty_color</span>
-                <span class="n">col_r</span> <span class="o">=</span> <span class="n">empty_color</span> <span class="k">if</span> <span class="n">orientation</span> <span class="o">==</span> <span class="s1">&#39;portrait&#39;</span> <span class="k">else</span> <span class="n">color</span>
-            <span class="k">elif</span> <span class="n">hemisphere</span> <span class="o">==</span> <span class="s1">&#39;mirror&#39;</span><span class="p">:</span>
-                <span class="n">col_l</span> <span class="o">=</span> <span class="n">color</span>
-                <span class="n">col_r</span> <span class="o">=</span> <span class="n">color</span>
-            <span class="k">elif</span> <span class="n">hemisphere</span> <span class="o">==</span> <span class="s1">&#39;both&#39;</span><span class="p">:</span>
-                <span class="k">if</span> <span class="n">reg_id</span> <span class="o">&lt;=</span> <span class="n">br</span><span class="o">.</span><span class="n">n_lr</span><span class="p">:</span>
-                    <span class="n">col_l</span> <span class="o">=</span> <span class="n">color</span> <span class="k">if</span> <span class="n">orientation</span> <span class="o">==</span> <span class="s1">&#39;portrait&#39;</span> <span class="k">else</span> <span class="kc">None</span>
-                    <span class="n">col_r</span> <span class="o">=</span> <span class="kc">None</span> <span class="k">if</span> <span class="n">orientation</span> <span class="o">==</span> <span class="s1">&#39;portrait&#39;</span> <span class="k">else</span> <span class="n">color</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="n">col_l</span> <span class="o">=</span> <span class="kc">None</span> <span class="k">if</span> <span class="n">orientation</span> <span class="o">==</span> <span class="s1">&#39;portrait&#39;</span> <span class="k">else</span> <span class="n">color</span>
-                    <span class="n">col_r</span> <span class="o">=</span> <span class="n">color</span> <span class="k">if</span> <span class="n">orientation</span> <span class="o">==</span> <span class="s1">&#39;portrait&#39;</span> <span class="k">else</span> <span class="kc">None</span>
-
-        <span class="k">if</span> <span class="n">reg</span><span class="p">[</span><span class="s1">&#39;hole&#39;</span><span class="p">]:</span>
-            <span class="n">vertices</span><span class="p">,</span> <span class="n">codes</span> <span class="o">=</span> <span class="n">coords_for_poly_hole</span><span class="p">(</span><span class="n">coords</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">orientation</span> <span class="o">==</span> <span class="s1">&#39;portrait&#39;</span><span class="p">:</span>
-                <span class="n">vertices</span><span class="p">[:,</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]]</span> <span class="o">=</span> <span class="n">vertices</span><span class="p">[:,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">]]</span>
-                <span class="k">if</span> <span class="n">col_r</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                    <span class="n">plot_polygon_with_hole</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">vertices</span><span class="p">,</span> <span class="n">codes</span><span class="p">,</span> <span class="n">col_r</span><span class="p">,</span> <span class="n">reg_id</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-                <span class="k">if</span> <span class="n">col_l</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                    <span class="n">vertices_inv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">vertices</span><span class="p">)</span>
-                    <span class="n">vertices_inv</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span> <span class="o">*</span> <span class="n">vertices_inv</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="n">sw_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
-                    <span class="n">plot_polygon_with_hole</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">vertices_inv</span><span class="p">,</span> <span class="n">codes</span><span class="p">,</span> <span class="n">col_l</span><span class="p">,</span> <span class="n">reg_id</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="k">if</span> <span class="n">col_r</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                    <span class="n">plot_polygon_with_hole</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">vertices</span><span class="p">,</span> <span class="n">codes</span><span class="p">,</span> <span class="n">col_r</span><span class="p">,</span> <span class="n">reg_id</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-                <span class="k">if</span> <span class="n">col_l</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                    <span class="n">vertices_inv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">vertices</span><span class="p">)</span>
-                    <span class="n">vertices_inv</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span> <span class="o">*</span> <span class="n">vertices_inv</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="n">sw_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
-                    <span class="n">plot_polygon_with_hole</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">vertices_inv</span><span class="p">,</span> <span class="n">codes</span><span class="p">,</span> <span class="n">col_l</span><span class="p">,</span> <span class="n">reg_id</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">coords</span> <span class="o">=</span> <span class="p">[</span><span class="n">coords</span><span class="p">]</span> <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">coords</span><span class="p">)</span> <span class="o">==</span> <span class="nb">dict</span> <span class="k">else</span> <span class="n">coords</span>
-            <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">coords</span><span class="p">:</span>
-                <span class="k">if</span> <span class="n">orientation</span> <span class="o">==</span> <span class="s1">&#39;portrait&#39;</span><span class="p">:</span>
-                    <span class="n">xy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">c_</span><span class="p">[</span><span class="n">c</span><span class="p">[</span><span class="s1">&#39;y&#39;</span><span class="p">],</span> <span class="n">c</span><span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">]]</span>
-                    <span class="k">if</span> <span class="n">col_r</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                        <span class="n">plot_polygon</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">xy</span><span class="p">,</span> <span class="n">col_r</span><span class="p">,</span> <span class="n">reg_id</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-                    <span class="k">if</span> <span class="n">col_l</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                        <span class="n">xy_inv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">xy</span><span class="p">)</span>
-                        <span class="n">xy_inv</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span> <span class="o">*</span> <span class="n">xy_inv</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="n">sw_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
-                        <span class="n">plot_polygon</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">xy_inv</span><span class="p">,</span> <span class="n">col_l</span><span class="p">,</span> <span class="n">reg_id</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="n">xy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">c_</span><span class="p">[</span><span class="n">c</span><span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">],</span> <span class="n">c</span><span class="p">[</span><span class="s1">&#39;y&#39;</span><span class="p">]]</span>
-                    <span class="k">if</span> <span class="n">col_r</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                        <span class="n">plot_polygon</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">xy</span><span class="p">,</span> <span class="n">col_r</span><span class="p">,</span> <span class="n">reg_id</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-                    <span class="k">if</span> <span class="n">col_l</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                        <span class="n">xy_inv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">xy</span><span class="p">)</span>
-                        <span class="n">xy_inv</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span> <span class="o">*</span> <span class="n">xy_inv</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="n">sw_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
-                        <span class="n">plot_polygon</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">xy_inv</span><span class="p">,</span> <span class="n">col_l</span><span class="p">,</span> <span class="n">reg_id</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-
-    <span class="k">if</span> <span class="n">orientation</span> <span class="o">==</span> <span class="s1">&#39;portrait&#39;</span><span class="p">:</span>
-        <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">sw_shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
-        <span class="k">if</span> <span class="n">hemisphere</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">sw_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">sw_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">sw_shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
-        <span class="k">if</span> <span class="n">hemisphere</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">sw_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">sw_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
-
-    <span class="k">if</span> <span class="n">annotate</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">annotate_list</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">annotate_swanson</span><span class="p">(</span><span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">acronyms</span><span class="o">=</span><span class="n">annotate_list</span><span class="p">,</span> <span class="n">orientation</span><span class="o">=</span><span class="n">orientation</span><span class="p">,</span> <span class="n">br</span><span class="o">=</span><span class="n">br</span><span class="p">,</span> <span class="n">thres</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="n">fontsize</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="n">acronyms</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">ids</span> <span class="o">=</span> <span class="n">br</span><span class="o">.</span><span class="n">index2id</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">plot_idx</span><span class="p">))</span>
-            <span class="n">_</span><span class="p">,</span> <span class="n">indices</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">intersect1d</span><span class="p">(</span><span class="n">br</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">br</span><span class="o">.</span><span class="n">remap</span><span class="p">(</span><span class="n">ids</span><span class="p">,</span> <span class="s1">&#39;Swanson-lr&#39;</span><span class="p">),</span> <span class="n">return_indices</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-            <span class="n">a</span><span class="p">,</span> <span class="n">b</span> <span class="o">=</span> <span class="n">ismember</span><span class="p">(</span><span class="n">ids</span><span class="p">,</span> <span class="n">br</span><span class="o">.</span><span class="n">id</span><span class="p">[</span><span class="n">indices</span><span class="p">])</span>
-            <span class="n">sorted_id</span> <span class="o">=</span> <span class="n">ids</span><span class="p">[</span><span class="n">a</span><span class="p">]</span>
-            <span class="n">vals</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">plot_val</span><span class="p">)[</span><span class="n">a</span><span class="p">]</span>
-            <span class="n">sort_vals</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">vals</span><span class="p">)</span> <span class="k">if</span> <span class="n">annotate_order</span> <span class="o">==</span> <span class="s1">&#39;bottom&#39;</span> <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">vals</span><span class="p">)[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
-            <span class="n">annotate_swanson</span><span class="p">(</span><span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">acronyms</span><span class="o">=</span><span class="n">sorted_id</span><span class="p">[</span><span class="n">sort_vals</span><span class="p">[:</span><span class="n">annotate_n</span><span class="p">]],</span> <span class="n">orientation</span><span class="o">=</span><span class="n">orientation</span><span class="p">,</span> <span class="n">br</span><span class="o">=</span><span class="n">br</span><span class="p">,</span>
-                             <span class="n">thres</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="n">fontsize</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">annotate_swanson</span><span class="p">(</span><span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">orientation</span><span class="o">=</span><span class="n">orientation</span><span class="p">,</span> <span class="n">br</span><span class="o">=</span><span class="n">br</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="n">fontsize</span><span class="p">)</span>
-
-    <span class="k">def</span> <span class="nf">format_coord</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
-        <span class="n">patch</span> <span class="o">=</span> <span class="nb">next</span><span class="p">((</span><span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">ax</span><span class="o">.</span><span class="n">patches</span> <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">contains_point</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">get_transform</span><span class="p">()</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">]))),</span> <span class="kc">None</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">patch</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">ind</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">patch</span><span class="o">.</span><span class="n">get_gid</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span>
-            <span class="n">ancestors</span> <span class="o">=</span> <span class="n">br</span><span class="o">.</span><span class="n">ancestors</span><span class="p">(</span><span class="n">br</span><span class="o">.</span><span class="n">id</span><span class="p">[</span><span class="n">ind</span><span class="p">])[</span><span class="s1">&#39;acronym&#39;</span><span class="p">]</span>
-            <span class="k">return</span> <span class="sa">f</span><span class="s1">&#39;sw-</span><span class="si">{</span><span class="n">ind</span><span class="si">}</span><span class="s1">, </span><span class="si">{</span><span class="n">ancestors</span><span class="si">}</span><span class="s1">, aid=</span><span class="si">{</span><span class="n">br</span><span class="o">.</span><span class="n">id</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span><span class="si">}</span><span class="s1">-</span><span class="si">{</span><span class="n">br</span><span class="o">.</span><span class="n">acronym</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span><span class="si">}</span><span class="s1"> </span><span class="se">\n</span><span class="s1"> </span><span class="si">{</span><span class="n">br</span><span class="o">.</span><span class="n">name</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span><span class="si">}</span><span class="s1">&#39;</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="s1">&#39;&#39;</span>
-
-    <span class="n">ax</span><span class="o">.</span><span class="n">format_coord</span> <span class="o">=</span> <span class="n">format_coord</span>
-
-    <span class="n">ax</span><span class="o">.</span><span class="n">invert_yaxis</span><span class="p">()</span>
-    <span class="n">ax</span><span class="o">.</span><span class="n">set_aspect</span><span class="p">(</span><span class="s1">&#39;equal&#39;</span><span class="p">)</span></div>
-
-
-<div class="viewcode-block" id="plot_swanson"><a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.flatmaps.html#ibllib.atlas.flatmaps.plot_swanson">[docs]</a><span class="k">def</span> <span class="nf">plot_swanson</span><span class="p">(</span><span class="n">acronyms</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">values</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">hemisphere</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">br</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                 <span class="n">orientation</span><span class="o">=</span><span class="s1">&#39;landscape&#39;</span><span class="p">,</span> <span class="n">annotate</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">empty_color</span><span class="o">=</span><span class="s1">&#39;silver&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Displays the 2D image corresponding to the swanson flatmap.</span>
-<span class="sd">    This case is different from the others in the sense that only a region maps to another regions, there</span>
-<span class="sd">    is no correspondency from the spatial 3D coordinates.</span>
-<span class="sd">    :param acronyms:</span>
-<span class="sd">    :param values:</span>
-<span class="sd">    :param hemisphere: hemisphere to display, options are &#39;left&#39;, &#39;right&#39;, &#39;both&#39; or &#39;mirror&#39;</span>
-<span class="sd">    :param br: ibllib.atlas.BrainRegions object</span>
-<span class="sd">    :param ax: matplotlib axis object to plot onto</span>
-<span class="sd">    :param orientation: &#39;landscape&#39; (default) or &#39;portrait&#39;</span>
-<span class="sd">    :param annotate: (False) if True, labels regions with acronyms</span>
-<span class="sd">    :param empty_color: (grey) matplotlib color code or rgb_a int8 tuple defining the filling</span>
-<span class="sd">     of brain regions not provided. Defaults to &#39;silver&#39;</span>
-<span class="sd">    :param kwargs: arguments for imshow</span>
-<span class="sd">    :return:</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">mapping</span> <span class="o">=</span> <span class="s1">&#39;Swanson&#39;</span>
-    <span class="n">br</span> <span class="o">=</span> <span class="n">BrainRegions</span><span class="p">()</span> <span class="k">if</span> <span class="n">br</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">br</span>
-    <span class="n">br</span><span class="o">.</span><span class="n">compute_hierarchy</span><span class="p">()</span>
-    <span class="n">s2a</span> <span class="o">=</span> <span class="n">swanson</span><span class="p">()</span>
-    <span class="c1"># both hemishpere</span>
-    <span class="k">if</span> <span class="n">hemisphere</span> <span class="o">==</span> <span class="s1">&#39;both&#39;</span><span class="p">:</span>
-        <span class="n">_s2a</span> <span class="o">=</span> <span class="n">s2a</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">br</span><span class="o">.</span><span class="n">id</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
-        <span class="n">_s2a</span><span class="p">[</span><span class="n">s2a</span> <span class="o">==</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
-        <span class="n">_s2a</span><span class="p">[</span><span class="n">s2a</span> <span class="o">==</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
-        <span class="n">s2a</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="n">s2a</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">flipud</span><span class="p">(</span><span class="n">_s2a</span><span class="p">)]</span>
-        <span class="n">mapping</span> <span class="o">=</span> <span class="s1">&#39;Swanson-lr&#39;</span>
-    <span class="k">elif</span> <span class="n">hemisphere</span> <span class="o">==</span> <span class="s1">&#39;mirror&#39;</span><span class="p">:</span>
-        <span class="n">s2a</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="n">s2a</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">flipud</span><span class="p">(</span><span class="n">s2a</span><span class="p">)]</span>
-    <span class="k">if</span> <span class="n">orientation</span> <span class="o">==</span> <span class="s1">&#39;portrait&#39;</span><span class="p">:</span>
-        <span class="n">s2a</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">s2a</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">acronyms</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">regions</span> <span class="o">=</span> <span class="n">br</span><span class="o">.</span><span class="n">mappings</span><span class="p">[</span><span class="n">mapping</span><span class="p">][</span><span class="n">s2a</span><span class="p">]</span>
-        <span class="n">im</span> <span class="o">=</span> <span class="n">br</span><span class="o">.</span><span class="n">rgba</span><span class="p">[</span><span class="n">regions</span><span class="p">]</span>
-        <span class="n">iswan</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">ibr</span><span class="p">,</span> <span class="n">vals</span> <span class="o">=</span> <span class="n">br</span><span class="o">.</span><span class="n">propagate_down</span><span class="p">(</span><span class="n">acronyms</span><span class="p">,</span> <span class="n">values</span><span class="p">)</span>
-        <span class="c1"># we now have the mapped regions and aggregated values, map values onto swanson map</span>
-        <span class="n">iswan</span><span class="p">,</span> <span class="n">iv</span> <span class="o">=</span> <span class="n">ismember</span><span class="p">(</span><span class="n">s2a</span><span class="p">,</span> <span class="n">ibr</span><span class="p">)</span>
-        <span class="n">im</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">s2a</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
-        <span class="n">im</span><span class="p">[</span><span class="n">iswan</span><span class="p">]</span> <span class="o">=</span> <span class="n">vals</span><span class="p">[</span><span class="n">iv</span><span class="p">]</span>
-        <span class="n">im</span><span class="p">[</span><span class="o">~</span><span class="n">iswan</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">ax</span><span class="p">:</span>
-        <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">gca</span><span class="p">()</span>
-        <span class="n">ax</span><span class="o">.</span><span class="n">set_axis_off</span><span class="p">()</span>  <span class="c1"># unless provided we don&#39;t need scales here</span>
-    <span class="n">ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">im</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-    <span class="c1"># overlay the boundaries if value plot</span>
-    <span class="n">imb</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="o">*</span><span class="n">s2a</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="mi">2</span><span class="p">],</span> <span class="mi">4</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
-    <span class="c1"># fill in the empty regions with the blank regions colours if necessary</span>
-    <span class="k">if</span> <span class="n">iswan</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">imb</span><span class="p">[</span><span class="o">~</span><span class="n">iswan</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">matplotlib</span><span class="o">.</span><span class="n">colors</span><span class="o">.</span><span class="n">to_rgba</span><span class="p">(</span><span class="n">empty_color</span><span class="p">))</span> <span class="o">*</span> <span class="mi">255</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s1">&#39;uint8&#39;</span><span class="p">)</span>
-    <span class="n">imb</span><span class="p">[</span><span class="n">s2a</span> <span class="o">==</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">255</span>
-    <span class="c1"># imb[s2a == 1] = np.array([167, 169, 172, 255])</span>
-    <span class="n">imb</span><span class="p">[</span><span class="n">s2a</span> <span class="o">==</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">255</span><span class="p">])</span>
-    <span class="n">ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">imb</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">annotate</span><span class="p">:</span>
-        <span class="n">annotate_swanson</span><span class="p">(</span><span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">orientation</span><span class="o">=</span><span class="n">orientation</span><span class="p">,</span> <span class="n">br</span><span class="o">=</span><span class="n">br</span><span class="p">)</span>
-
-    <span class="c1"># provides the mean to see the region on axis</span>
-    <span class="k">def</span> <span class="nf">format_coord</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
-        <span class="n">ind</span> <span class="o">=</span> <span class="n">s2a</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">y</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">x</span><span class="p">)]</span>
-        <span class="n">ancestors</span> <span class="o">=</span> <span class="n">br</span><span class="o">.</span><span class="n">ancestors</span><span class="p">(</span><span class="n">br</span><span class="o">.</span><span class="n">id</span><span class="p">[</span><span class="n">ind</span><span class="p">])[</span><span class="s1">&#39;acronym&#39;</span><span class="p">]</span>
-        <span class="k">return</span> <span class="sa">f</span><span class="s1">&#39;sw-</span><span class="si">{</span><span class="n">ind</span><span class="si">}</span><span class="s1">, </span><span class="si">{</span><span class="n">ancestors</span><span class="si">}</span><span class="s1">, aid=</span><span class="si">{</span><span class="n">br</span><span class="o">.</span><span class="n">id</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span><span class="si">}</span><span class="s1">-</span><span class="si">{</span><span class="n">br</span><span class="o">.</span><span class="n">acronym</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span><span class="si">}</span><span class="s1"> </span><span class="se">\n</span><span class="s1"> </span><span class="si">{</span><span class="n">br</span><span class="o">.</span><span class="n">name</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span><span class="si">}</span><span class="s1">&#39;</span>
-
-    <span class="n">ax</span><span class="o">.</span><span class="n">format_coord</span> <span class="o">=</span> <span class="n">format_coord</span>
-    <span class="k">return</span> <span class="n">ax</span></div>
-
 
 <span class="nd">@lru_cache</span><span class="p">(</span><span class="n">maxsize</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">_swanson_labels_positions</span><span class="p">(</span><span class="n">thres</span><span class="o">=</span><span class="mi">20000</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    This functions computes label positions to overlay on the Swanson flatmap</span>
-<span class="sd">    :return: dictionary where keys are acronyms</span>
+<span class="sd">    Computes label positions to overlay on the Swanson flatmap.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    thres : int, default=20000</span>
+<span class="sd">        The number of pixels above which a region is labeled.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    dict of str</span>
+<span class="sd">        A map of brain acronym to a tuple of x y coordinates.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">NPIX_THRESH</span> <span class="o">=</span> <span class="n">thres</span>  <span class="c1"># number of pixels above which region is labeled</span>
     <span class="n">s2a</span> <span class="o">=</span> <span class="n">swanson</span><span class="p">()</span>
     <span class="n">iw</span><span class="p">,</span> <span class="n">ih</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">s2a</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">s2a</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
     <span class="c1"># compute the center of mass of all regions (fast enough to do on the fly)</span>
@@ -551,7 +457,7 @@
     <span class="n">NWH</span><span class="p">,</span> <span class="n">NWW</span> <span class="o">=</span> <span class="p">(</span><span class="mi">200</span><span class="p">,</span> <span class="mi">600</span><span class="p">)</span>
     <span class="n">h</span><span class="p">,</span> <span class="n">w</span> <span class="o">=</span> <span class="n">s2a</span><span class="o">.</span><span class="n">shape</span>
     <span class="n">labels</span> <span class="o">=</span> <span class="p">{}</span>
-    <span class="k">for</span> <span class="n">ilabel</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">bc</span> <span class="o">&gt;</span> <span class="n">NPIX_THRESH</span><span class="p">)[</span><span class="mi">0</span><span class="p">]:</span>
+    <span class="k">for</span> <span class="n">ilabel</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">bc</span> <span class="o">&gt;</span> <span class="n">thres</span><span class="p">)[</span><span class="mi">0</span><span class="p">]:</span>
         <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="p">(</span><span class="n">cmw</span><span class="p">[</span><span class="n">ilabel</span><span class="p">],</span> <span class="n">cmh</span><span class="p">[</span><span class="n">ilabel</span><span class="p">])</span>
         <span class="c1"># the polygon is convex and the label is outside. Dammit !!!</span>
         <span class="k">if</span> <span class="n">s2a</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">y</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">x</span><span class="p">)]</span> <span class="o">!=</span> <span class="n">ilabel</span><span class="p">:</span>
@@ -570,32 +476,6 @@
             <span class="c1"># ax.plot(x, y, &#39;r+&#39;)</span>
         <span class="n">labels</span><span class="p">[</span><span class="n">ilabel</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">labels</span>
-
-
-<div class="viewcode-block" id="annotate_swanson"><a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.flatmaps.html#ibllib.atlas.flatmaps.annotate_swanson">[docs]</a><span class="k">def</span> <span class="nf">annotate_swanson</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">acronyms</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">orientation</span><span class="o">=</span><span class="s1">&#39;landscape&#39;</span><span class="p">,</span> <span class="n">br</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">thres</span><span class="o">=</span><span class="mi">20000</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Display annotations on the flatmap</span>
-<span class="sd">    :param ax:</span>
-<span class="sd">    :param acronyms: (None) list or np.array of acronyms or allen region ids. If None plot all.</span>
-<span class="sd">    :param orientation:</span>
-<span class="sd">    :param br: BrainRegions object</span>
-<span class="sd">    :param kwargs: arguments for the annotate function</span>
-<span class="sd">    :return:</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">br</span> <span class="o">=</span> <span class="n">br</span> <span class="ow">or</span> <span class="n">BrainRegions</span><span class="p">()</span>
-    <span class="k">if</span> <span class="n">acronyms</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">indices</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">br</span><span class="o">.</span><span class="n">id</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>
-    <span class="k">else</span><span class="p">:</span>  <span class="c1"># tech debt: here in fact we should remap and compute labels for hierarchical regions</span>
-        <span class="n">aids</span> <span class="o">=</span> <span class="n">br</span><span class="o">.</span><span class="n">parse_acronyms_argument</span><span class="p">(</span><span class="n">acronyms</span><span class="p">)</span>
-        <span class="n">_</span><span class="p">,</span> <span class="n">indices</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">intersect1d</span><span class="p">(</span><span class="n">br</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">br</span><span class="o">.</span><span class="n">remap</span><span class="p">(</span><span class="n">aids</span><span class="p">,</span> <span class="s1">&#39;Swanson-lr&#39;</span><span class="p">),</span> <span class="n">return_indices</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-    <span class="n">labels</span> <span class="o">=</span> <span class="n">_swanson_labels_positions</span><span class="p">(</span><span class="n">thres</span><span class="o">=</span><span class="n">thres</span><span class="p">)</span>
-    <span class="k">for</span> <span class="n">ilabel</span> <span class="ow">in</span> <span class="n">labels</span><span class="p">:</span>
-        <span class="c1"># do not display uwanted labels</span>
-        <span class="k">if</span> <span class="n">ilabel</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">indices</span><span class="p">:</span>
-            <span class="k">continue</span>
-        <span class="c1"># rotate the labels if the dislay is in portrait mode</span>
-        <span class="n">xy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">flip</span><span class="p">(</span><span class="n">labels</span><span class="p">[</span><span class="n">ilabel</span><span class="p">])</span> <span class="k">if</span> <span class="n">orientation</span> <span class="o">==</span> <span class="s1">&#39;portrait&#39;</span> <span class="k">else</span> <span class="n">labels</span><span class="p">[</span><span class="n">ilabel</span><span class="p">]</span>
-        <span class="n">ax</span><span class="o">.</span><span class="n">annotate</span><span class="p">(</span><span class="n">br</span><span class="o">.</span><span class="n">acronym</span><span class="p">[</span><span class="n">ilabel</span><span class="p">],</span> <span class="n">xy</span><span class="o">=</span><span class="n">xy</span><span class="p">,</span> <span class="n">ha</span><span class="o">=</span><span class="s1">&#39;center&#39;</span><span class="p">,</span> <span class="n">va</span><span class="o">=</span><span class="s1">&#39;center&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
 </pre></div>
 
            </div>

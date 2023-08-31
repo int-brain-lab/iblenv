@@ -12,13 +12,13 @@
     <script src="../../../_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
-        <script src="../../../_static/jquery.js"></script>
-        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
-        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
-        <script src="../../../_static/doctools.js"></script>
-        <script src="../../../_static/sphinx_highlight.js"></script>
-        <script src="../../../_static/clipboard.min.js"></script>
-        <script src="../../../_static/copybutton.js"></script>
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script src="../../../_static/clipboard.min.js?v=a7894cd8"></script>
+        <script src="../../../_static/copybutton.js?v=f281be69"></script>
         <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
     <script src="../../../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../../../genindex.html" />
@@ -114,31 +114,47 @@
 <span class="sd">extraction.</span>
 
 <span class="sd">Pipeline:</span>
-<span class="sd">    1. Data renamed to be ALF-compliant and registered</span>
+<span class="sd">    1. Register reference images and upload snapshots and notes to Alyx</span>
+<span class="sd">    2. Run ROI cell detection</span>
+<span class="sd">    3. Calculate the pixel and ROI brain locations and register fields of view to Alyx</span>
+<span class="sd">    4. Compress the raw imaging data</span>
+<span class="sd">    5. Extract the imaging times from the main DAQ</span>
 <span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">json</span>
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">subprocess</span>
 <span class="kn">import</span> <span class="nn">shutil</span>
 <span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
 <span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">chain</span>
-<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span><span class="p">,</span> <span class="n">Counter</span>
 <span class="kn">from</span> <span class="nn">fnmatch</span> <span class="kn">import</span> <span class="n">fnmatch</span>
+<span class="kn">import</span> <span class="nn">enum</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">time</span>
 
+<span class="kn">import</span> <span class="nn">numba</span> <span class="k">as</span> <span class="nn">nb</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
 <span class="kn">import</span> <span class="nn">sparse</span>
 <span class="kn">from</span> <span class="nn">scipy.io</span> <span class="kn">import</span> <span class="n">loadmat</span>
+<span class="kn">from</span> <span class="nn">scipy.interpolate</span> <span class="kn">import</span> <span class="n">interpn</span>
 <span class="kn">import</span> <span class="nn">one.alf.io</span> <span class="k">as</span> <span class="nn">alfio</span>
-<span class="kn">from</span> <span class="nn">one.alf.spec</span> <span class="kn">import</span> <span class="n">is_valid</span>
+<span class="kn">from</span> <span class="nn">one.alf.spec</span> <span class="kn">import</span> <span class="n">is_valid</span><span class="p">,</span> <span class="n">to_alf</span>
+<span class="kn">from</span> <span class="nn">one.alf.files</span> <span class="kn">import</span> <span class="n">filename_parts</span><span class="p">,</span> <span class="n">session_path_parts</span>
 <span class="kn">import</span> <span class="nn">one.alf.exceptions</span> <span class="k">as</span> <span class="nn">alferr</span>
 
 <span class="kn">from</span> <span class="nn">ibllib.pipes</span> <span class="kn">import</span> <span class="n">base_tasks</span>
 <span class="kn">from</span> <span class="nn">ibllib.io.extractors</span> <span class="kn">import</span> <span class="n">mesoscope</span>
+<span class="kn">from</span> <span class="nn">ibllib.atlas</span> <span class="kn">import</span> <span class="n">ALLEN_CCF_LANDMARKS_MLAPDV_UM</span><span class="p">,</span> <span class="n">MRITorontoAtlas</span>
+
 
 <span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+<span class="n">Provenance</span> <span class="o">=</span> <span class="n">enum</span><span class="o">.</span><span class="n">Enum</span><span class="p">(</span><span class="s1">&#39;Provenance&#39;</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;ESTIMATE&#39;</span><span class="p">,</span> <span class="s1">&#39;FUNCTIONAL&#39;</span><span class="p">,</span> <span class="s1">&#39;LANDMARK&#39;</span><span class="p">,</span> <span class="s1">&#39;HISTOLOGY&#39;</span><span class="p">])</span>  <span class="c1"># py3.11 make StrEnum</span>
 
 
-<div class="viewcode-block" id="MesoscopeRegisterSnapshots"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.mesoscope_tasks.html#ibllib.pipes.mesoscope_tasks.MesoscopeRegisterSnapshots">[docs]</a><span class="k">class</span> <span class="nc">MesoscopeRegisterSnapshots</span><span class="p">(</span><span class="n">base_tasks</span><span class="o">.</span><span class="n">MesoscopeTask</span><span class="p">,</span> <span class="n">base_tasks</span><span class="o">.</span><span class="n">RegisterRawDataTask</span><span class="p">):</span>
+<div class="viewcode-block" id="MesoscopeRegisterSnapshots">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.mesoscope_tasks.html#ibllib.pipes.mesoscope_tasks.MesoscopeRegisterSnapshots">[docs]</a>
+<span class="k">class</span> <span class="nc">MesoscopeRegisterSnapshots</span><span class="p">(</span><span class="n">base_tasks</span><span class="o">.</span><span class="n">MesoscopeTask</span><span class="p">,</span> <span class="n">base_tasks</span><span class="o">.</span><span class="n">RegisterRawDataTask</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Upload snapshots as Alyx notes and register the 2P reference image(s).&quot;&quot;&quot;</span>
     <span class="n">priority</span> <span class="o">=</span> <span class="mi">100</span>
     <span class="n">job_size</span> <span class="o">=</span> <span class="s1">&#39;small&#39;</span>
@@ -146,8 +162,12 @@
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">signature</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">signature</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="s1">&#39;input_files&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;*.tif&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">device_collection</span><span class="si">}</span><span class="s1">/reference&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)],</span>
-            <span class="s1">&#39;output_files&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;reference.image.tif&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">device_collection</span><span class="si">}</span><span class="s1">/reference&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)]</span>
+            <span class="s1">&#39;input_files&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;referenceImage.raw.tif&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">device_collection</span><span class="si">}</span><span class="s1">/reference&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
+                            <span class="p">(</span><span class="s1">&#39;referenceImage.stack.tif&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">device_collection</span><span class="si">}</span><span class="s1">/reference&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
+                            <span class="p">(</span><span class="s1">&#39;referenceImage.meta.json&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">device_collection</span><span class="si">}</span><span class="s1">/reference&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)],</span>
+            <span class="s1">&#39;output_files&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;referenceImage.raw.tif&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">device_collection</span><span class="si">}</span><span class="s1">/reference&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
+                             <span class="p">(</span><span class="s1">&#39;referenceImage.stack.tif&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">device_collection</span><span class="si">}</span><span class="s1">/reference&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
+                             <span class="p">(</span><span class="s1">&#39;referenceImage.meta.json&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">device_collection</span><span class="si">}</span><span class="s1">/reference&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)]</span>
         <span class="p">}</span>
         <span class="k">return</span> <span class="n">signature</span>
 
@@ -175,7 +195,10 @@
         <span class="k">return</span> <span class="n">out_files</span></div>
 
 
-<div class="viewcode-block" id="MesoscopeCompress"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.mesoscope_tasks.html#ibllib.pipes.mesoscope_tasks.MesoscopeCompress">[docs]</a><span class="k">class</span> <span class="nc">MesoscopeCompress</span><span class="p">(</span><span class="n">base_tasks</span><span class="o">.</span><span class="n">MesoscopeTask</span><span class="p">):</span>
+
+<div class="viewcode-block" id="MesoscopeCompress">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.mesoscope_tasks.html#ibllib.pipes.mesoscope_tasks.MesoscopeCompress">[docs]</a>
+<span class="k">class</span> <span class="nc">MesoscopeCompress</span><span class="p">(</span><span class="n">base_tasks</span><span class="o">.</span><span class="n">MesoscopeTask</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot; Tar compress raw 2p tif files, optionally remove uncompressed data.&quot;&quot;&quot;</span>
 
     <span class="n">priority</span> <span class="o">=</span> <span class="mi">90</span>
@@ -190,17 +213,23 @@
         <span class="p">}</span>
         <span class="k">return</span> <span class="n">signature</span>
 
-<div class="viewcode-block" id="MesoscopeCompress.setUp"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.mesoscope_tasks.html#ibllib.pipes.mesoscope_tasks.MesoscopeCompress.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<div class="viewcode-block" id="MesoscopeCompress.setUp">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.mesoscope_tasks.html#ibllib.pipes.mesoscope_tasks.MesoscopeCompress.setUp">[docs]</a>
+    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Run at higher log level&quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_log_level</span> <span class="o">=</span> <span class="n">_logger</span><span class="o">.</span><span class="n">level</span>
         <span class="n">_logger</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">)</span>
         <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">setUp</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="MesoscopeCompress.tearDown"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.mesoscope_tasks.html#ibllib.pipes.mesoscope_tasks.MesoscopeCompress.tearDown">[docs]</a>    <span class="k">def</span> <span class="nf">tearDown</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+<div class="viewcode-block" id="MesoscopeCompress.tearDown">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.mesoscope_tasks.html#ibllib.pipes.mesoscope_tasks.MesoscopeCompress.tearDown">[docs]</a>
+    <span class="k">def</span> <span class="nf">tearDown</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">_logger</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_log_level</span> <span class="ow">or</span> <span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
         <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">tearDown</span><span class="p">()</span></div>
 
-    <span class="k">def</span> <span class="nf">_run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">remove_uncompressed</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">verify_output</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">clobber</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">_run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">remove_uncompressed</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">verify_output</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">clobber</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Run tar compression on all tif files in the device collection.</span>
 
@@ -282,11 +311,14 @@
         <span class="k">return</span> <span class="n">outfiles</span></div>
 
 
-<div class="viewcode-block" id="MesoscopePreprocess"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.mesoscope_tasks.html#ibllib.pipes.mesoscope_tasks.MesoscopePreprocess">[docs]</a><span class="k">class</span> <span class="nc">MesoscopePreprocess</span><span class="p">(</span><span class="n">base_tasks</span><span class="o">.</span><span class="n">MesoscopeTask</span><span class="p">):</span>
+
+<div class="viewcode-block" id="MesoscopePreprocess">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.mesoscope_tasks.html#ibllib.pipes.mesoscope_tasks.MesoscopePreprocess">[docs]</a>
+<span class="k">class</span> <span class="nc">MesoscopePreprocess</span><span class="p">(</span><span class="n">base_tasks</span><span class="o">.</span><span class="n">MesoscopeTask</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Run suite2p preprocessing on tif files&quot;&quot;&quot;</span>
 
     <span class="n">priority</span> <span class="o">=</span> <span class="mi">80</span>
-    <span class="n">cpu</span> <span class="o">=</span> <span class="mi">4</span>
+    <span class="n">cpu</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
     <span class="n">job_size</span> <span class="o">=</span> <span class="s1">&#39;large&#39;</span>
 
     <span class="nd">@property</span>
@@ -393,7 +425,11 @@
                 <span class="n">dst</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
                 <span class="n">_logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Moving bin file to </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">dst</span><span class="o">.</span><span class="n">relative_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">))</span>
                 <span class="n">fov_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;data.bin&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">dst</span><span class="p">)</span>
+            <span class="c1"># Set logger to warning for the moment to not clutter the logs</span>
+            <span class="n">prev_level</span> <span class="o">=</span> <span class="n">_logger</span><span class="o">.</span><span class="n">level</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">WARNING</span><span class="p">)</span>
             <span class="n">shutil</span><span class="o">.</span><span class="n">make_archive</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">target</span> <span class="o">/</span> <span class="s1">&#39;_suite2p_ROIData.raw&#39;</span><span class="p">),</span> <span class="s1">&#39;zip&#39;</span><span class="p">,</span> <span class="n">fov_dir</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">_logger</span><span class="p">)</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">prev_level</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">fov_dir</span> <span class="o">!=</span> <span class="s1">&#39;combined&#39;</span><span class="p">:</span>
                 <span class="c1"># save frameQC in each dir (for now, maybe there will be fov specific frame QC eventually)</span>
                 <span class="k">if</span> <span class="n">frameQC</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">frameQC</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
@@ -413,7 +449,7 @@
                 <span class="n">np</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">fov_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;mpciMeanImage.images.npy&#39;</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">ops</span><span class="p">[</span><span class="s1">&#39;meanImg&#39;</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">))</span>
                 <span class="n">np</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">fov_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;mpciROIs.stackPos.npy&#39;</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">([(</span><span class="o">*</span><span class="n">s</span><span class="p">[</span><span class="s1">&#39;med&#39;</span><span class="p">],</span> <span class="mi">0</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">stat</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">))</span>
                 <span class="n">np</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">fov_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;mpciROIs.cellClassifier.npy&#39;</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">iscell</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">))</span>
-                <span class="n">np</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">fov_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;mpciROIs.mpciROITypes.npy&#39;</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">iscell</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">))</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">fov_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;mpciROIs.mpciROITypes.npy&#39;</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">iscell</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int16</span><span class="p">))</span>
                 <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">([(</span><span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;no cell&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;cell&#39;</span><span class="p">)],</span> <span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;roi_values&#39;</span><span class="p">,</span> <span class="s1">&#39;roi_labels&#39;</span><span class="p">]</span>
                              <span class="p">)</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">fov_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;mpciROITypes.names.tsv&#39;</span><span class="p">),</span> <span class="n">sep</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
                 <span class="c1"># ROI and neuropil masks</span>
@@ -512,6 +548,30 @@
 
         <span class="k">return</span> <span class="n">frameQC</span><span class="p">,</span> <span class="n">frameQC_names</span><span class="p">,</span> <span class="n">bad_frames</span>
 
+<div class="viewcode-block" id="MesoscopePreprocess.get_default_tau">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.mesoscope_tasks.html#ibllib.pipes.mesoscope_tasks.MesoscopePreprocess.get_default_tau">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_default_tau</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Determine the tau (fluorescence decay) from the subject&#39;s genotype.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        float</span>
+<span class="sd">            The tau value to use.</span>
+
+<span class="sd">        See Also</span>
+<span class="sd">        --------</span>
+<span class="sd">        https://suite2p.readthedocs.io/en/latest/settings.html</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># These settings are from the suite2P documentation</span>
+        <span class="n">TAU_MAP</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;G6s&#39;</span><span class="p">:</span> <span class="mf">1.5</span><span class="p">,</span> <span class="s1">&#39;G6m&#39;</span><span class="p">:</span> <span class="mf">1.</span><span class="p">,</span> <span class="s1">&#39;G6f&#39;</span><span class="p">:</span> <span class="mf">.7</span><span class="p">,</span> <span class="s1">&#39;default&#39;</span><span class="p">:</span> <span class="mf">1.5</span><span class="p">}</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">subject</span><span class="p">,</span> <span class="o">*</span><span class="n">_</span> <span class="o">=</span> <span class="n">session_path_parts</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="n">genotype</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;subjects&#39;</span><span class="p">,</span> <span class="s1">&#39;read&#39;</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">subject</span><span class="p">)[</span><span class="s1">&#39;genotype&#39;</span><span class="p">]</span>
+        <span class="n">match</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="p">(</span><span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;.+-(G\d[fms])$&#39;</span><span class="p">,</span> <span class="n">g</span><span class="p">[</span><span class="s1">&#39;allele&#39;</span><span class="p">])</span> <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">genotype</span><span class="p">)),</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">key</span> <span class="o">=</span> <span class="n">match</span><span class="o">.</span><span class="n">groups</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="n">match</span> <span class="k">else</span> <span class="s1">&#39;default&#39;</span>
+        <span class="k">return</span> <span class="n">TAU_MAP</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">TAU_MAP</span><span class="p">[</span><span class="s1">&#39;default&#39;</span><span class="p">])</span></div>
+
+
     <span class="k">def</span> <span class="nf">_create_db</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">meta</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Create the ops dictionary for suite2p based on metadata.</span>
@@ -528,6 +588,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="c1"># Currently only supporting single plane, assert that this is the case</span>
+        <span class="c1"># FIXME This checks for zstacks but not dual plane mode</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">meta</span><span class="p">[</span><span class="s1">&#39;scanImageParams&#39;</span><span class="p">][</span><span class="s1">&#39;hStackManager&#39;</span><span class="p">][</span><span class="s1">&#39;zs&#39;</span><span class="p">],</span> <span class="nb">int</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;Multi-plane imaging not yet supported, data seems to be multi-plane&#39;</span><span class="p">)</span>
 
@@ -570,7 +631,7 @@
             <span class="s1">&#39;nchannels&#39;</span><span class="p">:</span> <span class="n">nchannels</span><span class="p">,</span>
             <span class="s1">&#39;fs&#39;</span><span class="p">:</span> <span class="n">meta</span><span class="p">[</span><span class="s1">&#39;scanImageParams&#39;</span><span class="p">][</span><span class="s1">&#39;hRoiManager&#39;</span><span class="p">][</span><span class="s1">&#39;scanVolumeRate&#39;</span><span class="p">],</span>
             <span class="s1">&#39;lines&#39;</span><span class="p">:</span> <span class="p">[</span><span class="nb">list</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">fov</span><span class="p">[</span><span class="s1">&#39;lineIdx&#39;</span><span class="p">])</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">fov</span> <span class="ow">in</span> <span class="n">meta</span><span class="p">[</span><span class="s1">&#39;FOV&#39;</span><span class="p">]],</span>  <span class="c1"># subtracting 1 to make 0-based</span>
-            <span class="s1">&#39;tau&#39;</span><span class="p">:</span> <span class="mf">1.5</span><span class="p">,</span>  <span class="c1"># 1.5 is recommended for GCaMP6s TODO: potential deduct the GCamp used from Alyx mouse line?</span>
+            <span class="s1">&#39;tau&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_default_tau</span><span class="p">(),</span>  <span class="c1"># deduce the GCamp used from Alyx mouse line (defaults to 1.5; that of GCaMP6s)</span>
             <span class="s1">&#39;functional_chan&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>  <span class="c1"># for now, eventually find(ismember(meta.channelSaved == meta.channelID.green))</span>
             <span class="s1">&#39;align_by_chan&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>  <span class="c1"># for now, eventually find(ismember(meta.channelSaved == meta.channelID.red))</span>
             <span class="s1">&#39;dx&#39;</span><span class="p">:</span> <span class="n">dx</span><span class="p">,</span>
@@ -579,7 +640,7 @@
 
         <span class="k">return</span> <span class="n">db</span>
 
-    <span class="k">def</span> <span class="nf">_run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">run_suite2p</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">rename_files</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">use_badframes</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">run_suite2p</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">rename_files</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">use_badframes</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Process inputs, run suite2p and make outputs alf compatible.</span>
 
@@ -591,7 +652,7 @@
 <span class="sd">            Whether to rename and reorganize the suite2p outputs to be alf compatible. Defaults is True.</span>
 <span class="sd">        use_badframes: bool</span>
 <span class="sd">            Whether to exclude bad frames indicated by the experimenter in exptQC.mat. Default is currently False</span>
-<span class="sd">            due to bug in suite2p. Change this in the future</span>
+<span class="sd">            due to bug in suite2p. Change this in the future.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -660,7 +721,10 @@
         <span class="k">return</span> <span class="n">out_files</span></div>
 
 
-<div class="viewcode-block" id="MesoscopeSync"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.mesoscope_tasks.html#ibllib.pipes.mesoscope_tasks.MesoscopeSync">[docs]</a><span class="k">class</span> <span class="nc">MesoscopeSync</span><span class="p">(</span><span class="n">base_tasks</span><span class="o">.</span><span class="n">MesoscopeTask</span><span class="p">):</span>
+
+<div class="viewcode-block" id="MesoscopeSync">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.mesoscope_tasks.html#ibllib.pipes.mesoscope_tasks.MesoscopeSync">[docs]</a>
+<span class="k">class</span> <span class="nc">MesoscopeSync</span><span class="p">(</span><span class="n">base_tasks</span><span class="o">.</span><span class="n">MesoscopeTask</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Extract the frame times from the main DAQ.&quot;&quot;&quot;</span>
 
     <span class="n">priority</span> <span class="o">=</span> <span class="mi">40</span>
@@ -712,8 +776,11 @@
         <span class="k">return</span> <span class="n">out_files</span></div>
 
 
-<div class="viewcode-block" id="MesoscopeFOV"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.mesoscope_tasks.html#ibllib.pipes.mesoscope_tasks.MesoscopeFOV">[docs]</a><span class="k">class</span> <span class="nc">MesoscopeFOV</span><span class="p">(</span><span class="n">base_tasks</span><span class="o">.</span><span class="n">MesoscopeTask</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create FOV and FOV location objects in Alyx from metadata&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="MesoscopeFOV">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.mesoscope_tasks.html#ibllib.pipes.mesoscope_tasks.MesoscopeFOV">[docs]</a>
+<span class="k">class</span> <span class="nc">MesoscopeFOV</span><span class="p">(</span><span class="n">base_tasks</span><span class="o">.</span><span class="n">MesoscopeTask</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create FOV and FOV location objects in Alyx from metadata.&quot;&quot;&quot;</span>
 
     <span class="n">priority</span> <span class="o">=</span> <span class="mi">40</span>
     <span class="n">job_size</span> <span class="o">=</span> <span class="s1">&#39;small&#39;</span>
@@ -721,13 +788,32 @@
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">signature</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">signature</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="s1">&#39;input_files&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;_ibl_rawImagingData.meta.json&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">device_collection</span><span class="p">,</span> <span class="kc">True</span><span class="p">)],</span>
-            <span class="s1">&#39;output_files&#39;</span><span class="p">:</span> <span class="p">[]</span>
+            <span class="s1">&#39;input_files&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;_ibl_rawImagingData.meta.json&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">device_collection</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                            <span class="p">(</span><span class="s1">&#39;mpciROIs.stackPos.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf/FOV*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)],</span>
+            <span class="s1">&#39;output_files&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;mpciMeanImage.brainLocationIds*.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf/FOV_*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                             <span class="p">(</span><span class="s1">&#39;mpciMeanImage.mlapdv*.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf/FOV_*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                             <span class="p">(</span><span class="s1">&#39;mpciROIs.mlapdv*.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf/FOV_*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                             <span class="p">(</span><span class="s1">&#39;mpciROIs.brainLocationIds*.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf/FOV_*&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                             <span class="p">(</span><span class="s1">&#39;_ibl_rawImagingData.meta.json&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">device_collection</span><span class="p">,</span> <span class="kc">True</span><span class="p">)]</span>
         <span class="p">}</span>
         <span class="k">return</span> <span class="n">signature</span>
 
-    <span class="k">def</span> <span class="nf">_run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">provenance</span><span class="o">=</span><span class="n">Provenance</span><span class="o">.</span><span class="n">ESTIMATE</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Register fields of view (FOV) to Alyx and extract the coordinates and IDs of each ROI.</span>
+
+<span class="sd">        Steps:</span>
+<span class="sd">            1. Save the mpciMeanImage.brainLocationIds_estimate and mlapdv datasets.</span>
+<span class="sd">            2. Use mean image coordinates and ROI stack position datasets to extract brain location</span>
+<span class="sd">             of each ROI.</span>
+<span class="sd">            3. Register the location of each FOV in Alyx.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        provenance : Provenance</span>
+<span class="sd">            The provenance of the coordinates in the meta file. For all but &#39;HISTOLOGY&#39;, the</span>
+<span class="sd">            provenance is added as a dataset suffix.  Defaults to ESTIMATE.</span>
+
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
 <span class="sd">        dict</span>
@@ -737,37 +823,614 @@
 
 <span class="sd">        Notes</span>
 <span class="sd">        -----</span>
-<span class="sd">        TODO move out of run method for convenience</span>
-<span class="sd">        TODO Deal with already created FOVs</span>
-
+<span class="sd">        Once the FOVs have been registered they cannot be updated with with task. Rerunning this</span>
+<span class="sd">        task will result in an error.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">FACTOR</span> <span class="o">=</span> <span class="mf">1e3</span>  <span class="c1"># The meta data are in mm, while the FOV in alyx is in um</span>
+        <span class="c1"># Load necessary data</span>
+        <span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">collection</span><span class="p">,</span> <span class="n">_</span><span class="p">),</span> <span class="o">*</span><span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="p">[</span><span class="s1">&#39;input_files&#39;</span><span class="p">]</span>
+        <span class="n">meta_file</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">collection</span><span class="si">}</span><span class="s1">/</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">meta</span> <span class="o">=</span> <span class="n">alfio</span><span class="o">.</span><span class="n">load_file_content</span><span class="p">(</span><span class="n">meta_file</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{}</span>
+        <span class="n">nFOV</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;FOV&#39;</span><span class="p">,</span> <span class="p">[]))</span>
+
+        <span class="n">suffix</span> <span class="o">=</span> <span class="kc">None</span> <span class="k">if</span> <span class="n">provenance</span> <span class="ow">is</span> <span class="n">Provenance</span><span class="o">.</span><span class="n">HISTOLOGY</span> <span class="k">else</span> <span class="n">provenance</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Extracting </span><span class="si">%s</span><span class="s1"> MLAPDV datasets&#39;</span><span class="p">,</span> <span class="n">suffix</span> <span class="ow">or</span> <span class="s1">&#39;final&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Extract mean image MLAPDV coordinates and brain location IDs</span>
+        <span class="n">mean_image_mlapdv</span><span class="p">,</span> <span class="n">mean_image_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">project_mlapdv</span><span class="p">(</span><span class="n">meta</span><span class="p">)</span>
+
+        <span class="c1"># Save the meta data file with new coordinate fields</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">meta_file</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fp</span><span class="p">:</span>
+            <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">meta</span><span class="p">,</span> <span class="n">fp</span><span class="p">)</span>
+
+        <span class="c1"># Save the mean image datasets</span>
+        <span class="n">mean_image_files</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">assert</span> <span class="nb">set</span><span class="p">(</span><span class="n">mean_image_mlapdv</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="o">==</span> <span class="nb">set</span><span class="p">(</span><span class="n">mean_image_ids</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">mean_image_ids</span><span class="p">)</span> <span class="o">==</span> <span class="n">nFOV</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nFOV</span><span class="p">):</span>
+            <span class="n">alf_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;FOV_</span><span class="si">{</span><span class="n">i</span><span class="si">:</span><span class="s1">02</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">attr</span><span class="p">,</span> <span class="n">arr</span><span class="p">,</span> <span class="n">sfx</span> <span class="ow">in</span> <span class="p">((</span><span class="s1">&#39;mlapdv&#39;</span><span class="p">,</span> <span class="n">mean_image_mlapdv</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">suffix</span><span class="p">),</span>
+                                   <span class="p">(</span><span class="s1">&#39;brainLocationIds&#39;</span><span class="p">,</span> <span class="n">mean_image_ids</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="p">(</span><span class="s1">&#39;ccf&#39;</span><span class="p">,</span> <span class="s1">&#39;2017&#39;</span><span class="p">,</span> <span class="n">suffix</span><span class="p">))):</span>
+                <span class="n">mean_image_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">alf_path</span> <span class="o">/</span> <span class="n">to_alf</span><span class="p">(</span><span class="s1">&#39;mpciMeanImage&#39;</span><span class="p">,</span> <span class="n">attr</span><span class="p">,</span> <span class="s1">&#39;npy&#39;</span><span class="p">,</span> <span class="n">timescale</span><span class="o">=</span><span class="n">sfx</span><span class="p">))</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">mean_image_files</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">arr</span><span class="p">)</span>
+
+        <span class="c1"># Extract ROI MLAPDV coordinates and brain location IDs</span>
+        <span class="n">roi_mlapdv</span><span class="p">,</span> <span class="n">roi_brain_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">roi_mlapdv</span><span class="p">(</span><span class="n">nFOV</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="n">suffix</span><span class="p">)</span>
+
+        <span class="c1"># Write MLAPDV + brain location ID of ROIs to disk</span>
+        <span class="n">roi_files</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">assert</span> <span class="nb">set</span><span class="p">(</span><span class="n">roi_mlapdv</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="o">==</span> <span class="nb">set</span><span class="p">(</span><span class="n">roi_brain_ids</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">roi_mlapdv</span><span class="p">)</span> <span class="o">==</span> <span class="n">nFOV</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nFOV</span><span class="p">):</span>
+            <span class="n">alf_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;FOV_</span><span class="si">{</span><span class="n">i</span><span class="si">:</span><span class="s1">02</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">attr</span><span class="p">,</span> <span class="n">arr</span><span class="p">,</span> <span class="n">sfx</span> <span class="ow">in</span> <span class="p">((</span><span class="s1">&#39;mlapdv&#39;</span><span class="p">,</span> <span class="n">roi_mlapdv</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">suffix</span><span class="p">),</span>
+                                   <span class="p">(</span><span class="s1">&#39;brainLocationIds&#39;</span><span class="p">,</span> <span class="n">roi_brain_ids</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="p">(</span><span class="s1">&#39;ccf&#39;</span><span class="p">,</span> <span class="s1">&#39;2017&#39;</span><span class="p">,</span> <span class="n">suffix</span><span class="p">))):</span>
+                <span class="n">roi_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">alf_path</span> <span class="o">/</span> <span class="n">to_alf</span><span class="p">(</span><span class="s1">&#39;mpciROIs&#39;</span><span class="p">,</span> <span class="n">attr</span><span class="p">,</span> <span class="s1">&#39;npy&#39;</span><span class="p">,</span> <span class="n">timescale</span><span class="o">=</span><span class="n">sfx</span><span class="p">))</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">roi_files</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">arr</span><span class="p">)</span>
+
+        <span class="c1"># Register FOVs in Alyx</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">register_fov</span><span class="p">(</span><span class="n">meta</span><span class="p">,</span> <span class="n">suffix</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="nb">sorted</span><span class="p">([</span><span class="n">meta_file</span><span class="p">,</span> <span class="o">*</span><span class="n">roi_files</span><span class="p">,</span> <span class="o">*</span><span class="n">mean_image_files</span><span class="p">])</span>
+
+<div class="viewcode-block" id="MesoscopeFOV.roi_mlapdv">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.mesoscope_tasks.html#ibllib.pipes.mesoscope_tasks.MesoscopeFOV.roi_mlapdv">[docs]</a>
+    <span class="k">def</span> <span class="nf">roi_mlapdv</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nFOV</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Extract ROI MLAPDV coordinates and brain location IDs.</span>
+
+<span class="sd">        MLAPDV coordinates are in um relative to bregma.  Location IDs are from the 2017 Allen</span>
+<span class="sd">        common coordinate framework atlas.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        nFOV : int</span>
+<span class="sd">            The number of fields of view acquired.</span>
+<span class="sd">        suffix : {None, &#39;estimate&#39;}</span>
+<span class="sd">            The attribute suffix of the mpciMeanImage datasets to load. If generating from</span>
+<span class="sd">            estimates, the suffix should be &#39;estimate&#39;.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        dict of int: numpy.array</span>
+<span class="sd">            A map of field of view to ROI MLAPDV coordinates.</span>
+<span class="sd">        dict of int: numpy.array</span>
+<span class="sd">            A map of field of view to ROI brain location IDs.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">all_mlapdv</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">all_brain_ids</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nFOV</span><span class="p">):</span>
+            <span class="n">alf_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;FOV_</span><span class="si">{</span><span class="n">n</span><span class="si">:</span><span class="s1">02</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+
+            <span class="c1"># Load neuron centroids in pixel space</span>
+            <span class="n">stack_pos_file</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">alf_path</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s1">&#39;mpciROIs.stackPos*&#39;</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">stack_pos_file</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="n">alf_path</span> <span class="o">/</span> <span class="s1">&#39;mpci.stackPos*&#39;</span><span class="p">)</span>
+            <span class="n">stack_pos</span> <span class="o">=</span> <span class="n">alfio</span><span class="o">.</span><span class="n">load_file_content</span><span class="p">(</span><span class="n">stack_pos_file</span><span class="p">)</span>
+
+            <span class="c1"># Load MLAPDV + brain location ID maps of pixels</span>
+            <span class="n">mpciMeanImage</span> <span class="o">=</span> <span class="n">alfio</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span>
+                <span class="n">alf_path</span><span class="p">,</span> <span class="s1">&#39;mpciMeanImage&#39;</span><span class="p">,</span> <span class="n">attribute</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;mlapdv&#39;</span><span class="p">,</span> <span class="s1">&#39;brainLocationIds&#39;</span><span class="p">])</span>
+
+            <span class="c1"># Get centroid MLAPDV + brainID by indexing pixel-map with centroid locations</span>
+            <span class="n">mlapdv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">stack_pos</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+            <span class="n">brain_ids</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">stack_pos</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">stack_pos</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+                <span class="n">idx</span> <span class="o">=</span> <span class="p">(</span><span class="n">stack_pos</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">stack_pos</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+                <span class="n">sfx</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;_</span><span class="si">{</span><span class="n">suffix</span><span class="si">}</span><span class="s1">&#39;</span> <span class="k">if</span> <span class="n">suffix</span> <span class="k">else</span> <span class="s1">&#39;&#39;</span>
+                <span class="n">mlapdv</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">mpciMeanImage</span><span class="p">[</span><span class="s1">&#39;mlapdv&#39;</span> <span class="o">+</span> <span class="n">sfx</span><span class="p">][</span><span class="n">idx</span><span class="p">]</span>
+                <span class="n">brain_ids</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">mpciMeanImage</span><span class="p">[</span><span class="s1">&#39;brainLocationIds_ccf_2017&#39;</span> <span class="o">+</span> <span class="n">sfx</span><span class="p">][</span><span class="n">idx</span><span class="p">]</span>
+            <span class="k">assert</span> <span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">brain_ids</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">()</span>
+            <span class="n">all_brain_ids</span><span class="p">[</span><span class="n">n</span><span class="p">]</span> <span class="o">=</span> <span class="n">brain_ids</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+            <span class="n">all_mlapdv</span><span class="p">[</span><span class="n">n</span><span class="p">]</span> <span class="o">=</span> <span class="n">mlapdv</span>
+
+        <span class="k">return</span> <span class="n">all_mlapdv</span><span class="p">,</span> <span class="n">all_brain_ids</span></div>
+
+
+<div class="viewcode-block" id="MesoscopeFOV.get_provenance">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.mesoscope_tasks.html#ibllib.pipes.mesoscope_tasks.MesoscopeFOV.get_provenance">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">get_provenance</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the field of view provenance from a mpciMeanImage or mpciROIs dataset.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        filename : str, pathlib.Path</span>
+<span class="sd">            A filename to get the provenance from.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        Provenance</span>
+<span class="sd">            The provenance of the file.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">filename</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span><span class="o">.</span><span class="n">name</span>
+        <span class="n">timescale</span> <span class="o">=</span> <span class="p">(</span><span class="n">filename_parts</span><span class="p">(</span><span class="n">filename</span><span class="p">)[</span><span class="mi">3</span><span class="p">]</span> <span class="ow">or</span> <span class="s1">&#39;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)</span>
+        <span class="n">provenances</span> <span class="o">=</span> <span class="p">[</span><span class="n">i</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">Provenance</span><span class="p">]</span>
+        <span class="n">provenance</span> <span class="o">=</span> <span class="p">(</span><span class="n">Provenance</span><span class="p">[</span><span class="n">x</span><span class="o">.</span><span class="n">upper</span><span class="p">()]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">timescale</span> <span class="k">if</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">provenances</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">next</span><span class="p">(</span><span class="n">provenance</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="n">Provenance</span><span class="o">.</span><span class="n">HISTOLOGY</span></div>
+
+
+<div class="viewcode-block" id="MesoscopeFOV.register_fov">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.mesoscope_tasks.html#ibllib.pipes.mesoscope_tasks.MesoscopeFOV.register_fov">[docs]</a>
+    <span class="k">def</span> <span class="nf">register_fov</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">meta</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">suffix</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create FOV on Alyx.</span>
+
+<span class="sd">        Assumes field of view recorded perpendicular to objective.</span>
+<span class="sd">        Assumes field of view is plane (negligible volume).</span>
+
+<span class="sd">        Required Alyx fixtures:</span>
+<span class="sd">            - experiments.ImagingType(name=&#39;mesoscope&#39;)</span>
+<span class="sd">            - experiments.CoordinateSystem(name=&#39;IBL-Allen&#39;)</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        meta : dict</span>
+<span class="sd">            The raw imaging meta data from _ibl_rawImagingData.meta.json.</span>
+<span class="sd">        suffix : str</span>
+<span class="sd">            The file attribute suffixes to load from the mpciMeanImage object. Either &#39;estimate&#39; or</span>
+<span class="sd">            None. No suffix means the FOV location provenance will be L (Landmark).</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        list of dict</span>
+<span class="sd">            A list registered of field of view entries from Alyx.</span>
+
+<span class="sd">        TODO Determine dual plane ID for JSON field</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">dry</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">offline</span>
-        <span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">collection</span><span class="p">,</span> <span class="n">_</span><span class="p">),</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="p">[</span><span class="s1">&#39;input_files&#39;</span><span class="p">]</span>
-        <span class="n">meta</span> <span class="o">=</span> <span class="n">alfio</span><span class="o">.</span><span class="n">load_file_content</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span> <span class="o">/</span> <span class="n">collection</span> <span class="o">/</span> <span class="n">filename</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{}</span>
+        <span class="n">alyx_fovs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="c1"># Count the number of slices per stack ID: only register stacks that contain more than one slice.</span>
+        <span class="n">slice_counts</span> <span class="o">=</span> <span class="n">Counter</span><span class="p">(</span><span class="n">f</span><span class="p">[</span><span class="s1">&#39;roiUUID&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;FOV&#39;</span><span class="p">,</span> <span class="p">[]))</span>
+        <span class="c1"># Create a new stack in Alyx for all stacks containing more than one slice.</span>
+        <span class="c1"># Map of ScanImage ROI UUID to Alyx ImageStack UUID.</span>
+        <span class="n">stack_ids</span> <span class="o">=</span> <span class="p">{</span><span class="n">i</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;imaging-stack&#39;</span><span class="p">,</span> <span class="s1">&#39;create&#39;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="n">i</span><span class="p">})[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span>
+                     <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">slice_counts</span> <span class="k">if</span> <span class="n">slice_counts</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">}</span>
 
-        <span class="n">alyx_FOV</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="s1">&#39;session&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span> <span class="k">if</span> <span class="n">dry</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">path2eid</span><span class="p">(),</span>
-            <span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;mesoscope&#39;</span>
-        <span class="p">}</span>
-        <span class="k">if</span> <span class="n">dry</span><span class="p">:</span>
-            <span class="nb">print</span><span class="p">(</span><span class="n">alyx_FOV</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">alyx_FOV</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;FOV&#39;</span><span class="p">,</span> <span class="s1">&#39;create&#39;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">alyx_FOV</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">fov</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;FOV&#39;</span><span class="p">,</span> <span class="p">[])):</span>
+            <span class="k">assert</span> <span class="nb">set</span><span class="p">(</span><span class="n">fov</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="o">&gt;=</span> <span class="p">{</span><span class="s1">&#39;MLAPDV&#39;</span><span class="p">,</span> <span class="s1">&#39;nXnYnZ&#39;</span><span class="p">,</span> <span class="s1">&#39;roiUUID&#39;</span><span class="p">}</span>
+            <span class="c1"># Field of view</span>
+            <span class="n">alyx_FOV</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s1">&#39;session&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">as_posix</span><span class="p">()</span> <span class="k">if</span> <span class="n">dry</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">path2eid</span><span class="p">(),</span>
+                <span class="s1">&#39;imaging_type&#39;</span><span class="p">:</span> <span class="s1">&#39;mesoscope&#39;</span><span class="p">,</span> <span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="sa">f</span><span class="s1">&#39;FOV_</span><span class="si">{</span><span class="n">i</span><span class="si">:</span><span class="s1">02</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;stack&#39;</span><span class="p">:</span> <span class="n">stack_ids</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">fov</span><span class="p">[</span><span class="s1">&#39;roiUUID&#39;</span><span class="p">])</span>
+            <span class="p">}</span>
+            <span class="k">if</span> <span class="n">dry</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="n">alyx_FOV</span><span class="p">)</span>
+                <span class="n">alyx_FOV</span><span class="p">[</span><span class="s1">&#39;location&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="n">alyx_fovs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">alyx_FOV</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">alyx_fovs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;fields-of-view&#39;</span><span class="p">,</span> <span class="s1">&#39;create&#39;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">alyx_FOV</span><span class="p">))</span>
 
-        <span class="n">locations</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">fov</span> <span class="ow">in</span> <span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;FOV&#39;</span><span class="p">,</span> <span class="p">[]):</span>
-            <span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;field_of_view&#39;</span><span class="p">:</span> <span class="n">alyx_FOV</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">),</span> <span class="s1">&#39;provenance&#39;</span><span class="p">:</span> <span class="s1">&#39;Landmark&#39;</span><span class="p">}</span>
-            <span class="c1"># TODO Get z values</span>
-            <span class="n">x1</span><span class="p">,</span> <span class="n">y1</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">*</span> <span class="n">FACTOR</span><span class="p">,</span> <span class="n">fov</span><span class="p">[</span><span class="s1">&#39;topLeftMM&#39;</span><span class="p">])</span>
-            <span class="n">x2</span><span class="p">,</span> <span class="n">y2</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">*</span> <span class="n">FACTOR</span><span class="p">,</span> <span class="n">fov</span><span class="p">[</span><span class="s1">&#39;topLeftMM&#39;</span><span class="p">])</span>
-            <span class="c1"># TODO Brain region estimate</span>
+            <span class="c1"># Field of view location</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;field_of_view&#39;</span><span class="p">:</span> <span class="n">alyx_fovs</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">),</span>
+                    <span class="s1">&#39;default_provenance&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+                    <span class="s1">&#39;coordinate_system&#39;</span><span class="p">:</span> <span class="s1">&#39;IBL-Allen&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;n_xyz&#39;</span><span class="p">:</span> <span class="n">fov</span><span class="p">[</span><span class="s1">&#39;nXnYnZ&#39;</span><span class="p">]}</span>
+            <span class="k">if</span> <span class="n">suffix</span><span class="p">:</span>
+                <span class="n">data</span><span class="p">[</span><span class="s1">&#39;provenance&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">suffix</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span>
+
+            <span class="c1"># Convert coordinates to 4 x 3 array (n corners by n dimensions)</span>
+            <span class="c1"># x1 = top left ml, y1 = top left ap, y2 = top right ap, etc.</span>
+            <span class="n">coords</span> <span class="o">=</span> <span class="p">[</span><span class="n">fov</span><span class="p">[</span><span class="s1">&#39;MLAPDV&#39;</span><span class="p">][</span><span class="n">key</span><span class="p">]</span> <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;topLeft&#39;</span><span class="p">,</span> <span class="s1">&#39;topRight&#39;</span><span class="p">,</span> <span class="s1">&#39;bottomLeft&#39;</span><span class="p">,</span> <span class="s1">&#39;bottomRight&#39;</span><span class="p">)]</span>
+            <span class="n">coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">(</span><span class="n">coords</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+            <span class="n">data</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="n">arr</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">arr</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="s1">&#39;xyz&#39;</span><span class="p">,</span> <span class="n">coords</span><span class="p">)})</span>
+
+            <span class="c1"># Load MLAPDV + brain location ID maps of pixels</span>
+            <span class="n">filename</span> <span class="o">=</span> <span class="s1">&#39;mpciMeanImage.brainLocationIds_ccf_2017&#39;</span> <span class="o">+</span> <span class="p">(</span><span class="sa">f</span><span class="s1">&#39;_</span><span class="si">{</span><span class="n">suffix</span><span class="si">}</span><span class="s1">&#39;</span> <span class="k">if</span> <span class="n">suffix</span> <span class="k">else</span> <span class="s1">&#39;&#39;</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;.npy&#39;</span>
+            <span class="n">filepath</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;FOV_</span><span class="si">{</span><span class="n">i</span><span class="si">:</span><span class="s1">02</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
+            <span class="n">mean_image_ids</span> <span class="o">=</span> <span class="n">alfio</span><span class="o">.</span><span class="n">load_file_content</span><span class="p">(</span><span class="n">filepath</span><span class="p">)</span>
+
+            <span class="n">data</span><span class="p">[</span><span class="s1">&#39;brain_region&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">mean_image_ids</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+
             <span class="k">if</span> <span class="n">dry</span><span class="p">:</span>
                 <span class="nb">print</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
-                <span class="n">locations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
-                <span class="k">continue</span>
-            <span class="n">locations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;FOVLocation&#39;</span><span class="p">,</span> <span class="s1">&#39;create&#39;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">data</span><span class="p">))</span>
-        <span class="k">return</span> <span class="n">alyx_FOV</span><span class="p">,</span> <span class="n">locations</span></div>
+                <span class="n">alyx_FOV</span><span class="p">[</span><span class="s1">&#39;location&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">alyx_fovs</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s1">&#39;location&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;fov-location&#39;</span><span class="p">,</span> <span class="s1">&#39;create&#39;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">data</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">alyx_fovs</span></div>
+
+
+<div class="viewcode-block" id="MesoscopeFOV.load_triangulation">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.mesoscope_tasks.html#ibllib.pipes.mesoscope_tasks.MesoscopeFOV.load_triangulation">[docs]</a>
+    <span class="k">def</span> <span class="nf">load_triangulation</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Load the surface triangulation file.</span>
+
+<span class="sd">        A triangle mesh of the smoothed convex hull of the dorsal surface of the mouse brain,</span>
+<span class="sd">        generated from the 2017 Allen 10um annotation volume. This triangulation was generated in</span>
+<span class="sd">        MATLAB.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        points : numpy.array</span>
+<span class="sd">            An N by 3 float array of x-y vertices, defining all points of the triangle mesh. These</span>
+<span class="sd">            are in um relative to the IBL bregma coordinates.</span>
+<span class="sd">        connectivity_list : numpy.array</span>
+<span class="sd">            An N by 3 integer array of vertex indices defining all points that form a triangle.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">fixture_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">mesoscope</span><span class="o">.</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;mesoscope&#39;</span><span class="p">)</span>
+        <span class="n">surface_triangulation</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">fixture_path</span> <span class="o">/</span> <span class="s1">&#39;surface_triangulation.npz&#39;</span><span class="p">)</span>
+        <span class="n">points</span> <span class="o">=</span> <span class="n">surface_triangulation</span><span class="p">[</span><span class="s1">&#39;points&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s1">&#39;f8&#39;</span><span class="p">)</span>
+        <span class="n">connectivity_list</span> <span class="o">=</span> <span class="n">surface_triangulation</span><span class="p">[</span><span class="s1">&#39;connectivity_list&#39;</span><span class="p">]</span>
+        <span class="n">surface_triangulation</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">points</span><span class="p">,</span> <span class="n">connectivity_list</span></div>
+
+
+<div class="viewcode-block" id="MesoscopeFOV.project_mlapdv">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.mesoscope_tasks.html#ibllib.pipes.mesoscope_tasks.MesoscopeFOV.project_mlapdv">[docs]</a>
+    <span class="k">def</span> <span class="nf">project_mlapdv</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">meta</span><span class="p">,</span> <span class="n">atlas</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculate the mean image pixel locations in MLAPDV coordinates and determine the brain</span>
+<span class="sd">        location IDs.</span>
+
+<span class="sd">        MLAPDV coordinates are in um relative to bregma.  Location IDs are from the 2017 Allen</span>
+<span class="sd">        common coordinate framework atlas.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        meta : dict</span>
+<span class="sd">            The raw imaging data meta file, containing coordinates for the centre of each field of</span>
+<span class="sd">            view.</span>
+<span class="sd">        atlas : ibllib.atlas.Atlas</span>
+<span class="sd">            An atlas instance.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        dict</span>
+<span class="sd">            A map of FOV number (int) to mean image MLAPDV coordinates as a 2D numpy array.</span>
+<span class="sd">        dict</span>
+<span class="sd">            A map of FOV number (int) to mean image brain location IDs as a 2D numpy int array.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">mlapdv</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">location_id</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="c1"># Use the MRI atlas as this applies scaling, particularly along the DV axis to (hopefully)</span>
+        <span class="c1"># more accurately represent the living brain.</span>
+        <span class="n">atlas</span> <span class="o">=</span> <span class="n">atlas</span> <span class="ow">or</span> <span class="n">MRITorontoAtlas</span><span class="p">(</span><span class="n">res_um</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+        <span class="c1"># The centre of the craniotomy / imaging window</span>
+        <span class="n">coord_ml</span> <span class="o">=</span> <span class="n">meta</span><span class="p">[</span><span class="s1">&#39;centerMM&#39;</span><span class="p">][</span><span class="s1">&#39;ML&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="mf">1e3</span>  <span class="c1"># mm -&gt; um</span>
+        <span class="n">coord_ap</span> <span class="o">=</span> <span class="n">meta</span><span class="p">[</span><span class="s1">&#39;centerMM&#39;</span><span class="p">][</span><span class="s1">&#39;AP&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="mf">1e3</span>  <span class="c1"># mm -&gt; um</span>
+        <span class="n">pt</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">coord_ml</span><span class="p">,</span> <span class="n">coord_ap</span><span class="p">])</span>
+
+        <span class="n">points</span><span class="p">,</span> <span class="n">connectivity_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_triangulation</span><span class="p">()</span>
+        <span class="c1"># Only keep faces that have normals pointing up (positive DV value).</span>
+        <span class="c1"># Calculate the normal vector pointing out of the convex hull.</span>
+        <span class="n">triangles</span> <span class="o">=</span> <span class="n">points</span><span class="p">[</span><span class="n">connectivity_list</span><span class="p">,</span> <span class="p">:]</span>
+        <span class="n">normals</span> <span class="o">=</span> <span class="n">surface_normal</span><span class="p">(</span><span class="n">triangles</span><span class="p">)</span>
+        <span class="n">up_faces</span><span class="p">,</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">normals</span><span class="p">[:,</span> <span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="c1"># only keep triangles that have normal vector with positive DV component</span>
+        <span class="n">dorsal_connectivity_list</span> <span class="o">=</span> <span class="n">connectivity_list</span><span class="p">[</span><span class="n">up_faces</span><span class="p">,</span> <span class="p">:]</span>
+        <span class="c1"># Flatten triangulation by dropping the dorsal coordinates and find the location of the</span>
+        <span class="c1"># window center (we convert mm -&gt; um here)</span>
+        <span class="n">face_ind</span> <span class="o">=</span> <span class="n">find_triangle</span><span class="p">(</span><span class="n">pt</span> <span class="o">*</span> <span class="mf">1e-3</span><span class="p">,</span> <span class="n">points</span><span class="p">[:,</span> <span class="p">:</span><span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="mf">1e-3</span><span class="p">,</span> <span class="n">dorsal_connectivity_list</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">intp</span><span class="p">))</span>
+        <span class="k">assert</span> <span class="n">face_ind</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span>
+
+        <span class="n">dorsal_triangle</span> <span class="o">=</span> <span class="n">points</span><span class="p">[</span><span class="n">dorsal_connectivity_list</span><span class="p">[</span><span class="n">face_ind</span><span class="p">,</span> <span class="p">:],</span> <span class="p">:]</span>
+
+        <span class="c1"># Get the surface normal unit vector of dorsal triangle</span>
+        <span class="n">normal_vector</span> <span class="o">=</span> <span class="n">surface_normal</span><span class="p">(</span><span class="n">dorsal_triangle</span><span class="p">)</span>
+
+        <span class="c1"># find the coordDV that sits on the triangular face and had [coordML, coordAP] coordinates;</span>
+        <span class="c1"># the three vertices defining the triangle</span>
+        <span class="n">face_vertices</span> <span class="o">=</span> <span class="n">points</span><span class="p">[</span><span class="n">dorsal_connectivity_list</span><span class="p">[</span><span class="n">face_ind</span><span class="p">,</span> <span class="p">:],</span> <span class="p">:]</span>
+
+        <span class="c1"># all the vertices should be on the plane ax + by + cz = 1, so we can find</span>
+        <span class="c1"># the abc coefficients by inverting the three equations for the three vertices</span>
+        <span class="n">abc</span><span class="p">,</span> <span class="o">*</span><span class="n">_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">lstsq</span><span class="p">(</span><span class="n">face_vertices</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="mi">3</span><span class="p">),</span> <span class="n">rcond</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+
+        <span class="c1"># and then find a point on that plane that corresponds to a given x-y</span>
+        <span class="c1"># coordinate (which is ML-AP coordinate)</span>
+        <span class="n">coord_dv</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">pt</span> <span class="o">@</span> <span class="n">abc</span><span class="p">[:</span><span class="mi">2</span><span class="p">])</span> <span class="o">/</span> <span class="n">abc</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+
+        <span class="c1"># We should not use the actual surface of the brain for this, as it might be in one of the sulci</span>
+        <span class="c1"># DO NOT USE THIS:</span>
+        <span class="c1"># coordDV = interp2(axisMLmm, axisAPmm, surfaceDV, coordML, coordAP)</span>
+
+        <span class="c1"># Now we need to span the plane of the coverslip with two orthogonal unit vectors.</span>
+        <span class="c1"># We start with vY, because the order is important and we usually have less</span>
+        <span class="c1"># tilt along AP (pitch), which will cause less deviation in vX from pure ML.</span>
+        <span class="n">vY</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="n">normal_vector</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="o">-</span><span class="n">normal_vector</span><span class="p">[</span><span class="mi">1</span><span class="p">]])</span>  <span class="c1"># orthogonal to the normal of the plane</span>
+        <span class="n">vX</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cross</span><span class="p">(</span><span class="n">vY</span><span class="p">,</span> <span class="n">normal_vector</span><span class="p">)</span>  <span class="c1"># orthogonal to n and to vY</span>
+        <span class="c1"># normalize and flip the sign if necessary</span>
+        <span class="n">vX</span> <span class="o">=</span> <span class="n">vX</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">vX</span> <span class="o">@</span> <span class="n">vX</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">vX</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>  <span class="c1"># np.sqrt(vY @ vY) == LR norm of vX</span>
+        <span class="n">vY</span> <span class="o">=</span> <span class="n">vY</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">vY</span> <span class="o">@</span> <span class="n">vY</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">vY</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+
+        <span class="c1"># what are the dimensions of the data arrays (ap, ml, dv)</span>
+        <span class="p">(</span><span class="n">nAP</span><span class="p">,</span> <span class="n">nML</span><span class="p">,</span> <span class="n">nDV</span><span class="p">)</span> <span class="o">=</span> <span class="n">atlas</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">shape</span>
+        <span class="c1"># Let&#39;s shift the coordinates relative to bregma</span>
+        <span class="n">voxel_size</span> <span class="o">=</span> <span class="n">atlas</span><span class="o">.</span><span class="n">res_um</span>  <span class="c1"># [um] resolution of the atlas</span>
+        <span class="n">bregma_coords</span> <span class="o">=</span> <span class="n">ALLEN_CCF_LANDMARKS_MLAPDV_UM</span><span class="p">[</span><span class="s1">&#39;bregma&#39;</span><span class="p">]</span> <span class="o">/</span> <span class="n">voxel_size</span>  <span class="c1"># (ml, ap, dv)</span>
+        <span class="n">axis_ml_um</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">nML</span><span class="p">)</span> <span class="o">-</span> <span class="n">bregma_coords</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">*</span> <span class="n">voxel_size</span>
+        <span class="n">axis_ap_um</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">nAP</span><span class="p">)</span> <span class="o">-</span> <span class="n">bregma_coords</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">*</span> <span class="n">voxel_size</span> <span class="o">*</span> <span class="o">-</span><span class="mf">1.</span>
+        <span class="n">axis_dv_um</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">nDV</span><span class="p">)</span> <span class="o">-</span> <span class="n">bregma_coords</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span> <span class="o">*</span> <span class="n">voxel_size</span> <span class="o">*</span> <span class="o">-</span><span class="mf">1.</span>
+
+        <span class="c1"># projection of FOVs on the brain surface to get ML-AP-DV coordinates</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Projecting in 3D&#39;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">fov</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">meta</span><span class="p">[</span><span class="s1">&#39;FOV&#39;</span><span class="p">]):</span>  <span class="c1"># i, fov = next(enumerate(meta[&#39;FOV&#39;]))</span>
+            <span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;FOV </span><span class="si">{</span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s1">/</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;FOV&quot;</span><span class="p">])</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="n">y_px_idx</span><span class="p">,</span> <span class="n">x_px_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mgrid</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">fov</span><span class="p">[</span><span class="s1">&#39;nXnYnZ&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="mi">0</span><span class="p">:</span><span class="n">fov</span><span class="p">[</span><span class="s1">&#39;nXnYnZ&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">]]</span>
+
+            <span class="c1"># xx and yy are in mm in coverslip space</span>
+            <span class="n">points</span> <span class="o">=</span> <span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="n">fov</span><span class="p">[</span><span class="s1">&#39;nXnYnZ&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">fov</span><span class="p">[</span><span class="s1">&#39;nXnYnZ&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span>
+            <span class="k">if</span> <span class="s1">&#39;MM&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">fov</span><span class="p">:</span>
+                <span class="n">fov</span><span class="p">[</span><span class="s1">&#39;MM&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                    <span class="s1">&#39;topLeft&#39;</span><span class="p">:</span> <span class="n">fov</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;topLeftMM&#39;</span><span class="p">),</span>
+                    <span class="s1">&#39;topRight&#39;</span><span class="p">:</span> <span class="n">fov</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;topRightMM&#39;</span><span class="p">),</span>
+                    <span class="s1">&#39;bottomLeft&#39;</span><span class="p">:</span> <span class="n">fov</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;bottomLeftMM&#39;</span><span class="p">),</span>
+                    <span class="s1">&#39;bottomRight&#39;</span><span class="p">:</span> <span class="n">fov</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;bottomRightMM&#39;</span><span class="p">)</span>
+                <span class="p">}</span>
+            <span class="c1"># The four corners of the FOV, determined by taking the center of the craniotomy in MM,</span>
+            <span class="c1"># the x-y coordinates of the imaging window center (from the tiled reference image) in</span>
+            <span class="c1"># galvanometer units, and the x-y coordinates of the FOV center in galvanometer units.</span>
+            <span class="n">values</span> <span class="o">=</span> <span class="p">[[</span><span class="n">fov</span><span class="p">[</span><span class="s1">&#39;MM&#39;</span><span class="p">][</span><span class="s1">&#39;topLeft&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="n">fov</span><span class="p">[</span><span class="s1">&#39;MM&#39;</span><span class="p">][</span><span class="s1">&#39;topRight&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]],</span>
+                      <span class="p">[</span><span class="n">fov</span><span class="p">[</span><span class="s1">&#39;MM&#39;</span><span class="p">][</span><span class="s1">&#39;bottomLeft&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="n">fov</span><span class="p">[</span><span class="s1">&#39;MM&#39;</span><span class="p">][</span><span class="s1">&#39;bottomRight&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]]]</span>
+            <span class="n">values</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">values</span><span class="p">)</span> <span class="o">*</span> <span class="mf">1e3</span>  <span class="c1"># mm -&gt; um</span>
+            <span class="n">xx</span> <span class="o">=</span> <span class="n">interpn</span><span class="p">(</span><span class="n">points</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="p">(</span><span class="n">y_px_idx</span><span class="p">,</span> <span class="n">x_px_idx</span><span class="p">))</span>
+
+            <span class="n">values</span> <span class="o">=</span> <span class="p">[[</span><span class="n">fov</span><span class="p">[</span><span class="s1">&#39;MM&#39;</span><span class="p">][</span><span class="s1">&#39;topLeft&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">],</span> <span class="n">fov</span><span class="p">[</span><span class="s1">&#39;MM&#39;</span><span class="p">][</span><span class="s1">&#39;topRight&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">]],</span>
+                      <span class="p">[</span><span class="n">fov</span><span class="p">[</span><span class="s1">&#39;MM&#39;</span><span class="p">][</span><span class="s1">&#39;bottomLeft&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">],</span> <span class="n">fov</span><span class="p">[</span><span class="s1">&#39;MM&#39;</span><span class="p">][</span><span class="s1">&#39;bottomRight&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">]]]</span>
+            <span class="n">values</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">values</span><span class="p">)</span> <span class="o">*</span> <span class="mf">1e3</span>  <span class="c1"># mm -&gt; um</span>
+            <span class="n">yy</span> <span class="o">=</span> <span class="n">interpn</span><span class="p">(</span><span class="n">points</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="p">(</span><span class="n">y_px_idx</span><span class="p">,</span> <span class="n">x_px_idx</span><span class="p">))</span>
+
+            <span class="n">xx</span> <span class="o">=</span> <span class="n">xx</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span> <span class="o">-</span> <span class="n">coord_ml</span>
+            <span class="n">yy</span> <span class="o">=</span> <span class="n">yy</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span> <span class="o">-</span> <span class="n">coord_ap</span>
+
+            <span class="c1"># rotate xx and yy in 3D</span>
+            <span class="c1"># the coords are still on the coverslip, but now have 3D values</span>
+            <span class="n">coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">outer</span><span class="p">(</span><span class="n">xx</span><span class="p">,</span> <span class="n">vX</span><span class="p">)</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">outer</span><span class="p">(</span><span class="n">yy</span><span class="p">,</span> <span class="n">vY</span><span class="p">)</span>  <span class="c1"># (vX * xx) + (vY * yy)</span>
+            <span class="n">coords</span> <span class="o">=</span> <span class="n">coords</span> <span class="o">+</span> <span class="p">[</span><span class="n">coord_ml</span><span class="p">,</span> <span class="n">coord_ap</span><span class="p">,</span> <span class="n">coord_dv</span><span class="p">]</span>
+
+            <span class="c1"># for each point of the FOV create a line parametrization (trajectory normal to the coverslip plane).</span>
+            <span class="c1"># start just above the coverslip and go 3 mm down, should be enough to &#39;meet&#39; the brain</span>
+            <span class="n">t</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="o">-</span><span class="n">voxel_size</span><span class="p">,</span> <span class="mf">3e3</span><span class="p">,</span> <span class="n">voxel_size</span><span class="p">)</span>
+
+            <span class="c1"># Find the MLAPDV atlas coordinate and brain location of each pixel.</span>
+            <span class="n">MLAPDV</span><span class="p">,</span> <span class="n">annotation</span> <span class="o">=</span> <span class="n">_update_points</span><span class="p">(</span>
+                <span class="n">t</span><span class="p">,</span> <span class="n">normal_vector</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">axis_ml_um</span><span class="p">,</span> <span class="n">axis_ap_um</span><span class="p">,</span> <span class="n">axis_dv_um</span><span class="p">,</span> <span class="n">atlas</span><span class="o">.</span><span class="n">label</span><span class="p">)</span>
+            <span class="n">annotation</span> <span class="o">=</span> <span class="n">atlas</span><span class="o">.</span><span class="n">regions</span><span class="o">.</span><span class="n">index2id</span><span class="p">(</span><span class="n">annotation</span><span class="p">)</span>  <span class="c1"># convert annotation indices to IDs</span>
+
+            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">MLAPDV</span><span class="p">)):</span>
+                <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Areas of FOV lie outside the brain&#39;</span><span class="p">)</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;done (</span><span class="si">{</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">start_time</span><span class="si">:</span><span class="s1">3.1f</span><span class="si">}</span><span class="s1"> seconds)</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="n">MLAPDV</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">MLAPDV</span><span class="p">,</span> <span class="p">[</span><span class="o">*</span><span class="n">x_px_idx</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="mi">3</span><span class="p">])</span>
+            <span class="n">annotation</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">annotation</span><span class="p">,</span> <span class="n">x_px_idx</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+
+            <span class="n">fov</span><span class="p">[</span><span class="s1">&#39;MLAPDV&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s1">&#39;topLeft&#39;</span><span class="p">:</span> <span class="n">MLAPDV</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">:]</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span>
+                <span class="s1">&#39;topRight&#39;</span><span class="p">:</span> <span class="n">MLAPDV</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span>
+                <span class="s1">&#39;bottomLeft&#39;</span><span class="p">:</span> <span class="n">MLAPDV</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">:]</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span>
+                <span class="s1">&#39;bottomRight&#39;</span><span class="p">:</span> <span class="n">MLAPDV</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span>
+                <span class="s1">&#39;center&#39;</span><span class="p">:</span> <span class="n">MLAPDV</span><span class="p">[</span><span class="nb">round</span><span class="p">(</span><span class="n">x_px_idx</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="nb">round</span><span class="p">(</span><span class="n">x_px_idx</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="p">:]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+            <span class="p">}</span>
+
+            <span class="c1"># Save the brain regions of the corners/centers of FOV (annotation field)</span>
+            <span class="n">fov</span><span class="p">[</span><span class="s1">&#39;brainLocationIds&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s1">&#39;topLeft&#39;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">annotation</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]),</span>
+                <span class="s1">&#39;topRight&#39;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">annotation</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">]),</span>
+                <span class="s1">&#39;bottomLeft&#39;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">annotation</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">]),</span>
+                <span class="s1">&#39;bottomRight&#39;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">annotation</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">]),</span>
+                <span class="s1">&#39;center&#39;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">annotation</span><span class="p">[</span><span class="nb">round</span><span class="p">(</span><span class="n">x_px_idx</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="nb">round</span><span class="p">(</span><span class="n">x_px_idx</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">])</span>
+            <span class="p">}</span>
+
+            <span class="n">mlapdv</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">MLAPDV</span>
+            <span class="n">location_id</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">annotation</span>
+        <span class="k">return</span> <span class="n">mlapdv</span><span class="p">,</span> <span class="n">location_id</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="surface_normal">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.mesoscope_tasks.html#ibllib.pipes.mesoscope_tasks.surface_normal">[docs]</a>
+<span class="k">def</span> <span class="nf">surface_normal</span><span class="p">(</span><span class="n">triangle</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Calculate the surface normal unit vector of one or more triangles.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    triangle : numpy.array</span>
+<span class="sd">        An array of shape (n_triangles, 3, 3) representing (Px Py Pz).</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    numpy.array</span>
+<span class="sd">        The surface normal unit vector(s).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">triangle</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">):</span>
+        <span class="n">triangle</span> <span class="o">=</span> <span class="n">triangle</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:]</span>
+    <span class="k">if</span> <span class="n">triangle</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="o">!=</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;expected array of shape (3, 3); 3 coordinates in x, y, and z&#39;</span><span class="p">)</span>
+    <span class="n">V</span> <span class="o">=</span> <span class="n">triangle</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">,</span> <span class="p">:]</span> <span class="o">-</span> <span class="n">triangle</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">:]</span>  <span class="c1"># V = P2 - P1</span>
+    <span class="n">W</span> <span class="o">=</span> <span class="n">triangle</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">,</span> <span class="p">:]</span> <span class="o">-</span> <span class="n">triangle</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">:]</span>  <span class="c1"># W = P3 - P1</span>
+
+    <span class="n">Nx</span> <span class="o">=</span> <span class="p">(</span><span class="n">V</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">W</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">])</span> <span class="o">-</span> <span class="p">(</span><span class="n">V</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="n">W</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">])</span>  <span class="c1"># Nx = (Vy * Wz) - (Vz * Wy)</span>
+    <span class="n">Ny</span> <span class="o">=</span> <span class="p">(</span><span class="n">V</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="n">W</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">])</span> <span class="o">-</span> <span class="p">(</span><span class="n">V</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">W</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">])</span>  <span class="c1"># Ny = (Vz * Wx) - (Vx * Wz)</span>
+    <span class="n">Nz</span> <span class="o">=</span> <span class="p">(</span><span class="n">V</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">W</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">])</span> <span class="o">-</span> <span class="p">(</span><span class="n">V</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">W</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">])</span>  <span class="c1"># Nz = (Vx * Wy) - (Vy * Wx)</span>
+    <span class="n">N</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">c_</span><span class="p">[</span><span class="n">Nx</span><span class="p">,</span> <span class="n">Ny</span><span class="p">,</span> <span class="n">Nz</span><span class="p">]</span>
+    <span class="c1"># Calculate unit vector. Transpose allows vectorized operation.</span>
+    <span class="n">A</span> <span class="o">=</span> <span class="n">N</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">((</span><span class="n">Nx</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">Ny</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">Nz</span> <span class="o">**</span> <span class="mi">2</span><span class="p">))[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span><span class="o">.</span><span class="n">T</span>
+    <span class="k">return</span> <span class="n">A</span><span class="o">.</span><span class="n">squeeze</span><span class="p">()</span></div>
+
+
+
+<div class="viewcode-block" id="in_triangle">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.mesoscope_tasks.html#ibllib.pipes.mesoscope_tasks.in_triangle">[docs]</a>
+<span class="nd">@nb</span><span class="o">.</span><span class="n">njit</span><span class="p">(</span><span class="s1">&#39;b1(f8[:,:], f8[:])&#39;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">in_triangle</span><span class="p">(</span><span class="n">triangle</span><span class="p">,</span> <span class="n">point</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Check whether `point` lies within `triangle`.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    triangle : numpy.array</span>
+<span class="sd">        A (2 x 3) array of x-y coordinates; A(x1, y1), B(x2, y2) and C(x3, y3).</span>
+<span class="sd">    point : numpy.array</span>
+<span class="sd">        A point, P(x, y).</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    bool</span>
+<span class="sd">        True if coordinate lies within triangle.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">area</span><span class="p">(</span><span class="n">x1</span><span class="p">,</span> <span class="n">y1</span><span class="p">,</span> <span class="n">x2</span><span class="p">,</span> <span class="n">y2</span><span class="p">,</span> <span class="n">x3</span><span class="p">,</span> <span class="n">y3</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculate the area of a triangle, given its vertices.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">abs</span><span class="p">((</span><span class="n">x1</span> <span class="o">*</span> <span class="p">(</span><span class="n">y2</span> <span class="o">-</span> <span class="n">y3</span><span class="p">)</span> <span class="o">+</span> <span class="n">x2</span> <span class="o">*</span> <span class="p">(</span><span class="n">y3</span> <span class="o">-</span> <span class="n">y1</span><span class="p">)</span> <span class="o">+</span> <span class="n">x3</span> <span class="o">*</span> <span class="p">(</span><span class="n">y1</span> <span class="o">-</span> <span class="n">y2</span><span class="p">))</span> <span class="o">/</span> <span class="mf">2.</span><span class="p">)</span>
+
+    <span class="n">x1</span><span class="p">,</span> <span class="n">y1</span><span class="p">,</span> <span class="n">x2</span><span class="p">,</span> <span class="n">y2</span><span class="p">,</span> <span class="n">x3</span><span class="p">,</span> <span class="n">y3</span> <span class="o">=</span> <span class="n">triangle</span><span class="o">.</span><span class="n">flat</span>
+    <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">point</span>
+    <span class="n">A</span> <span class="o">=</span> <span class="n">area</span><span class="p">(</span><span class="n">x1</span><span class="p">,</span> <span class="n">y1</span><span class="p">,</span> <span class="n">x2</span><span class="p">,</span> <span class="n">y2</span><span class="p">,</span> <span class="n">x3</span><span class="p">,</span> <span class="n">y3</span><span class="p">)</span>  <span class="c1"># area of triangle ABC</span>
+    <span class="n">A1</span> <span class="o">=</span> <span class="n">area</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">x2</span><span class="p">,</span> <span class="n">y2</span><span class="p">,</span> <span class="n">x3</span><span class="p">,</span> <span class="n">y3</span><span class="p">)</span>  <span class="c1"># area of triangle PBC</span>
+    <span class="n">A2</span> <span class="o">=</span> <span class="n">area</span><span class="p">(</span><span class="n">x1</span><span class="p">,</span> <span class="n">y1</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">x3</span><span class="p">,</span> <span class="n">y3</span><span class="p">)</span>  <span class="c1"># area of triangle PAC</span>
+    <span class="n">A3</span> <span class="o">=</span> <span class="n">area</span><span class="p">(</span><span class="n">x1</span><span class="p">,</span> <span class="n">y1</span><span class="p">,</span> <span class="n">x2</span><span class="p">,</span> <span class="n">y2</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>  <span class="c1"># area of triangle PAB</span>
+    <span class="c1"># Check if sum of A1, A2 and A3 equals that of A</span>
+    <span class="n">diff</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">((</span><span class="n">A1</span> <span class="o">+</span> <span class="n">A2</span> <span class="o">+</span> <span class="n">A3</span><span class="p">)</span> <span class="o">-</span> <span class="n">A</span><span class="p">)</span>
+    <span class="n">REL_TOL</span> <span class="o">=</span> <span class="mf">1e-9</span>
+    <span class="k">return</span> <span class="n">diff</span> <span class="o">&lt;=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">REL_TOL</span> <span class="o">*</span> <span class="n">A</span><span class="p">)</span>  <span class="c1"># isclose not yet implemented in numba 0.57</span></div>
+
+
+
+<div class="viewcode-block" id="find_triangle">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.mesoscope_tasks.html#ibllib.pipes.mesoscope_tasks.find_triangle">[docs]</a>
+<span class="nd">@nb</span><span class="o">.</span><span class="n">njit</span><span class="p">(</span><span class="s1">&#39;i8(f8[:], f8[:,:], intp[:,:])&#39;</span><span class="p">,</span> <span class="n">nogil</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">find_triangle</span><span class="p">(</span><span class="n">point</span><span class="p">,</span> <span class="n">vertices</span><span class="p">,</span> <span class="n">connectivity_list</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Find which vertices contain a given point.</span>
+
+<span class="sd">    Currently O(n) but could take advantage of connectivity order to be quicker.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    point : numpy.array</span>
+<span class="sd">        The (x, y) coordinate of a point to locate within one of the triangles.</span>
+<span class="sd">    vertices : numpy.array</span>
+<span class="sd">        An N x 3 array of vertices representing a triangle mesh.</span>
+<span class="sd">    connectivity_list : numpy.array</span>
+<span class="sd">        An N x 3 array of indices representing the connectivity of `points`.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    int</span>
+<span class="sd">        The index of the vertices containing `point`, or -1 if not within any triangle.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">face_ind</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">nb</span><span class="o">.</span><span class="n">prange</span><span class="p">(</span><span class="n">connectivity_list</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+        <span class="n">triangle</span> <span class="o">=</span> <span class="n">vertices</span><span class="p">[</span><span class="n">connectivity_list</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="p">:],</span> <span class="p">:]</span>
+        <span class="k">if</span> <span class="n">in_triangle</span><span class="p">(</span><span class="n">triangle</span><span class="p">,</span> <span class="n">point</span><span class="p">):</span>
+            <span class="n">face_ind</span> <span class="o">=</span> <span class="n">i</span>
+            <span class="k">break</span>
+    <span class="k">return</span> <span class="n">face_ind</span></div>
+
+
+
+<span class="nd">@nb</span><span class="o">.</span><span class="n">njit</span><span class="p">(</span><span class="s1">&#39;Tuple((f8[:], intp[:]))(f8[:], f8[:])&#39;</span><span class="p">,</span> <span class="n">nogil</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">_nearest_neighbour_1d</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">x_new</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Nearest neighbour interpolation with extrapolation.</span>
+
+<span class="sd">    This was adapted from scipy.interpolate.interp1d but returns the indices of each nearest x</span>
+<span class="sd">    value.  Assumes x is not sorted.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    x : (N,) array_like</span>
+<span class="sd">        A 1-D array of real values.</span>
+<span class="sd">    x_new : (N,) array_like</span>
+<span class="sd">        A 1D array of values to apply function to.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    numpy.array</span>
+<span class="sd">        A 1D array of interpolated values.</span>
+<span class="sd">    numpy.array</span>
+<span class="sd">        A 1D array of indices.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">SIDE</span> <span class="o">=</span> <span class="s1">&#39;left&#39;</span>  <span class="c1"># use &#39;right&#39; to round up to nearest int instead of rounding down</span>
+    <span class="c1"># Sort values</span>
+    <span class="n">ind</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="s1">&#39;mergesort&#39;</span><span class="p">)</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span>
+    <span class="n">x_bds</span> <span class="o">=</span> <span class="n">x</span> <span class="o">/</span> <span class="mf">2.0</span>  <span class="c1"># Do division before addition to prevent possible integer overflow</span>
+    <span class="n">x_bds</span> <span class="o">=</span> <span class="n">x_bds</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="o">+</span> <span class="n">x_bds</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="c1"># Find where in the averaged data the values to interpolate would be inserted.</span>
+    <span class="n">x_new_indices</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">searchsorted</span><span class="p">(</span><span class="n">x_bds</span><span class="p">,</span> <span class="n">x_new</span><span class="p">,</span> <span class="n">side</span><span class="o">=</span><span class="n">SIDE</span><span class="p">)</span>
+    <span class="c1"># Clip x_new_indices so that they are within the range of x indices.</span>
+    <span class="n">x_new_indices</span> <span class="o">=</span> <span class="n">x_new_indices</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">intp</span><span class="p">)</span>
+    <span class="c1"># Calculate the actual value for each entry in x_new.</span>
+    <span class="n">y_new</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="n">x_new_indices</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">y_new</span><span class="p">,</span> <span class="n">ind</span><span class="p">[</span><span class="n">x_new_indices</span><span class="p">]</span>
+
+
+<span class="nd">@nb</span><span class="o">.</span><span class="n">njit</span><span class="p">(</span><span class="s1">&#39;Tuple((f8[:,:], u2[:]))(f8[:], f8[:], f8[:,:], f8[:], f8[:], f8[:], u2[:,:,:])&#39;</span><span class="p">,</span> <span class="n">nogil</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">_update_points</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">normal_vector</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">axis_ml_um</span><span class="p">,</span> <span class="n">axis_ap_um</span><span class="p">,</span> <span class="n">axis_dv_um</span><span class="p">,</span> <span class="n">atlas_labels</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Determine the MLAPDV coordinate and brain location index for each of the given coordinates.</span>
+
+<span class="sd">    This has been optimized in numba. The majority of the time savings come from replacing iterp1d</span>
+<span class="sd">    and ismember with _nearest_neighbour_1d which were extremely slow. Parallel iteration further</span>
+<span class="sd">    halved the time it took per 512x512 FOV.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    t : numpy.array</span>
+<span class="sd">        An N x 3 evenly spaced set of coordinates representing points going down from the coverslip</span>
+<span class="sd">        towards the brain.</span>
+<span class="sd">    normal_vector : numpy.array</span>
+<span class="sd">        The unit vector of the face normal to the center of the window.</span>
+<span class="sd">    coords : numpy.array</span>
+<span class="sd">        A set of N x 3 coordinates representing the MLAPDV coordinates of each pixel relative to</span>
+<span class="sd">        the center of the window, in micrometers (um).</span>
+<span class="sd">    axis_ml_um : numpy.array</span>
+<span class="sd">        An evenly spaced array of medio-lateral brain coordinates relative to bregma in um, at the</span>
+<span class="sd">        resolution of the atlas image used.</span>
+<span class="sd">    axis_ap_um : numpy.array</span>
+<span class="sd">        An evenly spaced array of anterio-posterior brain coordinates relative to bregma in um, at</span>
+<span class="sd">        the resolution of the atlas image used.</span>
+<span class="sd">    axis_dv_um : numpy.array</span>
+<span class="sd">        An evenly spaced array of dorso-ventral brain coordinates relative to bregma in um, at</span>
+<span class="sd">        the resolution of the atlas image used.</span>
+<span class="sd">    atlas_labels : numpy.array</span>
+<span class="sd">        A 3D array of integers representing the brain location index of each voxel of a given</span>
+<span class="sd">        atlas. The shape is expected to be (nAP, nML, nDV).</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    numpy.array</span>
+<span class="sd">        An N by 3 array containing the MLAPDV coordinates in um of each pixel coordinate.</span>
+<span class="sd">        Coordinates outside of the brain are NaN.</span>
+<span class="sd">    numpy.array</span>
+<span class="sd">        A 1D array of atlas label indices the length of `coordinates`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># passing through the center of the craniotomy/coverslip</span>
+    <span class="n">traj_coords_centered</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">outer</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="o">-</span><span class="n">normal_vector</span><span class="p">)</span>
+    <span class="n">MLAPDV</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full_like</span><span class="p">(</span><span class="n">coords</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+    <span class="n">annotation</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">coords</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint16</span><span class="p">)</span>
+    <span class="n">n_points</span> <span class="o">=</span> <span class="n">coords</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">nb</span><span class="o">.</span><span class="n">prange</span><span class="p">(</span><span class="n">n_points</span><span class="p">):</span>
+        <span class="c1"># Shifted to the correct point on the coverslip, in true ML-AP-DV coords</span>
+        <span class="n">traj_coords</span> <span class="o">=</span> <span class="n">traj_coords_centered</span> <span class="o">+</span> <span class="n">coords</span><span class="p">[</span><span class="n">p</span><span class="p">,</span> <span class="p">:]</span>
+
+        <span class="c1"># Find intersection coordinate with the brain.</span>
+        <span class="c1"># Only use coordinates that exist in the atlas (kind of nearest neighbour interpolation)</span>
+        <span class="n">ml</span><span class="p">,</span> <span class="n">ml_idx</span> <span class="o">=</span> <span class="n">_nearest_neighbour_1d</span><span class="p">(</span><span class="n">axis_ml_um</span><span class="p">,</span> <span class="n">traj_coords</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">])</span>
+        <span class="n">ap</span><span class="p">,</span> <span class="n">ap_idx</span> <span class="o">=</span> <span class="n">_nearest_neighbour_1d</span><span class="p">(</span><span class="n">axis_ap_um</span><span class="p">,</span> <span class="n">traj_coords</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">])</span>
+        <span class="n">dv</span><span class="p">,</span> <span class="n">dv_idx</span> <span class="o">=</span> <span class="n">_nearest_neighbour_1d</span><span class="p">(</span><span class="n">axis_dv_um</span><span class="p">,</span> <span class="n">traj_coords</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">])</span>
+
+        <span class="c1"># Iterate over coordinates to find the first (if any) that is within the brain</span>
+        <span class="n">ind</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+        <span class="n">area</span> <span class="o">=</span> <span class="mi">0</span>  <span class="c1"># 0 = void; 1 = root</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">nb</span><span class="o">.</span><span class="n">prange</span><span class="p">(</span><span class="n">traj_coords</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+            <span class="n">anno</span> <span class="o">=</span> <span class="n">atlas_labels</span><span class="p">[</span><span class="n">ap_idx</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">ml_idx</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">dv_idx</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span>
+            <span class="k">if</span> <span class="n">anno</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>  <span class="c1"># first coordinate in the brain</span>
+                <span class="n">ind</span> <span class="o">=</span> <span class="n">i</span>
+                <span class="n">area</span> <span class="o">=</span> <span class="n">anno</span>
+                <span class="k">if</span> <span class="n">area</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>  <span class="c1"># non-root brain area; we&#39;re done</span>
+                    <span class="k">break</span>
+        <span class="k">if</span> <span class="n">area</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">point</span> <span class="o">=</span> <span class="n">traj_coords</span><span class="p">[</span><span class="n">ind</span><span class="p">,</span> <span class="p">:]</span>
+            <span class="n">MLAPDV</span><span class="p">[</span><span class="n">p</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">point</span>  <span class="c1"># in um</span>
+            <span class="n">annotation</span><span class="p">[</span><span class="n">p</span><span class="p">]</span> <span class="o">=</span> <span class="n">area</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">MLAPDV</span><span class="p">[</span><span class="n">p</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+            <span class="n">annotation</span><span class="p">[</span><span class="n">p</span><span class="p">]</span> <span class="o">=</span> <span class="n">area</span>  <span class="c1"># root or void</span>
+
+    <span class="k">return</span> <span class="n">MLAPDV</span><span class="p">,</span> <span class="n">annotation</span>
 </pre></div>
 
            </div>

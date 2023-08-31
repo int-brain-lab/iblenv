@@ -12,13 +12,13 @@
     <script src="../../../_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
-        <script src="../../../_static/jquery.js"></script>
-        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
-        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
-        <script src="../../../_static/doctools.js"></script>
-        <script src="../../../_static/sphinx_highlight.js"></script>
-        <script src="../../../_static/clipboard.min.js"></script>
-        <script src="../../../_static/copybutton.js"></script>
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script src="../../../_static/clipboard.min.js?v=a7894cd8"></script>
+        <script src="../../../_static/copybutton.js?v=f281be69"></script>
         <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
     <script src="../../../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../../../genindex.html" />
@@ -107,32 +107,40 @@
              
   <h1>Source code for ibllib.atlas.plots</h1><div class="highlight"><pre>
 <span></span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">Module that has convenience plotting functions for 2D atlas slices</span>
+<span class="sd">Module that has convenience plotting functions for 2D atlas slices and flatmaps.</span>
 <span class="sd">&quot;&quot;&quot;</span>
-<span class="kn">import</span> <span class="nn">matplotlib</span>
-<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
-<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">copy</span>
 <span class="kn">import</span> <span class="nn">logging</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">scipy.ndimage</span> <span class="kn">import</span> <span class="n">gaussian_filter</span>
+<span class="kn">from</span> <span class="nn">scipy.stats</span> <span class="kn">import</span> <span class="n">binned_statistic</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">from</span> <span class="nn">matplotlib</span> <span class="kn">import</span> <span class="n">cm</span><span class="p">,</span> <span class="n">colors</span>
+<span class="kn">from</span> <span class="nn">matplotlib.patches</span> <span class="kn">import</span> <span class="n">Polygon</span><span class="p">,</span> <span class="n">PathPatch</span>
+<span class="kn">import</span> <span class="nn">matplotlib.path</span> <span class="k">as</span> <span class="nn">mpath</span>
 <span class="kn">from</span> <span class="nn">iblutil.io.hashfile</span> <span class="kn">import</span> <span class="n">md5</span>
 <span class="kn">import</span> <span class="nn">one.remote.aws</span> <span class="k">as</span> <span class="nn">aws</span>
 
-<span class="kn">from</span> <span class="nn">scipy.ndimage</span> <span class="kn">import</span> <span class="n">gaussian_filter</span>
-<span class="kn">from</span> <span class="nn">scipy.stats</span> <span class="kn">import</span> <span class="n">binned_statistic</span>
-<span class="kn">from</span> <span class="nn">matplotlib</span> <span class="kn">import</span> <span class="n">cm</span>
-<span class="kn">from</span> <span class="nn">matplotlib.patches</span> <span class="kn">import</span> <span class="n">Polygon</span><span class="p">,</span> <span class="n">PathPatch</span>
-<span class="kn">import</span> <span class="nn">matplotlib.path</span> <span class="k">as</span> <span class="nn">mpath</span>
-
-<span class="kn">from</span> <span class="nn">ibllib.atlas</span> <span class="kn">import</span> <span class="n">AllenAtlas</span><span class="p">,</span> <span class="n">FlatMap</span>
+<span class="kn">from</span> <span class="nn">ibllib.atlas</span> <span class="kn">import</span> <span class="n">AllenAtlas</span>
+<span class="kn">from</span> <span class="nn">ibllib.atlas.flatmaps</span> <span class="kn">import</span> <span class="n">FlatMap</span><span class="p">,</span> <span class="n">_swanson_labels_positions</span><span class="p">,</span> <span class="n">swanson</span><span class="p">,</span> <span class="n">swanson_json</span>
 <span class="kn">from</span> <span class="nn">ibllib.atlas.regions</span> <span class="kn">import</span> <span class="n">BrainRegions</span>
 <span class="kn">from</span> <span class="nn">iblutil.numerical</span> <span class="kn">import</span> <span class="n">ismember</span>
-
 <span class="kn">from</span> <span class="nn">ibllib.atlas.atlas</span> <span class="kn">import</span> <span class="n">BrainCoordinates</span><span class="p">,</span> <span class="n">ALLEN_CCF_LANDMARKS_MLAPDV_UM</span>
 
 <span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
 
-<div class="viewcode-block" id="get_bc_10"><a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.plots.html#ibllib.atlas.plots.get_bc_10">[docs]</a><span class="k">def</span> <span class="nf">get_bc_10</span><span class="p">():</span>
+<div class="viewcode-block" id="get_bc_10">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.plots.html#ibllib.atlas.plots.get_bc_10">[docs]</a>
+<span class="k">def</span> <span class="nf">get_bc_10</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Get BrainCoordinates object for 10um Allen Atlas</span>
 
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    BrainCoordinates object</span>
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">dims2xyz</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span>
     <span class="n">res_um</span> <span class="o">=</span> <span class="mi">10</span>
     <span class="n">scaling</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
@@ -147,18 +155,98 @@
     <span class="k">return</span> <span class="n">bc</span></div>
 
 
-<div class="viewcode-block" id="plot_polygon"><a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.plots.html#ibllib.atlas.plots.plot_polygon">[docs]</a><span class="k">def</span> <span class="nf">plot_polygon</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">xy</span><span class="p">,</span> <span class="n">color</span><span class="p">,</span> <span class="n">reg_id</span><span class="p">,</span> <span class="n">edgecolor</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mf">0.3</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+
+<div class="viewcode-block" id="plot_polygon">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.plots.html#ibllib.atlas.plots.plot_polygon">[docs]</a>
+<span class="k">def</span> <span class="nf">plot_polygon</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">xy</span><span class="p">,</span> <span class="n">color</span><span class="p">,</span> <span class="n">reg_id</span><span class="p">,</span> <span class="n">edgecolor</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mf">0.3</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Function to plot matplotlib polygon on an axis</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    ax : matplotlib.pyplot.Axes</span>
+<span class="sd">        An axis object to plot onto.</span>
+<span class="sd">    xy: numpy.array</span>
+<span class="sd">        2D array of x and y coordinates of vertices of polygon</span>
+<span class="sd">    color: str, tuple of int</span>
+<span class="sd">        The color to fill the polygon</span>
+<span class="sd">    reg_id: str, int</span>
+<span class="sd">        An id to assign to the polygon</span>
+<span class="sd">    edgecolor: str, tuple of int</span>
+<span class="sd">        The color of the edge of the polgon</span>
+<span class="sd">    linewidth: int</span>
+<span class="sd">        The width of the edges of the polygon</span>
+<span class="sd">    alpha: float between 0 and 1</span>
+<span class="sd">        The opacitiy of the polygon</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">p</span> <span class="o">=</span> <span class="n">Polygon</span><span class="p">(</span><span class="n">xy</span><span class="p">,</span> <span class="n">facecolor</span><span class="o">=</span><span class="n">color</span><span class="p">,</span> <span class="n">edgecolor</span><span class="o">=</span><span class="n">edgecolor</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="n">linewidth</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="n">alpha</span><span class="p">,</span> <span class="n">gid</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;region_</span><span class="si">{</span><span class="n">reg_id</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
     <span class="n">ax</span><span class="o">.</span><span class="n">add_patch</span><span class="p">(</span><span class="n">p</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="plot_polygon_with_hole"><a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.plots.html#ibllib.atlas.plots.plot_polygon_with_hole">[docs]</a><span class="k">def</span> <span class="nf">plot_polygon_with_hole</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">vertices</span><span class="p">,</span> <span class="n">codes</span><span class="p">,</span> <span class="n">color</span><span class="p">,</span> <span class="n">reg_id</span><span class="p">,</span> <span class="n">edgecolor</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mf">0.3</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+
+<div class="viewcode-block" id="plot_polygon_with_hole">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.plots.html#ibllib.atlas.plots.plot_polygon_with_hole">[docs]</a>
+<span class="k">def</span> <span class="nf">plot_polygon_with_hole</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">vertices</span><span class="p">,</span> <span class="n">codes</span><span class="p">,</span> <span class="n">color</span><span class="p">,</span> <span class="n">reg_id</span><span class="p">,</span> <span class="n">edgecolor</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mf">0.3</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Function to plot matplotlib polygon that contains a hole on an axis</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    ax : matplotlib.pyplot.Axes</span>
+<span class="sd">        An axis object to plot onto.</span>
+<span class="sd">    vertices: numpy.array</span>
+<span class="sd">        2D array of x and y coordinates of vertices of polygon</span>
+<span class="sd">    codes: numpy.array</span>
+<span class="sd">        1D array of path codes used to link the vertices</span>
+<span class="sd">        (https://matplotlib.org/stable/tutorials/advanced/path_tutorial.html)</span>
+<span class="sd">    color: str, tuple of int</span>
+<span class="sd">        The color to fill the polygon</span>
+<span class="sd">    reg_id: str, int</span>
+<span class="sd">        An id to assign to the polygon</span>
+<span class="sd">    edgecolor: str, tuple of int</span>
+<span class="sd">        The color of the edge of the polgon</span>
+<span class="sd">    linewidth: int</span>
+<span class="sd">        The width of the edges of the polygon</span>
+<span class="sd">    alpha: float between 0 and 1</span>
+<span class="sd">        The opacitiy of the polygon</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
     <span class="n">path</span> <span class="o">=</span> <span class="n">mpath</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">vertices</span><span class="p">,</span> <span class="n">codes</span><span class="p">)</span>
     <span class="n">patch</span> <span class="o">=</span> <span class="n">PathPatch</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">facecolor</span><span class="o">=</span><span class="n">color</span><span class="p">,</span> <span class="n">edgecolor</span><span class="o">=</span><span class="n">edgecolor</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="n">linewidth</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="n">alpha</span><span class="p">,</span> <span class="n">gid</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;region_</span><span class="si">{</span><span class="n">reg_id</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
     <span class="n">ax</span><span class="o">.</span><span class="n">add_patch</span><span class="p">(</span><span class="n">patch</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="coords_for_poly_hole"><a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.plots.html#ibllib.atlas.plots.coords_for_poly_hole">[docs]</a><span class="k">def</span> <span class="nf">coords_for_poly_hole</span><span class="p">(</span><span class="n">coords</span><span class="p">):</span>
+
+<div class="viewcode-block" id="coords_for_poly_hole">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.plots.html#ibllib.atlas.plots.coords_for_poly_hole">[docs]</a>
+<span class="k">def</span> <span class="nf">coords_for_poly_hole</span><span class="p">(</span><span class="n">coords</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Function to convert</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    coords : dict</span>
+<span class="sd">        Dictionary containing keys x, y and invert. x and y contain numpy.array of x coordinates, y coordinates</span>
+<span class="sd">        for the vertices of the polgyon. The invert key is either 1 or -1 and deterimine how to assign the paths.</span>
+<span class="sd">        The value for invert for each polygon was assigned manually after looking at the result</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    all_coords: numpy.array</span>
+<span class="sd">        2D array of x and y coordinates of vertices of polygon</span>
+<span class="sd">    all_codes: numpy.array</span>
+<span class="sd">        1D array of path codes used to link the vertices</span>
+<span class="sd">        (https://matplotlib.org/stable/tutorials/advanced/path_tutorial.html)</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">c</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">coords</span><span class="p">):</span>
         <span class="n">xy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">c_</span><span class="p">[</span><span class="n">c</span><span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">],</span> <span class="n">c</span><span class="p">[</span><span class="s1">&#39;y&#39;</span><span class="p">]]</span>
         <span class="n">codes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">xy</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">mpath</span><span class="o">.</span><span class="n">Path</span><span class="o">.</span><span class="n">code_type</span><span class="p">)</span> <span class="o">*</span> <span class="n">mpath</span><span class="o">.</span><span class="n">Path</span><span class="o">.</span><span class="n">LINETO</span>
@@ -176,7 +264,10 @@
     <span class="k">return</span> <span class="n">all_coords</span><span class="p">,</span> <span class="n">all_codes</span></div>
 
 
-<div class="viewcode-block" id="prepare_lr_data"><a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.plots.html#ibllib.atlas.plots.prepare_lr_data">[docs]</a><span class="k">def</span> <span class="nf">prepare_lr_data</span><span class="p">(</span><span class="n">acronyms_lh</span><span class="p">,</span> <span class="n">values_lh</span><span class="p">,</span> <span class="n">acronyms_rh</span><span class="p">,</span> <span class="n">values_rh</span><span class="p">):</span>
+
+<div class="viewcode-block" id="prepare_lr_data">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.plots.html#ibllib.atlas.plots.prepare_lr_data">[docs]</a>
+<span class="k">def</span> <span class="nf">prepare_lr_data</span><span class="p">(</span><span class="n">acronyms_lh</span><span class="p">,</span> <span class="n">values_lh</span><span class="p">,</span> <span class="n">acronyms_rh</span><span class="p">,</span> <span class="n">values_rh</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Prepare data in format needed for plotting when providing different region values per hemisphere</span>
 
@@ -197,13 +288,30 @@
     <span class="k">return</span> <span class="n">acronyms</span><span class="p">,</span> <span class="n">values</span></div>
 
 
-<div class="viewcode-block" id="reorder_data"><a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.plots.html#ibllib.atlas.plots.reorder_data">[docs]</a><span class="k">def</span> <span class="nf">reorder_data</span><span class="p">(</span><span class="n">acronyms</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">brain_regions</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+
+<div class="viewcode-block" id="reorder_data">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.plots.html#ibllib.atlas.plots.reorder_data">[docs]</a>
+<span class="k">def</span> <span class="nf">reorder_data</span><span class="p">(</span><span class="n">acronyms</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">brain_regions</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Reorder list of acronyms and values to match the Allen ordering</span>
-<span class="sd">    :param acronyms: array of acronyms</span>
-<span class="sd">    :param values: array of values</span>
-<span class="sd">    :param brain_regions: BrainRegions object</span>
-<span class="sd">    :return: ordered array of acronyms and values</span>
+<span class="sd">    Reorder list of acronyms and values to match the Allen ordering.</span>
+
+<span class="sd">    TODO Document more</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    acronyms : array_like of str</span>
+<span class="sd">        The acronyms to match the Allen ordering, whatever that means.</span>
+<span class="sd">    values : array_like</span>
+<span class="sd">        An array of some sort of values I guess...</span>
+<span class="sd">    brain_regions : ibllib.atlas.regions.BrainRegions</span>
+<span class="sd">        A brain regions object.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    numpy.array of str</span>
+<span class="sd">        An ordered array of acronyms</span>
+<span class="sd">    numpy.array</span>
+<span class="sd">        An ordered array of values. I don&#39;t know what those values are, not IDs, so maybe indices?</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">br</span> <span class="o">=</span> <span class="n">brain_regions</span> <span class="ow">or</span> <span class="n">BrainRegions</span><span class="p">()</span>
@@ -222,8 +330,29 @@
     <span class="k">return</span> <span class="n">ordered_acronyms</span><span class="p">,</span> <span class="n">ordered_values</span></div>
 
 
-<div class="viewcode-block" id="load_slice_files"><a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.plots.html#ibllib.atlas.plots.load_slice_files">[docs]</a><span class="k">def</span> <span class="nf">load_slice_files</span><span class="p">(</span><span class="nb">slice</span><span class="p">,</span> <span class="n">mapping</span><span class="p">):</span>
 
+<div class="viewcode-block" id="load_slice_files">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.plots.html#ibllib.atlas.plots.load_slice_files">[docs]</a>
+<span class="k">def</span> <span class="nf">load_slice_files</span><span class="p">(</span><span class="nb">slice</span><span class="p">,</span> <span class="n">mapping</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Function to load in set of vectorised atlas slices for a given atlas axis and mapping.</span>
+
+<span class="sd">    If the data does not exist locally, it will download the files automatically stored in a AWS S3</span>
+<span class="sd">    bucket.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    slice : {&#39;coronal&#39;, &#39;sagittal&#39;, &#39;horizontal&#39;, &#39;top&#39;}</span>
+<span class="sd">        The axis of the atlas to load.</span>
+<span class="sd">    mapping : {&#39;Allen&#39;, &#39;Beryl&#39;, &#39;Cosmos&#39;}</span>
+<span class="sd">        The mapping to load.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    slice_data : numpy.array</span>
+<span class="sd">        A json containing the vertices to draw each region for each slice in the Allen annotation volume.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">OLD_MD5</span> <span class="o">=</span> <span class="p">{</span>
         <span class="s1">&#39;coronal&#39;</span><span class="p">:</span> <span class="p">[],</span>
         <span class="s1">&#39;sagittal&#39;</span><span class="p">:</span> <span class="p">[],</span>
@@ -242,9 +371,51 @@
     <span class="k">return</span> <span class="n">slice_data</span></div>
 
 
+
 <span class="k">def</span> <span class="nf">_plot_slice_vector</span><span class="p">(</span><span class="n">coords</span><span class="p">,</span> <span class="nb">slice</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">mapping</span><span class="p">,</span> <span class="n">empty_color</span><span class="o">=</span><span class="s1">&#39;silver&#39;</span><span class="p">,</span> <span class="n">clevels</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s1">&#39;viridis&#39;</span><span class="p">,</span> <span class="n">show_cbar</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
                        <span class="n">ba</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">slice_json</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Function to plot scalar value per allen region on vectorised version of histology slice. Do not use directly but use</span>
+<span class="sd">    through plot_scalar_on_slice function with vector=True.</span>
 
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    coords: float</span>
+<span class="sd">        Coordinate of slice in um (not needed when slice=&#39;top&#39;).</span>
+<span class="sd">    slice: {&#39;coronal&#39;, &#39;sagittal&#39;, &#39;horizontal&#39;, &#39;top&#39;}</span>
+<span class="sd">        The axis through the atlas volume to display.</span>
+<span class="sd">    values: numpy.array</span>
+<span class="sd">        Array of values for each of the lateralised Allen regions found using BrainRegions().acronym. If no</span>
+<span class="sd">        value is assigned to the acronym, the value at corresponding to that index should be NaN.</span>
+<span class="sd">    mapping: {&#39;Allen&#39;, &#39;Beryl&#39;, &#39;Cosmos&#39;}</span>
+<span class="sd">        The mapping to use.</span>
+<span class="sd">    empty_color: str, tuple of int, default=&#39;silver&#39;</span>
+<span class="sd">        The color used to fill the regions that do not have any values assigned (regions with NaN).</span>
+<span class="sd">    clevels: numpy.array, list or tuple</span>
+<span class="sd">        The min and max values to use for the colormap.</span>
+<span class="sd">    cmap: string</span>
+<span class="sd">        Colormap to use.</span>
+<span class="sd">    show_cbar: bool, default=False</span>
+<span class="sd">        Whether to display a colorbar.</span>
+<span class="sd">    ba : ibllib.atlas.AllenAtlas</span>
+<span class="sd">        A brain atlas object.</span>
+<span class="sd">    ax : matplotlib.pyplot.Axes</span>
+<span class="sd">        An axis object to plot onto.</span>
+<span class="sd">    slice_json: numpy.array</span>
+<span class="sd">        The set of vectorised slices for this slice, obtained using load_slice_files(slice, mapping).</span>
+<span class="sd">    **kwargs</span>
+<span class="sd">        Set of kwargs passed into matplotlib.patches.Polygon.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    fig: matplotlib.figure.Figure</span>
+<span class="sd">        The plotted figure.</span>
+<span class="sd">    ax: matplotlib.pyplot.Axes</span>
+<span class="sd">        The plotted axes.</span>
+<span class="sd">    cbar: matplotlib.pyplot.colorbar, optional</span>
+<span class="sd">        matplotlib colorbar object, only returned if show_cbar=True</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">ba</span> <span class="o">=</span> <span class="n">ba</span> <span class="ow">or</span> <span class="n">AllenAtlas</span><span class="p">()</span>
     <span class="n">mapping</span> <span class="o">=</span> <span class="n">mapping</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;-&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
     <span class="k">if</span> <span class="n">clevels</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -262,7 +433,7 @@
         <span class="n">fig</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">get_figure</span><span class="p">()</span>
 
     <span class="n">colormap</span> <span class="o">=</span> <span class="n">cm</span><span class="o">.</span><span class="n">get_cmap</span><span class="p">(</span><span class="n">cmap</span><span class="p">)</span>
-    <span class="n">norm</span> <span class="o">=</span> <span class="n">matplotlib</span><span class="o">.</span><span class="n">colors</span><span class="o">.</span><span class="n">Normalize</span><span class="p">(</span><span class="n">vmin</span><span class="o">=</span><span class="n">clevels</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">vmax</span><span class="o">=</span><span class="n">clevels</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">norm</span> <span class="o">=</span> <span class="n">colors</span><span class="o">.</span><span class="n">Normalize</span><span class="p">(</span><span class="n">vmin</span><span class="o">=</span><span class="n">clevels</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">vmax</span><span class="o">=</span><span class="n">clevels</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
     <span class="n">nan_vals</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
     <span class="n">rgba_color</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">values</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="n">fill_value</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
     <span class="n">rgba_color</span><span class="p">[</span><span class="o">~</span><span class="n">nan_vals</span><span class="p">]</span> <span class="o">=</span> <span class="n">colormap</span><span class="p">(</span><span class="n">norm</span><span class="p">(</span><span class="n">values</span><span class="p">[</span><span class="o">~</span><span class="n">nan_vals</span><span class="p">]),</span> <span class="nb">bytes</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
@@ -301,7 +472,7 @@
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">coords</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
             <span class="k">continue</span>
 
-        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">coords</span><span class="p">)</span> <span class="o">==</span> <span class="nb">list</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">coords</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
             <span class="n">vertices</span><span class="p">,</span> <span class="n">codes</span> <span class="o">=</span> <span class="n">coords_for_poly_hole</span><span class="p">(</span><span class="n">coords</span><span class="p">)</span>
             <span class="n">plot_polygon_with_hole</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">vertices</span><span class="p">,</span> <span class="n">codes</span><span class="p">,</span> <span class="n">color</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
@@ -313,40 +484,73 @@
         <span class="n">ax</span><span class="o">.</span><span class="n">invert_yaxis</span><span class="p">()</span>
 
     <span class="k">if</span> <span class="n">show_cbar</span><span class="p">:</span>
-        <span class="n">cbar</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">colorbar</span><span class="p">(</span><span class="n">matplotlib</span><span class="o">.</span><span class="n">cm</span><span class="o">.</span><span class="n">ScalarMappable</span><span class="p">(</span><span class="n">norm</span><span class="o">=</span><span class="n">norm</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="n">cmap</span><span class="p">),</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
+        <span class="n">cbar</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">colorbar</span><span class="p">(</span><span class="n">cm</span><span class="o">.</span><span class="n">ScalarMappable</span><span class="p">(</span><span class="n">norm</span><span class="o">=</span><span class="n">norm</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="n">cmap</span><span class="p">),</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span><span class="p">,</span> <span class="n">cbar</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span>
 
 
-<div class="viewcode-block" id="plot_scalar_on_slice"><a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.plots.html#ibllib.atlas.plots.plot_scalar_on_slice">[docs]</a><span class="k">def</span> <span class="nf">plot_scalar_on_slice</span><span class="p">(</span><span class="n">regions</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">coord</span><span class="o">=-</span><span class="mi">1000</span><span class="p">,</span> <span class="nb">slice</span><span class="o">=</span><span class="s1">&#39;coronal&#39;</span><span class="p">,</span> <span class="n">mapping</span><span class="o">=</span><span class="s1">&#39;Allen&#39;</span><span class="p">,</span> <span class="n">hemisphere</span><span class="o">=</span><span class="s1">&#39;left&#39;</span><span class="p">,</span>
+<div class="viewcode-block" id="plot_scalar_on_slice">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.plots.html#ibllib.atlas.plots.plot_scalar_on_slice">[docs]</a>
+<span class="k">def</span> <span class="nf">plot_scalar_on_slice</span><span class="p">(</span><span class="n">regions</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">coord</span><span class="o">=-</span><span class="mi">1000</span><span class="p">,</span> <span class="nb">slice</span><span class="o">=</span><span class="s1">&#39;coronal&#39;</span><span class="p">,</span> <span class="n">mapping</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">hemisphere</span><span class="o">=</span><span class="s1">&#39;left&#39;</span><span class="p">,</span>
                          <span class="n">background</span><span class="o">=</span><span class="s1">&#39;image&#39;</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s1">&#39;viridis&#39;</span><span class="p">,</span> <span class="n">clevels</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">show_cbar</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">empty_color</span><span class="o">=</span><span class="s1">&#39;silver&#39;</span><span class="p">,</span>
                          <span class="n">brain_atlas</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">vector</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">slice_files</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Function to plot scalar value per allen region on histology slice</span>
+<span class="sd">    Function to plot scalar value per region on histology slice.</span>
 
-<span class="sd">    :param regions: array of acronyms of Allen regions</span>
-<span class="sd">    :param values: array of scalar value per acronym. If hemisphere is &#39;both&#39; and different values want to be shown on each</span>
-<span class="sd">    hemispheres, values should contain 2 columns, 1st column for LH values, 2nd column for RH values</span>
-<span class="sd">    :param coord: coordinate of slice in um (not needed when slice=&#39;top&#39;)</span>
-<span class="sd">    :param slice: orientation of slice, options are &#39;coronal&#39;, &#39;sagittal&#39;, &#39;horizontal&#39;, &#39;top&#39; (top view of brain)</span>
-<span class="sd">    :param mapping: atlas mapping to use, options are &#39;Allen&#39;, &#39;Beryl&#39; or &#39;Cosmos&#39;</span>
-<span class="sd">    :param hemisphere: hemisphere to display, options are &#39;left&#39;, &#39;right&#39;, &#39;both&#39;</span>
-<span class="sd">    :param background: background slice to overlay onto, options are &#39;image&#39; or &#39;boundary&#39; (only used when vector = False)</span>
-<span class="sd">    :param cmap: colormap to use</span>
-<span class="sd">    :param clevels: min max color levels [cmin, cmax]</span>
-<span class="sd">    :param show_cbar: whether or not to add colorbar to axis</span>
-<span class="sd">    :param empty_color: color to use for regions without any values (only used when vector = True)</span>
-<span class="sd">    :param brain_atlas: AllenAtlas object</span>
-<span class="sd">    :param ax: optional axis object to plot on</span>
-<span class="sd">    :param vector: whether to show as bitmap of vector graphic</span>
-<span class="sd">    :param slice_files: slice files for</span>
-<span class="sd">    :param **kwargs: kwargs to pass to matplotlib polygon e.g linewidth=2, edgecolor=&#39;none&#39; (only used when vector = True)</span>
-<span class="sd">    :return:</span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    regions : array_like</span>
+<span class="sd">        An array of brain region acronyms.</span>
+<span class="sd">    values : numpy.array</span>
+<span class="sd">        An array of scalar value per acronym. If hemisphere is &#39;both&#39; and different values want to</span>
+<span class="sd">        be shown on each hemisphere, values should contain 2 columns, 1st column for LH values, 2nd</span>
+<span class="sd">        column for RH values.</span>
+<span class="sd">    coord : float</span>
+<span class="sd">        Coordinate of slice in um (not needed when slice=&#39;top&#39;).</span>
+<span class="sd">    slice : {&#39;coronal&#39;, &#39;sagittal&#39;, &#39;horizontal&#39;, &#39;top&#39;}, default=&#39;coronal&#39;</span>
+<span class="sd">        Orientation of slice.</span>
+<span class="sd">    mapping : str, optional</span>
+<span class="sd">        Atlas mapping to use, options are depend on atlas used (see `ibllib.atlas.BrainRegions`).</span>
+<span class="sd">        If None, the atlas default mapping is used.</span>
+<span class="sd">    hemisphere : {&#39;left&#39;, &#39;right&#39;, &#39;both&#39;}, default=&#39;left&#39;</span>
+<span class="sd">        The hemisphere to display.</span>
+<span class="sd">    background : {image&#39;, &#39;boundary&#39;}, default=&#39;image&#39;</span>
+<span class="sd">        Background slice to overlay onto, options are &#39;image&#39; or &#39;boundary&#39;. If `vector` is false,</span>
+<span class="sd">        this argument is ignored.</span>
+<span class="sd">    cmap: str, default=&#39;viridis&#39;</span>
+<span class="sd">        Colormap to use.</span>
+<span class="sd">    clevels : array_like</span>
+<span class="sd">        The min and max color levels to use.</span>
+<span class="sd">    show_cbar: bool, default=False</span>
+<span class="sd">        Whether to display a colorbar.</span>
+<span class="sd">    empty_color : str, default=&#39;silver&#39;</span>
+<span class="sd">        Color to use for regions without any values (only used when `vector` is true).</span>
+<span class="sd">    brain_atlas : ibllib.atlas.AllenAtlas</span>
+<span class="sd">        A brain atlas object.</span>
+<span class="sd">    ax : matplotlib.pyplot.Axes</span>
+<span class="sd">        An axis object to plot onto.</span>
+<span class="sd">    vector : bool, default=False</span>
+<span class="sd">        Whether to show as bitmap or vector graphic.</span>
+<span class="sd">    slice_files: numpy.array</span>
+<span class="sd">        The set of vectorised slices for this slice, obtained using `load_slice_files(slice, mapping)`.</span>
+<span class="sd">    **kwargs</span>
+<span class="sd">        Set of kwargs passed into matplotlib.patches.Polygon, e.g. linewidth=2, edgecolor=&#39;None&#39;</span>
+<span class="sd">        (only used when vector = True).</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    fig: matplotlib.figure.Figure</span>
+<span class="sd">        The plotted figure.</span>
+<span class="sd">    ax: matplotlib.pyplot.Axes</span>
+<span class="sd">        The plotted axes.</span>
+<span class="sd">    cbar: matplotlib.pyplot.colorbar, optional</span>
+<span class="sd">        matplotlib colorbar object, only returned if show_cbar=True.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">ba</span> <span class="o">=</span> <span class="n">brain_atlas</span> <span class="ow">or</span> <span class="n">AllenAtlas</span><span class="p">()</span>
     <span class="n">br</span> <span class="o">=</span> <span class="n">ba</span><span class="o">.</span><span class="n">regions</span>
+    <span class="n">mapping</span> <span class="o">=</span> <span class="n">mapping</span> <span class="ow">or</span> <span class="n">br</span><span class="o">.</span><span class="n">default_mapping</span>
 
     <span class="k">if</span> <span class="n">clevels</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">clevels</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">nanmin</span><span class="p">(</span><span class="n">values</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmax</span><span class="p">(</span><span class="n">values</span><span class="p">))</span>
@@ -394,7 +598,10 @@
         <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span></div>
 
 
-<div class="viewcode-block" id="plot_scalar_on_flatmap"><a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.plots.html#ibllib.atlas.plots.plot_scalar_on_flatmap">[docs]</a><span class="k">def</span> <span class="nf">plot_scalar_on_flatmap</span><span class="p">(</span><span class="n">regions</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">depth</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">flatmap</span><span class="o">=</span><span class="s1">&#39;dorsal_cortex&#39;</span><span class="p">,</span> <span class="n">mapping</span><span class="o">=</span><span class="s1">&#39;Allen&#39;</span><span class="p">,</span> <span class="n">hemisphere</span><span class="o">=</span><span class="s1">&#39;left&#39;</span><span class="p">,</span>
+
+<div class="viewcode-block" id="plot_scalar_on_flatmap">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.plots.html#ibllib.atlas.plots.plot_scalar_on_flatmap">[docs]</a>
+<span class="k">def</span> <span class="nf">plot_scalar_on_flatmap</span><span class="p">(</span><span class="n">regions</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">depth</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">flatmap</span><span class="o">=</span><span class="s1">&#39;dorsal_cortex&#39;</span><span class="p">,</span> <span class="n">mapping</span><span class="o">=</span><span class="s1">&#39;Allen&#39;</span><span class="p">,</span> <span class="n">hemisphere</span><span class="o">=</span><span class="s1">&#39;left&#39;</span><span class="p">,</span>
                            <span class="n">background</span><span class="o">=</span><span class="s1">&#39;boundary&#39;</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s1">&#39;viridis&#39;</span><span class="p">,</span> <span class="n">clevels</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">show_cbar</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">flmap_atlas</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Function to plot scalar value per allen region on flatmap slice</span>
@@ -448,7 +655,7 @@
     <span class="n">d_idx</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">depth</span> <span class="o">/</span> <span class="n">ba</span><span class="o">.</span><span class="n">res_um</span><span class="p">))</span>  <span class="c1"># need to find nearest to 25</span>
 
     <span class="k">if</span> <span class="n">background</span> <span class="o">==</span> <span class="s1">&#39;boundary&#39;</span><span class="p">:</span>
-        <span class="n">cmap_bound</span> <span class="o">=</span> <span class="n">matplotlib</span><span class="o">.</span><span class="n">cm</span><span class="o">.</span><span class="n">get_cmap</span><span class="p">(</span><span class="s2">&quot;bone_r&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">cmap_bound</span> <span class="o">=</span> <span class="n">cm</span><span class="o">.</span><span class="n">get_cmap</span><span class="p">(</span><span class="s2">&quot;bone_r&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
         <span class="n">cmap_bound</span><span class="o">.</span><span class="n">set_under</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="mi">0</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">ax</span><span class="p">:</span>
@@ -473,17 +680,20 @@
             <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">ba</span><span class="o">.</span><span class="n">flatmap</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">/</span> <span class="mi">2</span><span class="p">),</span> <span class="n">ba</span><span class="o">.</span><span class="n">flatmap</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
 
     <span class="k">if</span> <span class="n">show_cbar</span><span class="p">:</span>
-        <span class="n">norm</span> <span class="o">=</span> <span class="n">matplotlib</span><span class="o">.</span><span class="n">colors</span><span class="o">.</span><span class="n">Normalize</span><span class="p">(</span><span class="n">vmin</span><span class="o">=</span><span class="n">clevels</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">vmax</span><span class="o">=</span><span class="n">clevels</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">clip</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-        <span class="n">cbar</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">colorbar</span><span class="p">(</span><span class="n">matplotlib</span><span class="o">.</span><span class="n">cm</span><span class="o">.</span><span class="n">ScalarMappable</span><span class="p">(</span><span class="n">norm</span><span class="o">=</span><span class="n">norm</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="n">cmap</span><span class="p">),</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
+        <span class="n">norm</span> <span class="o">=</span> <span class="n">colors</span><span class="o">.</span><span class="n">Normalize</span><span class="p">(</span><span class="n">vmin</span><span class="o">=</span><span class="n">clevels</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">vmax</span><span class="o">=</span><span class="n">clevels</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">clip</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">cbar</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">colorbar</span><span class="p">(</span><span class="n">cm</span><span class="o">.</span><span class="n">ScalarMappable</span><span class="p">(</span><span class="n">norm</span><span class="o">=</span><span class="n">norm</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="n">cmap</span><span class="p">),</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span><span class="p">,</span> <span class="n">cbar</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span></div>
 
 
-<div class="viewcode-block" id="plot_volume_on_slice"><a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.plots.html#ibllib.atlas.plots.plot_volume_on_slice">[docs]</a><span class="k">def</span> <span class="nf">plot_volume_on_slice</span><span class="p">(</span><span class="n">volume</span><span class="p">,</span> <span class="n">coord</span><span class="o">=-</span><span class="mi">1000</span><span class="p">,</span> <span class="nb">slice</span><span class="o">=</span><span class="s1">&#39;coronal&#39;</span><span class="p">,</span> <span class="n">mapping</span><span class="o">=</span><span class="s1">&#39;Allen&#39;</span><span class="p">,</span> <span class="n">background</span><span class="o">=</span><span class="s1">&#39;boundary&#39;</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s1">&#39;Reds&#39;</span><span class="p">,</span>
+
+<div class="viewcode-block" id="plot_volume_on_slice">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.plots.html#ibllib.atlas.plots.plot_volume_on_slice">[docs]</a>
+<span class="k">def</span> <span class="nf">plot_volume_on_slice</span><span class="p">(</span><span class="n">volume</span><span class="p">,</span> <span class="n">coord</span><span class="o">=-</span><span class="mi">1000</span><span class="p">,</span> <span class="nb">slice</span><span class="o">=</span><span class="s1">&#39;coronal&#39;</span><span class="p">,</span> <span class="n">mapping</span><span class="o">=</span><span class="s1">&#39;Allen&#39;</span><span class="p">,</span> <span class="n">background</span><span class="o">=</span><span class="s1">&#39;boundary&#39;</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s1">&#39;Reds&#39;</span><span class="p">,</span>
                          <span class="n">clevels</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">show_cbar</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">brain_atlas</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Plot slice at through volume</span>
+<span class="sd">    Plot slice through a volume</span>
 
 <span class="sd">    :param volume: 3D array of volume (must be same shape as brain_atlas object)</span>
 <span class="sd">    :param coord: coordinate of slice in um</span>
@@ -492,7 +702,7 @@
 <span class="sd">    :param background: background slice to overlay onto, options are &#39;image&#39; or &#39;boundary&#39;</span>
 <span class="sd">    :param cmap: colormap to use</span>
 <span class="sd">    :param clevels: min max color levels [cmin, cmax]</span>
-<span class="sd">    :param show_cbar: whether or not to add colorbar to axis</span>
+<span class="sd">    :param show_cbar: whether to add colorbar to axis</span>
 <span class="sd">    :param brain_atlas: AllenAtlas object</span>
 <span class="sd">    :param ax: optional axis object to plot on</span>
 <span class="sd">    :return:</span>
@@ -517,7 +727,10 @@
         <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span></div>
 
 
-<div class="viewcode-block" id="plot_points_on_slice"><a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.plots.html#ibllib.atlas.plots.plot_points_on_slice">[docs]</a><span class="k">def</span> <span class="nf">plot_points_on_slice</span><span class="p">(</span><span class="n">xyz</span><span class="p">,</span> <span class="n">values</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">coord</span><span class="o">=-</span><span class="mi">1000</span><span class="p">,</span> <span class="nb">slice</span><span class="o">=</span><span class="s1">&#39;coronal&#39;</span><span class="p">,</span> <span class="n">mapping</span><span class="o">=</span><span class="s1">&#39;Allen&#39;</span><span class="p">,</span> <span class="n">background</span><span class="o">=</span><span class="s1">&#39;boundary&#39;</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s1">&#39;Reds&#39;</span><span class="p">,</span>
+
+<div class="viewcode-block" id="plot_points_on_slice">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.plots.html#ibllib.atlas.plots.plot_points_on_slice">[docs]</a>
+<span class="k">def</span> <span class="nf">plot_points_on_slice</span><span class="p">(</span><span class="n">xyz</span><span class="p">,</span> <span class="n">values</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">coord</span><span class="o">=-</span><span class="mi">1000</span><span class="p">,</span> <span class="nb">slice</span><span class="o">=</span><span class="s1">&#39;coronal&#39;</span><span class="p">,</span> <span class="n">mapping</span><span class="o">=</span><span class="s1">&#39;Allen&#39;</span><span class="p">,</span> <span class="n">background</span><span class="o">=</span><span class="s1">&#39;boundary&#39;</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s1">&#39;Reds&#39;</span><span class="p">,</span>
                          <span class="n">clevels</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">show_cbar</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">aggr</span><span class="o">=</span><span class="s1">&#39;mean&#39;</span><span class="p">,</span> <span class="n">fwhm</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">brain_atlas</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Plot xyz points on slice. Points that lie in the same voxel within slice are aggregated according to method specified.</span>
@@ -532,7 +745,7 @@
 <span class="sd">    :param background: background slice to overlay onto, options are &#39;image&#39; or &#39;boundary&#39;</span>
 <span class="sd">    :param cmap: colormap to use</span>
 <span class="sd">    :param clevels: min max color levels [cmin, cmax]</span>
-<span class="sd">    :param show_cbar: whether or not to add colorbar to axis</span>
+<span class="sd">    :param show_cbar: whether to add colorbar to axis</span>
 <span class="sd">    :param aggr: aggregation method. Options are sum, count, mean, std, median, min and max.</span>
 <span class="sd">    Can also give in custom function (https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.binned_statistic.html)</span>
 <span class="sd">    :param fwhm: fwhm distance of gaussian kernel in um</span>
@@ -562,7 +775,10 @@
         <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span></div>
 
 
-<div class="viewcode-block" id="compute_volume_from_points"><a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.plots.html#ibllib.atlas.plots.compute_volume_from_points">[docs]</a><span class="k">def</span> <span class="nf">compute_volume_from_points</span><span class="p">(</span><span class="n">xyz</span><span class="p">,</span> <span class="n">values</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">aggr</span><span class="o">=</span><span class="s1">&#39;sum&#39;</span><span class="p">,</span> <span class="n">fwhm</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">ba</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+
+<div class="viewcode-block" id="compute_volume_from_points">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.plots.html#ibllib.atlas.plots.compute_volume_from_points">[docs]</a>
+<span class="k">def</span> <span class="nf">compute_volume_from_points</span><span class="p">(</span><span class="n">xyz</span><span class="p">,</span> <span class="n">values</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">aggr</span><span class="o">=</span><span class="s1">&#39;sum&#39;</span><span class="p">,</span> <span class="n">fwhm</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">ba</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Creates a 3D volume with xyz points placed in corresponding voxel in volume. Points that fall into the same voxel within the</span>
 <span class="sd">    volume are aggregated according to the method specified in aggr. Gaussian smoothing with a 3D kernel with distance specified</span>
@@ -604,9 +820,51 @@
     <span class="k">return</span> <span class="n">volume</span></div>
 
 
+
 <span class="k">def</span> <span class="nf">_plot_slice</span><span class="p">(</span><span class="n">coord</span><span class="p">,</span> <span class="nb">slice</span><span class="p">,</span> <span class="n">region_values</span><span class="p">,</span> <span class="n">vol_type</span><span class="p">,</span> <span class="n">background</span><span class="o">=</span><span class="s1">&#39;boundary&#39;</span><span class="p">,</span> <span class="nb">map</span><span class="o">=</span><span class="s1">&#39;Allen&#39;</span><span class="p">,</span> <span class="n">clevels</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s1">&#39;viridis&#39;</span><span class="p">,</span>
                 <span class="n">show_cbar</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">ba</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Function to plot scalar value per allen region on histology slice.</span>
 
+<span class="sd">    Do not use directly but use through plot_scalar_on_slice function.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    coord: float</span>
+<span class="sd">        coordinate of slice in um (not needed when slice=&#39;top&#39;).</span>
+<span class="sd">    slice: {&#39;coronal&#39;, &#39;sagittal&#39;, &#39;horizontal&#39;, &#39;top&#39;}</span>
+<span class="sd">        the axis through the atlas volume to display.</span>
+<span class="sd">    region_values: numpy.array</span>
+<span class="sd">        Array of values for each of the lateralised Allen regions found using BrainRegions().acronym. If no</span>
+<span class="sd">        value is assigned to the acronym, the value at corresponding to that index should be nan.</span>
+<span class="sd">    vol_type: &#39;value&#39;</span>
+<span class="sd">        The type of volume to be displayed, should always be &#39;value&#39; if values want to be displayed.</span>
+<span class="sd">    background: {&#39;image&#39;, &#39;boundary&#39;}</span>
+<span class="sd">        The background slice to overlay the values onto. When &#39;image&#39; it uses the Allen dwi image, when</span>
+<span class="sd">        &#39;boundary&#39; it displays the boundaries between regions.</span>
+<span class="sd">    map: {&#39;Allen&#39;, &#39;Beryl&#39;, &#39;Cosmos&#39;}</span>
+<span class="sd">        the mapping to use.</span>
+<span class="sd">    clevels: numpy.array, list or tuple</span>
+<span class="sd">        The min and max values to use for the colormap.</span>
+<span class="sd">    cmap: str, default=&#39;viridis&#39;</span>
+<span class="sd">        Colormap to use.</span>
+<span class="sd">    show_cbar: bool, default=False</span>
+<span class="sd">        Whether to display a colorbar.</span>
+<span class="sd">    ba : ibllib.atlas.AllenAtlas</span>
+<span class="sd">        A brain atlas object.</span>
+<span class="sd">    ax : matplotlib.pyplot.Axes</span>
+<span class="sd">        An axis object to plot onto.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    fig: matplotlib.figure.Figure</span>
+<span class="sd">        The plotted figure</span>
+<span class="sd">    ax: matplotlib.pyplot.Axes</span>
+<span class="sd">        The plotted axes.</span>
+<span class="sd">    cbar: matplotlib.pyplot.colorbar</span>
+<span class="sd">        matplotlib colorbar object, only returned if show_cbar=True.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">ba</span> <span class="o">=</span> <span class="n">ba</span> <span class="ow">or</span> <span class="n">AllenAtlas</span><span class="p">()</span>
 
     <span class="k">if</span> <span class="n">clevels</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -658,14 +916,43 @@
             <span class="n">ba</span><span class="o">.</span><span class="n">plot_top</span><span class="p">(</span><span class="n">volume</span><span class="o">=</span><span class="s1">&#39;boundary&#39;</span><span class="p">,</span> <span class="n">mapping</span><span class="o">=</span><span class="nb">map</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">show_cbar</span><span class="p">:</span>
-        <span class="n">norm</span> <span class="o">=</span> <span class="n">matplotlib</span><span class="o">.</span><span class="n">colors</span><span class="o">.</span><span class="n">Normalize</span><span class="p">(</span><span class="n">vmin</span><span class="o">=</span><span class="n">clevels</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">vmax</span><span class="o">=</span><span class="n">clevels</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">clip</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-        <span class="n">cbar</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">colorbar</span><span class="p">(</span><span class="n">matplotlib</span><span class="o">.</span><span class="n">cm</span><span class="o">.</span><span class="n">ScalarMappable</span><span class="p">(</span><span class="n">norm</span><span class="o">=</span><span class="n">norm</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="n">cmap</span><span class="p">),</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
+        <span class="n">norm</span> <span class="o">=</span> <span class="n">colors</span><span class="o">.</span><span class="n">Normalize</span><span class="p">(</span><span class="n">vmin</span><span class="o">=</span><span class="n">clevels</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">vmax</span><span class="o">=</span><span class="n">clevels</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">clip</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">cbar</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">colorbar</span><span class="p">(</span><span class="n">cm</span><span class="o">.</span><span class="n">ScalarMappable</span><span class="p">(</span><span class="n">norm</span><span class="o">=</span><span class="n">norm</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="n">cmap</span><span class="p">),</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span><span class="p">,</span> <span class="n">cbar</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span>
 
 
-<div class="viewcode-block" id="plot_scalar_on_barplot"><a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.plots.html#ibllib.atlas.plots.plot_scalar_on_barplot">[docs]</a><span class="k">def</span> <span class="nf">plot_scalar_on_barplot</span><span class="p">(</span><span class="n">acronyms</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">errors</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">ylim</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">brain_regions</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="plot_scalar_on_barplot">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.plots.html#ibllib.atlas.plots.plot_scalar_on_barplot">[docs]</a>
+<span class="k">def</span> <span class="nf">plot_scalar_on_barplot</span><span class="p">(</span><span class="n">acronyms</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">errors</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">brain_regions</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Function to plot scalar value per allen region on a bar plot. If order=True, the acronyms and values are reordered</span>
+<span class="sd">    according to the order defined in the Allen structure tree</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    acronyms: numpy.array</span>
+<span class="sd">        A 1D array of acronyms</span>
+<span class="sd">    values: numpy.array</span>
+<span class="sd">        A 1D array of values corresponding to each acronym in the acronyms array</span>
+<span class="sd">    errors: numpy.array</span>
+<span class="sd">        A 1D array of error values corresponding to each acronym in the acronyms array</span>
+<span class="sd">    order: bool, default=True</span>
+<span class="sd">        Whether to order the acronyms according to the order defined by the Allen structure tree</span>
+<span class="sd">    ax : matplotlib.pyplot.Axes</span>
+<span class="sd">        An axis object to plot onto.</span>
+<span class="sd">    brain_regions : ibllib.atlas.regions.BrainRegions</span>
+<span class="sd">        A brain regions object</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    fig: matplotlib.figure.Figure</span>
+<span class="sd">        The plotted figure</span>
+<span class="sd">    ax: matplotlib.pyplot.Axes</span>
+<span class="sd">        The plotted axes.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">br</span> <span class="o">=</span> <span class="n">brain_regions</span> <span class="ow">or</span> <span class="n">BrainRegions</span><span class="p">()</span>
 
     <span class="k">if</span> <span class="n">order</span><span class="p">:</span>
@@ -682,6 +969,365 @@
     <span class="n">ax</span><span class="o">.</span><span class="n">bar</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">acronyms</span><span class="o">.</span><span class="n">size</span><span class="p">),</span> <span class="n">values</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">colours</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span></div>
+
+
+
+<div class="viewcode-block" id="plot_swanson_vector">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.plots.html#ibllib.atlas.plots.plot_swanson_vector">[docs]</a>
+<span class="k">def</span> <span class="nf">plot_swanson_vector</span><span class="p">(</span><span class="n">acronyms</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">values</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">hemisphere</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">br</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">orientation</span><span class="o">=</span><span class="s1">&#39;landscape&#39;</span><span class="p">,</span>
+                        <span class="n">empty_color</span><span class="o">=</span><span class="s1">&#39;silver&#39;</span><span class="p">,</span> <span class="n">vmin</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">vmax</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s1">&#39;viridis&#39;</span><span class="p">,</span> <span class="n">annotate</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">annotate_n</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+                        <span class="n">annotate_order</span><span class="o">=</span><span class="s1">&#39;top&#39;</span><span class="p">,</span> <span class="n">annotate_list</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">mask_color</span><span class="o">=</span><span class="s1">&#39;w&#39;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Function to plot scalar value per allen region on the swanson projection. Plots on a vecortised version of the</span>
+<span class="sd">    swanson projection</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    acronyms: numpy.array</span>
+<span class="sd">        A 1D array of acronyms or atlas ids</span>
+<span class="sd">    values: numpy.array</span>
+<span class="sd">        A 1D array of values corresponding to each acronym in the acronyms array</span>
+<span class="sd">    ax : matplotlib.pyplot.Axes</span>
+<span class="sd">        An axis object to plot onto.</span>
+<span class="sd">    hemisphere : {&#39;left&#39;, &#39;right&#39;, &#39;both&#39;, &#39;mirror&#39;}</span>
+<span class="sd">        The hemisphere to display.</span>
+<span class="sd">    br : ibllib.atlas.BrainRegions</span>
+<span class="sd">        A brain regions object.</span>
+<span class="sd">    orientation : {landscape&#39;, &#39;portrait&#39;}, default=&#39;landscape&#39;</span>
+<span class="sd">        The plot orientation.</span>
+<span class="sd">    empty_color : str, tuple of int, default=&#39;silver&#39;</span>
+<span class="sd">        The greyscale matplotlib color code or an RGBA int8 tuple defining the filling of brain</span>
+<span class="sd">        regions not provided.</span>
+<span class="sd">    vmin: float</span>
+<span class="sd">        Minimum value to restrict the colormap</span>
+<span class="sd">    vmax: float</span>
+<span class="sd">        Maximum value to restrict the colormap</span>
+<span class="sd">    cmap: string</span>
+<span class="sd">        matplotlib named colormap to use</span>
+<span class="sd">    annotate : bool, default=False</span>
+<span class="sd">        If true, labels the regions with acronyms.</span>
+<span class="sd">    annotate_n: int</span>
+<span class="sd">        The number of regions to annotate</span>
+<span class="sd">    annotate_order: {&#39;top&#39;, &#39;bottom&#39;}</span>
+<span class="sd">        If annotate_n is specified, whether to annotate the n regions with the highest (top) or lowest (bottom) values</span>
+<span class="sd">    annotate_list: numpy.array of list</span>
+<span class="sd">        List of regions to annotate, if this is provided, if overwrites annotate_n and annotate_order</span>
+<span class="sd">    mask: numpy.array or list</span>
+<span class="sd">        List of regions to apply a mask to (fill them with a specific color)</span>
+<span class="sd">    mask_color: string, tuple or list</span>
+<span class="sd">        Color for the mask</span>
+<span class="sd">    fontsize : int</span>
+<span class="sd">        The annotation font size in points.</span>
+<span class="sd">    **kwargs</span>
+<span class="sd">        See plot_polygon and plot_polygon_with_hole.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    matplotlib.pyplot.Axes</span>
+<span class="sd">        The plotted axes.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">br</span> <span class="o">=</span> <span class="n">BrainRegions</span><span class="p">()</span> <span class="k">if</span> <span class="n">br</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">br</span>
+    <span class="n">br</span><span class="o">.</span><span class="n">compute_hierarchy</span><span class="p">()</span>
+    <span class="n">sw_shape</span> <span class="o">=</span> <span class="p">(</span><span class="mi">2968</span><span class="p">,</span> <span class="mi">6820</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">ax</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">()</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_axis_off</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="n">hemisphere</span> <span class="o">!=</span> <span class="s1">&#39;both&#39;</span> <span class="ow">and</span> <span class="n">acronyms</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">acronyms</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="c1"># If negative atlas ids are passed in and we are not going to lateralise (e.g hemisphere=&#39;both&#39;)</span>
+        <span class="c1"># transfer them over to one hemisphere</span>
+        <span class="n">acronyms</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">acronyms</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">acronyms</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">ibr</span><span class="p">,</span> <span class="n">vals</span> <span class="o">=</span> <span class="n">br</span><span class="o">.</span><span class="n">propagate_down</span><span class="p">(</span><span class="n">acronyms</span><span class="p">,</span> <span class="n">values</span><span class="p">)</span>
+        <span class="n">colormap</span> <span class="o">=</span> <span class="n">cm</span><span class="o">.</span><span class="n">get_cmap</span><span class="p">(</span><span class="n">cmap</span><span class="p">)</span>
+        <span class="n">vmin</span> <span class="o">=</span> <span class="n">vmin</span> <span class="ow">or</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmin</span><span class="p">(</span><span class="n">vals</span><span class="p">)</span>
+        <span class="n">vmax</span> <span class="o">=</span> <span class="n">vmax</span> <span class="ow">or</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmax</span><span class="p">(</span><span class="n">vals</span><span class="p">)</span>
+        <span class="n">norm</span> <span class="o">=</span> <span class="n">colors</span><span class="o">.</span><span class="n">Normalize</span><span class="p">(</span><span class="n">vmin</span><span class="o">=</span><span class="n">vmin</span><span class="p">,</span> <span class="n">vmax</span><span class="o">=</span><span class="n">vmax</span><span class="p">)</span>
+        <span class="n">rgba_color</span> <span class="o">=</span> <span class="n">colormap</span><span class="p">(</span><span class="n">norm</span><span class="p">(</span><span class="n">vals</span><span class="p">),</span> <span class="nb">bytes</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">imr</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">br</span><span class="o">.</span><span class="n">propagate_down</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">mask</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">imr</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="n">sw_json</span> <span class="o">=</span> <span class="n">swanson_json</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">hemisphere</span> <span class="o">==</span> <span class="s1">&#39;both&#39;</span><span class="p">:</span>
+        <span class="n">sw_rev</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">sw_json</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">sw</span> <span class="ow">in</span> <span class="n">sw_rev</span><span class="p">:</span>
+            <span class="n">sw</span><span class="p">[</span><span class="s1">&#39;thisID&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sw</span><span class="p">[</span><span class="s1">&#39;thisID&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="n">br</span><span class="o">.</span><span class="n">n_lr</span>
+        <span class="n">sw_json</span> <span class="o">=</span> <span class="n">sw_json</span> <span class="o">+</span> <span class="n">sw_rev</span>
+
+    <span class="n">plot_idx</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">plot_val</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">reg</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">sw_json</span><span class="p">):</span>
+
+        <span class="n">coords</span> <span class="o">=</span> <span class="n">reg</span><span class="p">[</span><span class="s1">&#39;coordsReg&#39;</span><span class="p">]</span>
+        <span class="n">reg_id</span> <span class="o">=</span> <span class="n">reg</span><span class="p">[</span><span class="s1">&#39;thisID&#39;</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">acronyms</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">color</span> <span class="o">=</span> <span class="n">br</span><span class="o">.</span><span class="n">rgba</span><span class="p">[</span><span class="n">br</span><span class="o">.</span><span class="n">mappings</span><span class="p">[</span><span class="s1">&#39;Swanson&#39;</span><span class="p">][</span><span class="n">reg</span><span class="p">[</span><span class="s1">&#39;thisID&#39;</span><span class="p">]]]</span> <span class="o">/</span> <span class="mi">255</span>
+            <span class="k">if</span> <span class="n">hemisphere</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">col_l</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="n">col_r</span> <span class="o">=</span> <span class="n">color</span>
+            <span class="k">elif</span> <span class="n">hemisphere</span> <span class="o">==</span> <span class="s1">&#39;left&#39;</span><span class="p">:</span>
+                <span class="n">col_l</span> <span class="o">=</span> <span class="n">empty_color</span> <span class="k">if</span> <span class="n">orientation</span> <span class="o">==</span> <span class="s1">&#39;portrait&#39;</span> <span class="k">else</span> <span class="n">color</span>
+                <span class="n">col_r</span> <span class="o">=</span> <span class="n">color</span> <span class="k">if</span> <span class="n">orientation</span> <span class="o">==</span> <span class="s1">&#39;portrait&#39;</span> <span class="k">else</span> <span class="n">empty_color</span>
+            <span class="k">elif</span> <span class="n">hemisphere</span> <span class="o">==</span> <span class="s1">&#39;right&#39;</span><span class="p">:</span>
+                <span class="n">col_l</span> <span class="o">=</span> <span class="n">color</span> <span class="k">if</span> <span class="n">orientation</span> <span class="o">==</span> <span class="s1">&#39;portrait&#39;</span> <span class="k">else</span> <span class="n">empty_color</span>
+                <span class="n">col_r</span> <span class="o">=</span> <span class="n">empty_color</span> <span class="k">if</span> <span class="n">orientation</span> <span class="o">==</span> <span class="s1">&#39;portrait&#39;</span> <span class="k">else</span> <span class="n">color</span>
+            <span class="k">elif</span> <span class="n">hemisphere</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;both&#39;</span><span class="p">,</span> <span class="s1">&#39;mirror&#39;</span><span class="p">]:</span>
+                <span class="n">col_l</span> <span class="o">=</span> <span class="n">color</span>
+                <span class="n">col_r</span> <span class="o">=</span> <span class="n">color</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">ibr</span> <span class="o">==</span> <span class="n">reg</span><span class="p">[</span><span class="s1">&#39;thisID&#39;</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">idxm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">imr</span> <span class="o">==</span> <span class="n">reg</span><span class="p">[</span><span class="s1">&#39;thisID&#39;</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">plot_idx</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ibr</span><span class="p">[</span><span class="n">idx</span><span class="p">[</span><span class="mi">0</span><span class="p">]])</span>
+                <span class="n">plot_val</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">vals</span><span class="p">[</span><span class="n">idx</span><span class="p">[</span><span class="mi">0</span><span class="p">]])</span>
+                <span class="n">color</span> <span class="o">=</span> <span class="n">rgba_color</span><span class="p">[</span><span class="n">idx</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span> <span class="o">/</span> <span class="mi">255</span>
+            <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">idxm</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">color</span> <span class="o">=</span> <span class="n">mask_color</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">color</span> <span class="o">=</span> <span class="n">empty_color</span>
+
+            <span class="k">if</span> <span class="n">hemisphere</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">col_l</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="n">col_r</span> <span class="o">=</span> <span class="n">color</span>
+            <span class="k">elif</span> <span class="n">hemisphere</span> <span class="o">==</span> <span class="s1">&#39;left&#39;</span><span class="p">:</span>
+                <span class="n">col_l</span> <span class="o">=</span> <span class="n">empty_color</span> <span class="k">if</span> <span class="n">orientation</span> <span class="o">==</span> <span class="s1">&#39;portrait&#39;</span> <span class="k">else</span> <span class="n">color</span>
+                <span class="n">col_r</span> <span class="o">=</span> <span class="n">color</span> <span class="k">if</span> <span class="n">orientation</span> <span class="o">==</span> <span class="s1">&#39;portrait&#39;</span> <span class="k">else</span> <span class="n">empty_color</span>
+            <span class="k">elif</span> <span class="n">hemisphere</span> <span class="o">==</span> <span class="s1">&#39;right&#39;</span><span class="p">:</span>
+                <span class="n">col_l</span> <span class="o">=</span> <span class="n">color</span> <span class="k">if</span> <span class="n">orientation</span> <span class="o">==</span> <span class="s1">&#39;portrait&#39;</span> <span class="k">else</span> <span class="n">empty_color</span>
+                <span class="n">col_r</span> <span class="o">=</span> <span class="n">empty_color</span> <span class="k">if</span> <span class="n">orientation</span> <span class="o">==</span> <span class="s1">&#39;portrait&#39;</span> <span class="k">else</span> <span class="n">color</span>
+            <span class="k">elif</span> <span class="n">hemisphere</span> <span class="o">==</span> <span class="s1">&#39;mirror&#39;</span><span class="p">:</span>
+                <span class="n">col_l</span> <span class="o">=</span> <span class="n">color</span>
+                <span class="n">col_r</span> <span class="o">=</span> <span class="n">color</span>
+            <span class="k">elif</span> <span class="n">hemisphere</span> <span class="o">==</span> <span class="s1">&#39;both&#39;</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">reg_id</span> <span class="o">&lt;=</span> <span class="n">br</span><span class="o">.</span><span class="n">n_lr</span><span class="p">:</span>
+                    <span class="n">col_l</span> <span class="o">=</span> <span class="n">color</span> <span class="k">if</span> <span class="n">orientation</span> <span class="o">==</span> <span class="s1">&#39;portrait&#39;</span> <span class="k">else</span> <span class="kc">None</span>
+                    <span class="n">col_r</span> <span class="o">=</span> <span class="kc">None</span> <span class="k">if</span> <span class="n">orientation</span> <span class="o">==</span> <span class="s1">&#39;portrait&#39;</span> <span class="k">else</span> <span class="n">color</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">col_l</span> <span class="o">=</span> <span class="kc">None</span> <span class="k">if</span> <span class="n">orientation</span> <span class="o">==</span> <span class="s1">&#39;portrait&#39;</span> <span class="k">else</span> <span class="n">color</span>
+                    <span class="n">col_r</span> <span class="o">=</span> <span class="n">color</span> <span class="k">if</span> <span class="n">orientation</span> <span class="o">==</span> <span class="s1">&#39;portrait&#39;</span> <span class="k">else</span> <span class="kc">None</span>
+
+        <span class="k">if</span> <span class="n">reg</span><span class="p">[</span><span class="s1">&#39;hole&#39;</span><span class="p">]:</span>
+            <span class="n">vertices</span><span class="p">,</span> <span class="n">codes</span> <span class="o">=</span> <span class="n">coords_for_poly_hole</span><span class="p">(</span><span class="n">coords</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">orientation</span> <span class="o">==</span> <span class="s1">&#39;portrait&#39;</span><span class="p">:</span>
+                <span class="n">vertices</span><span class="p">[:,</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]]</span> <span class="o">=</span> <span class="n">vertices</span><span class="p">[:,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">]]</span>
+                <span class="k">if</span> <span class="n">col_r</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">plot_polygon_with_hole</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">vertices</span><span class="p">,</span> <span class="n">codes</span><span class="p">,</span> <span class="n">col_r</span><span class="p">,</span> <span class="n">reg_id</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">col_l</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">vertices_inv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">vertices</span><span class="p">)</span>
+                    <span class="n">vertices_inv</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span> <span class="o">*</span> <span class="n">vertices_inv</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="n">sw_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
+                    <span class="n">plot_polygon_with_hole</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">vertices_inv</span><span class="p">,</span> <span class="n">codes</span><span class="p">,</span> <span class="n">col_l</span><span class="p">,</span> <span class="n">reg_id</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">col_r</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">plot_polygon_with_hole</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">vertices</span><span class="p">,</span> <span class="n">codes</span><span class="p">,</span> <span class="n">col_r</span><span class="p">,</span> <span class="n">reg_id</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">col_l</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">vertices_inv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">vertices</span><span class="p">)</span>
+                    <span class="n">vertices_inv</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span> <span class="o">*</span> <span class="n">vertices_inv</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="n">sw_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
+                    <span class="n">plot_polygon_with_hole</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">vertices_inv</span><span class="p">,</span> <span class="n">codes</span><span class="p">,</span> <span class="n">col_l</span><span class="p">,</span> <span class="n">reg_id</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">coords</span> <span class="o">=</span> <span class="p">[</span><span class="n">coords</span><span class="p">]</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">coords</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="k">else</span> <span class="n">coords</span>
+            <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">coords</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">orientation</span> <span class="o">==</span> <span class="s1">&#39;portrait&#39;</span><span class="p">:</span>
+                    <span class="n">xy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">c_</span><span class="p">[</span><span class="n">c</span><span class="p">[</span><span class="s1">&#39;y&#39;</span><span class="p">],</span> <span class="n">c</span><span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">]]</span>
+                    <span class="k">if</span> <span class="n">col_r</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="n">plot_polygon</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">xy</span><span class="p">,</span> <span class="n">col_r</span><span class="p">,</span> <span class="n">reg_id</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">col_l</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="n">xy_inv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">xy</span><span class="p">)</span>
+                        <span class="n">xy_inv</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span> <span class="o">*</span> <span class="n">xy_inv</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="n">sw_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
+                        <span class="n">plot_polygon</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">xy_inv</span><span class="p">,</span> <span class="n">col_l</span><span class="p">,</span> <span class="n">reg_id</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">xy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">c_</span><span class="p">[</span><span class="n">c</span><span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">],</span> <span class="n">c</span><span class="p">[</span><span class="s1">&#39;y&#39;</span><span class="p">]]</span>
+                    <span class="k">if</span> <span class="n">col_r</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="n">plot_polygon</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">xy</span><span class="p">,</span> <span class="n">col_r</span><span class="p">,</span> <span class="n">reg_id</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">col_l</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="n">xy_inv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">xy</span><span class="p">)</span>
+                        <span class="n">xy_inv</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span> <span class="o">*</span> <span class="n">xy_inv</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="n">sw_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
+                        <span class="n">plot_polygon</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">xy_inv</span><span class="p">,</span> <span class="n">col_l</span><span class="p">,</span> <span class="n">reg_id</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">orientation</span> <span class="o">==</span> <span class="s1">&#39;portrait&#39;</span><span class="p">:</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">sw_shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">hemisphere</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">sw_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">sw_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">sw_shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">hemisphere</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">sw_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">sw_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+    <span class="k">if</span> <span class="n">annotate</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">annotate_list</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">annotate_swanson</span><span class="p">(</span><span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">acronyms</span><span class="o">=</span><span class="n">annotate_list</span><span class="p">,</span> <span class="n">orientation</span><span class="o">=</span><span class="n">orientation</span><span class="p">,</span> <span class="n">br</span><span class="o">=</span><span class="n">br</span><span class="p">,</span> <span class="n">thres</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="n">fontsize</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">acronyms</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">ids</span> <span class="o">=</span> <span class="n">br</span><span class="o">.</span><span class="n">index2id</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">plot_idx</span><span class="p">))</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">indices</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">intersect1d</span><span class="p">(</span><span class="n">br</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">br</span><span class="o">.</span><span class="n">remap</span><span class="p">(</span><span class="n">ids</span><span class="p">,</span> <span class="s1">&#39;Swanson-lr&#39;</span><span class="p">),</span> <span class="n">return_indices</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">a</span><span class="p">,</span> <span class="n">b</span> <span class="o">=</span> <span class="n">ismember</span><span class="p">(</span><span class="n">ids</span><span class="p">,</span> <span class="n">br</span><span class="o">.</span><span class="n">id</span><span class="p">[</span><span class="n">indices</span><span class="p">])</span>
+            <span class="n">sorted_id</span> <span class="o">=</span> <span class="n">ids</span><span class="p">[</span><span class="n">a</span><span class="p">]</span>
+            <span class="n">vals</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">plot_val</span><span class="p">)[</span><span class="n">a</span><span class="p">]</span>
+            <span class="n">sort_vals</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">vals</span><span class="p">)</span> <span class="k">if</span> <span class="n">annotate_order</span> <span class="o">==</span> <span class="s1">&#39;bottom&#39;</span> <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">vals</span><span class="p">)[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">annotate_swanson</span><span class="p">(</span><span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">acronyms</span><span class="o">=</span><span class="n">sorted_id</span><span class="p">[</span><span class="n">sort_vals</span><span class="p">[:</span><span class="n">annotate_n</span><span class="p">]],</span> <span class="n">orientation</span><span class="o">=</span><span class="n">orientation</span><span class="p">,</span> <span class="n">br</span><span class="o">=</span><span class="n">br</span><span class="p">,</span>
+                             <span class="n">thres</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="n">fontsize</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">annotate_swanson</span><span class="p">(</span><span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">orientation</span><span class="o">=</span><span class="n">orientation</span><span class="p">,</span> <span class="n">br</span><span class="o">=</span><span class="n">br</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="n">fontsize</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">format_coord</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="n">patch</span> <span class="o">=</span> <span class="nb">next</span><span class="p">((</span><span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">ax</span><span class="o">.</span><span class="n">patches</span> <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">contains_point</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">get_transform</span><span class="p">()</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">]))),</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">patch</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">ind</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">patch</span><span class="o">.</span><span class="n">get_gid</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="n">ancestors</span> <span class="o">=</span> <span class="n">br</span><span class="o">.</span><span class="n">ancestors</span><span class="p">(</span><span class="n">br</span><span class="o">.</span><span class="n">id</span><span class="p">[</span><span class="n">ind</span><span class="p">])[</span><span class="s1">&#39;acronym&#39;</span><span class="p">]</span>
+            <span class="k">return</span> <span class="sa">f</span><span class="s1">&#39;sw-</span><span class="si">{</span><span class="n">ind</span><span class="si">}</span><span class="s1">, </span><span class="si">{</span><span class="n">ancestors</span><span class="si">}</span><span class="s1">, aid=</span><span class="si">{</span><span class="n">br</span><span class="o">.</span><span class="n">id</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span><span class="si">}</span><span class="s1">-</span><span class="si">{</span><span class="n">br</span><span class="o">.</span><span class="n">acronym</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span><span class="si">}</span><span class="s1"> </span><span class="se">\n</span><span class="s1"> </span><span class="si">{</span><span class="n">br</span><span class="o">.</span><span class="n">name</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span><span class="si">}</span><span class="s1">&#39;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s1">&#39;&#39;</span>
+
+    <span class="n">ax</span><span class="o">.</span><span class="n">format_coord</span> <span class="o">=</span> <span class="n">format_coord</span>
+
+    <span class="n">ax</span><span class="o">.</span><span class="n">invert_yaxis</span><span class="p">()</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_aspect</span><span class="p">(</span><span class="s1">&#39;equal&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">ax</span></div>
+
+
+
+<div class="viewcode-block" id="plot_swanson">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.plots.html#ibllib.atlas.plots.plot_swanson">[docs]</a>
+<span class="k">def</span> <span class="nf">plot_swanson</span><span class="p">(</span><span class="n">acronyms</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">values</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">hemisphere</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">br</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">orientation</span><span class="o">=</span><span class="s1">&#39;landscape&#39;</span><span class="p">,</span> <span class="n">annotate</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">empty_color</span><span class="o">=</span><span class="s1">&#39;silver&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Displays the 2D image corresponding to the swanson flatmap.</span>
+
+<span class="sd">    This case is different from the others in the sense that only a region maps to another regions,</span>
+<span class="sd">    there is no correspondence to the spatial 3D coordinates.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    acronyms: numpy.array</span>
+<span class="sd">        A 1D array of acronyms or atlas ids</span>
+<span class="sd">    values: numpy.array</span>
+<span class="sd">        A 1D array of values corresponding to each acronym in the acronyms array</span>
+<span class="sd">    ax : matplotlib.pyplot.Axes</span>
+<span class="sd">        An axis object to plot onto.</span>
+<span class="sd">    hemisphere : {&#39;left&#39;, &#39;right&#39;, &#39;both&#39;, &#39;mirror&#39;}</span>
+<span class="sd">        The hemisphere to display.</span>
+<span class="sd">    br : ibllib.atlas.BrainRegions</span>
+<span class="sd">        A brain regions object.</span>
+<span class="sd">    orientation : {landscape&#39;, &#39;portrait&#39;}, default=&#39;landscape&#39;</span>
+<span class="sd">        The plot orientation.</span>
+<span class="sd">    empty_color : str, tuple of int, default=&#39;silver&#39;</span>
+<span class="sd">        The greyscale matplotlib color code or an RGBA int8 tuple defining the filling of brain</span>
+<span class="sd">        regions not provided.</span>
+<span class="sd">    vmin: float</span>
+<span class="sd">        Minimum value to restrict the colormap</span>
+<span class="sd">    vmax: float</span>
+<span class="sd">        Maximum value to restrict the colormap</span>
+<span class="sd">    cmap: string</span>
+<span class="sd">        matplotlib named colormap to use</span>
+<span class="sd">    annotate : bool, default=False</span>
+<span class="sd">        If true, labels the regions with acronyms.</span>
+<span class="sd">    **kwargs</span>
+<span class="sd">        See matplotlib.pyplot.imshow.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    matplotlib.pyplot.Axes</span>
+<span class="sd">        The plotted axes.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">mapping</span> <span class="o">=</span> <span class="s1">&#39;Swanson&#39;</span>
+    <span class="n">br</span> <span class="o">=</span> <span class="n">BrainRegions</span><span class="p">()</span> <span class="k">if</span> <span class="n">br</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">br</span>
+    <span class="n">br</span><span class="o">.</span><span class="n">compute_hierarchy</span><span class="p">()</span>
+    <span class="n">s2a</span> <span class="o">=</span> <span class="n">swanson</span><span class="p">()</span>
+    <span class="c1"># both hemispheres</span>
+    <span class="k">if</span> <span class="n">hemisphere</span> <span class="o">==</span> <span class="s1">&#39;both&#39;</span><span class="p">:</span>
+        <span class="n">_s2a</span> <span class="o">=</span> <span class="n">s2a</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">br</span><span class="o">.</span><span class="n">id</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">_s2a</span><span class="p">[</span><span class="n">s2a</span> <span class="o">==</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">_s2a</span><span class="p">[</span><span class="n">s2a</span> <span class="o">==</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="n">s2a</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="n">s2a</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">flipud</span><span class="p">(</span><span class="n">_s2a</span><span class="p">)]</span>
+        <span class="n">mapping</span> <span class="o">=</span> <span class="s1">&#39;Swanson-lr&#39;</span>
+    <span class="k">elif</span> <span class="n">hemisphere</span> <span class="o">==</span> <span class="s1">&#39;mirror&#39;</span><span class="p">:</span>
+        <span class="n">s2a</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="n">s2a</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">flipud</span><span class="p">(</span><span class="n">s2a</span><span class="p">)]</span>
+    <span class="k">if</span> <span class="n">orientation</span> <span class="o">==</span> <span class="s1">&#39;portrait&#39;</span><span class="p">:</span>
+        <span class="n">s2a</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">s2a</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">acronyms</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">regions</span> <span class="o">=</span> <span class="n">br</span><span class="o">.</span><span class="n">mappings</span><span class="p">[</span><span class="n">mapping</span><span class="p">][</span><span class="n">s2a</span><span class="p">]</span>
+        <span class="n">im</span> <span class="o">=</span> <span class="n">br</span><span class="o">.</span><span class="n">rgba</span><span class="p">[</span><span class="n">regions</span><span class="p">]</span>
+        <span class="n">iswan</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">ibr</span><span class="p">,</span> <span class="n">vals</span> <span class="o">=</span> <span class="n">br</span><span class="o">.</span><span class="n">propagate_down</span><span class="p">(</span><span class="n">acronyms</span><span class="p">,</span> <span class="n">values</span><span class="p">)</span>
+        <span class="c1"># we now have the mapped regions and aggregated values, map values onto swanson map</span>
+        <span class="n">iswan</span><span class="p">,</span> <span class="n">iv</span> <span class="o">=</span> <span class="n">ismember</span><span class="p">(</span><span class="n">s2a</span><span class="p">,</span> <span class="n">ibr</span><span class="p">)</span>
+        <span class="n">im</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">s2a</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="n">im</span><span class="p">[</span><span class="n">iswan</span><span class="p">]</span> <span class="o">=</span> <span class="n">vals</span><span class="p">[</span><span class="n">iv</span><span class="p">]</span>
+        <span class="n">im</span><span class="p">[</span><span class="o">~</span><span class="n">iswan</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">ax</span><span class="p">:</span>
+        <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">gca</span><span class="p">()</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_axis_off</span><span class="p">()</span>  <span class="c1"># unless provided we don&#39;t need scales here</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">im</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="c1"># overlay the boundaries if value plot</span>
+    <span class="n">imb</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="o">*</span><span class="n">s2a</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="mi">2</span><span class="p">],</span> <span class="mi">4</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+    <span class="c1"># fill in the empty regions with the blank regions colours if necessary</span>
+    <span class="k">if</span> <span class="n">iswan</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">imb</span><span class="p">[</span><span class="o">~</span><span class="n">iswan</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">colors</span><span class="o">.</span><span class="n">to_rgba</span><span class="p">(</span><span class="n">empty_color</span><span class="p">))</span> <span class="o">*</span> <span class="mi">255</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s1">&#39;uint8&#39;</span><span class="p">)</span>
+    <span class="n">imb</span><span class="p">[</span><span class="n">s2a</span> <span class="o">==</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">255</span>
+    <span class="c1"># imb[s2a == 1] = np.array([167, 169, 172, 255])</span>
+    <span class="n">imb</span><span class="p">[</span><span class="n">s2a</span> <span class="o">==</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">255</span><span class="p">])</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">imb</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">annotate</span><span class="p">:</span>
+        <span class="n">annotate_swanson</span><span class="p">(</span><span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">orientation</span><span class="o">=</span><span class="n">orientation</span><span class="p">,</span> <span class="n">br</span><span class="o">=</span><span class="n">br</span><span class="p">)</span>
+
+    <span class="c1"># provides the mean to see the region on axis</span>
+    <span class="k">def</span> <span class="nf">format_coord</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="n">ind</span> <span class="o">=</span> <span class="n">s2a</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">y</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">x</span><span class="p">)]</span>
+        <span class="n">ancestors</span> <span class="o">=</span> <span class="n">br</span><span class="o">.</span><span class="n">ancestors</span><span class="p">(</span><span class="n">br</span><span class="o">.</span><span class="n">id</span><span class="p">[</span><span class="n">ind</span><span class="p">])[</span><span class="s1">&#39;acronym&#39;</span><span class="p">]</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s1">&#39;sw-</span><span class="si">{</span><span class="n">ind</span><span class="si">}</span><span class="s1">, </span><span class="si">{</span><span class="n">ancestors</span><span class="si">}</span><span class="s1">, aid=</span><span class="si">{</span><span class="n">br</span><span class="o">.</span><span class="n">id</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span><span class="si">}</span><span class="s1">-</span><span class="si">{</span><span class="n">br</span><span class="o">.</span><span class="n">acronym</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span><span class="si">}</span><span class="s1"> </span><span class="se">\n</span><span class="s1"> </span><span class="si">{</span><span class="n">br</span><span class="o">.</span><span class="n">name</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span><span class="si">}</span><span class="s1">&#39;</span>
+
+    <span class="n">ax</span><span class="o">.</span><span class="n">format_coord</span> <span class="o">=</span> <span class="n">format_coord</span>
+    <span class="k">return</span> <span class="n">ax</span></div>
+
+
+
+<div class="viewcode-block" id="annotate_swanson">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.atlas.plots.html#ibllib.atlas.plots.annotate_swanson">[docs]</a>
+<span class="k">def</span> <span class="nf">annotate_swanson</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">acronyms</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">orientation</span><span class="o">=</span><span class="s1">&#39;landscape&#39;</span><span class="p">,</span> <span class="n">br</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">thres</span><span class="o">=</span><span class="mi">20000</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Display annotations on a Swanson flatmap.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    ax : matplotlib.pyplot.Axes</span>
+<span class="sd">        An axis object to plot onto.</span>
+<span class="sd">    acronyms : array_like</span>
+<span class="sd">        A list or numpy array of acronyms or Allen region IDs. If None plot all acronyms.</span>
+<span class="sd">    orientation : {landscape&#39;, &#39;portrait&#39;}, default=&#39;landscape&#39;</span>
+<span class="sd">        The plot orientation.</span>
+<span class="sd">    br : ibllib.atlas.BrainRegions</span>
+<span class="sd">        A brain regions object.</span>
+<span class="sd">    thres : int, default=20000</span>
+<span class="sd">        The number of pixels above which a region is labelled.</span>
+<span class="sd">    **kwargs</span>
+<span class="sd">        See matplotlib.pyplot.Axes.annotate.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">br</span> <span class="o">=</span> <span class="n">br</span> <span class="ow">or</span> <span class="n">BrainRegions</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">acronyms</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">indices</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">br</span><span class="o">.</span><span class="n">id</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>  <span class="c1"># TODO we should in fact remap and compute labels for hierarchical regions</span>
+        <span class="n">aids</span> <span class="o">=</span> <span class="n">br</span><span class="o">.</span><span class="n">parse_acronyms_argument</span><span class="p">(</span><span class="n">acronyms</span><span class="p">)</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">indices</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">intersect1d</span><span class="p">(</span><span class="n">br</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">br</span><span class="o">.</span><span class="n">remap</span><span class="p">(</span><span class="n">aids</span><span class="p">,</span> <span class="s1">&#39;Swanson-lr&#39;</span><span class="p">),</span> <span class="n">return_indices</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">labels</span> <span class="o">=</span> <span class="n">_swanson_labels_positions</span><span class="p">(</span><span class="n">thres</span><span class="o">=</span><span class="n">thres</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">ilabel</span> <span class="ow">in</span> <span class="n">labels</span><span class="p">:</span>
+        <span class="c1"># do not display unwanted labels</span>
+        <span class="k">if</span> <span class="n">ilabel</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">indices</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="c1"># rotate the labels if the display is in portrait mode</span>
+        <span class="n">xy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">flip</span><span class="p">(</span><span class="n">labels</span><span class="p">[</span><span class="n">ilabel</span><span class="p">])</span> <span class="k">if</span> <span class="n">orientation</span> <span class="o">==</span> <span class="s1">&#39;portrait&#39;</span> <span class="k">else</span> <span class="n">labels</span><span class="p">[</span><span class="n">ilabel</span><span class="p">]</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">annotate</span><span class="p">(</span><span class="n">br</span><span class="o">.</span><span class="n">acronym</span><span class="p">[</span><span class="n">ilabel</span><span class="p">],</span> <span class="n">xy</span><span class="o">=</span><span class="n">xy</span><span class="p">,</span> <span class="n">ha</span><span class="o">=</span><span class="s1">&#39;center&#39;</span><span class="p">,</span> <span class="n">va</span><span class="o">=</span><span class="s1">&#39;center&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
 </pre></div>
 
            </div>

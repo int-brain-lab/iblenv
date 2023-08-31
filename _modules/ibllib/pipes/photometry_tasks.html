@@ -12,13 +12,13 @@
     <script src="../../../_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
-        <script src="../../../_static/jquery.js"></script>
-        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
-        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
-        <script src="../../../_static/doctools.js"></script>
-        <script src="../../../_static/sphinx_highlight.js"></script>
-        <script src="../../../_static/clipboard.min.js"></script>
-        <script src="../../../_static/copybutton.js"></script>
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script src="../../../_static/clipboard.min.js?v=a7894cd8"></script>
+        <script src="../../../_static/copybutton.js?v=f281be69"></script>
         <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
     <script src="../../../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../../../genindex.html" />
@@ -113,14 +113,15 @@
 <span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">OrderedDict</span>
 
 <span class="kn">from</span> <span class="nn">ibllib.pipes</span> <span class="kn">import</span> <span class="n">tasks</span><span class="p">,</span> <span class="n">base_tasks</span>
-<span class="kn">from</span> <span class="nn">ibllib.pipes.training_preprocessing</span> <span class="kn">import</span> <span class="p">(</span>
-    <span class="n">TrainingRegisterRaw</span><span class="p">,</span> <span class="n">TrainingAudio</span><span class="p">,</span> <span class="n">TrainingTrials</span><span class="p">,</span> <span class="n">TrainingDLC</span><span class="p">,</span> <span class="n">TrainingStatus</span><span class="p">,</span> <span class="n">TrainingVideoCompress</span><span class="p">)</span>
+<span class="kn">import</span> <span class="nn">ibllib.pipes.training_preprocessing</span> <span class="k">as</span> <span class="nn">tpp</span>
 <span class="kn">from</span> <span class="nn">ibllib.io.extractors.fibrephotometry</span> <span class="kn">import</span> <span class="n">FibrePhotometry</span>
 
 <span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;ibllib&#39;</span><span class="p">)</span>
 
 
-<div class="viewcode-block" id="TaskFibrePhotometryRegisterRaw"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.photometry_tasks.html#ibllib.pipes.photometry_tasks.TaskFibrePhotometryRegisterRaw">[docs]</a><span class="k">class</span> <span class="nc">TaskFibrePhotometryRegisterRaw</span><span class="p">(</span><span class="n">base_tasks</span><span class="o">.</span><span class="n">RegisterRawDataTask</span><span class="p">):</span>
+<div class="viewcode-block" id="FibrePhotometryRegisterRaw">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.photometry_tasks.html#ibllib.pipes.photometry_tasks.FibrePhotometryRegisterRaw">[docs]</a>
+<span class="k">class</span> <span class="nc">FibrePhotometryRegisterRaw</span><span class="p">(</span><span class="n">base_tasks</span><span class="o">.</span><span class="n">RegisterRawDataTask</span><span class="p">):</span>
 
     <span class="n">priority</span> <span class="o">=</span> <span class="mi">100</span>
     <span class="n">job_size</span> <span class="o">=</span> <span class="s1">&#39;small&#39;</span>
@@ -128,22 +129,31 @@
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">collection</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_task_collection</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;collection&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">device_collection</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_device_collection</span><span class="p">(</span><span class="s1">&#39;photometry&#39;</span><span class="p">,</span> <span class="n">device_collection</span><span class="o">=</span><span class="s1">&#39;raw_photometry_data&#39;</span><span class="p">)</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">signature</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">signature</span> <span class="o">=</span> <span class="p">{</span>
             <span class="s1">&#39;input_files&#39;</span><span class="p">:</span> <span class="p">[],</span>
-            <span class="s1">&#39;output_files&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;_mcc_DAQdata.raw.tdms&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">collection</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
-                             <span class="p">(</span><span class="s1">&#39;_neurophotometrics_fpData.raw.pqt&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">collection</span><span class="p">,</span> <span class="kc">True</span><span class="p">)]</span>
+            <span class="s1">&#39;output_files&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;_mcc_DAQdata.raw.tdms&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">device_collection</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                             <span class="p">(</span><span class="s1">&#39;_neurophotometrics_fpData.raw.pqt&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">device_collection</span><span class="p">,</span> <span class="kc">True</span><span class="p">)]</span>
         <span class="p">}</span>
         <span class="k">return</span> <span class="n">signature</span></div>
 
 
-<div class="viewcode-block" id="TaskFibrePhotometryPreprocess"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.photometry_tasks.html#ibllib.pipes.photometry_tasks.TaskFibrePhotometryPreprocess">[docs]</a><span class="k">class</span> <span class="nc">TaskFibrePhotometryPreprocess</span><span class="p">(</span><span class="n">base_tasks</span><span class="o">.</span><span class="n">DynamicTask</span><span class="p">):</span>
-    <span class="n">signature</span> <span class="o">=</span> <span class="p">{</span>
-        <span class="s1">&#39;input_files&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;*fpData.raw*&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_photometry_data&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span> <span class="p">],</span>
-        <span class="s1">&#39;output_files&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;photometry.signal.pqt&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span> <span class="p">]</span>
-    <span class="p">}</span>
+
+<div class="viewcode-block" id="FibrePhotometryPreprocess">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.photometry_tasks.html#ibllib.pipes.photometry_tasks.FibrePhotometryPreprocess">[docs]</a>
+<span class="k">class</span> <span class="nc">FibrePhotometryPreprocess</span><span class="p">(</span><span class="n">base_tasks</span><span class="o">.</span><span class="n">DynamicTask</span><span class="p">):</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">signature</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">signature</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;input_files&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;_mcc_DAQdata.raw.tdms&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">device_collection</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                            <span class="p">(</span><span class="s1">&#39;_neurophotometrics_fpData.raw.pqt&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">device_collection</span><span class="p">,</span> <span class="kc">True</span><span class="p">)],</span>
+            <span class="s1">&#39;output_files&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;photometry.signal.pqt&#39;</span><span class="p">,</span> <span class="s1">&#39;alf/photometry&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)]</span>
+        <span class="p">}</span>
+        <span class="k">return</span> <span class="n">signature</span>
+
     <span class="n">priority</span> <span class="o">=</span> <span class="mi">90</span>
     <span class="n">level</span> <span class="o">=</span> <span class="mi">1</span>
 
@@ -151,16 +161,20 @@
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="c1"># Task collection (this needs to be specified in the task kwargs)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">collection</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_task_collection</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;collection&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">device_collection</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_device_collection</span><span class="p">(</span><span class="s1">&#39;photometry&#39;</span><span class="p">,</span> <span class="n">device_collection</span><span class="o">=</span><span class="s1">&#39;raw_photometry_data&#39;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">regions</span> <span class="o">=</span> <span class="n">regions</span>
 
     <span class="k">def</span> <span class="nf">_run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="n">_</span><span class="p">,</span> <span class="n">out_files</span> <span class="o">=</span> <span class="n">FibrePhotometry</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">collection</span><span class="p">)</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span>
-            <span class="n">regions</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">regions</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">out_files</span> <span class="o">=</span> <span class="n">FibrePhotometry</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device_collection</span><span class="p">)</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span>
+            <span class="n">regions</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">regions</span><span class="p">,</span> <span class="n">path_out</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="s1">&#39;photometry&#39;</span><span class="p">),</span> <span class="n">save</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">out_files</span></div>
 
 
+
 <span class="c1"># pipeline</span>
-<div class="viewcode-block" id="FibrePhotometryExtractionPipeline"><a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.photometry_tasks.html#ibllib.pipes.photometry_tasks.FibrePhotometryExtractionPipeline">[docs]</a><span class="k">class</span> <span class="nc">FibrePhotometryExtractionPipeline</span><span class="p">(</span><span class="n">tasks</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">):</span>
+<div class="viewcode-block" id="FibrePhotometryExtractionPipeline">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.photometry_tasks.html#ibllib.pipes.photometry_tasks.FibrePhotometryExtractionPipeline">[docs]</a>
+<span class="k">class</span> <span class="nc">FibrePhotometryExtractionPipeline</span><span class="p">(</span><span class="n">tasks</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    This is a legacy pipeline not using the acquisition description file to acquire previous sessions at Princeton</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -172,16 +186,17 @@
         <span class="n">tasks</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span> <span class="o">=</span> <span class="n">session_path</span>
         <span class="c1"># level 0</span>
-        <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;TrainingRegisterRaw&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">TrainingRegisterRaw</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
-        <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;TrainingTrials&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">TrainingTrials</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
-        <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;TrainingVideoCompress&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">TrainingVideoCompress</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
-        <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;TrainingAudio&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">TrainingAudio</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;TrainingRegisterRaw&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tpp</span><span class="o">.</span><span class="n">TrainingRegisterRaw</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;TrainingTrials&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tpp</span><span class="o">.</span><span class="n">TrainingTrials</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;TrainingVideoCompress&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tpp</span><span class="o">.</span><span class="n">TrainingVideoCompress</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;TrainingAudio&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tpp</span><span class="o">.</span><span class="n">TrainingAudio</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
         <span class="c1"># level 1</span>
-        <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;BiasedFibrePhotometry&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">TaskFibrePhotometryPreprocess</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;TrainingTrials&#39;</span><span class="p">]])</span>
-        <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;TrainingStatus&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">TrainingStatus</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;TrainingTrials&#39;</span><span class="p">]])</span>
-        <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;TrainingDLC&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">TrainingDLC</span><span class="p">(</span>
+        <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;BiasedFibrePhotometry&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">FibrePhotometryPreprocess</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;TrainingTrials&#39;</span><span class="p">]])</span>
+        <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;TrainingStatus&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tpp</span><span class="o">.</span><span class="n">TrainingStatus</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;TrainingTrials&#39;</span><span class="p">]])</span>
+        <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;TrainingDLC&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tpp</span><span class="o">.</span><span class="n">TrainingDLC</span><span class="p">(</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;TrainingVideoCompress&#39;</span><span class="p">]])</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span> <span class="o">=</span> <span class="n">tasks</span></div>
+
 </pre></div>
 
            </div>
