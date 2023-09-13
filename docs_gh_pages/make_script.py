@@ -14,7 +14,7 @@ scripts_path = root.joinpath('scripts')
 nb_path = root.joinpath('notebooks')
 nb_path_external = [# Path(root.parent.parent).joinpath('ibllib-repo', 'examples'),
                     Path(root.parent.parent).joinpath('ibllib-repo', 'examples', 'loading_data'),
-                    Path(root.parent.parent).joinpath('ibllib-repo', 'examples', 'atlas'),
+                    Path(root.parent.parent).joinpath('iblatlas', 'examples'),
                     Path(root.parent.parent).joinpath('ibllib-repo', 'examples', 'data_release'),
                     Path(root.parent.parent).joinpath('ibllib-repo', 'examples', 'exploring_data'),
                     Path(root.parent.parent).joinpath('ibllib-repo', 'brainbox', 'examples'),
