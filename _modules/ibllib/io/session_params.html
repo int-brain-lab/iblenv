@@ -537,7 +537,7 @@
 
 <div class="viewcode-block" id="get_collections">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.io.session_params.html#ibllib.io.session_params.get_collections">[docs]</a>
-<span class="k">def</span> <span class="nf">get_collections</span><span class="p">(</span><span class="n">sess_params</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">get_collections</span><span class="p">(</span><span class="n">sess_params</span><span class="p">,</span> <span class="n">flat</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Find all collections associated with the session.</span>
 
@@ -545,11 +545,16 @@
 <span class="sd">    ----------</span>
 <span class="sd">    sess_params : dict</span>
 <span class="sd">        The loaded experiment description map.</span>
+<span class="sd">    flat : bool (False)</span>
+<span class="sd">        If True, return a flat list of unique collections, otherwise return a map of device/sync/task</span>
 
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
 <span class="sd">    dict[str, str]</span>
 <span class="sd">        A map of device/sync/task and the corresponding collection name.</span>
+
+<span class="sd">    list[str]</span>
+<span class="sd">        A flat list of unique collection names.</span>
 
 <span class="sd">    Notes</span>
 <span class="sd">    -----</span>
@@ -563,12 +568,27 @@
                 <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="nb">dict</span><span class="p">),</span> <span class="n">v</span><span class="p">):</span>
                     <span class="n">iter_dict</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
             <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="ow">and</span> <span class="s1">&#39;collection&#39;</span> <span class="ow">in</span> <span class="n">v</span><span class="p">:</span>
-                <span class="n">collection_map</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span><span class="p">[</span><span class="s1">&#39;collection&#39;</span><span class="p">]</span>
+                <span class="nb">print</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+                <span class="c1"># if the key already exists, append the collection name to the list</span>
+                <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">collection_map</span><span class="p">:</span>
+                    <span class="n">clist</span> <span class="o">=</span> <span class="n">collection_map</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">collection_map</span><span class="p">[</span><span class="n">k</span><span class="p">],</span> <span class="nb">list</span><span class="p">)</span> <span class="k">else</span> <span class="p">[</span><span class="n">collection_map</span><span class="p">[</span><span class="n">k</span><span class="p">]]</span>
+                    <span class="n">collection_map</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">clist</span> <span class="o">+</span> <span class="p">[</span><span class="n">v</span><span class="p">[</span><span class="s1">&#39;collection&#39;</span><span class="p">]]))</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">collection_map</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span><span class="p">[</span><span class="s1">&#39;collection&#39;</span><span class="p">]</span>
             <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
                 <span class="n">iter_dict</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
 
     <span class="n">iter_dict</span><span class="p">(</span><span class="n">sess_params</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">collection_map</span></div>
+    <span class="k">if</span> <span class="n">flat</span><span class="p">:</span>
+        <span class="n">cflat</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">collection_map</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+                <span class="n">cflat</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">cflat</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">cflat</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">collection_map</span></div>
 
 
 
@@ -654,7 +674,7 @@
         <span class="c1"># won&#39;t be preserved by create_basic_transfer_params by default</span>
         <span class="n">remote</span> <span class="o">=</span> <span class="kc">False</span> <span class="k">if</span> <span class="n">remote</span> <span class="ow">is</span> <span class="kc">False</span> <span class="k">else</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;REMOTE_DATA_FOLDER_PATH&#39;</span><span class="p">]</span>
 
-    <span class="c1"># THis is in the docstring but still, if the session Path is absolute, we need to make it relative</span>
+    <span class="c1"># This is in the docstring but still, if the session Path is absolute, we need to make it relative</span>
     <span class="k">if</span> <span class="n">Path</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">is_absolute</span><span class="p">():</span>
         <span class="n">session_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="o">*</span><span class="n">session_path</span><span class="o">.</span><span class="n">parts</span><span class="p">[</span><span class="o">-</span><span class="mi">3</span><span class="p">:])</span>
 

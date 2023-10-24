@@ -124,6 +124,7 @@
 <span class="kn">from</span> <span class="nn">ibllib.io.extractors.base</span> <span class="kn">import</span> <span class="n">get_session_extractor_type</span>
 <span class="kn">from</span> <span class="nn">ibllib.io.extractors.ephys_fpga</span> <span class="kn">import</span> <span class="n">get_sync_fronts</span><span class="p">,</span> <span class="n">get_sync_and_chn_map</span>
 <span class="kn">import</span> <span class="nn">ibllib.io.raw_data_loaders</span> <span class="k">as</span> <span class="nn">raw</span>
+<span class="kn">import</span> <span class="nn">ibllib.io.extractors.video_motion</span> <span class="k">as</span> <span class="nn">vmotion</span>
 <span class="kn">from</span> <span class="nn">ibllib.io.extractors.base</span> <span class="kn">import</span> <span class="p">(</span>
     <span class="n">BaseBpodTrialsExtractor</span><span class="p">,</span>
     <span class="n">BaseExtractor</span><span class="p">,</span>
@@ -264,12 +265,30 @@
             <span class="k">except</span> <span class="ne">AssertionError</span> <span class="k">as</span> <span class="n">ex</span><span class="p">:</span>
                 <span class="n">_logger</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="s1">&#39;Failed to extract using </span><span class="si">%s</span><span class="s1">: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">sync_label</span><span class="p">,</span> <span class="n">ex</span><span class="p">)</span>
 
-        <span class="c1"># If you reach here extracting using sync TTLs was not possible</span>
-        <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Alignment by wheel data not yet implemented&#39;</span><span class="p">)</span>
+        <span class="c1"># If you reach here extracting using sync TTLs was not possible, we attempt to align using wheel motion energy</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Attempting to align using wheel&#39;</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">label</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;left&#39;</span><span class="p">,</span> <span class="s1">&#39;right&#39;</span><span class="p">]:</span>
+                <span class="c1"># Can only use wheel alignment for left and right cameras</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Wheel alignment not supported for </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="si">}</span><span class="s1"> camera&#39;</span><span class="p">)</span>
+
+            <span class="n">motion_class</span> <span class="o">=</span> <span class="n">vmotion</span><span class="o">.</span><span class="n">MotionAlignmentFullSession</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">,</span> <span class="n">sync</span><span class="o">=</span><span class="s1">&#39;nidq&#39;</span><span class="p">,</span> <span class="n">upload</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">new_times</span> <span class="o">=</span> <span class="n">motion_class</span><span class="o">.</span><span class="n">process</span><span class="p">()</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">motion_class</span><span class="o">.</span><span class="n">qc_outcome</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Wheel alignment for </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="si">}</span><span class="s1"> camera failed to pass qc: </span><span class="si">{</span><span class="n">motion_class</span><span class="o">.</span><span class="n">qc</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Wheel alignment for </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="si">}</span><span class="s1"> camera successful, qc: </span><span class="si">{</span><span class="n">motion_class</span><span class="o">.</span><span class="n">qc</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">new_times</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Failed to align with wheel for </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="si">}</span><span class="s1"> camera: </span><span class="si">{</span><span class="n">err</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+
         <span class="k">if</span> <span class="n">length</span> <span class="o">&lt;</span> <span class="n">raw_ts</span><span class="o">.</span><span class="n">size</span><span class="p">:</span>
             <span class="n">df</span> <span class="o">=</span> <span class="n">raw_ts</span><span class="o">.</span><span class="n">size</span> <span class="o">-</span> <span class="n">length</span>
             <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Discarding first </span><span class="si">{</span><span class="n">df</span><span class="si">}</span><span class="s1"> pulses&#39;</span><span class="p">)</span>
             <span class="n">raw_ts</span> <span class="o">=</span> <span class="n">raw_ts</span><span class="p">[</span><span class="n">df</span><span class="p">:]</span>
+
         <span class="k">return</span> <span class="n">raw_ts</span></div>
 
 

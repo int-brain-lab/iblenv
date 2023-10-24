@@ -107,7 +107,13 @@
            <div itemprop="articleBody">
              
   <h1>Source code for ibllib.pipes.local_server</h1><div class="highlight"><pre>
-<span></span><span class="kn">import</span> <span class="nn">time</span>
+<span></span><span class="sd">&quot;&quot;&quot;Lab server pipeline construction and task runner.</span>
+
+<span class="sd">This is the module called by the job services on the lab servers.  See</span>
+<span class="sd">iblscripts/deploy/serverpc/crons for the service scripts that employ this module.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">time</span>
 <span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
 <span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
 <span class="kn">import</span> <span class="nn">pkg_resources</span>
@@ -119,8 +125,7 @@
 
 <span class="kn">from</span> <span class="nn">one.api</span> <span class="kn">import</span> <span class="n">ONE</span>
 <span class="kn">from</span> <span class="nn">one.webclient</span> <span class="kn">import</span> <span class="n">AlyxClient</span>
-<span class="kn">from</span> <span class="nn">one.remote.globus</span> <span class="kn">import</span> <span class="n">get_lab_from_endpoint_id</span>
-<span class="kn">from</span> <span class="nn">iblutil.util</span> <span class="kn">import</span> <span class="n">setup_logger</span>
+<span class="kn">from</span> <span class="nn">one.remote.globus</span> <span class="kn">import</span> <span class="n">get_lab_from_endpoint_id</span><span class="p">,</span> <span class="n">get_local_endpoint_id</span>
 
 <span class="kn">from</span> <span class="nn">ibllib.io.extractors.base</span> <span class="kn">import</span> <span class="n">get_pipeline</span><span class="p">,</span> <span class="n">get_task_protocol</span><span class="p">,</span> <span class="n">get_session_extractor_type</span>
 <span class="kn">from</span> <span class="nn">ibllib.pipes</span> <span class="kn">import</span> <span class="n">tasks</span><span class="p">,</span> <span class="n">training_preprocessing</span><span class="p">,</span> <span class="n">ephys_preprocessing</span>
@@ -130,8 +135,10 @@
 <span class="kn">from</span> <span class="nn">ibllib.io.session_params</span> <span class="kn">import</span> <span class="n">read_params</span>
 <span class="kn">from</span> <span class="nn">ibllib.pipes.dynamic_pipeline</span> <span class="kn">import</span> <span class="n">make_pipeline</span><span class="p">,</span> <span class="n">acquisition_description_legacy_session</span>
 
-<span class="n">_logger</span> <span class="o">=</span> <span class="n">setup_logger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="s1">&#39;INFO&#39;</span><span class="p">)</span>
-<span class="n">LARGE_TASKS</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;EphysVideoCompress&#39;</span><span class="p">,</span> <span class="s1">&#39;TrainingVideoCompress&#39;</span><span class="p">,</span> <span class="s1">&#39;SpikeSorting&#39;</span><span class="p">,</span> <span class="s1">&#39;EphysDLC&#39;</span><span class="p">]</span>
+<span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+<span class="n">LARGE_TASKS</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s1">&#39;EphysVideoCompress&#39;</span><span class="p">,</span> <span class="s1">&#39;TrainingVideoCompress&#39;</span><span class="p">,</span> <span class="s1">&#39;SpikeSorting&#39;</span><span class="p">,</span> <span class="s1">&#39;EphysDLC&#39;</span><span class="p">,</span> <span class="s1">&#39;MesoscopePreprocess&#39;</span>
+<span class="p">]</span>
 
 
 <span class="k">def</span> <span class="nf">_get_pipeline_class</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="p">):</span>
@@ -176,7 +183,7 @@
 <a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.local_server.html#ibllib.pipes.local_server.report_health">[docs]</a>
 <span class="k">def</span> <span class="nf">report_health</span><span class="p">(</span><span class="n">one</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Get a few indicators and label the json field of the corresponding lab with them</span>
+<span class="sd">    Get a few indicators and label the json field of the corresponding lab with them.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">status</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;python_version&#39;</span><span class="p">:</span> <span class="n">sys</span><span class="o">.</span><span class="n">version</span><span class="p">,</span>
               <span class="s1">&#39;ibllib_version&#39;</span><span class="p">:</span> <span class="n">pkg_resources</span><span class="o">.</span><span class="n">get_distribution</span><span class="p">(</span><span class="s2">&quot;ibllib&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">version</span><span class="p">,</span>
@@ -185,9 +192,10 @@
     <span class="n">status</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">_get_volume_usage</span><span class="p">(</span><span class="s1">&#39;/mnt/s0/Data&#39;</span><span class="p">,</span> <span class="s1">&#39;raid&#39;</span><span class="p">))</span>
     <span class="n">status</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">_get_volume_usage</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">,</span> <span class="s1">&#39;system&#39;</span><span class="p">))</span>
 
-    <span class="n">lab_names</span> <span class="o">=</span> <span class="n">get_lab_from_endpoint_id</span><span class="p">(</span><span class="n">alyx</span><span class="o">=</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="p">)</span>
-    <span class="k">for</span> <span class="n">ln</span> <span class="ow">in</span> <span class="n">lab_names</span><span class="p">:</span>
-        <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">json_field_update</span><span class="p">(</span><span class="n">endpoint</span><span class="o">=</span><span class="s1">&#39;labs&#39;</span><span class="p">,</span> <span class="n">uuid</span><span class="o">=</span><span class="n">ln</span><span class="p">,</span> <span class="n">field_name</span><span class="o">=</span><span class="s1">&#39;json&#39;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">status</span><span class="p">)</span></div>
+    <span class="n">data_repos</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;data-repository&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span> <span class="n">globus_endpoint_id</span><span class="o">=</span><span class="n">get_local_endpoint_id</span><span class="p">())</span>
+
+    <span class="k">for</span> <span class="n">dr</span> <span class="ow">in</span> <span class="n">data_repos</span><span class="p">:</span>
+        <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">json_field_update</span><span class="p">(</span><span class="n">endpoint</span><span class="o">=</span><span class="s1">&#39;data-repository&#39;</span><span class="p">,</span> <span class="n">uuid</span><span class="o">=</span><span class="n">dr</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">],</span> <span class="n">field_name</span><span class="o">=</span><span class="s1">&#39;json&#39;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">status</span><span class="p">)</span></div>
 
 
 
@@ -279,11 +287,20 @@
 <span class="k">def</span> <span class="nf">task_queue</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s1">&#39;all&#39;</span><span class="p">,</span> <span class="n">lab</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">alyx</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Query waiting jobs from the specified Lab</span>
-<span class="sd">    :param mode: Whether to return all waiting tasks, or only small or large (specified in LARGE_TASKS) jobs</span>
-<span class="sd">    :param lab: lab name as per Alyx, otherwise try to infer from local globus install</span>
-<span class="sd">    :param one: ONE instance</span>
-<span class="sd">    -------</span>
 
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    mode : {&#39;all&#39;, &#39;small&#39;, &#39;large&#39;}</span>
+<span class="sd">        Whether to return all waiting tasks, or only small or large (specified in LARGE_TASKS) jobs.</span>
+<span class="sd">    lab : str</span>
+<span class="sd">        Lab name as per Alyx, otherwise try to infer from local Globus install.</span>
+<span class="sd">    alyx : one.webclient.AlyxClient</span>
+<span class="sd">        An Alyx instance.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    list of dict</span>
+<span class="sd">        A list of Alyx tasks associated with `lab` that have a &#39;Waiting&#39; status.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">alyx</span> <span class="o">=</span> <span class="n">alyx</span> <span class="ow">or</span> <span class="n">AlyxClient</span><span class="p">(</span><span class="n">cache_rest</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">lab</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -326,14 +343,29 @@
 <span class="k">def</span> <span class="nf">tasks_runner</span><span class="p">(</span><span class="n">subjects_path</span><span class="p">,</span> <span class="n">tasks_dict</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dry</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">count</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">time_out</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Function to run a list of tasks (task dictionary from Alyx query) on a local server</span>
-<span class="sd">    :param subjects_path:</span>
-<span class="sd">    :param tasks_dict:</span>
-<span class="sd">    :param one:</span>
-<span class="sd">    :param dry:</span>
-<span class="sd">    :param count: maximum number of tasks to run</span>
-<span class="sd">    :param time_out: between each task, if time elapsed is greater than time out, returns (seconds)</span>
-<span class="sd">    :param kwargs:</span>
-<span class="sd">    :return: list of dataset dictionaries</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    subjects_path : str, pathlib.Path</span>
+<span class="sd">        The location of the subject session folders, e.g. &#39;/mnt/s0/Data/Subjects&#39;.</span>
+<span class="sd">    tasks_dict : list of dict</span>
+<span class="sd">        A list of tasks to run. Typically the output of `task_queue`.</span>
+<span class="sd">    one : one.api.OneAlyx</span>
+<span class="sd">        An instance of ONE.</span>
+<span class="sd">    dry : bool, default=False</span>
+<span class="sd">        If true, simply prints the full session paths and task names without running the tasks.</span>
+<span class="sd">    count : int, default=5</span>
+<span class="sd">        The maximum number of tasks to run from the tasks_dict list.</span>
+<span class="sd">    time_out : float, optional</span>
+<span class="sd">        The time in seconds to run tasks before exiting. If set this will run tasks until the</span>
+<span class="sd">        timeout has elapsed.  NB: Only checks between tasks and will not interrupt a running task.</span>
+<span class="sd">    **kwargs</span>
+<span class="sd">        See ibllib.pipes.tasks.run_alyx_task.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    list of pathlib.Path</span>
+<span class="sd">        A list of datasets registered to Alyx.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">one</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">one</span> <span class="o">=</span> <span class="n">ONE</span><span class="p">(</span><span class="n">cache_rest</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>

@@ -111,34 +111,46 @@
 <span class="sd">Choices are listed in the global variables. Multiple reasons can be selected.</span>
 <span class="sd">Places info in Alyx session note in a format that is machine retrievable (text-&gt;json)</span>
 <span class="sd">&quot;&quot;&quot;</span>
-<span class="c1"># Author: Gaelle</span>
 <span class="kn">import</span> <span class="nn">abc</span>
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">json</span>
-<span class="kn">from</span> <span class="nn">requests.exceptions</span> <span class="kn">import</span> <span class="n">HTTPError</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
 <span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
-<span class="kn">from</span> <span class="nn">one.api</span> <span class="kn">import</span> <span class="n">ONE</span>
+<span class="kn">from</span> <span class="nn">one.api</span> <span class="kn">import</span> <span class="n">OneAlyx</span>
+<span class="kn">from</span> <span class="nn">one.webclient</span> <span class="kn">import</span> <span class="n">AlyxClient</span>
 
-<span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s2">&quot;ibllib&quot;</span><span class="p">)</span>
+<span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;ibllib&#39;</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="main_gui">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.qc.critical_reasons.html#ibllib.qc.critical_reasons.main_gui">[docs]</a>
-<span class="k">def</span> <span class="nf">main_gui</span><span class="p">(</span><span class="n">uuid</span><span class="p">,</span> <span class="n">reasons_selected</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">main_gui</span><span class="p">(</span><span class="n">uuid</span><span class="p">,</span> <span class="n">reasons_selected</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">alyx</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Main function to call to input a reason for marking an insertion as</span>
-<span class="sd">    CRITICAL from the alignment GUI. It will:</span>
-<span class="sd">    - create note text, after deleting any similar notes existing already</span>
+<span class="sd">    Main function to call to input a reason for marking an insertion as CRITICAL from the alignment GUI.</span>
 
-<span class="sd">    :param: uuid: insertion id</span>
-<span class="sd">    :param: reasons_selected: list of str, str are picked within REASONS_INS_CRIT_GUI</span>
+<span class="sd">    It wil create note text, after deleting any similar notes existing already.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    uuid : uuid.UUID, str</span>
+<span class="sd">        An insertion ID.</span>
+<span class="sd">    reasons_selected : list of str</span>
+<span class="sd">        A subset of REASONS_INS_CRIT_GUI.</span>
+<span class="sd">    one : one.api.OneAlyx</span>
+<span class="sd">        (DEPRECATED) An instance of ONE. NB: Pass in an instance of AlyxClient instead.</span>
+<span class="sd">    alyx : one.webclient.AlyxClient</span>
+<span class="sd">        An AlyxClient instance.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="c1"># hit the database to check if uuid is insertion uuid</span>
-    <span class="n">ins_list</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;insertions&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">uuid</span><span class="p">,</span> <span class="n">no_cache</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">alyx</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">one</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># Deprecate ONE in future because instantiating it takes longer and is unnecessary</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;In future please pass in an AlyxClient instance (i.e. `one.alyx`)&#39;</span><span class="p">,</span> <span class="ne">FutureWarning</span><span class="p">)</span>
+        <span class="n">alyx</span> <span class="o">=</span> <span class="n">one</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">one</span><span class="p">,</span> <span class="n">AlyxClient</span><span class="p">)</span> <span class="k">else</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span>
+    <span class="n">ins_list</span> <span class="o">=</span> <span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;insertions&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">uuid</span><span class="p">,</span> <span class="n">no_cache</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">ins_list</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;N=</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">ins_list</span><span class="p">)</span><span class="si">}</span><span class="s1"> insertion found, expected N=1. Check uuid provided.&#39;</span><span class="p">)</span>
 
-    <span class="n">note</span> <span class="o">=</span> <span class="n">CriticalInsertionNote</span><span class="p">(</span><span class="n">uuid</span><span class="p">,</span> <span class="n">one</span><span class="p">)</span>
+    <span class="n">note</span> <span class="o">=</span> <span class="n">CriticalInsertionNote</span><span class="p">(</span><span class="n">uuid</span><span class="p">,</span> <span class="n">alyx</span><span class="p">)</span>
 
     <span class="c1"># assert that reasons are all within REASONS_INS_CRIT_GUI</span>
     <span class="k">for</span> <span class="n">item_str</span> <span class="ow">in</span> <span class="n">reasons_selected</span><span class="p">:</span>
@@ -152,44 +164,57 @@
 
 <div class="viewcode-block" id="main">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.qc.critical_reasons.html#ibllib.qc.critical_reasons.main">[docs]</a>
-<span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="n">uuid</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="n">uuid</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">alyx</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Main function to call to input a reason for marking a session/insertion</span>
-<span class="sd">    as CRITICAL programmatically. It will:</span>
+<span class="sd">    Main function to call to input a reason for marking a session/insertion as CRITICAL programmatically.</span>
+
+<span class="sd">    It will:</span>
 <span class="sd">    - ask reasons for selection of critical status</span>
 <span class="sd">    - check if &#39;other&#39; reason has been selected, inquire why (free text)</span>
 <span class="sd">    - create note text, checking whether similar notes exist already</span>
-<span class="sd">    - upload note to Alyx if none exist previously or if overwrite is chosen</span>
-<span class="sd">    Q&amp;A are prompted via the Python terminal.</span>
+<span class="sd">    - upload note to Alyx if none exist previously or if overwrite is chosen Q&amp;A are prompted via the Python terminal</span>
 
-<span class="sd">    Example:</span>
-<span class="sd">    # Retrieve Alyx note to test</span>
-<span class="sd">    one = ONE(base_url=&#39;https://dev.alyx.internationalbrainlab.org&#39;)</span>
-<span class="sd">    uuid = &#39;2ffd3ed5-477e-4153-9af7-7fdad3c6946b&#39;</span>
-<span class="sd">    main(uuid=uuid, one=one)</span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    uuid : uuid.UUID, str</span>
+<span class="sd">        An experiment UUID or an insertion UUID.</span>
+<span class="sd">    one : one.api.OneAlyx</span>
+<span class="sd">        (DEPRECATED) An instance of ONE. NB: Pass in an instance of AlyxClient instead.</span>
+<span class="sd">    alyx : one.webclient.AlyxClient</span>
+<span class="sd">        An AlyxClient instance.</span>
 
-<span class="sd">    # Get notes with pattern</span>
-<span class="sd">    notes = one.alyx.rest(&#39;notes&#39;, &#39;list&#39;,</span>
-<span class="sd">                          django=f&#39;text__icontains,{STR_NOTES_STATIC},&#39;</span>
-<span class="sd">                                 f&#39;object_id,{uuid}&#39;)</span>
-<span class="sd">    test_json_read = json.loads(notes[0][&#39;text&#39;])</span>
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    Retrieve Alyx note to test</span>
 
-<span class="sd">    :param uuid: session/insertion uuid</span>
-<span class="sd">    :param one: default: None -&gt; ONE()</span>
-<span class="sd">    :return:</span>
+<span class="sd">    &gt;&gt;&gt; alyx = AlyxClient(base_url=&#39;https://dev.alyx.internationalbrainlab.org&#39;)</span>
+<span class="sd">    &gt;&gt;&gt; uuid = &#39;2ffd3ed5-477e-4153-9af7-7fdad3c6946b&#39;</span>
+<span class="sd">    &gt;&gt;&gt; main(uuid=uuid, alyx=alyx)</span>
+
+<span class="sd">    Get notes with pattern</span>
+
+<span class="sd">    &gt;&gt;&gt; notes = alyx.rest(&#39;notes&#39;, &#39;list&#39;,</span>
+<span class="sd">    ...                   django=f&#39;text__icontains,{STR_NOTES_STATIC},&#39;</span>
+<span class="sd">    ...                          f&#39;object_id,{uuid}&#39;)</span>
+<span class="sd">    &gt;&gt;&gt; test_json_read = json.loads(notes[0][&#39;text&#39;])</span>
+
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">one</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">one</span> <span class="o">=</span> <span class="n">ONE</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">alyx</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">one</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># Deprecate ONE in future because instantiating it takes longer and is unnecessary</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;In future please pass in an AlyxClient instance (i.e. `one.alyx`)&#39;</span><span class="p">,</span> <span class="ne">FutureWarning</span><span class="p">)</span>
+        <span class="n">alyx</span> <span class="o">=</span> <span class="n">one</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">one</span><span class="p">,</span> <span class="n">AlyxClient</span><span class="p">)</span> <span class="k">else</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">alyx</span><span class="p">:</span>
+        <span class="n">alyx</span> <span class="o">=</span> <span class="n">AlyxClient</span><span class="p">()</span>
     <span class="c1"># ask reasons for selection of critical status</span>
 
     <span class="c1"># hit the database to know if uuid is insertion or session uuid</span>
-    <span class="n">sess_list</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;/sessions?&amp;django=pk,&#39;</span> <span class="o">+</span> <span class="n">uuid</span><span class="p">,</span> <span class="n">clobber</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-    <span class="n">ins_list</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;/insertions?&amp;django=pk,&#39;</span> <span class="o">+</span> <span class="n">uuid</span><span class="p">,</span> <span class="n">clobber</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">sess_list</span> <span class="o">=</span> <span class="n">alyx</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;/sessions?&amp;django=pk,&#39;</span> <span class="o">+</span> <span class="n">uuid</span><span class="p">,</span> <span class="n">clobber</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">ins_list</span> <span class="o">=</span> <span class="n">alyx</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;/insertions?&amp;django=pk,&#39;</span> <span class="o">+</span> <span class="n">uuid</span><span class="p">,</span> <span class="n">clobber</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">sess_list</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">ins_list</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>  <span class="c1"># session</span>
-        <span class="n">note</span> <span class="o">=</span> <span class="n">CriticalSessionNote</span><span class="p">(</span><span class="n">uuid</span><span class="p">,</span> <span class="n">one</span><span class="p">)</span>
+        <span class="n">note</span> <span class="o">=</span> <span class="n">CriticalSessionNote</span><span class="p">(</span><span class="n">uuid</span><span class="p">,</span> <span class="n">alyx</span><span class="p">)</span>
     <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">ins_list</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">sess_list</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>  <span class="c1"># insertion</span>
-        <span class="n">note</span> <span class="o">=</span> <span class="n">CriticalInsertionNote</span><span class="p">(</span><span class="n">uuid</span><span class="p">,</span> <span class="n">one</span><span class="p">)</span>
+        <span class="n">note</span> <span class="o">=</span> <span class="n">CriticalInsertionNote</span><span class="p">(</span><span class="n">uuid</span><span class="p">,</span> <span class="n">alyx</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Inadequate number of session (n=</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">sess_list</span><span class="p">)</span><span class="si">}</span><span class="s1">) &#39;</span>
                          <span class="sa">f</span><span class="s1">&#39;or insertion (n=</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">ins_list</span><span class="p">)</span><span class="si">}</span><span class="s1">) found for uuid </span><span class="si">{</span><span class="n">uuid</span><span class="si">}</span><span class="s1">.&#39;</span>
@@ -220,17 +245,26 @@
     <span class="k">def</span> <span class="nf">n_description</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">default_descriptions</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">uuid</span><span class="p">,</span> <span class="n">one</span><span class="p">,</span> <span class="n">content_type</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">uuid</span><span class="p">,</span> <span class="n">alyx</span><span class="p">,</span> <span class="n">content_type</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Base class for attaching notes to an alyx endpoint. Do not use this class directly but use parent classes that inherit</span>
 <span class="sd">        this base class</span>
 
-<span class="sd">        :param uuid: uuid of session/ insertion or other model to attach note to</span>
-<span class="sd">        :param one: ONE instance</span>
-<span class="sd">        :param content_type: alyx endpoint of uuid</span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        uuid : uuid.UUID, str</span>
+<span class="sd">            A UUID of a session, insertion, or other Alyx model to attach note to.</span>
+<span class="sd">        alyx : one.webclient.AlyxClient</span>
+<span class="sd">            An AlyxClient instance.</span>
+<span class="sd">        content_type : str</span>
+<span class="sd">            The Alyx model name of the UUID.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">uuid</span> <span class="o">=</span> <span class="n">uuid</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">one</span> <span class="o">=</span> <span class="n">one</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">alyx</span><span class="p">,</span> <span class="n">OneAlyx</span><span class="p">):</span>
+            <span class="c1"># Deprecate ONE in future because instantiating it takes longer and is unnecessary</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;In future please pass in an AlyxClient instance (i.e. `one.alyx`)&#39;</span><span class="p">,</span> <span class="ne">FutureWarning</span><span class="p">)</span>
+            <span class="n">alyx</span> <span class="o">=</span> <span class="n">alyx</span><span class="o">.</span><span class="n">alyx</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">alyx</span> <span class="o">=</span> <span class="n">alyx</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">selected_reasons</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">other_reason</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">if</span> <span class="n">content_type</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -242,22 +276,24 @@
 <a class="viewcode-back" href="../../../_autosummary/ibllib.qc.critical_reasons.html#ibllib.qc.critical_reasons.Note.get_content_type">[docs]</a>
     <span class="k">def</span> <span class="nf">get_content_type</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Infer the content_type from the uuid. Only checks to see if uuid is a session or insertion. If not recognised will raise</span>
-<span class="sd">        an error and the content_type must be specified on note initialisation e.g Note(uuid, one, content_type=&#39;subject&#39;)</span>
-<span class="sd">        :return:</span>
+<span class="sd">        Infer the content_type from the uuid. Only checks to see if uuid is a session or insertion.</span>
+<span class="sd">        If not recognised will raise an error and the content_type must be specified on note</span>
+<span class="sd">        initialisation e.g. Note(uuid, alyx, content_type=&#39;subject&#39;)</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        str</span>
+<span class="sd">            The Alyx model name, inferred from the UUID.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="c1"># see if it as session or an insertion</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">uuid2path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">uuid</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;sessions&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">uuid</span><span class="p">):</span>
             <span class="n">content_type</span> <span class="o">=</span> <span class="s1">&#39;session&#39;</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;insertions&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">uuid</span><span class="p">):</span>
+            <span class="n">content_type</span> <span class="o">=</span> <span class="s1">&#39;probeinsertion&#39;</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">try</span><span class="p">:</span>
-                <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">pid2uuid</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">uuid</span><span class="p">)</span>
-                <span class="n">content_type</span> <span class="o">=</span> <span class="s1">&#39;probeinsertion&#39;</span>
-            <span class="k">except</span> <span class="n">HTTPError</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Content type cannot be recognised from </span><span class="si">{uuid}</span><span class="s1">. Specify on &#39;</span>
-                                 <span class="s1">&#39;initialistion e.g Note(uuid, one, content_type=&quot;subject&quot;&#39;</span><span class="p">)</span>
-
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Content type cannot be recognised from </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">uuid</span><span class="si">}</span><span class="s1">. &#39;</span>
+                             <span class="s1">&#39;Specify on initialistion e.g Note(uuid, alyx, content_type=&quot;subject&quot;&#39;</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">content_type</span></div>
 
 
@@ -286,14 +322,21 @@
 <a class="viewcode-back" href="../../../_autosummary/ibllib.qc.critical_reasons.html#ibllib.qc.critical_reasons.Note.upload_note">[docs]</a>
     <span class="k">def</span> <span class="nf">upload_note</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nums</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">other_reason</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Upload note to alyx. If no values for nums and other_reason are specified, user will receive a prompt in command line</span>
-<span class="sd">        asking them to choose from default list of reasons to add to note as well as option for free text. To upload without</span>
-<span class="sd">        receiving prompt a value for either nums or other_reason must be given</span>
+<span class="sd">        Upload note to Alyx.</span>
 
-<span class="sd">        :param nums: string of numbers matching those in default descrptions, e.g, &#39;1,3&#39;. Options can be see using note.describe()</span>
-<span class="sd">        :param other_reason: other comment or reasons to add to note (string)</span>
-<span class="sd">        :param kwargs:</span>
-<span class="sd">        :return:</span>
+<span class="sd">        If no values for nums and other_reason are specified, user will receive a prompt in command</span>
+<span class="sd">        line asking them to choose from default list of reasons to add to note as well as option</span>
+<span class="sd">        for free text. To upload without receiving prompt a value for either `nums` or</span>
+<span class="sd">        `other_reason` must be given.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        nums : str</span>
+<span class="sd">            string of numbers matching those in default descriptions, e.g, &#39;1,3&#39;. Options can be</span>
+<span class="sd">            seen using note.describe().</span>
+<span class="sd">        other_reason : str</span>
+<span class="sd">            Other comment or reason(s) to add to note.</span>
+
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="k">if</span> <span class="n">nums</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">other_reason</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -316,30 +359,29 @@
 
     <span class="k">def</span> <span class="nf">_create_note</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">):</span>
 
-        <span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;user&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">user</span><span class="p">,</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;user&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">user</span><span class="p">,</span>
                 <span class="s1">&#39;content_type&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">content_type</span><span class="p">,</span>
                 <span class="s1">&#39;object_id&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">uuid</span><span class="p">,</span>
                 <span class="s1">&#39;text&#39;</span><span class="p">:</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">text</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">}</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;notes&#39;</span><span class="p">,</span> <span class="s1">&#39;create&#39;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">data</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;notes&#39;</span><span class="p">,</span> <span class="s1">&#39;create&#39;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">data</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_update_note</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">note_id</span><span class="p">,</span> <span class="n">text</span><span class="p">):</span>
 
-        <span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;user&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">user</span><span class="p">,</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;user&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">user</span><span class="p">,</span>
                 <span class="s1">&#39;content_type&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">content_type</span><span class="p">,</span>
                 <span class="s1">&#39;object_id&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">uuid</span><span class="p">,</span>
                 <span class="s1">&#39;text&#39;</span><span class="p">:</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">text</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">}</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;notes&#39;</span><span class="p">,</span> <span class="s1">&#39;partial_update&#39;</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">note_id</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">data</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;notes&#39;</span><span class="p">,</span> <span class="s1">&#39;partial_update&#39;</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">note_id</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">data</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_delete_note</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">note_id</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;notes&#39;</span><span class="p">,</span> <span class="s1">&#39;delete&#39;</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">note_id</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;notes&#39;</span><span class="p">,</span> <span class="s1">&#39;delete&#39;</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">note_id</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_delete_notes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">notes</span><span class="p">):</span>
         <span class="k">for</span> <span class="n">note</span> <span class="ow">in</span> <span class="n">notes</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_delete_note</span><span class="p">(</span><span class="n">note</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">])</span>
 
     <span class="k">def</span> <span class="nf">_check_existing_note</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="n">notes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;notes&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span> <span class="n">django</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;text__icontains,</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">note_title</span><span class="si">}</span><span class="s1">,object_id,</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">uuid</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span>
-                                   <span class="n">no_cache</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">notes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;notes&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span> <span class="n">django</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;text__icontains,</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">note_title</span><span class="si">}</span><span class="s1">,object_id,</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">uuid</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">no_cache</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">notes</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
             <span class="k">return</span> <span class="kc">False</span><span class="p">,</span> <span class="kc">None</span>
         <span class="k">else</span><span class="p">:</span>
@@ -484,15 +526,21 @@
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Class for uploading a critical note to an insertion.</span>
 
-<span class="sd">    Example</span>
-<span class="sd">    -------</span>
-<span class="sd">    note = CriticalInsertionNote(pid, one)</span>
-<span class="sd">    # print list of default reasons</span>
-<span class="sd">    note.describe()</span>
-<span class="sd">    # to receive a command line prompt to fill in note</span>
-<span class="sd">    note.upload_note()</span>
-<span class="sd">    # to upload note automatically without prompt</span>
-<span class="sd">    note.upload_note(nums=&#39;1,4&#39;, other_reason=&#39;lots of bad channels&#39;)</span>
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; note = CriticalInsertionNote(pid, AlyxClient())</span>
+
+<span class="sd">    Print list of default reasons</span>
+
+<span class="sd">    &gt;&gt;&gt; note.describe()</span>
+
+<span class="sd">    To receive a command line prompt to fill in note</span>
+
+<span class="sd">    &gt;&gt;&gt; note.upload_note()</span>
+
+<span class="sd">    To upload note automatically without prompt</span>
+
+<span class="sd">    &gt;&gt;&gt; note.upload_note(nums=&#39;1,4&#39;, other_reason=&#39;lots of bad channels&#39;)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">descriptions_gui</span> <span class="o">=</span> <span class="p">[</span>
@@ -520,8 +568,8 @@
     <span class="k">def</span> <span class="nf">note_title</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="s1">&#39;=== EXPERIMENTER REASON(S) FOR MARKING THE INSERTION AS CRITICAL ===&#39;</span>
 
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">uuid</span><span class="p">,</span> <span class="n">one</span><span class="p">):</span>
-        <span class="nb">super</span><span class="p">(</span><span class="n">CriticalInsertionNote</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">uuid</span><span class="p">,</span> <span class="n">one</span><span class="p">,</span> <span class="n">content_type</span><span class="o">=</span><span class="s1">&#39;probeinsertion&#39;</span><span class="p">)</span></div>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">uuid</span><span class="p">,</span> <span class="n">alyx</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">CriticalInsertionNote</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">uuid</span><span class="p">,</span> <span class="n">alyx</span><span class="p">,</span> <span class="n">content_type</span><span class="o">=</span><span class="s1">&#39;probeinsertion&#39;</span><span class="p">)</span></div>
 
 
 
@@ -533,13 +581,19 @@
 
 <span class="sd">    Example</span>
 <span class="sd">    -------</span>
-<span class="sd">    note = CriticalInsertionNote(uuid, one)</span>
-<span class="sd">    # print list of default reasons</span>
-<span class="sd">    note.describe()</span>
-<span class="sd">    # to receive a command line prompt to fill in note</span>
-<span class="sd">    note.upload_note()</span>
-<span class="sd">    # to upload note automatically without prompt</span>
-<span class="sd">    note.upload_note(nums=&#39;1,4&#39;, other_reason=&#39;session with no ephys recording&#39;)</span>
+<span class="sd">    &gt;&gt;&gt; note = CriticalInsertionNote(uuid, AlyxClient)</span>
+
+<span class="sd">    Print list of default reasons</span>
+
+<span class="sd">    &gt;&gt;&gt; note.describe()</span>
+
+<span class="sd">    To receive a command line prompt to fill in note</span>
+
+<span class="sd">    &gt;&gt;&gt; note.upload_note()</span>
+
+<span class="sd">    To upload note automatically without prompt</span>
+
+<span class="sd">    &gt;&gt;&gt; note.upload_note(nums=&#39;1,4&#39;, other_reason=&#39;session with no ephys recording&#39;)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">descriptions</span> <span class="o">=</span> <span class="p">[</span>
@@ -557,8 +611,8 @@
     <span class="k">def</span> <span class="nf">note_title</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="s1">&#39;=== EXPERIMENTER REASON(S) FOR MARKING THE SESSION AS CRITICAL ===&#39;</span>
 
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">uuid</span><span class="p">,</span> <span class="n">one</span><span class="p">):</span>
-        <span class="nb">super</span><span class="p">(</span><span class="n">CriticalSessionNote</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">uuid</span><span class="p">,</span> <span class="n">one</span><span class="p">,</span> <span class="n">content_type</span><span class="o">=</span><span class="s1">&#39;session&#39;</span><span class="p">)</span></div>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">uuid</span><span class="p">,</span> <span class="n">alyx</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">CriticalSessionNote</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">uuid</span><span class="p">,</span> <span class="n">alyx</span><span class="p">,</span> <span class="n">content_type</span><span class="o">=</span><span class="s1">&#39;session&#39;</span><span class="p">)</span></div>
 
 
 
@@ -578,11 +632,11 @@
     <span class="k">def</span> <span class="nf">note_title</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="sa">f</span><span class="s1">&#39;=== SIGN-OFF NOTE FOR </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">sign_off_key</span><span class="si">}</span><span class="s1"> ===&#39;</span>
 
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">uuid</span><span class="p">,</span> <span class="n">one</span><span class="p">,</span> <span class="n">sign_off_key</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">uuid</span><span class="p">,</span> <span class="n">alyx</span><span class="p">,</span> <span class="n">sign_off_key</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">sign_off_key</span> <span class="o">=</span> <span class="n">sign_off_key</span>
-        <span class="nb">super</span><span class="p">(</span><span class="n">SignOffNote</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">uuid</span><span class="p">,</span> <span class="n">one</span><span class="p">,</span> <span class="n">content_type</span><span class="o">=</span><span class="s1">&#39;session&#39;</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">SignOffNote</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">uuid</span><span class="p">,</span> <span class="n">alyx</span><span class="p">,</span> <span class="n">content_type</span><span class="o">=</span><span class="s1">&#39;session&#39;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">datetime_key</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_datetime_key</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">session</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;sessions&#39;</span><span class="p">,</span> <span class="s1">&#39;read&#39;</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">uuid</span><span class="p">,</span> <span class="n">no_cache</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">session</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;sessions&#39;</span><span class="p">,</span> <span class="s1">&#39;read&#39;</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">uuid</span><span class="p">,</span> <span class="n">no_cache</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
 <div class="viewcode-block" id="SignOffNote.upload_note">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.qc.critical_reasons.html#ibllib.qc.critical_reasons.SignOffNote.upload_note">[docs]</a>
@@ -596,10 +650,17 @@
     <span class="k">def</span> <span class="nf">sign_off</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 
         <span class="n">json</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="p">[</span><span class="s1">&#39;json&#39;</span><span class="p">]</span>
-        <span class="n">json</span><span class="p">[</span><span class="s1">&#39;sign_off_checklist&#39;</span><span class="p">][</span><span class="bp">self</span><span class="o">.</span><span class="n">sign_off_key</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;date&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">datetime_key</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">],</span>
-                                                         <span class="s1">&#39;user&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">datetime_key</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]}</span>
+        <span class="n">sign_off_checklist</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;sign_off_checklist&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">sign_off_checklist</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">sign_off_checklist</span> <span class="o">=</span> <span class="p">{</span><span class="bp">self</span><span class="o">.</span><span class="n">sign_off_key</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;date&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">datetime_key</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">],</span>
+                                                      <span class="s1">&#39;user&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">datetime_key</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]}}</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">sign_off_checklist</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">sign_off_key</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;date&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">datetime_key</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">],</span>
+                                                     <span class="s1">&#39;user&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">datetime_key</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]}</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">json_field_update</span><span class="p">(</span><span class="s2">&quot;sessions&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">uuid</span><span class="p">,</span> <span class="s1">&#39;json&#39;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">json</span><span class="p">)</span></div>
+        <span class="n">json</span><span class="p">[</span><span class="s1">&#39;sign_off_checklist&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sign_off_checklist</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">json_field_update</span><span class="p">(</span><span class="s2">&quot;sessions&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">uuid</span><span class="p">,</span> <span class="s1">&#39;json&#39;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">json</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="SignOffNote.format_note">
@@ -642,7 +703,10 @@
 <div class="viewcode-block" id="SignOffNote.get_datetime_key">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.qc.critical_reasons.html#ibllib.qc.critical_reasons.SignOffNote.get_datetime_key">[docs]</a>
     <span class="k">def</span> <span class="nf">get_datetime_key</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="n">user</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">user</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">is_logged_in</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">authenticate</span><span class="p">()</span>
+            <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">is_logged_in</span><span class="p">,</span> <span class="s1">&#39;you must be logged in to the AlyxClient&#39;</span>
+        <span class="n">user</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">user</span>
         <span class="n">date</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">date</span><span class="p">()</span><span class="o">.</span><span class="n">isoformat</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">date</span> <span class="o">+</span> <span class="s1">&#39;_&#39;</span> <span class="o">+</span> <span class="n">user</span></div>
 </div>
@@ -656,17 +720,25 @@
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Class for signing off a task part of a session and optionally adding a related explanation note.</span>
 
-<span class="sd">    Example</span>
-<span class="sd">    -------</span>
-<span class="sd">    note = TaskSignOffNote(uuid, one, &#39;_ephysChoiceWorld_00&#39;)</span>
-<span class="sd">    # to sign off session without any note</span>
-<span class="sd">    note.sign_off()</span>
-<span class="sd">    # print list of default reasons</span>
-<span class="sd">    note.describe()</span>
-<span class="sd">    # to upload note and sign off with prompt</span>
-<span class="sd">    note.upload_note()</span>
-<span class="sd">    # to upload note automatically without prompt</span>
-<span class="sd">    note.upload_note(nums=&#39;1,4&#39;, other_reason=&#39;session with no ephys recording&#39;)</span>
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; note = TaskSignOffNote(eid, AlyxClient(), &#39;_ephysChoiceWorld_00&#39;)</span>
+
+<span class="sd">    To sign off session without any note</span>
+
+<span class="sd">    &gt;&gt;&gt; note.sign_off()</span>
+
+<span class="sd">    Print list of default reasons</span>
+
+<span class="sd">    &gt;&gt;&gt; note.describe()</span>
+
+<span class="sd">    To upload note and sign off with prompt</span>
+
+<span class="sd">    &gt;&gt;&gt; note.upload_note()</span>
+
+<span class="sd">    To upload note automatically without prompt</span>
+
+<span class="sd">    &gt;&gt;&gt; note.upload_note(nums=&#39;1,4&#39;, other_reason=&#39;session with no ephys recording&#39;)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">descriptions</span> <span class="o">=</span> <span class="p">[</span>
@@ -684,17 +756,25 @@
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Class for signing off a passive part of a session and optionally adding a related explanation note.</span>
 
-<span class="sd">    Example</span>
-<span class="sd">    -------</span>
-<span class="sd">    note = PassiveSignOffNote(uuid, one, &#39;_passiveChoiceWorld_00&#39;)</span>
-<span class="sd">    # to sign off session without any note</span>
-<span class="sd">    note.sign_off()</span>
-<span class="sd">    # print list of default reasons</span>
-<span class="sd">    note.describe()</span>
-<span class="sd">    # to upload note and sign off with prompt</span>
-<span class="sd">    note.upload_note()</span>
-<span class="sd">    # to upload note automatically without prompt</span>
-<span class="sd">    note.upload_note(nums=&#39;1,4&#39;, other_reason=&#39;session with no ephys recording&#39;)</span>
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; note = PassiveSignOffNote(eid, AlyxClient(), &#39;_passiveChoiceWorld_00&#39;)</span>
+
+<span class="sd">    To sign off session without any note</span>
+
+<span class="sd">    &gt;&gt;&gt; note.sign_off()</span>
+
+<span class="sd">    Print list of default reasons</span>
+
+<span class="sd">    &gt;&gt;&gt; note.describe()</span>
+
+<span class="sd">    To upload note and sign off with prompt</span>
+
+<span class="sd">    &gt;&gt;&gt; note.upload_note()</span>
+
+<span class="sd">    To upload note automatically without prompt</span>
+
+<span class="sd">    &gt;&gt;&gt; note.upload_note(nums=&#39;1,4&#39;, other_reason=&#39;session with no ephys recording&#39;)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">descriptions</span> <span class="o">=</span> <span class="p">[</span>
@@ -714,17 +794,25 @@
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Class for signing off a video part of a session and optionally adding a related explanation note.</span>
 
-<span class="sd">    Example</span>
-<span class="sd">    -------</span>
-<span class="sd">    note = VideoSignOffNote(uuid, one, &#39;_camera_left&#39;)</span>
-<span class="sd">    # to sign off session without any note</span>
-<span class="sd">    note.sign_off()</span>
-<span class="sd">    # print list of default reasons</span>
-<span class="sd">    note.describe()</span>
-<span class="sd">    # to upload note and sign off with prompt</span>
-<span class="sd">    note.upload_note()</span>
-<span class="sd">    # to upload note automatically without prompt</span>
-<span class="sd">    note.upload_note(nums=&#39;1,4&#39;, other_reason=&#39;session with no ephys recording&#39;)</span>
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; note = VideoSignOffNote(eid, AlyxClient(), &#39;_camera_left&#39;)</span>
+
+<span class="sd">    To sign off session without any note</span>
+
+<span class="sd">    &gt;&gt;&gt; note.sign_off()</span>
+
+<span class="sd">    Print list of default reasons</span>
+
+<span class="sd">    &gt;&gt;&gt; note.describe()</span>
+
+<span class="sd">    To upload note and sign off with prompt</span>
+
+<span class="sd">    &gt;&gt;&gt; note.upload_note()</span>
+
+<span class="sd">    To upload note automatically without prompt</span>
+
+<span class="sd">    &gt;&gt;&gt; note.upload_note(nums=&#39;1,4&#39;, other_reason=&#39;session with no ephys recording&#39;)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">descriptions</span> <span class="o">=</span> <span class="p">[</span>
@@ -745,17 +833,25 @@
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Class for signing off a raw ephys part of a session and optionally adding a related explanation note.</span>
 
-<span class="sd">    Example</span>
-<span class="sd">    -------</span>
-<span class="sd">    note = RawEphysSignOffNote(uuid, one, &#39;_neuropixel_raw_probe00&#39;)</span>
-<span class="sd">    # to sign off session without any note</span>
-<span class="sd">    note.sign_off()</span>
-<span class="sd">    # print list of default reasons</span>
-<span class="sd">    note.describe()</span>
-<span class="sd">    # to upload note and sign off with prompt</span>
-<span class="sd">    note.upload_note()</span>
-<span class="sd">    # to upload note automatically without prompt</span>
-<span class="sd">    note.upload_note(nums=&#39;1,4&#39;, other_reason=&#39;session with no ephys recording&#39;)</span>
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; note = RawEphysSignOffNote(uuid, AlyxClient(), &#39;_neuropixel_raw_probe00&#39;)</span>
+
+<span class="sd">    To sign off session without any note</span>
+
+<span class="sd">    &gt;&gt;&gt; note.sign_off()</span>
+
+<span class="sd">    Print list of default reasons</span>
+
+<span class="sd">    &gt;&gt;&gt; note.describe()</span>
+
+<span class="sd">    To upload note and sign off with prompt</span>
+
+<span class="sd">    &gt;&gt;&gt; note.upload_note()</span>
+
+<span class="sd">    To upload note automatically without prompt</span>
+
+<span class="sd">    &gt;&gt;&gt; note.upload_note(nums=&#39;1,4&#39;, other_reason=&#39;session with no ephys recording&#39;)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">descriptions</span> <span class="o">=</span> <span class="p">[</span>
@@ -771,19 +867,27 @@
 <span class="k">class</span> <span class="nc">SpikeSortingSignOffNote</span><span class="p">(</span><span class="n">SignOffNote</span><span class="p">):</span>
 
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Class for signing off a spikesorting part of a session and optionally adding a related explanation note.</span>
+<span class="sd">    Class for signing off a spike sorting part of a session and optionally adding a related explanation note.</span>
 
-<span class="sd">    Example</span>
-<span class="sd">    -------</span>
-<span class="sd">    note = SpikeSortingSignOffNote(uuid, one, &#39;_neuropixel_spike_sorting_probe00&#39;)</span>
-<span class="sd">    # to sign off session without any note</span>
-<span class="sd">    note.sign_off()</span>
-<span class="sd">    # print list of default reasons</span>
-<span class="sd">    note.describe()</span>
-<span class="sd">    # to upload note and sign off with prompt</span>
-<span class="sd">    note.upload_note()</span>
-<span class="sd">    # to upload note automatically without prompt</span>
-<span class="sd">    note.upload_note(nums=&#39;1,4&#39;, other_reason=&#39;session with no ephys recording&#39;)</span>
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; note = SpikeSortingSignOffNote(uuid, AlyxClient(), &#39;_neuropixel_spike_sorting_probe00&#39;)</span>
+
+<span class="sd">    To sign off session without any note</span>
+
+<span class="sd">    &gt;&gt;&gt; note.sign_off()</span>
+
+<span class="sd">    Print list of default reasons</span>
+
+<span class="sd">    &gt;&gt;&gt; note.describe()</span>
+
+<span class="sd">    To upload note and sign off with prompt</span>
+
+<span class="sd">    &gt;&gt;&gt; note.upload_note()</span>
+
+<span class="sd">    To upload note automatically without prompt</span>
+
+<span class="sd">    &gt;&gt;&gt; note.upload_note(nums=&#39;1,4&#39;, other_reason=&#39;session with no ephys recording&#39;)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">descriptions</span> <span class="o">=</span> <span class="p">[</span>
@@ -800,17 +904,25 @@
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Class for signing off a alignment part of a session and optionally adding a related explanation note.</span>
 
-<span class="sd">    Example</span>
-<span class="sd">    -------</span>
-<span class="sd">    note = AlignmentSignOffNote(uuid, one, &#39;_neuropixel_alignment_probe00&#39;)</span>
-<span class="sd">    # to sign off session without any note</span>
-<span class="sd">    note.sign_off()</span>
-<span class="sd">    # print list of default reasons</span>
-<span class="sd">    note.describe()</span>
-<span class="sd">    # to upload note and sign off with prompt</span>
-<span class="sd">    note.upload_note()</span>
-<span class="sd">    # to upload note automatically without prompt</span>
-<span class="sd">    note.upload_note(nums=&#39;1,4&#39;, other_reason=&#39;session with no ephys recording&#39;)</span>
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; note = AlignmentSignOffNote(uuid, AlyxClient(), &#39;_neuropixel_alignment_probe00&#39;)</span>
+
+<span class="sd">    To sign off session without any note</span>
+
+<span class="sd">    &gt;&gt;&gt; note.sign_off()</span>
+
+<span class="sd">    Print list of default reasons</span>
+
+<span class="sd">    &gt;&gt;&gt; note.describe()</span>
+
+<span class="sd">    To upload note and sign off with prompt</span>
+
+<span class="sd">    &gt;&gt;&gt; note.upload_note()</span>
+
+<span class="sd">    To upload note automatically without prompt</span>
+
+<span class="sd">    &gt;&gt;&gt; note.upload_note(nums=&#39;1,4&#39;, other_reason=&#39;session with no ephys recording&#39;)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">descriptions</span> <span class="o">=</span> <span class="p">[]</span></div>

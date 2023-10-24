@@ -109,10 +109,14 @@
   <h1>Source code for ibllib.pipes.video_tasks</h1><div class="highlight"><pre>
 <span></span><span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">subprocess</span>
-<span class="kn">import</span> <span class="nn">cv2</span>
 <span class="kn">import</span> <span class="nn">traceback</span>
 <span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
 
+<span class="kn">import</span> <span class="nn">cv2</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">from</span> <span class="nn">ibllib.qc.dlc</span> <span class="kn">import</span> <span class="n">DlcQC</span>
 <span class="kn">from</span> <span class="nn">ibllib.io</span> <span class="kn">import</span> <span class="n">ffmpeg</span><span class="p">,</span> <span class="n">raw_daq_loaders</span>
 <span class="kn">from</span> <span class="nn">ibllib.pipes</span> <span class="kn">import</span> <span class="n">base_tasks</span>
 <span class="kn">from</span> <span class="nn">ibllib.io.video</span> <span class="kn">import</span> <span class="n">get_video_meta</span>
@@ -120,6 +124,9 @@
 <span class="kn">from</span> <span class="nn">ibllib.qc.camera</span> <span class="kn">import</span> <span class="n">run_all_qc</span> <span class="k">as</span> <span class="n">run_camera_qc</span>
 <span class="kn">from</span> <span class="nn">ibllib.misc</span> <span class="kn">import</span> <span class="n">check_nvidia_driver</span>
 <span class="kn">from</span> <span class="nn">ibllib.io.video</span> <span class="kn">import</span> <span class="n">label_from_path</span><span class="p">,</span> <span class="n">assert_valid_label</span>
+<span class="kn">from</span> <span class="nn">ibllib.plots.snapshot</span> <span class="kn">import</span> <span class="n">ReportSnapshot</span>
+<span class="kn">from</span> <span class="nn">ibllib.plots.figures</span> <span class="kn">import</span> <span class="n">dlc_qc_plot</span>
+<span class="kn">from</span> <span class="nn">brainbox.behavior.dlc</span> <span class="kn">import</span> <span class="n">likelihood_threshold</span><span class="p">,</span> <span class="n">get_licks</span><span class="p">,</span> <span class="n">get_pupil_diameter</span><span class="p">,</span> <span class="n">get_smooth_pupil_diameter</span>
 
 <span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;ibllib&#39;</span><span class="p">)</span>
 
@@ -161,9 +168,9 @@
         <span class="n">required</span> <span class="o">=</span> <span class="nb">any</span><span class="p">(</span><span class="s1">&#39;Camera.frameData&#39;</span> <span class="ow">in</span> <span class="n">x</span> <span class="ow">or</span> <span class="s1">&#39;Camera.timestamps&#39;</span> <span class="ow">in</span> <span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">files</span><span class="p">))</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">everything_is_fine</span> <span class="ow">and</span> <span class="n">required</span><span class="p">):</span>
             <span class="k">for</span> <span class="n">out</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">outputs</span><span class="p">:</span>
-                <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">out</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">out</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">raise_error</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="s2">&quot;Missing outputs after task completion&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="s1">&#39;Missing outputs after task completion&#39;</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">everything_is_fine</span><span class="p">,</span> <span class="n">files</span></div>
 </div>
@@ -240,7 +247,7 @@
             <span class="c1"># convert the avi files to mp4</span>
             <span class="n">avi_file</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device_collection</span><span class="p">)</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s1">_cam*.avi&#39;</span><span class="p">))</span>
             <span class="n">mp4_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device_collection</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;_iblrig_</span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s1">Camera.raw.mp4&#39;</span><span class="p">)</span>
-            <span class="n">command2run</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;ffmpeg -i </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">avi_file</span><span class="p">)</span><span class="si">}</span><span class="s2"> -c:v copy -c:a copy -y </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">mp4_file</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="n">command2run</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;ffmpeg -i </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">avi_file</span><span class="p">)</span><span class="si">}</span><span class="s1"> -c:v copy -c:a copy -y </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">mp4_file</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span>
 
             <span class="n">process</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">Popen</span><span class="p">(</span><span class="n">command2run</span><span class="p">,</span> <span class="n">shell</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">stdout</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span> <span class="n">stderr</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">)</span>
             <span class="n">info</span><span class="p">,</span> <span class="n">error</span> <span class="o">=</span> <span class="n">process</span><span class="o">.</span><span class="n">communicate</span><span class="p">()</span>
@@ -317,7 +324,7 @@
 <span class="k">class</span> <span class="nc">VideoSyncQcBpod</span><span class="p">(</span><span class="n">base_tasks</span><span class="o">.</span><span class="n">VideoTask</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Task to sync camera timestamps to main DAQ timestamps</span>
-<span class="sd">    N.B Signatures only reflect new daq naming convention, non compatible with ephys when not running on server</span>
+<span class="sd">    N.B Signatures only reflect new daq naming convention, non-compatible with ephys when not running on server</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">priority</span> <span class="o">=</span> <span class="mi">40</span>
     <span class="n">job_size</span> <span class="o">=</span> <span class="s1">&#39;small&#39;</span>
@@ -370,7 +377,7 @@
 <span class="k">class</span> <span class="nc">VideoSyncQcNidq</span><span class="p">(</span><span class="n">base_tasks</span><span class="o">.</span><span class="n">VideoTask</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Task to sync camera timestamps to main DAQ timestamps</span>
-<span class="sd">    N.B Signatures only reflect new daq naming convention, non compatible with ephys when not running on server</span>
+<span class="sd">    N.B Signatures only reflect new daq naming convention, non-compatible with ephys when not running on server</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">priority</span> <span class="o">=</span> <span class="mi">40</span>
     <span class="n">job_size</span> <span class="o">=</span> <span class="s1">&#39;small&#39;</span>
@@ -399,6 +406,7 @@
 
         <span class="n">mp4_files</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device_collection</span><span class="p">)</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s1">&#39;*.mp4&#39;</span><span class="p">)</span>
         <span class="n">labels</span> <span class="o">=</span> <span class="p">[</span><span class="n">label_from_path</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">mp4_files</span><span class="p">]</span>
+        <span class="n">labels</span> <span class="o">=</span> <span class="p">[</span><span class="n">lab</span> <span class="k">for</span> <span class="n">lab</span> <span class="ow">in</span> <span class="n">labels</span> <span class="k">if</span> <span class="n">lab</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;left&#39;</span><span class="p">,</span> <span class="s1">&#39;right&#39;</span><span class="p">,</span> <span class="s1">&#39;body&#39;</span><span class="p">,</span> <span class="s1">&#39;belly&#39;</span><span class="p">)]</span>
 
         <span class="n">kwargs</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync_namespace</span> <span class="o">==</span> <span class="s1">&#39;timeline&#39;</span><span class="p">:</span>
@@ -459,19 +467,19 @@
             <span class="sa">f</span><span class="s1">&#39;Scripts run_dlc.sh and run_dlc.py do not exist in </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">scripts</span><span class="si">}</span><span class="s1">&#39;</span>
         <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scripts</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="s1">&#39;run_motion.*&#39;</span><span class="p">)))</span> <span class="o">==</span> <span class="mi">2</span><span class="p">,</span> \
             <span class="sa">f</span><span class="s1">&#39;Scripts run_motion.sh and run_motion.py do not exist in </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">scripts</span><span class="si">}</span><span class="s1">&#39;</span>
-        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">dlcenv</span><span class="o">.</span><span class="n">exists</span><span class="p">(),</span> <span class="sa">f</span><span class="s2">&quot;DLC environment does not exist in assumed location </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">dlcenv</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">dlcenv</span><span class="o">.</span><span class="n">exists</span><span class="p">(),</span> <span class="sa">f</span><span class="s1">&#39;DLC environment does not exist in assumed location </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">dlcenv</span><span class="si">}</span><span class="s1">&#39;</span>
         <span class="n">command2run</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;source </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">dlcenv</span><span class="si">}</span><span class="s2">; python -c &#39;import iblvideo; print(iblvideo.__version__)&#39;&quot;</span>
         <span class="n">process</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">Popen</span><span class="p">(</span>
             <span class="n">command2run</span><span class="p">,</span>
             <span class="n">shell</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
             <span class="n">stdout</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span>
             <span class="n">stderr</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span>
-            <span class="n">executable</span><span class="o">=</span><span class="s2">&quot;/bin/bash&quot;</span>
+            <span class="n">executable</span><span class="o">=</span><span class="s1">&#39;/bin/bash&#39;</span>
         <span class="p">)</span>
         <span class="n">info</span><span class="p">,</span> <span class="n">error</span> <span class="o">=</span> <span class="n">process</span><span class="o">.</span><span class="n">communicate</span><span class="p">()</span>
         <span class="k">if</span> <span class="n">process</span><span class="o">.</span><span class="n">returncode</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">AssertionError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;DLC environment check failed</span><span class="se">\n</span><span class="si">{</span><span class="n">error</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="n">version</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">version</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
         <span class="k">return</span> <span class="n">version</span>
 
     <span class="nd">@staticmethod</span>
@@ -509,11 +517,11 @@
                     <span class="n">file_mp4</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;raw_video_data&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;_iblrig_</span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s1">Camera.raw*.mp4&#39;</span><span class="p">))</span>
                     <span class="k">if</span> <span class="ow">not</span> <span class="n">file_mp4</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
                         <span class="c1"># In this case we set the status to Incomplete.</span>
-                        <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No raw video file available for </span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s2">, skipping.&quot;</span><span class="p">)</span>
+                        <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;No raw video file available for </span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s1">, skipping.&#39;</span><span class="p">)</span>
                         <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="o">-</span><span class="mi">3</span>
                         <span class="k">continue</span>
                     <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_video_intact</span><span class="p">(</span><span class="n">file_mp4</span><span class="p">):</span>
-                        <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Corrupt raw video file </span><span class="si">{</span><span class="n">file_mp4</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                        <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Corrupt raw video file </span><span class="si">{</span><span class="n">file_mp4</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
                         <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
                         <span class="k">continue</span>
                     <span class="c1"># Check that dlc environment is ok, shell scripts exists, and get iblvideo version, GPU addressable</span>
@@ -529,13 +537,13 @@
                         <span class="n">shell</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                         <span class="n">stdout</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span>
                         <span class="n">stderr</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span>
-                        <span class="n">executable</span><span class="o">=</span><span class="s2">&quot;/bin/bash&quot;</span><span class="p">,</span>
+                        <span class="n">executable</span><span class="o">=</span><span class="s1">&#39;/bin/bash&#39;</span><span class="p">,</span>
                     <span class="p">)</span>
                     <span class="n">info</span><span class="p">,</span> <span class="n">error</span> <span class="o">=</span> <span class="n">process</span><span class="o">.</span><span class="n">communicate</span><span class="p">()</span>
                     <span class="c1"># info_str = info.decode(&quot;utf-8&quot;).strip()</span>
                     <span class="c1"># _logger.info(info_str)</span>
                     <span class="k">if</span> <span class="n">process</span><span class="o">.</span><span class="n">returncode</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
-                        <span class="n">error_str</span> <span class="o">=</span> <span class="n">error</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                        <span class="n">error_str</span> <span class="o">=</span> <span class="n">error</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
                         <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;DLC failed for </span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s1">Camera.</span><span class="se">\n\n</span><span class="s1">&#39;</span>
                                       <span class="sa">f</span><span class="s1">&#39;++++++++ Output of subprocess for debugging ++++++++</span><span class="se">\n\n</span><span class="s1">&#39;</span>
                                       <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">error_str</span><span class="si">}</span><span class="se">\n</span><span class="s1">&#39;</span>
@@ -554,13 +562,13 @@
                         <span class="n">shell</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                         <span class="n">stdout</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span>
                         <span class="n">stderr</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span>
-                        <span class="n">executable</span><span class="o">=</span><span class="s2">&quot;/bin/bash&quot;</span><span class="p">,</span>
+                        <span class="n">executable</span><span class="o">=</span><span class="s1">&#39;/bin/bash&#39;</span><span class="p">,</span>
                     <span class="p">)</span>
                     <span class="n">info</span><span class="p">,</span> <span class="n">error</span> <span class="o">=</span> <span class="n">process</span><span class="o">.</span><span class="n">communicate</span><span class="p">()</span>
-                    <span class="c1"># info_str = info.decode(&quot;utf-8&quot;).strip()</span>
+                    <span class="c1"># info_str = info.decode(&#39;utf-8&#39;).strip()</span>
                     <span class="c1"># _logger.info(info_str)</span>
                     <span class="k">if</span> <span class="n">process</span><span class="o">.</span><span class="n">returncode</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
-                        <span class="n">error_str</span> <span class="o">=</span> <span class="n">error</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                        <span class="n">error_str</span> <span class="o">=</span> <span class="n">error</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
                         <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Motion energy failed for </span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s1">Camera.</span><span class="se">\n\n</span><span class="s1">&#39;</span>
                                       <span class="sa">f</span><span class="s1">&#39;++++++++ Output of subprocess for debugging ++++++++</span><span class="se">\n\n</span><span class="s1">&#39;</span>
                                       <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">error_str</span><span class="si">}</span><span class="se">\n</span><span class="s1">&#39;</span>
@@ -571,7 +579,7 @@
                         <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s1">Camera.ROIMotionEnergy*.npy&#39;</span><span class="p">)))</span>
                     <span class="n">actual_outputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">next</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;alf&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span>
                         <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s1">ROIMotionEnergy.position*.npy&#39;</span><span class="p">)))</span>
-            <span class="k">except</span> <span class="ne">BaseException</span><span class="p">:</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
                 <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">())</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
                 <span class="k">continue</span>
@@ -581,6 +589,162 @@
             <span class="n">actual_outputs</span> <span class="o">=</span> <span class="kc">None</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
         <span class="k">return</span> <span class="n">actual_outputs</span></div>
+
+
+
+<div class="viewcode-block" id="EphysPostDLC">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.video_tasks.html#ibllib.pipes.video_tasks.EphysPostDLC">[docs]</a>
+<span class="k">class</span> <span class="nc">EphysPostDLC</span><span class="p">(</span><span class="n">base_tasks</span><span class="o">.</span><span class="n">VideoTask</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The post_dlc task takes dlc traces as input and computes useful quantities, as well as qc.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">io_charge</span> <span class="o">=</span> <span class="mi">90</span>
+    <span class="n">level</span> <span class="o">=</span> <span class="mi">3</span>
+    <span class="n">force</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="k">def</span> <span class="fm">__int__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">trials_collection</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;trials_collection&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">signature</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;input_files&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="sa">f</span><span class="s1">&#39;_ibl_</span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s1">Camera.dlc.pqt&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span> <span class="k">for</span> <span class="n">cam</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">cameras</span><span class="p">]</span> <span class="o">+</span>
+                           <span class="p">[(</span><span class="sa">f</span><span class="s1">&#39;_ibl_</span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s1">Camera.times.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span> <span class="k">for</span> <span class="n">cam</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">cameras</span><span class="p">]</span> <span class="o">+</span>
+            <span class="c1"># the following are required for the DLC plot only</span>
+            <span class="c1"># they are not strictly required, some plots just might be skipped</span>
+            <span class="c1"># In particular the raw videos don&#39;t need to be downloaded as they can be streamed</span>
+                           <span class="p">[(</span><span class="sa">f</span><span class="s1">&#39;_iblrig_</span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s1">Camera.raw.mp4&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">device_collection</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span> <span class="k">for</span> <span class="n">cam</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">cameras</span><span class="p">]</span> <span class="o">+</span>
+                           <span class="p">[(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s1">ROIMotionEnergy.position.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span> <span class="k">for</span> <span class="n">cam</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">cameras</span><span class="p">]</span> <span class="o">+</span>
+            <span class="c1"># The trials table is used in the DLC QC, however this is not an essential dataset</span>
+                           <span class="p">[(</span><span class="s1">&#39;_ibl_trials.table.pqt&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">trials_collection</span><span class="p">,</span> <span class="kc">False</span><span class="p">)],</span>
+            <span class="s1">&#39;output_files&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="sa">f</span><span class="s1">&#39;_ibl_</span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s1">Camera.features.pqt&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span> <span class="k">for</span> <span class="n">cam</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">cameras</span><span class="p">]</span> <span class="o">+</span>
+                            <span class="p">[(</span><span class="s1">&#39;licks.times.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)]</span>
+        <span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">_run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">run_qc</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">plot_qc</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Run the PostDLC task. Returns a list of file locations for the output files in signature. The created plot</span>
+<span class="sd">        (dlc_qc_plot.png) is not returned, but saved in session_path/snapshots and uploaded to Alyx as a note.</span>
+
+<span class="sd">        :param overwrite: bool, whether to recompute existing output files (default is False).</span>
+<span class="sd">                          Note that the dlc_qc_plot will be (re-)computed even if overwrite = False</span>
+<span class="sd">        :param run_qc: bool, whether to run the DLC QC (default is True)</span>
+<span class="sd">        :param plot_qc: book, whether to create the dlc_qc_plot (default is True)</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Check if output files exist locally</span>
+        <span class="n">exist</span><span class="p">,</span> <span class="n">output_files</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">assert_expected</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="p">[</span><span class="s1">&#39;output_files&#39;</span><span class="p">],</span> <span class="n">silent</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">exist</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">overwrite</span><span class="p">:</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;EphysPostDLC outputs exist and overwrite=False, skipping computations of outputs.&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">exist</span> <span class="ow">and</span> <span class="n">overwrite</span><span class="p">:</span>
+                <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;EphysPostDLC outputs exist and overwrite=True, overwriting existing outputs.&#39;</span><span class="p">)</span>
+            <span class="c1"># Find all available DLC files</span>
+            <span class="n">dlc_files</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;alf&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s1">&#39;_ibl_*Camera.dlc.*&#39;</span><span class="p">))</span>
+            <span class="k">for</span> <span class="n">dlc_file</span> <span class="ow">in</span> <span class="n">dlc_files</span><span class="p">:</span>
+                <span class="n">_logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">dlc_file</span><span class="p">)</span>
+            <span class="n">output_files</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">combined_licks</span> <span class="o">=</span> <span class="p">[]</span>
+
+            <span class="k">for</span> <span class="n">dlc_file</span> <span class="ow">in</span> <span class="n">dlc_files</span><span class="p">:</span>
+                <span class="c1"># Catch unforeseen exceptions and move on to next cam</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">cam</span> <span class="o">=</span> <span class="n">label_from_path</span><span class="p">(</span><span class="n">dlc_file</span><span class="p">)</span>
+                    <span class="c1"># load dlc trace and camera times</span>
+                    <span class="n">dlc</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_parquet</span><span class="p">(</span><span class="n">dlc_file</span><span class="p">)</span>
+                    <span class="n">dlc_thresh</span> <span class="o">=</span> <span class="n">likelihood_threshold</span><span class="p">(</span><span class="n">dlc</span><span class="p">,</span> <span class="mf">0.9</span><span class="p">)</span>
+                    <span class="c1"># try to load respective camera times</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">dlc_t</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="nb">next</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;alf&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;_ibl_</span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s1">Camera.times.*npy&#39;</span><span class="p">)))</span>
+                        <span class="n">times</span> <span class="o">=</span> <span class="kc">True</span>
+                        <span class="k">if</span> <span class="n">dlc_t</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                            <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;camera.times empty for </span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s1"> camera. &#39;</span>
+                                          <span class="sa">f</span><span class="s1">&#39;Computations using camera.times will be skipped&#39;</span><span class="p">)</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+                            <span class="n">times</span> <span class="o">=</span> <span class="kc">False</span>
+                        <span class="k">elif</span> <span class="n">dlc_t</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">dlc_thresh</span><span class="p">):</span>
+                            <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Camera times shorter than DLC traces for </span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s1"> camera. &#39;</span>
+                                          <span class="sa">f</span><span class="s1">&#39;Computations using camera.times will be skipped&#39;</span><span class="p">)</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+                            <span class="n">times</span> <span class="o">=</span> <span class="s1">&#39;short&#39;</span>
+                    <span class="k">except</span> <span class="ne">StopIteration</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+                        <span class="n">times</span> <span class="o">=</span> <span class="kc">False</span>
+                        <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;No camera.times for </span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s1"> camera. &#39;</span>
+                                      <span class="sa">f</span><span class="s1">&#39;Computations using camera.times will be skipped&#39;</span><span class="p">)</span>
+                    <span class="c1"># These features are only computed from left and right cam</span>
+                    <span class="k">if</span> <span class="n">cam</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;left&#39;</span><span class="p">,</span> <span class="s1">&#39;right&#39;</span><span class="p">):</span>
+                        <span class="n">features</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">()</span>
+                        <span class="c1"># If camera times are available, get the lick time stamps for combined array</span>
+                        <span class="k">if</span> <span class="n">times</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+                            <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Computing lick times for </span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s1"> camera.&#39;</span><span class="p">)</span>
+                            <span class="n">combined_licks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">get_licks</span><span class="p">(</span><span class="n">dlc_thresh</span><span class="p">,</span> <span class="n">dlc_t</span><span class="p">))</span>
+                        <span class="k">elif</span> <span class="n">times</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
+                            <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Skipping lick times for </span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s1"> camera as no camera.times available&#39;</span><span class="p">)</span>
+                        <span class="k">elif</span> <span class="n">times</span> <span class="o">==</span> <span class="s1">&#39;short&#39;</span><span class="p">:</span>
+                            <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Skipping lick times for </span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s1"> camera as camera.times are too short&#39;</span><span class="p">)</span>
+                        <span class="c1"># Compute pupil diameter, raw and smoothed</span>
+                        <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Computing raw pupil diameter for </span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s1"> camera.&#39;</span><span class="p">)</span>
+                        <span class="n">features</span><span class="p">[</span><span class="s1">&#39;pupilDiameter_raw&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">get_pupil_diameter</span><span class="p">(</span><span class="n">dlc_thresh</span><span class="p">)</span>
+                        <span class="k">try</span><span class="p">:</span>
+                            <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Computing smooth pupil diameter for </span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s1"> camera.&#39;</span><span class="p">)</span>
+                            <span class="n">features</span><span class="p">[</span><span class="s1">&#39;pupilDiameter_smooth&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">get_smooth_pupil_diameter</span><span class="p">(</span><span class="n">features</span><span class="p">[</span><span class="s1">&#39;pupilDiameter_raw&#39;</span><span class="p">],</span>
+                                                                                         <span class="n">cam</span><span class="p">)</span>
+                        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                            <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Computing smooth pupil diameter for </span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s1"> camera failed, saving all NaNs.&#39;</span><span class="p">)</span>
+                            <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">())</span>
+                            <span class="n">features</span><span class="p">[</span><span class="s1">&#39;pupilDiameter_smooth&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+                        <span class="c1"># Save to parquet</span>
+                        <span class="n">features_file</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;_ibl_</span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s1">Camera.features.pqt&#39;</span><span class="p">)</span>
+                        <span class="n">features</span><span class="o">.</span><span class="n">to_parquet</span><span class="p">(</span><span class="n">features_file</span><span class="p">)</span>
+                        <span class="n">output_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">features_file</span><span class="p">)</span>
+
+                    <span class="c1"># For all cams, compute DLC QC if times available</span>
+                    <span class="k">if</span> <span class="n">run_qc</span> <span class="ow">is</span> <span class="kc">True</span> <span class="ow">and</span> <span class="n">times</span> <span class="ow">in</span> <span class="p">[</span><span class="kc">True</span><span class="p">,</span> <span class="s1">&#39;short&#39;</span><span class="p">]:</span>
+                        <span class="c1"># Setting download_data to False because at this point the data should be there</span>
+                        <span class="n">qc</span> <span class="o">=</span> <span class="n">DlcQC</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">side</span><span class="o">=</span><span class="n">cam</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">,</span> <span class="n">download_data</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                        <span class="n">qc</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">update</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">times</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
+                            <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Skipping QC for </span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s1"> camera as no camera.times available&#39;</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="ow">not</span> <span class="n">run_qc</span><span class="p">:</span>
+                            <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Skipping QC for </span><span class="si">{</span><span class="n">cam</span><span class="si">}</span><span class="s1"> camera as run_qc=False&#39;</span><span class="p">)</span>
+
+                <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                    <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">())</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+                    <span class="k">continue</span>
+
+            <span class="c1"># Combined lick times</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">combined_licks</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">lick_times_file</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="s1">&#39;licks.times.npy&#39;</span><span class="p">)</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">lick_times_file</span><span class="p">,</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">combined_licks</span><span class="p">)))</span>
+                <span class="n">output_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">lick_times_file</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;No lick times computed for this session.&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">plot_qc</span><span class="p">:</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Creating DLC QC plot&#39;</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">session_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">path2eid</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
+                <span class="n">fig_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;snapshot&#39;</span><span class="p">,</span> <span class="s1">&#39;dlc_qc_plot.png&#39;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">fig_path</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+                    <span class="n">fig_path</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                <span class="n">fig</span> <span class="o">=</span> <span class="n">dlc_qc_plot</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">,</span> <span class="n">cameras</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">cameras</span><span class="p">,</span> <span class="n">device_collection</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device_collection</span><span class="p">,</span>
+                                  <span class="n">trials_collection</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">trials_collection</span><span class="p">)</span>
+                <span class="n">fig</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">fig_path</span><span class="p">)</span>
+                <span class="n">fig</span><span class="o">.</span><span class="n">clf</span><span class="p">()</span>
+                <span class="n">snp</span> <span class="o">=</span> <span class="n">ReportSnapshot</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">session_id</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">)</span>
+                <span class="n">snp</span><span class="o">.</span><span class="n">outputs</span> <span class="o">=</span> <span class="p">[</span><span class="n">fig_path</span><span class="p">]</span>
+                <span class="n">snp</span><span class="o">.</span><span class="n">register_images</span><span class="p">(</span><span class="n">widths</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;orig&#39;</span><span class="p">],</span>
+                                    <span class="n">function</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">dlc_qc_plot</span><span class="o">.</span><span class="vm">__module__</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;.&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">dlc_qc_plot</span><span class="o">.</span><span class="vm">__name__</span><span class="p">))</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Could not create and/or upload DLC QC Plot&#39;</span><span class="p">)</span>
+                <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">())</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+
+        <span class="k">return</span> <span class="n">output_files</span></div>
 
 </pre></div>
 
