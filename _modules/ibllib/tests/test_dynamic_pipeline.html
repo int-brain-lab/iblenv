@@ -1,13 +1,15 @@
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<html class="writer-html5" lang="en" data-content_root="../../../">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ibllib.tests.test_dynamic_pipeline &mdash; IBL Library  documentation</title>
-      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
-      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
-      <link rel="stylesheet" href="../../../_static/copybutton.css" type="text/css" />
-      <link rel="stylesheet" href="../../../_static/css/style.css" type="text/css" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/copybutton.css?v=76b2166b" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/style.css?v=17142d56" />
+
+  
   <!--[if lt IE 9]>
     <script src="../../../_static/js/html5shiv.min.js"></script>
   <![endif]-->
@@ -109,17 +111,24 @@
 <span></span><span class="kn">import</span> <span class="nn">tempfile</span>
 <span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
 <span class="kn">import</span> <span class="nn">unittest</span>
+<span class="kn">from</span> <span class="nn">unittest</span> <span class="kn">import</span> <span class="n">mock</span>
 <span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">chain</span>
 
+<span class="kn">import</span> <span class="nn">yaml</span>
+
 <span class="kn">import</span> <span class="nn">ibllib.tests</span>
-<span class="kn">from</span> <span class="nn">ibllib.pipes</span> <span class="kn">import</span> <span class="n">dynamic_pipeline</span>
+<span class="kn">import</span> <span class="nn">ibllib.pipes.dynamic_pipeline</span> <span class="k">as</span> <span class="nn">dyn</span>
+<span class="kn">from</span> <span class="nn">ibllib.pipes.tasks</span> <span class="kn">import</span> <span class="n">Pipeline</span><span class="p">,</span> <span class="n">Task</span>
+<span class="kn">from</span> <span class="nn">ibllib.pipes</span> <span class="kn">import</span> <span class="n">ephys_preprocessing</span>
+<span class="kn">from</span> <span class="nn">ibllib.pipes</span> <span class="kn">import</span> <span class="n">training_preprocessing</span>
 <span class="kn">from</span> <span class="nn">ibllib.io</span> <span class="kn">import</span> <span class="n">session_params</span>
+<span class="kn">from</span> <span class="nn">ibllib.tests.fixtures.utils</span> <span class="kn">import</span> <span class="n">populate_task_settings</span>
 
 
 <div class="viewcode-block" id="test_read_write_params_yaml">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.tests.test_dynamic_pipeline.html#ibllib.tests.test_dynamic_pipeline.test_read_write_params_yaml">[docs]</a>
 <span class="k">def</span> <span class="nf">test_read_write_params_yaml</span><span class="p">():</span>
-    <span class="n">ad</span> <span class="o">=</span> <span class="n">dynamic_pipeline</span><span class="o">.</span><span class="n">get_acquisition_description</span><span class="p">(</span><span class="s1">&#39;choice_world_recording&#39;</span><span class="p">)</span>
+    <span class="n">ad</span> <span class="o">=</span> <span class="n">dyn</span><span class="o">.</span><span class="n">get_acquisition_description</span><span class="p">(</span><span class="s1">&#39;choice_world_recording&#39;</span><span class="p">)</span>
     <span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">td</span><span class="p">:</span>
         <span class="n">session_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">td</span><span class="p">)</span>
         <span class="n">session_params</span><span class="o">.</span><span class="n">write_params</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">ad</span><span class="p">)</span>
@@ -136,7 +145,7 @@
 <a class="viewcode-back" href="../../../_autosummary/ibllib.tests.test_dynamic_pipeline.html#ibllib.tests.test_dynamic_pipeline.TestCreateLegacyAcqusitionDescriptions.test_legacy_biased">[docs]</a>
     <span class="k">def</span> <span class="nf">test_legacy_biased</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">session_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">ibllib</span><span class="o">.</span><span class="n">tests</span><span class="o">.</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;extractors&#39;</span><span class="p">,</span> <span class="s1">&#39;data&#39;</span><span class="p">,</span> <span class="s1">&#39;session_biased_ge5&#39;</span><span class="p">)</span>
-        <span class="n">ad</span> <span class="o">=</span> <span class="n">dynamic_pipeline</span><span class="o">.</span><span class="n">acquisition_description_legacy_session</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="n">ad</span> <span class="o">=</span> <span class="n">dyn</span><span class="o">.</span><span class="n">acquisition_description_legacy_session</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
         <span class="n">protocols</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">chain</span><span class="p">(</span><span class="o">*</span><span class="nb">map</span><span class="p">(</span><span class="nb">dict</span><span class="o">.</span><span class="n">keys</span><span class="p">,</span> <span class="n">ad</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;tasks&#39;</span><span class="p">,</span> <span class="p">[]))))</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">assertCountEqual</span><span class="p">([</span><span class="s1">&#39;biasedChoiceWorld&#39;</span><span class="p">],</span> <span class="n">protocols</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">ad</span><span class="p">[</span><span class="s1">&#39;devices&#39;</span><span class="p">][</span><span class="s1">&#39;cameras&#39;</span><span class="p">]))</span></div>
@@ -146,7 +155,7 @@
 <a class="viewcode-back" href="../../../_autosummary/ibllib.tests.test_dynamic_pipeline.html#ibllib.tests.test_dynamic_pipeline.TestCreateLegacyAcqusitionDescriptions.test_legacy_ephys">[docs]</a>
     <span class="k">def</span> <span class="nf">test_legacy_ephys</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">session_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">ibllib</span><span class="o">.</span><span class="n">tests</span><span class="o">.</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;extractors&#39;</span><span class="p">,</span> <span class="s1">&#39;data&#39;</span><span class="p">,</span> <span class="s1">&#39;session_ephys&#39;</span><span class="p">)</span>
-        <span class="n">ad_ephys</span> <span class="o">=</span> <span class="n">dynamic_pipeline</span><span class="o">.</span><span class="n">acquisition_description_legacy_session</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="n">ad_ephys</span> <span class="o">=</span> <span class="n">dyn</span><span class="o">.</span><span class="n">acquisition_description_legacy_session</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">ad_ephys</span><span class="p">[</span><span class="s1">&#39;devices&#39;</span><span class="p">][</span><span class="s1">&#39;neuropixel&#39;</span><span class="p">]))</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">ad_ephys</span><span class="p">[</span><span class="s1">&#39;devices&#39;</span><span class="p">][</span><span class="s1">&#39;cameras&#39;</span><span class="p">]))</span>
         <span class="n">protocols</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">chain</span><span class="p">(</span><span class="o">*</span><span class="nb">map</span><span class="p">(</span><span class="nb">dict</span><span class="o">.</span><span class="n">keys</span><span class="p">,</span> <span class="n">ad_ephys</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;tasks&#39;</span><span class="p">,</span> <span class="p">[]))))</span>
@@ -157,10 +166,106 @@
 <a class="viewcode-back" href="../../../_autosummary/ibllib.tests.test_dynamic_pipeline.html#ibllib.tests.test_dynamic_pipeline.TestCreateLegacyAcqusitionDescriptions.test_legacy_training">[docs]</a>
     <span class="k">def</span> <span class="nf">test_legacy_training</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">session_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">ibllib</span><span class="o">.</span><span class="n">tests</span><span class="o">.</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;extractors&#39;</span><span class="p">,</span> <span class="s1">&#39;data&#39;</span><span class="p">,</span> <span class="s1">&#39;session_training_ge5&#39;</span><span class="p">)</span>
-        <span class="n">ad</span> <span class="o">=</span> <span class="n">dynamic_pipeline</span><span class="o">.</span><span class="n">acquisition_description_legacy_session</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="n">ad</span> <span class="o">=</span> <span class="n">dyn</span><span class="o">.</span><span class="n">acquisition_description_legacy_session</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
         <span class="n">protocols</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">chain</span><span class="p">(</span><span class="o">*</span><span class="nb">map</span><span class="p">(</span><span class="nb">dict</span><span class="o">.</span><span class="n">keys</span><span class="p">,</span> <span class="n">ad</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;tasks&#39;</span><span class="p">,</span> <span class="p">[]))))</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">assertCountEqual</span><span class="p">([</span><span class="s1">&#39;trainingChoiceWorld&#39;</span><span class="p">],</span> <span class="n">protocols</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">ad</span><span class="p">[</span><span class="s1">&#39;devices&#39;</span><span class="p">][</span><span class="s1">&#39;cameras&#39;</span><span class="p">]))</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="TestGetTrialsTasks">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.tests.test_dynamic_pipeline.html#ibllib.tests.test_dynamic_pipeline.TestGetTrialsTasks">[docs]</a>
+<span class="k">class</span> <span class="nc">TestGetTrialsTasks</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Test pipes.dynamic_pipeline.get_trials_tasks function.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="TestGetTrialsTasks.setUp">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.tests.test_dynamic_pipeline.html#ibllib.tests.test_dynamic_pipeline.TestGetTrialsTasks.setUp">[docs]</a>
+    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">tmpdir</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">addCleanup</span><span class="p">(</span><span class="n">tmpdir</span><span class="o">.</span><span class="n">cleanup</span><span class="p">)</span>
+        <span class="c1"># The github CI root dir contains an alias/symlink so we must resolve it</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tempdir</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">tmpdir</span><span class="o">.</span><span class="n">name</span><span class="p">)</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">session_path_dynamic</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tempdir</span> <span class="o">/</span> <span class="s1">&#39;subject&#39;</span> <span class="o">/</span> <span class="s1">&#39;2023-01-01&#39;</span> <span class="o">/</span> <span class="s1">&#39;001&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">session_path_dynamic</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">description</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;version&#39;</span><span class="p">:</span> <span class="s1">&#39;1.0.0&#39;</span><span class="p">,</span>
+                       <span class="s1">&#39;sync&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;nidq&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;collection&#39;</span><span class="p">:</span> <span class="s1">&#39;raw_ephys_data&#39;</span><span class="p">,</span> <span class="s1">&#39;extension&#39;</span><span class="p">:</span> <span class="s1">&#39;bin&#39;</span><span class="p">,</span> <span class="s1">&#39;acquisition_software&#39;</span><span class="p">:</span> <span class="s1">&#39;spikeglx&#39;</span><span class="p">}},</span>
+                       <span class="s1">&#39;tasks&#39;</span><span class="p">:</span> <span class="p">[</span>
+                           <span class="p">{</span><span class="s1">&#39;ephysChoiceWorld&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;task_collection&#39;</span><span class="p">:</span> <span class="s1">&#39;raw_task_data_00&#39;</span><span class="p">}},</span>
+                           <span class="p">{</span><span class="s1">&#39;passiveChoiceWorld&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;task_collection&#39;</span><span class="p">:</span> <span class="s1">&#39;raw_task_data_01&#39;</span><span class="p">}},</span>
+                       <span class="p">]}</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path_dynamic</span> <span class="o">/</span> <span class="s1">&#39;_ibl_experiment.description.yaml&#39;</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fp</span><span class="p">:</span>
+            <span class="n">yaml</span><span class="o">.</span><span class="n">safe_dump</span><span class="p">(</span><span class="n">description</span><span class="p">,</span> <span class="n">fp</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">session_path_legacy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path_dynamic</span><span class="o">.</span><span class="n">with_name</span><span class="p">(</span><span class="s1">&#39;002&#39;</span><span class="p">)</span>
+        <span class="p">(</span><span class="n">collection</span> <span class="o">:=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path_legacy</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">))</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">settings</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;IBLRIG_VERSION&#39;</span><span class="p">:</span> <span class="s1">&#39;7.2.2&#39;</span><span class="p">,</span> <span class="s1">&#39;PYBPOD_PROTOCOL&#39;</span><span class="p">:</span> <span class="s1">&#39;_iblrig_tasks_ephysChoiceWorld&#39;</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">settings_path</span> <span class="o">=</span> <span class="n">populate_task_settings</span><span class="p">(</span><span class="n">collection</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="TestGetTrialsTasks.test_get_trials_tasks">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.tests.test_dynamic_pipeline.html#ibllib.tests.test_dynamic_pipeline.TestGetTrialsTasks.test_get_trials_tasks">[docs]</a>
+    <span class="k">def</span> <span class="nf">test_get_trials_tasks</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Test pipes.dynamic_pipeline.get_trials_tasks function.&quot;&quot;&quot;</span>
+        <span class="c1"># A dynamic pipeline session</span>
+        <span class="n">tasks</span> <span class="o">=</span> <span class="n">dyn</span><span class="o">.</span><span class="n">get_trials_tasks</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path_dynamic</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">tasks</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="s1">&#39;raw_task_data_00&#39;</span><span class="p">,</span> <span class="n">tasks</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">collection</span><span class="p">)</span>
+
+        <span class="c1"># Check behaviour with ONE</span>
+        <span class="n">one</span> <span class="o">=</span> <span class="n">mock</span><span class="o">.</span><span class="n">MagicMock</span><span class="p">()</span>
+        <span class="n">one</span><span class="o">.</span><span class="n">offline</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">one</span><span class="o">.</span><span class="n">alyx</span> <span class="o">=</span> <span class="n">mock</span><span class="o">.</span><span class="n">MagicMock</span><span class="p">()</span>
+        <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">cache_mode</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># sneaky hack as this is checked by the pipeline somewhere</span>
+        <span class="n">tasks</span> <span class="o">=</span> <span class="n">dyn</span><span class="o">.</span><span class="n">get_trials_tasks</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path_dynamic</span><span class="p">,</span> <span class="n">one</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">tasks</span><span class="p">))</span>
+        <span class="n">one</span><span class="o">.</span><span class="n">load_datasets</span><span class="o">.</span><span class="n">assert_called</span><span class="p">()</span>  <span class="c1"># check that description file is checked on disk</span>
+
+        <span class="c1"># An ephys session</span>
+        <span class="n">tasks</span> <span class="o">=</span> <span class="n">dyn</span><span class="o">.</span><span class="n">get_trials_tasks</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path_legacy</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">tasks</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIsInstance</span><span class="p">(</span><span class="n">tasks</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">ephys_preprocessing</span><span class="o">.</span><span class="n">EphysTrials</span><span class="p">)</span>
+
+        <span class="c1"># A training session</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s1">&#39;PYBPOD_PROTOCOL&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;_iblrig_tasks_trainingChoiceWorld&#39;</span>
+        <span class="n">populate_task_settings</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">settings_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">)</span>
+
+        <span class="n">tasks</span> <span class="o">=</span> <span class="n">dyn</span><span class="o">.</span><span class="n">get_trials_tasks</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path_legacy</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">tasks</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIsInstance</span><span class="p">(</span><span class="n">tasks</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">training_preprocessing</span><span class="o">.</span><span class="n">TrainingTrials</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIs</span><span class="p">(</span><span class="n">tasks</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">one</span><span class="p">,</span> <span class="n">one</span><span class="p">,</span> <span class="s1">&#39;failed to assign ONE instance to task&#39;</span><span class="p">)</span>
+
+        <span class="c1"># A personal project</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s1">&#39;PYBPOD_PROTOCOL&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;_misc_foobarChoiceWorld&#39;</span>
+        <span class="n">populate_task_settings</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">settings_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">)</span>
+
+        <span class="n">m</span> <span class="o">=</span> <span class="n">mock</span><span class="o">.</span><span class="n">MagicMock</span><span class="p">()</span>  <span class="c1"># Mock the project_extractors repo</span>
+        <span class="n">m</span><span class="o">.</span><span class="n">base</span><span class="o">.</span><span class="vm">__file__</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tempdir</span> <span class="o">/</span> <span class="s1">&#39;base.py&#39;</span><span class="p">)</span>
+        <span class="c1"># Create the personal project extractor types map</span>
+        <span class="n">task_type_map</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;_misc_foobarChoiceWorld&#39;</span><span class="p">:</span> <span class="s1">&#39;foobar&#39;</span><span class="p">}</span>
+        <span class="n">extractor_types_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">base</span><span class="o">.</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;extractor_types.json&#39;</span><span class="p">)</span>
+        <span class="n">populate_task_settings</span><span class="p">(</span><span class="n">extractor_types_path</span><span class="p">,</span> <span class="n">task_type_map</span><span class="p">)</span>
+        <span class="c1"># Simulate the instantiation of the personal project module&#39;s pipeline class</span>
+        <span class="n">pipeline</span> <span class="o">=</span> <span class="n">mock</span><span class="o">.</span><span class="n">Mock</span><span class="p">(</span><span class="n">spec</span><span class="o">=</span><span class="n">Pipeline</span><span class="p">)</span>
+        <span class="n">pipeline</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;custom&#39;</span>
+        <span class="n">task_mock</span> <span class="o">=</span> <span class="n">mock</span><span class="o">.</span><span class="n">Mock</span><span class="p">(</span><span class="n">spec</span><span class="o">=</span><span class="n">Task</span><span class="p">)</span>
+        <span class="n">pipeline</span><span class="o">.</span><span class="n">tasks</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;RegisterRaw&#39;</span><span class="p">:</span> <span class="n">mock</span><span class="o">.</span><span class="n">MagicMock</span><span class="p">(),</span> <span class="s1">&#39;FooBarTrials&#39;</span><span class="p">:</span> <span class="n">task_mock</span><span class="p">}</span>
+        <span class="n">m</span><span class="o">.</span><span class="n">base</span><span class="o">.</span><span class="n">get_pipeline</span><span class="p">()</span><span class="o">.</span><span class="n">return_value</span> <span class="o">=</span> <span class="n">pipeline</span>
+        <span class="k">with</span> <span class="n">mock</span><span class="o">.</span><span class="n">patch</span><span class="o">.</span><span class="n">dict</span><span class="p">(</span><span class="s1">&#39;sys.modules&#39;</span><span class="p">,</span> <span class="n">projects</span><span class="o">=</span><span class="n">m</span><span class="p">):</span>
+<span class="w">            </span><span class="sd">&quot;&quot;&quot;For unknown reasons this method of mocking the personal projects repo (which is</span>
+<span class="sd">            imported within various functions) fails on the Github test builds. This we check</span>
+<span class="sd">            here and skip the rest of the test if patch didn&#39;t work.&quot;&quot;&quot;</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="kn">import</span> <span class="nn">projects.base</span>
+                <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">projects</span><span class="o">.</span><span class="n">base</span><span class="p">,</span> <span class="n">mock</span><span class="o">.</span><span class="n">Mock</span><span class="p">)</span>
+            <span class="k">except</span> <span class="p">(</span><span class="ne">AssertionError</span><span class="p">,</span> <span class="ne">ModuleNotFoundError</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s1">&#39;Failed to mock projects module import&#39;</span><span class="p">)</span>
+            <span class="n">tasks</span> <span class="o">=</span> <span class="n">dyn</span><span class="o">.</span><span class="n">get_trials_tasks</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path_legacy</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">tasks</span><span class="p">))</span>
+            <span class="n">task_mock</span><span class="o">.</span><span class="n">assert_called_once_with</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path_legacy</span><span class="p">)</span>
+            <span class="c1"># Should handle absent trials tasks</span>
+            <span class="n">pipeline</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;FooBarTrials&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">([],</span> <span class="n">dyn</span><span class="o">.</span><span class="n">get_trials_tasks</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path_legacy</span><span class="p">))</span></div>
 </div>
 
 </pre></div>

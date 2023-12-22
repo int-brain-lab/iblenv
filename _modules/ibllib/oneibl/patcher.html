@@ -1,13 +1,15 @@
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<html class="writer-html5" lang="en" data-content_root="../../../">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ibllib.oneibl.patcher &mdash; IBL Library  documentation</title>
-      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
-      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
-      <link rel="stylesheet" href="../../../_static/copybutton.css" type="text/css" />
-      <link rel="stylesheet" href="../../../_static/css/style.css" type="text/css" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/copybutton.css?v=76b2166b" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/style.css?v=17142d56" />
+
+  
   <!--[if lt IE 9]>
     <script src="../../../_static/js/html5shiv.min.js"></script>
   <![endif]-->
@@ -106,9 +108,34 @@
            <div itemprop="articleBody">
              
   <h1>Source code for ibllib.oneibl.patcher</h1><div class="highlight"><pre>
-<span></span><span class="kn">import</span> <span class="nn">abc</span>
+<span></span><span class="sd">&quot;&quot;&quot;A module for ad-hoc dataset modification and registration.</span>
+
+<span class="sd">Unlike the DataHandler class in oneibl.data_handlers, the Patcher class allows one to fully remove</span>
+<span class="sd">datasets (delete them from the database and repositories), and to overwrite datasets on both the</span>
+<span class="sd">main repositories and the local servers.  Additionally the Patcher can handle datasets from</span>
+<span class="sd">multiple sessions at once.</span>
+
+<span class="sd">Examples</span>
+<span class="sd">--------</span>
+<span class="sd">Delete a dataset from Alyx and all associated repositories.</span>
+
+<span class="sd">&gt;&gt;&gt; dataset_id = &#39;f4aafe6c-a7ab-4390-82cd-2c0e245322a5&#39;</span>
+<span class="sd">&gt;&gt;&gt; task_ids, files_by_repo = IBLGlobusPatcher(AlyxClient(), &#39;admin&#39;).delete_dataset(dataset_id)</span>
+
+<span class="sd">Patch some local datasets using Globus</span>
+
+<span class="sd">&gt;&gt;&gt; from one.api import ONE</span>
+<span class="sd">&gt;&gt;&gt; patcher = GlobusPatcher(&#39;admin&#39;, ONE(), label=&#39;UCLA audio times patch&#39;)</span>
+<span class="sd">&gt;&gt;&gt; responses = patcher.patch_datasets(file_paths)  # register the new datasets to Alyx</span>
+<span class="sd">&gt;&gt;&gt; patcher.launch_transfers(local_servers=True)  # transfer to all remote repositories</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">abc</span>
 <span class="kn">import</span> <span class="nn">ftplib</span>
 <span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span><span class="p">,</span> <span class="n">PurePosixPath</span><span class="p">,</span> <span class="n">WindowsPath</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span>
+<span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">starmap</span>
+<span class="kn">from</span> <span class="nn">subprocess</span> <span class="kn">import</span> <span class="n">Popen</span><span class="p">,</span> <span class="n">PIPE</span><span class="p">,</span> <span class="n">STDOUT</span>
 <span class="kn">import</span> <span class="nn">subprocess</span>
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">from</span> <span class="nn">getpass</span> <span class="kn">import</span> <span class="n">getpass</span>
@@ -117,16 +144,18 @@
 <span class="kn">import</span> <span class="nn">globus_sdk</span>
 <span class="kn">import</span> <span class="nn">iblutil.io.params</span> <span class="k">as</span> <span class="nn">iopar</span>
 <span class="kn">from</span> <span class="nn">one.alf.files</span> <span class="kn">import</span> <span class="n">get_session_path</span><span class="p">,</span> <span class="n">add_uuid_string</span>
-<span class="kn">from</span> <span class="nn">one.alf.spec</span> <span class="kn">import</span> <span class="n">is_uuid_string</span>
+<span class="kn">from</span> <span class="nn">one.alf.spec</span> <span class="kn">import</span> <span class="n">is_uuid_string</span><span class="p">,</span> <span class="n">is_uuid</span>
 <span class="kn">from</span> <span class="nn">one</span> <span class="kn">import</span> <span class="n">params</span>
+<span class="kn">from</span> <span class="nn">one.webclient</span> <span class="kn">import</span> <span class="n">AlyxClient</span>
 <span class="kn">from</span> <span class="nn">one.converters</span> <span class="kn">import</span> <span class="n">path_from_dataset</span>
 <span class="kn">from</span> <span class="nn">one.remote</span> <span class="kn">import</span> <span class="n">globus</span>
+<span class="kn">from</span> <span class="nn">one.remote.aws</span> <span class="kn">import</span> <span class="n">url2uri</span>
+<span class="kn">from</span> <span class="nn">one.util</span> <span class="kn">import</span> <span class="n">ensure_list</span>
 
 <span class="kn">from</span> <span class="nn">ibllib.oneibl.registration</span> <span class="kn">import</span> <span class="n">register_dataset</span>
 
 <span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
-<span class="n">FLAT_IRON_GLOBUS_ID</span> <span class="o">=</span> <span class="s1">&#39;ab2d064c-413d-11eb-b188-0ee0d5d9299f&#39;</span>
 <span class="n">FLATIRON_HOST</span> <span class="o">=</span> <span class="s1">&#39;ibl.flatironinstitute.org&#39;</span>
 <span class="n">FLATIRON_PORT</span> <span class="o">=</span> <span class="mi">61022</span>
 <span class="n">FLATIRON_USER</span> <span class="o">=</span> <span class="s1">&#39;datauser&#39;</span>
@@ -167,7 +196,7 @@
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Returns sdsc file path from a dset record or a list of dsets records from REST</span>
 <span class="sd">    :param dset: dset dictionary or list of dictionaries from ALyx rest endpoint</span>
-<span class="sd">    :param root_path: (optional) the prefix path such as one download directory or sdsc root</span>
+<span class="sd">    :param root_path: (optional) the prefix path such as one download directory or SDSC root</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">return</span> <span class="n">path_from_dataset</span><span class="p">(</span><span class="n">dset</span><span class="p">,</span> <span class="n">root_path</span><span class="o">=</span><span class="n">root_path</span><span class="p">,</span> <span class="n">uuid</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
 
@@ -180,7 +209,7 @@
 <span class="sd">    Returns local one file path from a dset record or a list of dsets records from REST</span>
 <span class="sd">    :param dset: dset dictionary or list of dictionaries from ALyx rest endpoint</span>
 <span class="sd">    :param repository: (optional) repository name of the file record (if None, will take</span>
-<span class="sd">     the first filerecord with an URL)</span>
+<span class="sd">     the first filerecord with a URL)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">return</span> <span class="n">path_from_dataset</span><span class="p">(</span><span class="n">dset</span><span class="p">,</span> <span class="n">root_path</span><span class="o">=</span><span class="n">PurePosixPath</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">),</span> <span class="n">repository</span><span class="o">=</span><span class="n">repository</span><span class="p">,</span> <span class="n">uuid</span><span class="o">=</span><span class="n">uuid</span><span class="p">)</span></div>
 
@@ -206,7 +235,7 @@
         <span class="k">assert</span> <span class="n">dset_id</span>
         <span class="k">assert</span> <span class="n">is_uuid_string</span><span class="p">(</span><span class="n">dset_id</span><span class="p">)</span>
         <span class="k">assert</span> <span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span>
-        <span class="n">dset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;datasets&#39;</span><span class="p">,</span> <span class="s2">&quot;read&quot;</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">dset_id</span><span class="p">)</span>
+        <span class="n">dset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;datasets&#39;</span><span class="p">,</span> <span class="s1">&#39;read&#39;</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">dset_id</span><span class="p">)</span>
         <span class="n">fr</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">fr</span> <span class="k">for</span> <span class="n">fr</span> <span class="ow">in</span> <span class="n">dset</span><span class="p">[</span><span class="s1">&#39;file_records&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="s1">&#39;flatiron&#39;</span> <span class="ow">in</span> <span class="n">fr</span><span class="p">[</span><span class="s1">&#39;data_repository&#39;</span><span class="p">])</span>
         <span class="n">remote_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">fr</span><span class="p">[</span><span class="s1">&#39;data_repository_path&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">fr</span><span class="p">[</span><span class="s1">&#39;relative_path&#39;</span><span class="p">])</span>
         <span class="n">remote_path</span> <span class="o">=</span> <span class="n">add_uuid_string</span><span class="p">(</span><span class="n">remote_path</span><span class="p">,</span> <span class="n">dset_id</span><span class="p">)</span><span class="o">.</span><span class="n">as_posix</span><span class="p">()</span>
@@ -254,7 +283,7 @@
         <span class="n">nses</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">register_dict</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">label</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">register_dict</span><span class="p">):</span>
             <span class="n">_files</span> <span class="o">=</span> <span class="n">register_dict</span><span class="p">[</span><span class="n">label</span><span class="p">][</span><span class="s1">&#39;files&#39;</span><span class="p">]</span>
-            <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">nses</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s2">, registering </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">_files</span><span class="p">)</span><span class="si">}</span><span class="s2"> files&quot;</span><span class="p">)</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">nses</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s2">, registering </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">_files</span><span class="p">)</span><span class="si">}</span><span class="s2"> files&quot;</span><span class="p">)</span>
             <span class="n">responses</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">register_dataset</span><span class="p">(</span><span class="n">_files</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">))</span>
         <span class="k">return</span> <span class="n">responses</span></div>
 
@@ -280,7 +309,7 @@
             <span class="n">file_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">Path</span><span class="p">(</span><span class="n">file_list</span><span class="p">)]</span>
         <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">([</span><span class="n">get_session_path</span><span class="p">(</span><span class="n">f</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">file_list</span><span class="p">]))</span> <span class="o">==</span> <span class="mi">1</span>
         <span class="k">assert</span> <span class="nb">all</span><span class="p">([</span><span class="n">Path</span><span class="p">(</span><span class="n">f</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">file_list</span><span class="p">])</span>
-        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">register_dataset</span><span class="p">(</span><span class="n">file_list</span><span class="p">,</span> <span class="n">dry</span><span class="o">=</span><span class="n">dry</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="n">ensure_list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">register_dataset</span><span class="p">(</span><span class="n">file_list</span><span class="p">,</span> <span class="n">dry</span><span class="o">=</span><span class="n">dry</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">))</span>
         <span class="k">if</span> <span class="n">dry</span><span class="p">:</span>
             <span class="k">return</span>
         <span class="c1"># from the dataset info, set flatIron flag to exists=True</span>
@@ -308,7 +337,7 @@
         <span class="n">nses</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">register_dict</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">label</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">register_dict</span><span class="p">):</span>
             <span class="n">_files</span> <span class="o">=</span> <span class="n">register_dict</span><span class="p">[</span><span class="n">label</span><span class="p">][</span><span class="s1">&#39;files&#39;</span><span class="p">]</span>
-            <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">nses</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s2">, registering </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">_files</span><span class="p">)</span><span class="si">}</span><span class="s2"> files&quot;</span><span class="p">)</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s1">/</span><span class="si">{</span><span class="n">nses</span><span class="si">}</span><span class="s1"> </span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">, registering </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">_files</span><span class="p">)</span><span class="si">}</span><span class="s1"> files&#39;</span><span class="p">)</span>
             <span class="n">responses</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">patch_dataset</span><span class="p">(</span><span class="n">_files</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">))</span>
         <span class="k">return</span> <span class="n">responses</span></div>
 
@@ -325,27 +354,28 @@
 
 <div class="viewcode-block" id="GlobusPatcher">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.patcher.html#ibllib.oneibl.patcher.GlobusPatcher">[docs]</a>
-<span class="k">class</span> <span class="nc">GlobusPatcher</span><span class="p">(</span><span class="n">Patcher</span><span class="p">):</span>
+<span class="k">class</span> <span class="nc">GlobusPatcher</span><span class="p">(</span><span class="n">Patcher</span><span class="p">,</span> <span class="n">globus</span><span class="o">.</span><span class="n">Globus</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Requires GLOBUS keys access</span>
 
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client_name</span><span class="o">=</span><span class="s1">&#39;default&#39;</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;ibllib patch&#39;</span><span class="p">):</span>
-        <span class="k">assert</span> <span class="n">one</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">local_endpoint</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">globus</span><span class="o">.</span><span class="n">load_client_params</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;globus.</span><span class="si">{</span><span class="n">client_name</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">),</span>
-                                      <span class="s1">&#39;local_endpoint&#39;</span><span class="p">,</span> <span class="n">globus</span><span class="o">.</span><span class="n">get_local_endpoint_id</span><span class="p">())</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">transfer_client</span> <span class="o">=</span> <span class="n">globus</span><span class="o">.</span><span class="n">create_globus_client</span><span class="p">(</span><span class="n">client_name</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">one</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">one</span><span class="o">.</span><span class="n">offline</span>
+        <span class="n">Patcher</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">)</span>
+        <span class="n">globus</span><span class="o">.</span><span class="n">Globus</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client_name</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">label</span> <span class="o">=</span> <span class="n">label</span>
-        <span class="c1"># transfers/delete from the current computer to the flatiron: mandatory and executed first</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">globus_transfer</span> <span class="o">=</span> <span class="n">globus_sdk</span><span class="o">.</span><span class="n">TransferData</span><span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">transfer_client</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">local_endpoint</span><span class="p">,</span> <span class="n">FLAT_IRON_GLOBUS_ID</span><span class="p">,</span> <span class="n">verify_checksum</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-            <span class="n">sync_level</span><span class="o">=</span><span class="s1">&#39;checksum&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="n">label</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">globus_delete</span> <span class="o">=</span> <span class="n">globus_sdk</span><span class="o">.</span><span class="n">DeleteData</span><span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">transfer_client</span><span class="p">,</span> <span class="n">FLAT_IRON_GLOBUS_ID</span><span class="p">,</span> <span class="n">verify_checksum</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-            <span class="n">sync_level</span><span class="o">=</span><span class="s1">&#39;checksum&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="n">label</span><span class="p">)</span>
         <span class="c1"># get a dictionary of data repositories from Alyx (with globus ids)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">repos</span> <span class="o">=</span> <span class="p">{</span><span class="n">r</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]:</span> <span class="n">r</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;data-repository&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">)}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fetch_endpoints_from_alyx</span><span class="p">(</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="p">)</span>
+        <span class="n">flatiron_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">endpoints</span><span class="p">[</span><span class="s1">&#39;flatiron_cortexlab&#39;</span><span class="p">][</span><span class="s1">&#39;id&#39;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="s1">&#39;flatiron&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">endpoints</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_endpoint</span><span class="p">(</span><span class="n">flatiron_id</span><span class="p">,</span> <span class="s1">&#39;flatiron&#39;</span><span class="p">,</span> <span class="n">root_path</span><span class="o">=</span><span class="s1">&#39;/&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">endpoints</span><span class="p">[</span><span class="s1">&#39;flatiron&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">endpoints</span><span class="p">[</span><span class="s1">&#39;flatiron_cortexlab&#39;</span><span class="p">]</span>
+        <span class="c1"># transfers/delete from the current computer to the flatiron: mandatory and executed first</span>
+        <span class="n">local_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">endpoints</span><span class="p">[</span><span class="s1">&#39;local&#39;</span><span class="p">][</span><span class="s1">&#39;id&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">globus_transfer</span> <span class="o">=</span> <span class="n">globus_sdk</span><span class="o">.</span><span class="n">TransferData</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="p">,</span> <span class="n">local_id</span><span class="p">,</span> <span class="n">flatiron_id</span><span class="p">,</span> <span class="n">verify_checksum</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">sync_level</span><span class="o">=</span><span class="s1">&#39;checksum&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="n">label</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">globus_delete</span> <span class="o">=</span> <span class="n">globus_sdk</span><span class="o">.</span><span class="n">DeleteData</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="p">,</span> <span class="n">flatiron_id</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="n">label</span><span class="p">)</span>
         <span class="c1"># transfers/delete from flatiron to optional third parties to synchronize / delete</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">globus_transfers_locals</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">globus_deletes_locals</span> <span class="o">=</span> <span class="p">{}</span>
@@ -356,22 +386,23 @@
             <span class="n">remote_path</span><span class="o">.</span><span class="n">relative_to</span><span class="p">(</span><span class="n">PurePosixPath</span><span class="p">(</span><span class="n">FLATIRON_MOUNT</span><span class="p">))</span>
         <span class="p">)</span>
         <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Globus copy </span><span class="si">{</span><span class="n">local_path</span><span class="si">}</span><span class="s2"> to </span><span class="si">{</span><span class="n">remote_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">local_path</span> <span class="o">=</span> <span class="n">globus</span><span class="o">.</span><span class="n">as_globus_path</span><span class="p">(</span><span class="n">local_path</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">dry</span><span class="p">:</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">globus_transfer</span><span class="p">,</span> <span class="n">globus_sdk</span><span class="o">.</span><span class="n">transfer</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">TransferData</span><span class="p">):</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">globus_transfer</span><span class="o">.</span><span class="n">add_item</span><span class="p">(</span><span class="n">local_path</span><span class="p">,</span> <span class="n">remote_path</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">globus_transfer</span><span class="p">,</span> <span class="n">globus_sdk</span><span class="o">.</span><span class="n">TransferData</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">globus_transfer</span><span class="o">.</span><span class="n">add_item</span><span class="p">(</span><span class="n">local_path</span><span class="p">,</span> <span class="n">remote_path</span><span class="o">.</span><span class="n">as_posix</span><span class="p">())</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">globus_transfer</span><span class="o">.</span><span class="n">path_src</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">local_path</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">globus_transfer</span><span class="o">.</span><span class="n">path_dest</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">remote_path</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">globus_transfer</span><span class="o">.</span><span class="n">path_dest</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">remote_path</span><span class="o">.</span><span class="n">as_posix</span><span class="p">())</span>
         <span class="k">return</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;&#39;</span>
 
     <span class="k">def</span> <span class="nf">_rm</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">flatiron_path</span><span class="p">,</span> <span class="n">dry</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
         <span class="n">flatiron_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">flatiron_path</span><span class="o">.</span><span class="n">relative_to</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">FLATIRON_MOUNT</span><span class="p">)))</span>
-        <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Globus del </span><span class="si">{</span><span class="n">flatiron_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Globus del </span><span class="si">{</span><span class="n">flatiron_path</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">dry</span><span class="p">:</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">globus_delete</span><span class="p">,</span> <span class="n">globus_sdk</span><span class="o">.</span><span class="n">transfer</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">DeleteData</span><span class="p">):</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">globus_delete</span><span class="o">.</span><span class="n">add_item</span><span class="p">(</span><span class="n">flatiron_path</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">globus_delete</span><span class="p">,</span> <span class="n">globus_sdk</span><span class="o">.</span><span class="n">DeleteData</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">globus_delete</span><span class="o">.</span><span class="n">add_item</span><span class="p">(</span><span class="n">flatiron_path</span><span class="o">.</span><span class="n">as_posix</span><span class="p">())</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">globus_delete</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">flatiron_path</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">globus_delete</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">flatiron_path</span><span class="o">.</span><span class="n">as_posix</span><span class="p">())</span>
         <span class="k">return</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;&#39;</span>
 
 <div class="viewcode-block" id="GlobusPatcher.patch_datasets">
@@ -389,25 +420,26 @@
         <span class="k">for</span> <span class="n">dset</span> <span class="ow">in</span> <span class="n">responses</span><span class="p">:</span>
             <span class="c1"># get the flatiron path</span>
             <span class="n">fr</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">fr</span> <span class="k">for</span> <span class="n">fr</span> <span class="ow">in</span> <span class="n">dset</span><span class="p">[</span><span class="s1">&#39;file_records&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="s1">&#39;flatiron&#39;</span> <span class="ow">in</span> <span class="n">fr</span><span class="p">[</span><span class="s1">&#39;data_repository&#39;</span><span class="p">])</span>
-            <span class="n">flatiron_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">repos</span><span class="p">[</span><span class="n">fr</span><span class="p">[</span><span class="s1">&#39;data_repository&#39;</span><span class="p">]][</span><span class="s1">&#39;globus_path&#39;</span><span class="p">]</span>
-            <span class="n">flatiron_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">flatiron_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">fr</span><span class="p">[</span><span class="s1">&#39;relative_path&#39;</span><span class="p">])</span>
-            <span class="n">flatiron_path</span> <span class="o">=</span> <span class="n">add_uuid_string</span><span class="p">(</span><span class="n">flatiron_path</span><span class="p">,</span> <span class="n">dset</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">as_posix</span><span class="p">()</span>
+            <span class="n">relative_path</span> <span class="o">=</span> <span class="n">add_uuid_string</span><span class="p">(</span><span class="n">fr</span><span class="p">[</span><span class="s1">&#39;relative_path&#39;</span><span class="p">],</span> <span class="n">dset</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">as_posix</span><span class="p">()</span>
+            <span class="n">flatiron_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">to_address</span><span class="p">(</span><span class="n">relative_path</span><span class="p">,</span> <span class="n">fr</span><span class="p">[</span><span class="s1">&#39;data_repository&#39;</span><span class="p">])</span>
             <span class="c1"># loop over the remaining repositories (local servers) and create a transfer</span>
             <span class="c1"># from flatiron to the local server</span>
             <span class="k">for</span> <span class="n">fr</span> <span class="ow">in</span> <span class="n">dset</span><span class="p">[</span><span class="s1">&#39;file_records&#39;</span><span class="p">]:</span>
                 <span class="k">if</span> <span class="n">fr</span><span class="p">[</span><span class="s1">&#39;data_repository&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">DMZ_REPOSITORY</span><span class="p">:</span>
                     <span class="k">continue</span>
-                <span class="n">repo_gid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">repos</span><span class="p">[</span><span class="n">fr</span><span class="p">[</span><span class="s1">&#39;data_repository&#39;</span><span class="p">]][</span><span class="s1">&#39;globus_endpoint_id&#39;</span><span class="p">]</span>
-                <span class="k">if</span> <span class="n">repo_gid</span> <span class="o">==</span> <span class="n">FLAT_IRON_GLOBUS_ID</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">fr</span><span class="p">[</span><span class="s1">&#39;data_repository&#39;</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">endpoints</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="n">repo_gid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">endpoints</span><span class="p">[</span><span class="n">fr</span><span class="p">[</span><span class="s1">&#39;data_repository&#39;</span><span class="p">]][</span><span class="s1">&#39;id&#39;</span><span class="p">]</span>
+                <span class="n">flatiron_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">endpoints</span><span class="p">[</span><span class="s1">&#39;flatiron&#39;</span><span class="p">][</span><span class="s1">&#39;id&#39;</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">repo_gid</span> <span class="o">==</span> <span class="n">flatiron_id</span><span class="p">:</span>
                     <span class="k">continue</span>
                 <span class="c1"># if there is no transfer already created, initialize it</span>
                 <span class="k">if</span> <span class="n">repo_gid</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">globus_transfers_locals</span><span class="p">:</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">globus_transfers_locals</span><span class="p">[</span><span class="n">repo_gid</span><span class="p">]</span> <span class="o">=</span> <span class="n">globus_sdk</span><span class="o">.</span><span class="n">TransferData</span><span class="p">(</span>
-                        <span class="bp">self</span><span class="o">.</span><span class="n">transfer_client</span><span class="p">,</span> <span class="n">FLAT_IRON_GLOBUS_ID</span><span class="p">,</span> <span class="n">repo_gid</span><span class="p">,</span> <span class="n">verify_checksum</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="p">,</span> <span class="n">flatiron_id</span><span class="p">,</span> <span class="n">repo_gid</span><span class="p">,</span> <span class="n">verify_checksum</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                         <span class="n">sync_level</span><span class="o">=</span><span class="s1">&#39;checksum&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="si">}</span><span class="s2"> on </span><span class="si">{</span><span class="n">fr</span><span class="p">[</span><span class="s1">&#39;data_repository&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
                 <span class="c1"># get the local server path and create the transfer item</span>
-                <span class="n">local_server_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">repos</span><span class="p">[</span><span class="n">fr</span><span class="p">[</span><span class="s1">&#39;data_repository&#39;</span><span class="p">]][</span><span class="s1">&#39;globus_path&#39;</span><span class="p">]</span>
-                <span class="n">local_server_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">local_server_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">fr</span><span class="p">[</span><span class="s1">&#39;relative_path&#39;</span><span class="p">])</span>
+                <span class="n">local_server_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">to_address</span><span class="p">(</span><span class="n">fr</span><span class="p">[</span><span class="s1">&#39;relative_path&#39;</span><span class="p">],</span> <span class="n">fr</span><span class="p">[</span><span class="s1">&#39;data_repository&#39;</span><span class="p">])</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">globus_transfers_locals</span><span class="p">[</span><span class="n">repo_gid</span><span class="p">]</span><span class="o">.</span><span class="n">add_item</span><span class="p">(</span><span class="n">flatiron_path</span><span class="p">,</span> <span class="n">local_server_path</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">responses</span></div>
 
@@ -421,7 +453,7 @@
 <span class="sd">        :param: local_servers (False): if True, sync the local servers after the main transfer</span>
 <span class="sd">        :return: None</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">gtc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transfer_client</span>
+        <span class="n">gtc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span>
 
         <span class="k">def</span> <span class="nf">_wait_for_task</span><span class="p">(</span><span class="n">resp</span><span class="p">):</span>
             <span class="c1"># patcher.transfer_client.get_task(task_id=&#39;364fbdd2-4deb-11eb-8ffb-0a34088e79f9&#39;)</span>
@@ -459,8 +491,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">globus_delete</span> <span class="o">=</span> <span class="n">globus_sdk</span><span class="o">.</span><span class="n">DeleteData</span><span class="p">(</span>
                 <span class="n">gtc</span><span class="p">,</span>
                 <span class="n">endpoint</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">globus_delete</span><span class="p">[</span><span class="s1">&#39;endpoint&#39;</span><span class="p">],</span>
-                <span class="n">label</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">globus_delete</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">],</span>
-                <span class="n">verify_checksum</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">sync_level</span><span class="o">=</span><span class="s1">&#39;checksum&#39;</span><span class="p">)</span>
+                <span class="n">label</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">globus_delete</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">])</span>
 
         <span class="c1"># launch the local transfers and local deletes</span>
         <span class="k">if</span> <span class="n">local_servers</span><span class="p">:</span>
@@ -479,11 +510,114 @@
         <span class="k">for</span> <span class="n">lt</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">globus_transfers_locals</span><span class="p">:</span>
             <span class="n">transfer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">globus_transfers_locals</span><span class="p">[</span><span class="n">lt</span><span class="p">]</span>
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">transfer</span><span class="p">[</span><span class="s1">&#39;DATA&#39;</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">transfer_client</span><span class="o">.</span><span class="n">submit_transfer</span><span class="p">(</span><span class="n">transfer</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">submit_transfer</span><span class="p">(</span><span class="n">transfer</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">ld</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">globus_deletes_locals</span><span class="p">:</span>
             <span class="n">delete</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">globus_deletes_locals</span><span class="p">[</span><span class="n">ld</span><span class="p">]</span>
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">transfer</span><span class="p">[</span><span class="s1">&#39;DATA&#39;</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">transfer_client</span><span class="o">.</span><span class="n">submit_delete</span><span class="p">(</span><span class="n">delete</span><span class="p">)</span></div>
+                <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">submit_delete</span><span class="p">(</span><span class="n">delete</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="IBLGlobusPatcher">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.patcher.html#ibllib.oneibl.patcher.IBLGlobusPatcher">[docs]</a>
+<span class="k">class</span> <span class="nc">IBLGlobusPatcher</span><span class="p">(</span><span class="n">Patcher</span><span class="p">,</span> <span class="n">globus</span><span class="o">.</span><span class="n">Globus</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;This is a replacement for the GlobusPatcher class, utilizing the ONE Globus class.</span>
+
+<span class="sd">    The GlobusPatcher class is more complicated but has the advantage of being able to launch</span>
+<span class="sd">    transfers independently to registration, although it remains to be seen whether this is useful.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">alyx</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">client_name</span><span class="o">=</span><span class="s1">&#39;default&#39;</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        alyx : one.webclient.AlyxClient</span>
+<span class="sd">            An instance of Alyx to use.</span>
+<span class="sd">        client_name : str, default=&#39;default&#39;</span>
+<span class="sd">            The Globus client name.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">alyx</span> <span class="o">=</span> <span class="n">alyx</span> <span class="ow">or</span> <span class="n">AlyxClient</span><span class="p">()</span>
+        <span class="n">globus</span><span class="o">.</span><span class="n">Globus</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">client_name</span><span class="o">=</span><span class="n">client_name</span><span class="p">)</span>  <span class="c1"># NB we don&#39;t init Patcher as we&#39;re not using ONE</span>
+
+<div class="viewcode-block" id="IBLGlobusPatcher.delete_dataset">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.patcher.html#ibllib.oneibl.patcher.IBLGlobusPatcher.delete_dataset">[docs]</a>
+    <span class="k">def</span> <span class="nf">delete_dataset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">,</span> <span class="n">dry</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Delete a dataset off Alyx and remove file record from all Globus repositories.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        dataset : uuid.UUID, str, dict</span>
+<span class="sd">            The dataset record or ID to delete.</span>
+<span class="sd">        dry : bool</span>
+<span class="sd">            If true, dataset is not deleted and file paths that would be removed are returned.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        list of uuid.UUID</span>
+<span class="sd">            A list of Globus delete task IDs if dry is false.</span>
+<span class="sd">        dict of str</span>
+<span class="sd">            A map of data repository names and relative paths of the deleted files.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">is_uuid</span><span class="p">(</span><span class="n">dataset</span><span class="p">):</span>
+            <span class="n">did</span> <span class="o">=</span> <span class="n">dataset</span>
+            <span class="n">dataset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;datasets&#39;</span><span class="p">,</span> <span class="s1">&#39;read&#39;</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">did</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">did</span> <span class="o">=</span> <span class="n">dataset</span><span class="p">[</span><span class="s1">&#39;url&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+
+        <span class="k">def</span> <span class="nf">is_aws</span><span class="p">(</span><span class="n">repository_name</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">repository_name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;aws_&#39;</span><span class="p">)</span>
+
+        <span class="n">files_by_repo</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span>  <span class="c1"># str -&gt; [pathlib.PurePosixPath]</span>
+        <span class="n">s3_files</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">file_records</span> <span class="o">=</span> <span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="s1">&#39;exists&#39;</span><span class="p">],</span> <span class="n">dataset</span><span class="p">[</span><span class="s1">&#39;file_records&#39;</span><span class="p">])</span>
+        <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">file_records</span><span class="p">:</span>
+            <span class="n">repo</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">repo_from_alyx</span><span class="p">(</span><span class="n">record</span><span class="p">[</span><span class="s1">&#39;data_repository&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">alyx</span><span class="p">)</span>
+            <span class="c1"># Handle S3 files</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">repo</span><span class="p">[</span><span class="s1">&#39;globus_endpoint_id&#39;</span><span class="p">]</span> <span class="ow">or</span> <span class="n">repo</span><span class="p">[</span><span class="s1">&#39;repository_type&#39;</span><span class="p">]</span> <span class="o">!=</span> <span class="s1">&#39;Fileserver&#39;</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">is_aws</span><span class="p">(</span><span class="n">repo</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]):</span>
+                    <span class="n">s3_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">url2uri</span><span class="p">(</span><span class="n">record</span><span class="p">[</span><span class="s1">&#39;data_url&#39;</span><span class="p">]))</span>
+                    <span class="n">files_by_repo</span><span class="p">[</span><span class="n">repo</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">PurePosixPath</span><span class="p">(</span><span class="n">record</span><span class="p">[</span><span class="s1">&#39;relative_path&#39;</span><span class="p">]))</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Unable to delete from </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">repo</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># Handle Globus files</span>
+                <span class="k">if</span> <span class="n">repo</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">endpoints</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">add_endpoint</span><span class="p">(</span><span class="n">repo</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">],</span> <span class="n">alyx</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">alyx</span><span class="p">)</span>
+                <span class="n">filepath</span> <span class="o">=</span> <span class="n">PurePosixPath</span><span class="p">(</span><span class="n">record</span><span class="p">[</span><span class="s1">&#39;relative_path&#39;</span><span class="p">])</span>
+                <span class="k">if</span> <span class="s1">&#39;flatiron&#39;</span> <span class="ow">in</span> <span class="n">repo</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]:</span>
+                    <span class="n">filepath</span> <span class="o">=</span> <span class="n">add_uuid_string</span><span class="p">(</span><span class="n">filepath</span><span class="p">,</span> <span class="n">did</span><span class="p">)</span>
+                <span class="n">files_by_repo</span><span class="p">[</span><span class="n">repo</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">filepath</span><span class="p">)</span>
+
+        <span class="c1"># Remove S3 files</span>
+        <span class="k">if</span> <span class="n">s3_files</span><span class="p">:</span>
+            <span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;aws&#39;</span><span class="p">,</span> <span class="s1">&#39;s3&#39;</span><span class="p">,</span> <span class="s1">&#39;rm&#39;</span><span class="p">,</span> <span class="o">*</span><span class="n">s3_files</span><span class="p">,</span> <span class="s1">&#39;--profile&#39;</span><span class="p">,</span> <span class="s1">&#39;ibladmin&#39;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">dry</span><span class="p">:</span>
+                <span class="n">cmd</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;--dryrun&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">_logger</span><span class="o">.</span><span class="n">level</span> <span class="o">&gt;</span> <span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">:</span>
+                <span class="n">log_function</span> <span class="o">=</span> <span class="n">_logger</span><span class="o">.</span><span class="n">error</span>
+                <span class="n">cmd</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;--only-show-errors&#39;</span><span class="p">)</span>  <span class="c1"># Suppress verbose output</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">log_function</span> <span class="o">=</span> <span class="n">_logger</span><span class="o">.</span><span class="n">debug</span>
+                <span class="n">cmd</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;--no-progress&#39;</span><span class="p">)</span>  <span class="c1"># Suppress progress info, estimated time, etc.</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">cmd</span><span class="p">))</span>
+            <span class="n">process</span> <span class="o">=</span> <span class="n">Popen</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span> <span class="n">stdout</span><span class="o">=</span><span class="n">PIPE</span><span class="p">,</span> <span class="n">stderr</span><span class="o">=</span><span class="n">STDOUT</span><span class="p">)</span>
+            <span class="k">with</span> <span class="n">process</span><span class="o">.</span><span class="n">stdout</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="nb">iter</span><span class="p">(</span><span class="n">process</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">readline</span><span class="p">,</span> <span class="sa">b</span><span class="s1">&#39;&#39;</span><span class="p">):</span>
+                    <span class="n">log_function</span><span class="p">(</span><span class="n">line</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+            <span class="k">assert</span> <span class="n">process</span><span class="o">.</span><span class="n">wait</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span>
+
+        <span class="k">if</span> <span class="n">dry</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[],</span> <span class="n">files_by_repo</span>
+
+        <span class="c1"># Remove Globus files</span>
+        <span class="n">globus_files_map</span> <span class="o">=</span> <span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="ow">not</span> <span class="n">is_aws</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="n">files_by_repo</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
+        <span class="n">task_ids</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">starmap</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">delete_data</span><span class="p">,</span> <span class="nb">map</span><span class="p">(</span><span class="nb">reversed</span><span class="p">,</span> <span class="n">globus_files_map</span><span class="p">)))</span>
+
+        <span class="c1"># Delete the dataset from Alyx</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;datasets&#39;</span><span class="p">,</span> <span class="s1">&#39;delete&#39;</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">did</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">task_ids</span><span class="p">,</span> <span class="n">files_by_repo</span></div>
 </div>
 
 

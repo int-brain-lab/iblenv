@@ -1,13 +1,15 @@
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<html class="writer-html5" lang="en" data-content_root="../../../">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ibllib.pipes.training_status &mdash; IBL Library  documentation</title>
-      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
-      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
-      <link rel="stylesheet" href="../../../_static/copybutton.css" type="text/css" />
-      <link rel="stylesheet" href="../../../_static/css/style.css" type="text/css" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/copybutton.css?v=76b2166b" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/style.css?v=17142d56" />
+
+  
   <!--[if lt IE 9]>
     <script src="../../../_static/js/html5shiv.min.js"></script>
   <![endif]-->
@@ -112,9 +114,9 @@
 
 <span class="kn">from</span> <span class="nn">ibllib.io.raw_data_loaders</span> <span class="kn">import</span> <span class="n">load_bpod</span>
 <span class="kn">from</span> <span class="nn">ibllib.oneibl.registration</span> <span class="kn">import</span> <span class="n">_get_session_times</span>
-<span class="kn">from</span> <span class="nn">ibllib.io.extractors.base</span> <span class="kn">import</span> <span class="n">get_pipeline</span><span class="p">,</span> <span class="n">get_session_extractor_type</span>
+<span class="kn">from</span> <span class="nn">ibllib.io.extractors.base</span> <span class="kn">import</span> <span class="n">get_session_extractor_type</span>
 <span class="kn">from</span> <span class="nn">ibllib.io.session_params</span> <span class="kn">import</span> <span class="n">read_params</span>
-<span class="kn">import</span> <span class="nn">ibllib.pipes.dynamic_pipeline</span> <span class="k">as</span> <span class="nn">dyn</span>
+<span class="kn">from</span> <span class="nn">ibllib.io.extractors.bpod_trials</span> <span class="kn">import</span> <span class="n">get_bpod_extractor</span>
 
 <span class="kn">from</span> <span class="nn">iblutil.util</span> <span class="kn">import</span> <span class="n">setup_logger</span>
 <span class="kn">from</span> <span class="nn">ibllib.plots.snapshot</span> <span class="kn">import</span> <span class="n">ReportSnapshot</span>
@@ -131,6 +133,7 @@
 <span class="kn">import</span> <span class="nn">seaborn</span> <span class="k">as</span> <span class="nn">sns</span>
 <span class="kn">import</span> <span class="nn">boto3</span>
 <span class="kn">from</span> <span class="nn">botocore.exceptions</span> <span class="kn">import</span> <span class="n">ProfileNotFound</span><span class="p">,</span> <span class="n">ClientError</span>
+<span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">chain</span>
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">setup_logger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
@@ -202,46 +205,6 @@
 
 
 
-<div class="viewcode-block" id="get_trials_task">
-<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.get_trials_task">[docs]</a>
-<span class="k">def</span> <span class="nf">get_trials_task</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="p">):</span>
-    <span class="c1"># If experiment description file then process this</span>
-    <span class="n">experiment_description_file</span> <span class="o">=</span> <span class="n">read_params</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">experiment_description_file</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">tasks</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="n">pipeline</span> <span class="o">=</span> <span class="n">dyn</span><span class="o">.</span><span class="n">make_pipeline</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
-        <span class="n">trials_tasks</span> <span class="o">=</span> <span class="p">[</span><span class="n">t</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">tasks</span> <span class="k">if</span> <span class="s1">&#39;Trials&#39;</span> <span class="ow">in</span> <span class="n">t</span><span class="p">]</span>
-        <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="n">trials_tasks</span><span class="p">:</span>
-            <span class="n">t</span> <span class="o">=</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
-            <span class="n">t</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="o">**</span><span class="n">t</span><span class="o">.</span><span class="n">kwargs</span><span class="p">)</span>
-            <span class="n">tasks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="c1"># Otherwise default to old way of doing things</span>
-        <span class="n">pipeline</span> <span class="o">=</span> <span class="n">get_pipeline</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">pipeline</span> <span class="o">==</span> <span class="s1">&#39;training&#39;</span><span class="p">:</span>
-            <span class="kn">from</span> <span class="nn">ibllib.pipes.training_preprocessing</span> <span class="kn">import</span> <span class="n">TrainingTrials</span>
-            <span class="n">tasks</span> <span class="o">=</span> <span class="p">[</span><span class="n">TrainingTrials</span><span class="p">(</span><span class="n">session_path</span><span class="p">)]</span>
-        <span class="k">elif</span> <span class="n">pipeline</span> <span class="o">==</span> <span class="s1">&#39;ephys&#39;</span><span class="p">:</span>
-            <span class="kn">from</span> <span class="nn">ibllib.pipes.ephys_preprocessing</span> <span class="kn">import</span> <span class="n">EphysTrials</span>
-            <span class="n">tasks</span> <span class="o">=</span> <span class="p">[</span><span class="n">EphysTrials</span><span class="p">(</span><span class="n">session_path</span><span class="p">)]</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">try</span><span class="p">:</span>
-                <span class="c1"># try and look if there is a custom extractor in the personal projects extraction class</span>
-                <span class="kn">import</span> <span class="nn">projects.base</span>
-                <span class="n">task_type</span> <span class="o">=</span> <span class="n">get_session_extractor_type</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
-                <span class="n">PipelineClass</span> <span class="o">=</span> <span class="n">projects</span><span class="o">.</span><span class="n">base</span><span class="o">.</span><span class="n">get_pipeline</span><span class="p">(</span><span class="n">task_type</span><span class="p">)</span>
-                <span class="n">pipeline</span> <span class="o">=</span> <span class="n">PipelineClass</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="p">)</span>
-                <span class="n">trials_task_name</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">task</span> <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">tasks</span> <span class="k">if</span> <span class="s1">&#39;Trials&#39;</span> <span class="ow">in</span> <span class="n">task</span><span class="p">)</span>
-                <span class="n">task</span> <span class="o">=</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">trials_task_name</span><span class="p">)</span>
-                <span class="n">task</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
-                <span class="n">tasks</span> <span class="o">=</span> <span class="p">[</span><span class="n">task</span><span class="p">]</span>
-            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
-                <span class="n">tasks</span> <span class="o">=</span> <span class="p">[]</span>
-
-    <span class="k">return</span> <span class="n">tasks</span></div>
-
-
-
 <div class="viewcode-block" id="save_path">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.save_path">[docs]</a>
 <span class="k">def</span> <span class="nf">save_path</span><span class="p">(</span><span class="n">subj_path</span><span class="p">):</span>
@@ -284,7 +247,7 @@
 <span class="k">def</span> <span class="nf">load_trials</span><span class="p">(</span><span class="n">sess_path</span><span class="p">,</span> <span class="n">one</span><span class="p">,</span> <span class="n">collections</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;raise&#39;</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Load trials data for session. First attempts to load from local session path, if this fails will attempt to download via ONE,</span>
-<span class="sd">    if this also fails, will then attempt to re-extraxt locally</span>
+<span class="sd">    if this also fails, will then attempt to re-extract locally</span>
 <span class="sd">    :param sess_path: session path</span>
 <span class="sd">    :param one: ONE instance</span>
 <span class="sd">    :param force: when True and if the session trials can&#39;t be found, will attempt to re-extract from the disk</span>
@@ -294,9 +257,9 @@
     <span class="k">try</span><span class="p">:</span>
         <span class="c1"># try and load all trials that are found locally in the session path locally</span>
         <span class="k">if</span> <span class="n">collections</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">trial_locations</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">sess_path</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="s1">&#39;_ibl_trials.goCueTrigger_times.npy&#39;</span><span class="p">))</span>
+            <span class="n">trial_locations</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">sess_path</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="s1">&#39;_ibl_trials.goCueTrigger_times.*npy&#39;</span><span class="p">))</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">trial_locations</span> <span class="o">=</span> <span class="p">[</span><span class="n">Path</span><span class="p">(</span><span class="n">sess_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="s1">&#39;_ibl_trials.goCueTrigger_times.npy&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">collections</span><span class="p">]</span>
+            <span class="n">trial_locations</span> <span class="o">=</span> <span class="p">[</span><span class="n">Path</span><span class="p">(</span><span class="n">sess_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="s1">&#39;_ibl_trials.goCueTrigger_times.*npy&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">collections</span><span class="p">]</span>
 
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">trial_locations</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
             <span class="n">trial_dict</span> <span class="o">=</span> <span class="p">{}</span>
@@ -336,19 +299,24 @@
             <span class="k">if</span> <span class="s1">&#39;probabilityLeft&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">trials</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
                 <span class="k">raise</span> <span class="n">ALFObjectNotFound</span>
         <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
-            <span class="c1"># Finally try to rextract the trials data locally</span>
+            <span class="c1"># Finally try to re-extract the trials data locally</span>
             <span class="k">try</span><span class="p">:</span>
-                <span class="c1"># Get the tasks that need to be run</span>
-                <span class="n">tasks</span> <span class="o">=</span> <span class="n">get_trials_task</span><span class="p">(</span><span class="n">sess_path</span><span class="p">,</span> <span class="n">one</span><span class="p">)</span>
-                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tasks</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-                    <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="n">tasks</span><span class="p">:</span>
-                        <span class="n">status</span> <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
-                        <span class="k">if</span> <span class="n">status</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-                            <span class="k">return</span> <span class="n">load_trials</span><span class="p">(</span><span class="n">sess_path</span><span class="p">,</span> <span class="n">collections</span><span class="o">=</span><span class="n">collections</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-                        <span class="k">else</span><span class="p">:</span>
-                            <span class="k">return</span>
+                <span class="n">raw_collections</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">get_data_collection</span><span class="p">(</span><span class="n">sess_path</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">raw_collections</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="kc">None</span>
+
+                <span class="n">trials_dict</span> <span class="o">=</span> <span class="p">{}</span>
+                <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">collection</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">raw_collections</span><span class="p">):</span>
+                    <span class="n">extractor</span> <span class="o">=</span> <span class="n">get_bpod_extractor</span><span class="p">(</span><span class="n">sess_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="n">collection</span><span class="p">)</span>
+                    <span class="n">trials_data</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">extractor</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span><span class="n">task_collection</span><span class="o">=</span><span class="n">collection</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                    <span class="n">trials_dict</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">alfio</span><span class="o">.</span><span class="n">AlfBunch</span><span class="o">.</span><span class="n">from_df</span><span class="p">(</span><span class="n">trials_data</span><span class="p">[</span><span class="s1">&#39;table&#39;</span><span class="p">])</span>
+
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">trials_dict</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="n">trials</span> <span class="o">=</span> <span class="n">training</span><span class="o">.</span><span class="n">concatenate_trials</span><span class="p">(</span><span class="n">trials_dict</span><span class="p">)</span>
                 <span class="k">else</span><span class="p">:</span>
-                    <span class="n">trials</span> <span class="o">=</span> <span class="kc">None</span>
+                    <span class="n">trials</span> <span class="o">=</span> <span class="n">trials_dict</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
             <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
                 <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s1">&#39;raise&#39;</span><span class="p">:</span>
                     <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Exhausted all possibilities for loading trials for </span><span class="si">{</span><span class="n">sess_path</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span> <span class="kn">from</span> <span class="nn">e</span>
@@ -618,20 +586,29 @@
 <span class="sd">    :param session_path: path of session</span>
 <span class="sd">    :return:</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">experiment_description_file</span> <span class="o">=</span> <span class="n">read_params</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">experiment_description_file</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">pipeline</span> <span class="o">=</span> <span class="n">dyn</span><span class="o">.</span><span class="n">make_pipeline</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
-        <span class="n">trials_tasks</span> <span class="o">=</span> <span class="p">[</span><span class="n">t</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">tasks</span> <span class="k">if</span> <span class="s1">&#39;Trials&#39;</span> <span class="ow">in</span> <span class="n">t</span><span class="p">]</span>
-        <span class="n">collections</span> <span class="o">=</span> <span class="p">[</span><span class="n">pipeline</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task</span><span class="p">)</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;collection&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="n">trials_tasks</span><span class="p">]</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">collections</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">collections</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">:</span>
-            <span class="n">alf_collections</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;alf&#39;</span><span class="p">]</span>
-        <span class="k">elif</span> <span class="nb">all</span><span class="p">([</span><span class="s1">&#39;raw_task_data&#39;</span> <span class="ow">in</span> <span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">collections</span><span class="p">]):</span>
-            <span class="n">alf_collections</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;alf/task_</span><span class="si">{</span><span class="n">c</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">:]</span><span class="si">}</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">collections</span><span class="p">]</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">alf_collections</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">experiment_description</span> <span class="o">=</span> <span class="n">read_params</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
+    <span class="n">collections</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">if</span> <span class="n">experiment_description</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">task_protocols</span> <span class="o">=</span> <span class="n">experiment_description</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;tasks&#39;</span><span class="p">,</span> <span class="p">[])</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">protocol</span><span class="p">,</span> <span class="n">task_info</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">chain</span><span class="p">(</span><span class="o">*</span><span class="nb">map</span><span class="p">(</span><span class="nb">dict</span><span class="o">.</span><span class="n">items</span><span class="p">,</span> <span class="n">task_protocols</span><span class="p">))):</span>
+            <span class="k">if</span> <span class="s1">&#39;passiveChoiceWorld&#39;</span> <span class="ow">in</span> <span class="n">protocol</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">collection</span> <span class="o">=</span> <span class="n">task_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;collection&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;raw_task_data_</span><span class="si">{</span><span class="n">i</span><span class="si">:</span><span class="s1">02</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">collection</span> <span class="o">==</span> <span class="s1">&#39;raw_passive_data&#39;</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">collections</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">collection</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="n">collections</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">]</span>
+        <span class="n">settings</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="s1">&#39;_iblrig_taskSettings.raw.json&#39;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">setting</span> <span class="ow">in</span> <span class="n">settings</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">setting</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">name</span> <span class="o">!=</span> <span class="s1">&#39;raw_passive_data&#39;</span><span class="p">:</span>
+                <span class="n">collections</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">setting</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">collections</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">collections</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">:</span>
         <span class="n">alf_collections</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;alf&#39;</span><span class="p">]</span>
+    <span class="k">elif</span> <span class="nb">all</span><span class="p">([</span><span class="s1">&#39;raw_task_data&#39;</span> <span class="ow">in</span> <span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">collections</span><span class="p">]):</span>
+        <span class="n">alf_collections</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;alf/task_</span><span class="si">{</span><span class="n">c</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">:]</span><span class="si">}</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">collections</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">alf_collections</span> <span class="o">=</span> <span class="kc">None</span>
 
     <span class="k">return</span> <span class="n">collections</span><span class="p">,</span> <span class="n">alf_collections</span></div>
 
@@ -717,6 +694,7 @@
 
         <span class="n">un_protocols</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">protocols</span><span class="p">)</span>
         <span class="c1"># Example, training, training, biased - training would be combined, biased not</span>
+        <span class="n">sess_dict</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">un_protocols</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
             <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Different protocols in same session </span><span class="si">{</span><span class="n">session_path</span><span class="si">}</span><span class="s1"> : </span><span class="si">{</span><span class="n">protocols</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
             <span class="k">for</span> <span class="n">prot</span> <span class="ow">in</span> <span class="n">un_protocols</span><span class="p">:</span>

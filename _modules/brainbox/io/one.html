@@ -1,13 +1,15 @@
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<html class="writer-html5" lang="en" data-content_root="../../../">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>brainbox.io.one &mdash; IBL Library  documentation</title>
-      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
-      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
-      <link rel="stylesheet" href="../../../_static/copybutton.css" type="text/css" />
-      <link rel="stylesheet" href="../../../_static/css/style.css" type="text/css" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/copybutton.css?v=76b2166b" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/style.css?v=17142d56" />
+
+  
   <!--[if lt IE 9]>
     <script src="../../../_static/js/html5shiv.min.js"></script>
   <![endif]-->
@@ -120,10 +122,10 @@
 <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
 
 <span class="kn">from</span> <span class="nn">one.api</span> <span class="kn">import</span> <span class="n">ONE</span><span class="p">,</span> <span class="n">One</span>
-<span class="kn">import</span> <span class="nn">one.alf.io</span> <span class="k">as</span> <span class="nn">alfio</span>
 <span class="kn">from</span> <span class="nn">one.alf.files</span> <span class="kn">import</span> <span class="n">get_alf_path</span>
 <span class="kn">from</span> <span class="nn">one.alf.exceptions</span> <span class="kn">import</span> <span class="n">ALFObjectNotFound</span>
 <span class="kn">from</span> <span class="nn">one.alf</span> <span class="kn">import</span> <span class="n">cache</span>
+<span class="kn">import</span> <span class="nn">one.alf.io</span> <span class="k">as</span> <span class="nn">alfio</span>
 <span class="kn">from</span> <span class="nn">neuropixel</span> <span class="kn">import</span> <span class="n">TIP_SIZE_UM</span><span class="p">,</span> <span class="n">trace_header</span>
 <span class="kn">import</span> <span class="nn">spikeglx</span>
 
@@ -976,6 +978,20 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">atlas</span> <span class="o">=</span> <span class="n">AllenAtlas</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">files</span> <span class="o">=</span> <span class="p">{}</span>
 
+    <span class="k">def</span> <span class="nf">_load_object</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This function is a wrapper around alfio.load_object that will remove the UUID in the</span>
+<span class="sd">        filename if the object is on SDSC.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">remove_uuids</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">,</span> <span class="s1">&#39;uuid_filenames&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="n">alfio</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">remove_uuids</span><span class="p">:</span>
+            <span class="c1"># pops the UUID in the key names</span>
+            <span class="n">keys</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+            <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">keys</span><span class="p">:</span>
+                <span class="n">d</span><span class="p">[</span><span class="n">k</span><span class="p">[:</span><span class="o">-</span><span class="mi">37</span><span class="p">]]</span> <span class="o">=</span> <span class="n">d</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">d</span>
+
     <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">_get_attributes</span><span class="p">(</span><span class="n">dataset_types</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;returns attributes to load for spikes and clusters objects&quot;&quot;&quot;</span>
@@ -1013,7 +1029,7 @@
 <span class="sd">        :return:</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">download_spike_sorting_object</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">alfio</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="p">[</span><span class="n">obj</span><span class="p">])</span></div>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load_object</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="p">[</span><span class="n">obj</span><span class="p">])</span></div>
 
 
 <div class="viewcode-block" id="SpikeSortingLoader.download_spike_sorting_object">
@@ -1079,10 +1095,10 @@
         <span class="c1"># we do not specify the spike sorter on purpose here: the electrode sites do not depend on the spike sorting</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">download_spike_sorting_object</span><span class="p">(</span><span class="n">obj</span><span class="o">=</span><span class="s1">&#39;electrodeSites&#39;</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;alf/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">pname</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">missing</span><span class="o">=</span><span class="s1">&#39;ignore&#39;</span><span class="p">)</span>
         <span class="k">if</span> <span class="s1">&#39;electrodeSites&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="p">:</span>
-            <span class="n">channels</span> <span class="o">=</span> <span class="n">alfio</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="p">[</span><span class="s1">&#39;electrodeSites&#39;</span><span class="p">],</span> <span class="n">wildcards</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">wildcards</span><span class="p">)</span>
+            <span class="n">channels</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load_object</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="p">[</span><span class="s1">&#39;electrodeSites&#39;</span><span class="p">],</span> <span class="n">wildcards</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">wildcards</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>  <span class="c1"># otherwise, we try to load the channel object from the spike sorting folder - this may not contain histology</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">download_spike_sorting_object</span><span class="p">(</span><span class="n">obj</span><span class="o">=</span><span class="s1">&#39;channels&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-            <span class="n">channels</span> <span class="o">=</span> <span class="n">alfio</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="p">[</span><span class="s1">&#39;channels&#39;</span><span class="p">],</span> <span class="n">wildcards</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">wildcards</span><span class="p">)</span>
+            <span class="n">channels</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load_object</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="p">[</span><span class="s1">&#39;channels&#39;</span><span class="p">],</span> <span class="n">wildcards</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">wildcards</span><span class="p">)</span>
         <span class="k">if</span> <span class="s1">&#39;brainLocationIds_ccf_2017&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">channels</span><span class="p">:</span>
             <span class="n">_logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;loading channels from alyx for </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="p">[</span><span class="s1">&#39;channels&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
             <span class="n">_channels</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">histology</span> <span class="o">=</span> <span class="n">_load_channel_locations_traj</span><span class="p">(</span>
@@ -1120,8 +1136,8 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">spike_sorter</span> <span class="o">=</span> <span class="n">spike_sorter</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">download_spike_sorting</span><span class="p">(</span><span class="n">spike_sorter</span><span class="o">=</span><span class="n">spike_sorter</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="n">channels</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_channels</span><span class="p">(</span><span class="n">spike_sorter</span><span class="o">=</span><span class="n">spike_sorter</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-        <span class="n">clusters</span> <span class="o">=</span> <span class="n">alfio</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="p">[</span><span class="s1">&#39;clusters&#39;</span><span class="p">],</span> <span class="n">wildcards</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">wildcards</span><span class="p">)</span>
-        <span class="n">spikes</span> <span class="o">=</span> <span class="n">alfio</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="p">[</span><span class="s1">&#39;spikes&#39;</span><span class="p">],</span> <span class="n">wildcards</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">wildcards</span><span class="p">)</span>
+        <span class="n">clusters</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load_object</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="p">[</span><span class="s1">&#39;clusters&#39;</span><span class="p">],</span> <span class="n">wildcards</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">wildcards</span><span class="p">)</span>
+        <span class="n">spikes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load_object</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="p">[</span><span class="s1">&#39;spikes&#39;</span><span class="p">],</span> <span class="n">wildcards</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">wildcards</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">spikes</span><span class="p">,</span> <span class="n">clusters</span><span class="p">,</span> <span class="n">channels</span></div>
 
@@ -1265,7 +1281,7 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">download_spike_sorting_object</span><span class="p">(</span><span class="s1">&#39;drift&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">spike_sorter</span><span class="p">,</span> <span class="n">missing</span><span class="o">=</span><span class="s1">&#39;ignore&#39;</span><span class="p">)</span>
         <span class="k">if</span> <span class="s1">&#39;drift&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="p">:</span>
-            <span class="n">drift</span> <span class="o">=</span> <span class="n">alfio</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="p">[</span><span class="s1">&#39;drift&#39;</span><span class="p">],</span> <span class="n">wildcards</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">wildcards</span><span class="p">)</span>
+            <span class="n">drift</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load_object</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="p">[</span><span class="s1">&#39;drift&#39;</span><span class="p">],</span> <span class="n">wildcards</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">wildcards</span><span class="p">)</span>
             <span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">drift</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">],</span> <span class="n">drift</span><span class="p">[</span><span class="s1">&#39;um&#39;</span><span class="p">],</span> <span class="s1">&#39;k&#39;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">.5</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">save_dir</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>

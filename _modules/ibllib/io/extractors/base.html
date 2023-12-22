@@ -1,13 +1,15 @@
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<html class="writer-html5" lang="en" data-content_root="../../../../">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ibllib.io.extractors.base &mdash; IBL Library  documentation</title>
-      <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
-      <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
-      <link rel="stylesheet" href="../../../../_static/copybutton.css" type="text/css" />
-      <link rel="stylesheet" href="../../../../_static/css/style.css" type="text/css" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/copybutton.css?v=76b2166b" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/style.css?v=17142d56" />
+
+  
   <!--[if lt IE 9]>
     <script src="../../../../_static/js/html5shiv.min.js"></script>
   <![endif]-->
@@ -107,6 +109,7 @@
              
   <h1>Source code for ibllib.io.extractors.base</h1><div class="highlight"><pre>
 <span></span><span class="sd">&quot;&quot;&quot;Base Extractor classes.</span>
+
 <span class="sd">A module for the base Extractor classes.  The Extractor, given a session path, will extract the</span>
 <span class="sd">processed data from raw hardware files and optionally save them.</span>
 <span class="sd">&quot;&quot;&quot;</span>
@@ -118,7 +121,6 @@
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
-<span class="kn">from</span> <span class="nn">one.alf.files</span> <span class="kn">import</span> <span class="n">get_session_path</span>
 <span class="kn">from</span> <span class="nn">ibllib.io</span> <span class="kn">import</span> <span class="n">raw_data_loaders</span> <span class="k">as</span> <span class="n">raw</span>
 <span class="kn">from</span> <span class="nn">ibllib.io.raw_data_loaders</span> <span class="kn">import</span> <span class="n">load_settings</span><span class="p">,</span> <span class="n">_logger</span>
 
@@ -139,9 +141,16 @@
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">session_path</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;pathlib.Path: Absolute path of session folder.&quot;&quot;&quot;</span>
+
     <span class="n">save_names</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;tuple of str: The filenames of each extracted dataset, or None if array should not be saved.&quot;&quot;&quot;</span>
+
     <span class="n">var_names</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;tuple of str: A list of names for the extracted variables. These become the returned output keys.&quot;&quot;&quot;</span>
+
     <span class="n">default_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s1">&#39;alf&#39;</span><span class="p">)</span>  <span class="c1"># relative to session</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;pathlib.Path: The default output folder relative to `session_path`.&quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_path</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="c1"># If session_path is None Path(session_path) will fail</span>
@@ -243,6 +252,8 @@
     <span class="n">bpod_trials</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">settings</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">task_collection</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">frame2ttl</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">audio</span> <span class="o">=</span> <span class="kc">None</span>
 
 <div class="viewcode-block" id="BaseBpodTrialsExtractor.extract">
 <a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.base.html#ibllib.io.extractors.base.BaseBpodTrialsExtractor.extract">[docs]</a>
@@ -263,9 +274,9 @@
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">settings</span> <span class="o">=</span> <span class="n">raw</span><span class="o">.</span><span class="n">load_settings</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">task_collection</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">settings</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;IBLRIG_VERSION_TAG&quot;</span><span class="p">:</span> <span class="s2">&quot;100.0.0&quot;</span><span class="p">}</span>
-        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;IBLRIG_VERSION_TAG&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s2">&quot;IBLRIG_VERSION_TAG&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;100.0.0&quot;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">settings</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;IBLRIG_VERSION&quot;</span><span class="p">:</span> <span class="s2">&quot;100.0.0&quot;</span><span class="p">}</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;IBLRIG_VERSION&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s2">&quot;IBLRIG_VERSION&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;100.0.0&quot;</span>
         <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">BaseBpodTrialsExtractor</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
 </div>
 
@@ -275,7 +286,8 @@
 <a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.base.html#ibllib.io.extractors.base.run_extractor_classes">[docs]</a>
 <span class="k">def</span> <span class="nf">run_extractor_classes</span><span class="p">(</span><span class="n">classes</span><span class="p">,</span> <span class="n">session_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Run a set of extractors with the same inputs</span>
+<span class="sd">    Run a set of extractors with the same inputs.</span>
+
 <span class="sd">    :param classes: list of Extractor class</span>
 <span class="sd">    :param save: True/False</span>
 <span class="sd">    :param path_out: (defaults to alf path)</span>
@@ -309,12 +321,30 @@
 
 
 <span class="k">def</span> <span class="nf">_get_task_types_json_config</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Return the extractor types map.</span>
+
+<span class="sd">    This function is only used for legacy sessions, i.e. those without an experiment description</span>
+<span class="sd">    file and will be removed in favor of :func:`_get_task_extractor_map`, which directly returns</span>
+<span class="sd">    the Bpod extractor class name. The experiment description file cuts out the need for pipeline</span>
+<span class="sd">    name identifiers.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    Dict[str, str]</span>
+<span class="sd">        A map of task protocol to task extractor identifier, e.g. &#39;ephys&#39;, &#39;habituation&#39;, etc.</span>
+
+<span class="sd">    See Also</span>
+<span class="sd">    --------</span>
+<span class="sd">    _get_task_extractor_map - returns a map of task protocol to Bpod trials extractor class name.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;extractor_types.json&#39;</span><span class="p">))</span> <span class="k">as</span> <span class="n">fp</span><span class="p">:</span>
         <span class="n">task_types</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">fp</span><span class="p">)</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="c1"># look if there are custom extractor types in the personal projects repo</span>
         <span class="kn">import</span> <span class="nn">projects.base</span>
         <span class="n">custom_extractors</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">projects</span><span class="o">.</span><span class="n">base</span><span class="o">.</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;extractor_types.json&#39;</span><span class="p">)</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Loading extractor types from </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">custom_extractors</span><span class="p">)</span>
         <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">custom_extractors</span><span class="p">)</span> <span class="k">as</span> <span class="n">fp</span><span class="p">:</span>
             <span class="n">custom_task_types</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">fp</span><span class="p">)</span>
         <span class="n">task_types</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">custom_task_types</span><span class="p">)</span>
@@ -326,8 +356,28 @@
 <div class="viewcode-block" id="get_task_protocol">
 <a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.base.html#ibllib.io.extractors.base.get_task_protocol">[docs]</a>
 <span class="k">def</span> <span class="nf">get_task_protocol</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Return the task protocol name from task settings.</span>
+
+<span class="sd">    If the session path and/or task collection do not exist, the settings file is missing or</span>
+<span class="sd">    otherwise can not be parsed, or if the &#39;PYBPOD_PROTOCOL&#39; key is absent, None is returned.</span>
+<span class="sd">    A warning is logged if the session path or settings file doesn&#39;t exist. An error is logged if</span>
+<span class="sd">    the settings file can not be parsed.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    session_path : str, pathlib.Path</span>
+<span class="sd">        The absolute session path.</span>
+<span class="sd">    task_collection : str</span>
+<span class="sd">        The session path directory containing the task settings file.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    str or None</span>
+<span class="sd">        The Pybpod task protocol name or None if not found.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">try</span><span class="p">:</span>
-        <span class="n">settings</span> <span class="o">=</span> <span class="n">load_settings</span><span class="p">(</span><span class="n">get_session_path</span><span class="p">(</span><span class="n">session_path</span><span class="p">),</span> <span class="n">task_collection</span><span class="o">=</span><span class="n">task_collection</span><span class="p">)</span>
+        <span class="n">settings</span> <span class="o">=</span> <span class="n">load_settings</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="n">task_collection</span><span class="p">)</span>
     <span class="k">except</span> <span class="n">json</span><span class="o">.</span><span class="n">decoder</span><span class="o">.</span><span class="n">JSONDecodeError</span><span class="p">:</span>
         <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Can</span><span class="se">\&#39;</span><span class="s1">t read settings for </span><span class="si">{</span><span class="n">session_path</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
         <span class="k">return</span>
@@ -342,11 +392,26 @@
 <a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.base.html#ibllib.io.extractors.base.get_task_extractor_type">[docs]</a>
 <span class="k">def</span> <span class="nf">get_task_extractor_type</span><span class="p">(</span><span class="n">task_name</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Returns the task type string from the full pybpod task name:</span>
-<span class="sd">    _iblrig_tasks_biasedChoiceWorld3.7.0 returns &quot;biased&quot;</span>
-<span class="sd">    _iblrig_tasks_trainingChoiceWorld3.6.0 returns &quot;training&#39;</span>
-<span class="sd">    :param task_name:</span>
-<span class="sd">    :return: one of [&#39;biased&#39;, &#39;habituation&#39;, &#39;training&#39;, &#39;ephys&#39;, &#39;mock_ephys&#39;, &#39;sync_ephys&#39;]</span>
+<span class="sd">    Returns the task type string from the full pybpod task name.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    task_name : str</span>
+<span class="sd">        The complete task protocol name from the PYBPOD_PROTOCOL field of the task settings.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    str</span>
+<span class="sd">        The extractor type identifier. Examples include &#39;biased&#39;, &#39;habituation&#39;, &#39;training&#39;,</span>
+<span class="sd">        &#39;ephys&#39;, &#39;mock_ephys&#39; and &#39;sync_ephys&#39;.</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; get_task_extractor_type(&#39;_iblrig_tasks_biasedChoiceWorld3.7.0&#39;)</span>
+<span class="sd">    &#39;biased&#39;</span>
+
+<span class="sd">    &gt;&gt;&gt; get_task_extractor_type(&#39;_iblrig_tasks_trainingChoiceWorld3.6.0&#39;)</span>
+<span class="sd">    &#39;training&#39;</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">task_name</span><span class="p">,</span> <span class="n">Path</span><span class="p">):</span>
         <span class="n">task_name</span> <span class="o">=</span> <span class="n">get_task_protocol</span><span class="p">(</span><span class="n">task_name</span><span class="p">)</span>
@@ -367,16 +432,30 @@
 <a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.base.html#ibllib.io.extractors.base.get_session_extractor_type">[docs]</a>
 <span class="k">def</span> <span class="nf">get_session_extractor_type</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    From a session path, loads the settings file, finds the task and checks if extractors exist</span>
-<span class="sd">    task names examples:</span>
-<span class="sd">    :param session_path:</span>
-<span class="sd">    :return: bool</span>
+<span class="sd">    Infer trials extractor type from task settings.</span>
+
+<span class="sd">    From a session path, loads the settings file, finds the task and checks if extractors exist.</span>
+<span class="sd">    Examples include &#39;biased&#39;, &#39;habituation&#39;, &#39;training&#39;, &#39;ephys&#39;, &#39;mock_ephys&#39;, and &#39;sync_ephys&#39;.</span>
+<span class="sd">    Note this should only be used for legacy sessions, i.e. those without an experiment description</span>
+<span class="sd">    file.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    session_path : str, pathlib.Path</span>
+<span class="sd">        The session path for which to determine the pipeline.</span>
+<span class="sd">    task_collection : str</span>
+<span class="sd">        The session path directory containing the raw task data.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    str or False</span>
+<span class="sd">        The task extractor type, e.g. &#39;biased&#39;, &#39;habituation&#39;, &#39;ephys&#39;, or False if unknown.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">settings</span> <span class="o">=</span> <span class="n">load_settings</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="n">task_collection</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">settings</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;ABORT: No data found in &quot;</span><span class="si">{</span><span class="n">task_collection</span><span class="si">}</span><span class="s1">&quot; folder </span><span class="si">{</span><span class="n">session_path</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="n">task_protocol</span> <span class="o">=</span> <span class="n">get_task_protocol</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="n">task_collection</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">task_protocol</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;ABORT: No task protocol found in &quot;</span><span class="si">{</span><span class="n">task_collection</span><span class="si">}</span><span class="s1">&quot; folder </span><span class="si">{</span><span class="n">session_path</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
         <span class="k">return</span> <span class="kc">False</span>
-    <span class="n">extractor_type</span> <span class="o">=</span> <span class="n">get_task_extractor_type</span><span class="p">(</span><span class="n">settings</span><span class="p">[</span><span class="s1">&#39;PYBPOD_PROTOCOL&#39;</span><span class="p">])</span>
+    <span class="n">extractor_type</span> <span class="o">=</span> <span class="n">get_task_extractor_type</span><span class="p">(</span><span class="n">task_protocol</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">extractor_type</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">extractor_type</span>
     <span class="k">else</span><span class="p">:</span>
@@ -388,9 +467,22 @@
 <a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.base.html#ibllib.io.extractors.base.get_pipeline">[docs]</a>
 <span class="k">def</span> <span class="nf">get_pipeline</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Get the pre-processing pipeline name from a session path</span>
-<span class="sd">    :param session_path:</span>
-<span class="sd">    :return:</span>
+<span class="sd">    Get the pre-processing pipeline name from a session path.</span>
+
+<span class="sd">    Note this is only suitable for legacy sessions, i.e. those without an experiment description</span>
+<span class="sd">    file. This function will be removed in the future.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    session_path : str, pathlib.Path</span>
+<span class="sd">        The session path for which to determine the pipeline.</span>
+<span class="sd">    task_collection : str</span>
+<span class="sd">        The session path directory containing the raw task data.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    str</span>
+<span class="sd">        The pipeline name inferred from the extractor type, e.g. &#39;ephys&#39;, &#39;training&#39;, &#39;widefield&#39;.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">stype</span> <span class="o">=</span> <span class="n">get_session_extractor_type</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="n">task_collection</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">_get_pipeline_from_task_type</span><span class="p">(</span><span class="n">stype</span><span class="p">)</span></div>
@@ -399,18 +491,29 @@
 
 <span class="k">def</span> <span class="nf">_get_pipeline_from_task_type</span><span class="p">(</span><span class="n">stype</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Returns the pipeline from the task type. Some tasks types directly define the pipeline</span>
-<span class="sd">    :param stype: session_type or task extractor type</span>
-<span class="sd">    :return:</span>
+<span class="sd">    Return the pipeline from the task type.</span>
+
+<span class="sd">    Some task types directly define the pipeline. Note this is only suitable for legacy sessions,</span>
+<span class="sd">    i.e. those without an experiment description file. This function will be removed in the future.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    stype : str</span>
+<span class="sd">        The session type or task extractor type, e.g. &#39;habituation&#39;, &#39;ephys&#39;, etc.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    str</span>
+<span class="sd">        A task pipeline identifier.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">stype</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;ephys_biased_opto&#39;</span><span class="p">,</span> <span class="s1">&#39;ephys&#39;</span><span class="p">,</span> <span class="s1">&#39;ephys_training&#39;</span><span class="p">,</span> <span class="s1">&#39;mock_ephys&#39;</span><span class="p">,</span> <span class="s1">&#39;sync_ephys&#39;</span><span class="p">]:</span>
         <span class="k">return</span> <span class="s1">&#39;ephys&#39;</span>
     <span class="k">elif</span> <span class="n">stype</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;habituation&#39;</span><span class="p">,</span> <span class="s1">&#39;training&#39;</span><span class="p">,</span> <span class="s1">&#39;biased&#39;</span><span class="p">,</span> <span class="s1">&#39;biased_opto&#39;</span><span class="p">]:</span>
         <span class="k">return</span> <span class="s1">&#39;training&#39;</span>
-    <span class="k">elif</span> <span class="s1">&#39;widefield&#39;</span> <span class="ow">in</span> <span class="n">stype</span><span class="p">:</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">stype</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="s1">&#39;widefield&#39;</span> <span class="ow">in</span> <span class="n">stype</span><span class="p">:</span>
         <span class="k">return</span> <span class="s1">&#39;widefield&#39;</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">stype</span>
+        <span class="k">return</span> <span class="n">stype</span> <span class="ow">or</span> <span class="s1">&#39;&#39;</span>
 
 
 <span class="k">def</span> <span class="nf">_get_task_extractor_map</span><span class="p">():</span>
@@ -419,7 +522,7 @@
 
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
-<span class="sd">    dict(str, str)</span>
+<span class="sd">    Dict[str, str]</span>
 <span class="sd">        A map of task protocol to Bpod trials extractor class.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">FILENAME</span> <span class="o">=</span> <span class="s1">&#39;task_extractor_map.json&#39;</span>
@@ -443,26 +546,26 @@
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Get the Bpod trials extractor class associated with a given Bpod session.</span>
 
+<span class="sd">    Note that unlike :func:`get_session_extractor_type`, this function maps directly to the Bpod</span>
+<span class="sd">    trials extractor class name. This is hardware invariant and is purly to determine the Bpod only</span>
+<span class="sd">    trials extractor.</span>
+
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
 <span class="sd">    session_path : str, pathlib.Path</span>
 <span class="sd">        The session path containing Bpod behaviour data.</span>
 <span class="sd">    task_collection : str</span>
-<span class="sd">        The session_path subfolder containing the Bpod settings file.</span>
+<span class="sd">        The session_path sub-folder containing the Bpod settings file.</span>
 
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
 <span class="sd">    str</span>
 <span class="sd">        The extractor class name.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="c1"># Attempt to load settings files</span>
-    <span class="n">settings</span> <span class="o">=</span> <span class="n">load_settings</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="n">task_collection</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">settings</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;No data found in &quot;</span><span class="si">{</span><span class="n">task_collection</span><span class="si">}</span><span class="s1">&quot; folder </span><span class="si">{</span><span class="n">session_path</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-    <span class="c1"># Attempt to get task protocol</span>
-    <span class="n">protocol</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;PYBPOD_PROTOCOL&#39;</span><span class="p">)</span>
+    <span class="c1"># Attempt to get protocol name from settings file</span>
+    <span class="n">protocol</span> <span class="o">=</span> <span class="n">get_task_protocol</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="n">task_collection</span><span class="p">)</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">protocol</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;No task protocol found in </span><span class="si">{</span><span class="n">session_path</span><span class="o">/</span><span class="n">task_collection</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;No task protocol found in </span><span class="si">{</span><span class="n">Path</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">task_collection</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">protocol2extractor</span><span class="p">(</span><span class="n">protocol</span><span class="p">)</span></div>
 
 
@@ -473,7 +576,8 @@
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Get the Bpod trials extractor class associated with a given Bpod task protocol.</span>
 
-<span class="sd">    The Bpod task protocol can be found in the &#39;PYBPOD_PROTOCOL&#39; field of _iblrig_taskSettings.raw.json.</span>
+<span class="sd">    The Bpod task protocol can be found in the &#39;PYBPOD_PROTOCOL&#39; field of the</span>
+<span class="sd">    _iblrig_taskSettings.raw.json file.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>

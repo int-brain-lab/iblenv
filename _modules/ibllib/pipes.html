@@ -1,13 +1,15 @@
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<html class="writer-html5" lang="en" data-content_root="../../">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ibllib.pipes &mdash; IBL Library  documentation</title>
-      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
-      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
-      <link rel="stylesheet" href="../../_static/copybutton.css" type="text/css" />
-      <link rel="stylesheet" href="../../_static/css/style.css" type="text/css" />
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/style.css?v=17142d56" />
+
+  
   <!--[if lt IE 9]>
     <script src="../../_static/js/html5shiv.min.js"></script>
   <![endif]-->
@@ -109,16 +111,16 @@
 <span></span><span class="sd">&quot;&quot;&quot;IBL preprocessing pipeline.</span>
 
 <span class="sd">This module concerns the data extraction and preprocessing for IBL data.  The lab servers routinely</span>
-<span class="sd">call `local_server.job_creator` to search for new sessions to extract. The job creator registers</span>
-<span class="sd">the new session to Alyx (i.e. creates a new session record on the database), if required, then</span>
-<span class="sd">deduces a set of tasks (a.k.a. the pipeline [*]_) from the &#39;experiment.description&#39; file at the</span>
-<span class="sd">root of the session (see `dynamic_pipeline.make_pipeline`). If no file exists one is created,</span>
+<span class="sd">call :func:`local_server.job_creator` to search for new sessions to extract. The job creator</span>
+<span class="sd">registers the new session to Alyx (i.e. creates a new session record on the database), if required,</span>
+<span class="sd">then deduces a set of tasks (a.k.a. the pipeline[*]_) from the &#39;experiment.description&#39; file at the</span>
+<span class="sd">root of the session (see :func:`dynamic_pipeline.make_pipeline`). If no file exists one is created,</span>
 <span class="sd">inferring the acquisition hardware from the task protocol. The new session&#39;s pipeline tasks are</span>
 <span class="sd">then registered for another process (or server) to query.</span>
 
-<span class="sd">Another process calls `local_server.task_queue` to get a list of queued tasks from Alyx, then</span>
-<span class="sd">`local_server.tasks_runner` to loop through tasks.  Each task is run by called</span>
-<span class="sd">`tasks.run_alyx_task` with a dictionary of task information, including the Task class and its</span>
+<span class="sd">Another process calls :func:`local_server.task_queue` to get a list of queued tasks from Alyx, then</span>
+<span class="sd">:func:`local_server.tasks_runner` to loop through tasks.  Each task is run by calling</span>
+<span class="sd">:func:`tasks.run_alyx_task` with a dictionary of task information, including the Task class and its</span>
 <span class="sd">parameters.</span>
 
 <span class="sd">.. [*] A pipeline is a collection of tasks that depend on one another.  A pipeline consists of</span>
@@ -137,17 +139,34 @@
 <a class="viewcode-back" href="../../_autosummary/ibllib.pipes.html#ibllib.pipes.assign_task">[docs]</a>
 <span class="k">def</span> <span class="nf">assign_task</span><span class="p">(</span><span class="n">task_deck</span><span class="p">,</span> <span class="n">session_path</span><span class="p">,</span> <span class="n">task</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Assigns a task to a task deck with the task name as key.</span>
+
+<span class="sd">    This is a convenience function when creating a large task deck.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
-<span class="sd">    task_deck :</span>
-<span class="sd">    session_path</span>
-<span class="sd">    task</span>
-<span class="sd">    kwargs</span>
+<span class="sd">    task_deck : dict</span>
+<span class="sd">        A dictionary of tasks to add to.</span>
+<span class="sd">    session_path : str, pathlib.Path</span>
+<span class="sd">        A session path to pass to the task.</span>
+<span class="sd">    task : ibllib.pipes.tasks.Task</span>
+<span class="sd">        A task class to instantiate and assign.</span>
+<span class="sd">    **kwargs</span>
+<span class="sd">        Optional keyword arguments to pass to the task.</span>
 
-<span class="sd">    Returns</span>
-<span class="sd">    -------</span>
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; from ibllib.pipes.video_tasks import VideoCompress</span>
+<span class="sd">    &gt;&gt;&gt; task_deck = {}</span>
+<span class="sd">    &gt;&gt;&gt; session_path = &#39;./subject/2023-01-01/001&#39;</span>
+<span class="sd">    &gt;&gt;&gt; assign_task(task_deck, session_path, VideoCompress, cameras=(&#39;left&#39;,))</span>
+<span class="sd">    {&#39;VideoCompress&#39;: &lt;ibllib.pipes.video_tasks.VideoCompress object at 0x0000020461E762D0&gt;}</span>
 
+<span class="sd">    Using partial for convenience</span>
+
+<span class="sd">    &gt;&gt;&gt; from functools import partial</span>
+<span class="sd">    &gt;&gt;&gt; assign = partial(assign_task, task_deck, session_path)</span>
+<span class="sd">    &gt;&gt;&gt; assign(VideoCompress, cameras=(&#39;left&#39;,))</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">t</span> <span class="o">=</span> <span class="n">task</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
     <span class="n">task_deck</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">t</span></div>

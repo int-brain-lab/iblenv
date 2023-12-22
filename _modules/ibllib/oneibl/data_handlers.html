@@ -1,13 +1,15 @@
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<html class="writer-html5" lang="en" data-content_root="../../../">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ibllib.oneibl.data_handlers &mdash; IBL Library  documentation</title>
-      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
-      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
-      <link rel="stylesheet" href="../../../_static/copybutton.css" type="text/css" />
-      <link rel="stylesheet" href="../../../_static/css/style.css" type="text/css" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/copybutton.css?v=76b2166b" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/style.css?v=17142d56" />
+
+  
   <!--[if lt IE 9]>
     <script src="../../../_static/js/html5shiv.min.js"></script>
   <![endif]-->
@@ -106,7 +108,13 @@
            <div itemprop="articleBody">
              
   <h1>Source code for ibllib.oneibl.data_handlers</h1><div class="highlight"><pre>
-<span></span><span class="kn">import</span> <span class="nn">logging</span>
+<span></span><span class="sd">&quot;&quot;&quot;Downloading of task dependent datasets and registration of task output datasets.</span>
+
+<span class="sd">The DataHandler class is used by the pipes.tasks.Task class to ensure dependent datasets are</span>
+<span class="sd">present and to register and upload the output datasets.  For examples on how to run a task using</span>
+<span class="sd">specific data handlers, see :func:`ibllib.pipes.tasks`.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
 <span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
 <span class="kn">import</span> <span class="nn">shutil</span>
@@ -255,7 +263,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="kn">from</span> <span class="nn">one.remote.globus</span> <span class="kn">import</span> <span class="n">Globus</span><span class="p">,</span> <span class="n">get_lab_from_endpoint_id</span>  <span class="c1"># noqa</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">signatures</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">globus</span> <span class="o">=</span> <span class="n">Globus</span><span class="p">(</span><span class="n">client_name</span><span class="o">=</span><span class="s1">&#39;server&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">globus</span> <span class="o">=</span> <span class="n">Globus</span><span class="p">(</span><span class="n">client_name</span><span class="o">=</span><span class="s1">&#39;server&#39;</span><span class="p">,</span> <span class="n">headless</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
         <span class="c1"># on local servers set up the local root path manually as some have different globus config paths</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">globus</span><span class="o">.</span><span class="n">endpoints</span><span class="p">[</span><span class="s1">&#39;local&#39;</span><span class="p">][</span><span class="s1">&#39;root_path&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;/mnt/s0/Data/Subjects&#39;</span>
@@ -384,7 +392,10 @@
 <span class="k">class</span> <span class="nc">RemoteAwsDataHandler</span><span class="p">(</span><span class="n">DataHandler</span><span class="p">):</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task</span><span class="p">,</span> <span class="n">session_path</span><span class="p">,</span> <span class="n">signature</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Data handler for running tasks on remote compute node. Will download missing data from private ibl s3 AWS data bucket</span>
+<span class="sd">        Data handler for running tasks on remote compute node.</span>
+
+<span class="sd">        This will download missing data from the private IBL S3 AWS data bucket.  New datasets are</span>
+<span class="sd">        uploaded via Globus.</span>
 
 <span class="sd">        :param session_path: path to session</span>
 <span class="sd">        :param signature: input and output file signatures</span>
@@ -414,7 +425,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># Set up Globus</span>
         <span class="kn">from</span> <span class="nn">one.remote.globus</span> <span class="kn">import</span> <span class="n">Globus</span> <span class="c1"># noqa</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">globus</span> <span class="o">=</span> <span class="n">Globus</span><span class="p">(</span><span class="n">client_name</span><span class="o">=</span><span class="s1">&#39;server&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">globus</span> <span class="o">=</span> <span class="n">Globus</span><span class="p">(</span><span class="n">client_name</span><span class="o">=</span><span class="s1">&#39;server&#39;</span><span class="p">,</span> <span class="n">headless</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">lab</span> <span class="o">=</span> <span class="n">session_path_parts</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">as_dict</span><span class="o">=</span><span class="kc">True</span><span class="p">)[</span><span class="s1">&#39;lab&#39;</span><span class="p">]</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">lab</span> <span class="o">==</span> <span class="s1">&#39;cortexlab&#39;</span> <span class="ow">and</span> <span class="s1">&#39;cortexlab&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">base_url</span><span class="p">:</span>
             <span class="n">base_url</span> <span class="o">=</span> <span class="s1">&#39;https://alyx.internationalbrainlab.org&#39;</span>
@@ -495,7 +506,7 @@
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.RemoteGlobusDataHandler">[docs]</a>
 <span class="k">class</span> <span class="nc">RemoteGlobusDataHandler</span><span class="p">(</span><span class="n">DataHandler</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Data handler for running tasks on remote compute node. Will download missing data using globus</span>
+<span class="sd">    Data handler for running tasks on remote compute node. Will download missing data using Globus.</span>
 
 <span class="sd">    :param session_path: path to session</span>
 <span class="sd">    :param signature: input and output file signatures</span>

@@ -1,13 +1,15 @@
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<html class="writer-html5" lang="en" data-content_root="../../../">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ibllib.io.raw_data_loaders &mdash; IBL Library  documentation</title>
-      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
-      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
-      <link rel="stylesheet" href="../../../_static/copybutton.css" type="text/css" />
-      <link rel="stylesheet" href="../../../_static/css/style.css" type="text/css" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/copybutton.css?v=76b2166b" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/style.css?v=17142d56" />
+
+  
   <!--[if lt IE 9]>
     <script src="../../../_static/js/html5shiv.min.js"></script>
   <![endif]-->
@@ -115,6 +117,7 @@
 
 <span class="sd">Module contains one loader function per raw datafile</span>
 <span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">re</span>
 <span class="kn">import</span> <span class="nn">json</span>
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">wave</span>
@@ -124,7 +127,7 @@
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Union</span>
 
 <span class="kn">from</span> <span class="nn">dateutil</span> <span class="kn">import</span> <span class="n">parser</span> <span class="k">as</span> <span class="n">dateparser</span>
-<span class="kn">from</span> <span class="nn">pkg_resources</span> <span class="kn">import</span> <span class="n">parse_version</span>
+<span class="kn">from</span> <span class="nn">packaging</span> <span class="kn">import</span> <span class="n">version</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
 
@@ -455,18 +458,47 @@
             <span class="n">md</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">js</span><span class="p">)</span>
     <span class="k">if</span> <span class="s1">&#39;IS_MOCK&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">md</span><span class="p">:</span>
         <span class="n">md</span><span class="p">[</span><span class="s1">&#39;IS_MOCK&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="c1"># Many v &lt; 8 sessions had both version and version tag keys. v &gt; 8 have a version tag.</span>
+    <span class="c1"># Some sessions have neither key.  From v8 onwards we will use IBLRIG_VERSION to test rig</span>
+    <span class="c1"># version, however some places may still use the version tag.</span>
     <span class="k">if</span> <span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">md</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
         <span class="n">md</span><span class="p">[</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">md</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;IBLRIG_VERSION&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="s1">&#39;IBLRIG_VERSION&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">md</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="n">md</span><span class="p">[</span><span class="s1">&#39;IBLRIG_VERSION&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">md</span><span class="p">[</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">]</span>
+    <span class="k">elif</span> <span class="nb">all</span><span class="p">([</span><span class="n">md</span><span class="p">[</span><span class="s1">&#39;IBLRIG_VERSION&#39;</span><span class="p">],</span> <span class="n">md</span><span class="p">[</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">]]):</span>
+        <span class="c1"># This may not be an issue; not sure what the intended difference between these keys was</span>
+        <span class="k">assert</span> <span class="n">md</span><span class="p">[</span><span class="s1">&#39;IBLRIG_VERSION&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">md</span><span class="p">[</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">],</span> <span class="s1">&#39;version and version tag mismatch&#39;</span>
+    <span class="c1"># Test version can be parsed. If not, log an error and set the version to nothing</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">version</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">md</span><span class="p">[</span><span class="s1">&#39;IBLRIG_VERSION&#39;</span><span class="p">]</span> <span class="ow">or</span> <span class="s1">&#39;0&#39;</span><span class="p">)</span>
+    <span class="k">except</span> <span class="n">version</span><span class="o">.</span><span class="n">InvalidVersion</span> <span class="k">as</span> <span class="n">ex</span><span class="p">:</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> in iblrig settings, this may affect extraction&#39;</span><span class="p">,</span> <span class="n">ex</span><span class="p">)</span>
+        <span class="c1"># try a more relaxed version parse</span>
+        <span class="n">laxed_parse</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;^\d+\.\d+\.\d+&#39;</span><span class="p">,</span> <span class="n">md</span><span class="p">[</span><span class="s1">&#39;IBLRIG_VERSION&#39;</span><span class="p">])</span>
+        <span class="c1"># Set the tag as the invalid version</span>
+        <span class="n">md</span><span class="p">[</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">md</span><span class="p">[</span><span class="s1">&#39;IBLRIG_VERSION&#39;</span><span class="p">]</span>
+        <span class="c1"># overwrite version with either successfully parsed one or an empty string</span>
+        <span class="n">md</span><span class="p">[</span><span class="s1">&#39;IBLRIG_VERSION&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">laxed_parse</span><span class="o">.</span><span class="n">group</span><span class="p">()</span> <span class="k">if</span> <span class="n">laxed_parse</span> <span class="k">else</span> <span class="s1">&#39;&#39;</span>
+    <span class="k">if</span> <span class="s1">&#39;device_sound&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">md</span><span class="p">:</span>
+        <span class="c1"># sound device must be defined in version 8 and later  # FIXME this assertion will cause tests to break</span>
+        <span class="k">assert</span> <span class="n">version</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">md</span><span class="p">[</span><span class="s1">&#39;IBLRIG_VERSION&#39;</span><span class="p">]</span> <span class="ow">or</span> <span class="s1">&#39;0&#39;</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">version</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="s1">&#39;8.0.0&#39;</span><span class="p">)</span>
+        <span class="c1"># in v7 we must infer the device from the sampling frequency if SD is None</span>
+        <span class="k">if</span> <span class="s1">&#39;sounddevice&#39;</span> <span class="ow">in</span> <span class="n">md</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;SD&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">):</span>
+            <span class="n">device</span> <span class="o">=</span> <span class="s1">&#39;xonar&#39;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">freq_map</span> <span class="o">=</span> <span class="p">{</span><span class="mi">192000</span><span class="p">:</span> <span class="s1">&#39;xonar&#39;</span><span class="p">,</span> <span class="mi">96000</span><span class="p">:</span> <span class="s1">&#39;harp&#39;</span><span class="p">,</span> <span class="mi">44100</span><span class="p">:</span> <span class="s1">&#39;sysdefault&#39;</span><span class="p">}</span>
+            <span class="n">device</span> <span class="o">=</span> <span class="n">freq_map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">md</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;SOUND_SAMPLE_FREQ&#39;</span><span class="p">),</span> <span class="s1">&#39;unknown&#39;</span><span class="p">)</span>
+        <span class="n">md</span><span class="p">[</span><span class="s1">&#39;device_sound&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;OUTPUT&#39;</span><span class="p">:</span> <span class="n">device</span><span class="p">}</span>
     <span class="c1"># 2018-12-05 Version 3.2.3 fixes (permanent fixes in IBL_RIG from 3.2.4 on)</span>
-    <span class="k">if</span> <span class="n">md</span><span class="p">[</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;&#39;</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">md</span><span class="p">[</span><span class="s1">&#39;IBLRIG_VERSION&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;&#39;</span><span class="p">:</span>
         <span class="k">pass</span>
-    <span class="k">elif</span> <span class="n">parse_version</span><span class="p">(</span><span class="n">md</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">))</span> <span class="o">&gt;=</span> <span class="n">parse_version</span><span class="p">(</span><span class="s1">&#39;8.0.0&#39;</span><span class="p">):</span>
+    <span class="k">elif</span> <span class="n">version</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">md</span><span class="p">[</span><span class="s1">&#39;IBLRIG_VERSION&#39;</span><span class="p">])</span> <span class="o">&gt;=</span> <span class="n">version</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="s1">&#39;8.0.0&#39;</span><span class="p">):</span>
         <span class="n">md</span><span class="p">[</span><span class="s1">&#39;SESSION_NUMBER&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">md</span><span class="p">[</span><span class="s1">&#39;SESSION_NUMBER&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">zfill</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
         <span class="n">md</span><span class="p">[</span><span class="s1">&#39;PYBPOD_BOARD&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">md</span><span class="p">[</span><span class="s1">&#39;RIG_NAME&#39;</span><span class="p">]</span>
         <span class="n">md</span><span class="p">[</span><span class="s1">&#39;PYBPOD_CREATOR&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">md</span><span class="p">[</span><span class="s1">&#39;ALYX_USER&#39;</span><span class="p">],</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
         <span class="n">md</span><span class="p">[</span><span class="s1">&#39;SESSION_DATE&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">md</span><span class="p">[</span><span class="s1">&#39;SESSION_START_TIME&#39;</span><span class="p">][:</span><span class="mi">10</span><span class="p">]</span>
         <span class="n">md</span><span class="p">[</span><span class="s1">&#39;SESSION_DATETIME&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">md</span><span class="p">[</span><span class="s1">&#39;SESSION_START_TIME&#39;</span><span class="p">]</span>
-    <span class="k">elif</span> <span class="n">parse_version</span><span class="p">(</span><span class="n">md</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">))</span> <span class="o">&lt;=</span> <span class="n">parse_version</span><span class="p">(</span><span class="s1">&#39;3.2.3&#39;</span><span class="p">):</span>
+    <span class="k">elif</span> <span class="n">version</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">md</span><span class="p">[</span><span class="s1">&#39;IBLRIG_VERSION&#39;</span><span class="p">])</span> <span class="o">&lt;=</span> <span class="n">version</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="s1">&#39;3.2.3&#39;</span><span class="p">):</span>
         <span class="k">if</span> <span class="s1">&#39;LAST_TRIAL_DATA&#39;</span> <span class="ow">in</span> <span class="n">md</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
             <span class="n">md</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;LAST_TRIAL_DATA&#39;</span><span class="p">)</span>
         <span class="k">if</span> <span class="s1">&#39;weighings&#39;</span> <span class="ow">in</span> <span class="n">md</span><span class="p">[</span><span class="s1">&#39;PYBPOD_SUBJECT_EXTRA&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
@@ -554,16 +586,16 @@
     <span class="n">path</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">&quot;_iblrig_encoderEvents.raw*.ssv&quot;</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">settings</span><span class="p">:</span>
         <span class="n">settings</span> <span class="o">=</span> <span class="n">load_settings</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="n">task_collection</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">settings</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">):</span>
-        <span class="n">settings</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">:</span> <span class="s1">&#39;100.0.0&#39;</span><span class="p">}</span>
+    <span class="k">if</span> <span class="n">settings</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;IBLRIG_VERSION&#39;</span><span class="p">):</span>
+        <span class="n">settings</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;IBLRIG_VERSION&#39;</span><span class="p">:</span> <span class="s1">&#39;100.0.0&#39;</span><span class="p">}</span>
         <span class="c1"># auto-detect old files when version is not labeled</span>
         <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">)</span> <span class="k">as</span> <span class="n">fid</span><span class="p">:</span>
             <span class="n">line</span> <span class="o">=</span> <span class="n">fid</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span>
         <span class="k">if</span> <span class="n">line</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;Event&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="s1">&#39;StateMachine&#39;</span> <span class="ow">in</span> <span class="n">line</span><span class="p">:</span>
-            <span class="n">settings</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">:</span> <span class="s1">&#39;0.0.0&#39;</span><span class="p">}</span>
+            <span class="n">settings</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;IBLRIG_VERSION&#39;</span><span class="p">:</span> <span class="s1">&#39;0.0.0&#39;</span><span class="p">}</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">path</span><span class="p">:</span>
         <span class="k">return</span> <span class="kc">None</span>
-    <span class="k">if</span> <span class="n">parse_version</span><span class="p">(</span><span class="n">settings</span><span class="p">[</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">])</span> <span class="o">&gt;=</span> <span class="n">parse_version</span><span class="p">(</span><span class="s1">&#39;5.0.0&#39;</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">version</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">settings</span><span class="p">[</span><span class="s1">&#39;IBLRIG_VERSION&#39;</span><span class="p">])</span> <span class="o">&gt;=</span> <span class="n">version</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="s1">&#39;5.0.0&#39;</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">_load_encoder_events_file_ge5</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">_load_encoder_events_file_lt5</span><span class="p">(</span><span class="n">path</span><span class="p">)</span></div>
@@ -661,17 +693,17 @@
     <span class="n">path</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">&quot;_iblrig_encoderPositions.raw*.ssv&quot;</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">settings</span><span class="p">:</span>
         <span class="n">settings</span> <span class="o">=</span> <span class="n">load_settings</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="n">task_collection</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">settings</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">):</span>
-        <span class="n">settings</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">:</span> <span class="s1">&#39;100.0.0&#39;</span><span class="p">}</span>
+    <span class="k">if</span> <span class="n">settings</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;IBLRIG_VERSION&#39;</span><span class="p">):</span>
+        <span class="n">settings</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;IBLRIG_VERSION&#39;</span><span class="p">:</span> <span class="s1">&#39;100.0.0&#39;</span><span class="p">}</span>
         <span class="c1"># auto-detect old files when version is not labeled</span>
         <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">)</span> <span class="k">as</span> <span class="n">fid</span><span class="p">:</span>
             <span class="n">line</span> <span class="o">=</span> <span class="n">fid</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span>
         <span class="k">if</span> <span class="n">line</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;Position&#39;</span><span class="p">):</span>
-            <span class="n">settings</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">:</span> <span class="s1">&#39;0.0.0&#39;</span><span class="p">}</span>
+            <span class="n">settings</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;IBLRIG_VERSION&#39;</span><span class="p">:</span> <span class="s1">&#39;0.0.0&#39;</span><span class="p">}</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">path</span><span class="p">:</span>
         <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;No data loaded: could not find raw encoderPositions file&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="kc">None</span>
-    <span class="k">if</span> <span class="n">parse_version</span><span class="p">(</span><span class="n">settings</span><span class="p">[</span><span class="s1">&#39;IBLRIG_VERSION_TAG&#39;</span><span class="p">])</span> <span class="o">&gt;=</span> <span class="n">parse_version</span><span class="p">(</span><span class="s1">&#39;5.0.0&#39;</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">version</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">settings</span><span class="p">[</span><span class="s1">&#39;IBLRIG_VERSION&#39;</span><span class="p">])</span> <span class="o">&gt;=</span> <span class="n">version</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="s1">&#39;5.0.0&#39;</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">_load_encoder_positions_file_ge5</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">_load_encoder_positions_file_lt5</span><span class="p">(</span><span class="n">path</span><span class="p">)</span></div>
@@ -1125,11 +1157,14 @@
                 <span class="p">)</span>
 
     <span class="k">if</span> <span class="n">new_collection</span><span class="p">:</span>
-        <span class="n">old_path</span> <span class="o">=</span> <span class="n">settings</span><span class="p">[</span><span class="s1">&#39;SESSION_RAW_DATA_FOLDER&#39;</span><span class="p">]</span>
-        <span class="n">new_path</span> <span class="o">=</span> <span class="n">PureWindowsPath</span><span class="p">(</span><span class="n">settings</span><span class="p">[</span><span class="s1">&#39;SESSION_RAW_DATA_FOLDER&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">with_name</span><span class="p">(</span><span class="n">new_collection</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">settings</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">settings</span><span class="p">[</span><span class="n">k</span><span class="p">],</span> <span class="nb">str</span><span class="p">):</span>
-                <span class="n">settings</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">settings</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">old_path</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">new_path</span><span class="p">))</span>
+        <span class="k">if</span> <span class="s1">&#39;SESSION_RAW_DATA_FOLDER&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">settings</span><span class="p">:</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;SESSION_RAW_DATA_FOLDER key not in settings; collection not updated&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">old_path</span> <span class="o">=</span> <span class="n">settings</span><span class="p">[</span><span class="s1">&#39;SESSION_RAW_DATA_FOLDER&#39;</span><span class="p">]</span>
+            <span class="n">new_path</span> <span class="o">=</span> <span class="n">PureWindowsPath</span><span class="p">(</span><span class="n">settings</span><span class="p">[</span><span class="s1">&#39;SESSION_RAW_DATA_FOLDER&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">with_name</span><span class="p">(</span><span class="n">new_collection</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">settings</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">settings</span><span class="p">[</span><span class="n">k</span><span class="p">],</span> <span class="nb">str</span><span class="p">):</span>
+                    <span class="n">settings</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">settings</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">old_path</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">new_path</span><span class="p">))</span>
     <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fp</span><span class="p">:</span>
         <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">settings</span><span class="p">,</span> <span class="n">fp</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="s1">&#39; &#39;</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">settings</span></div>

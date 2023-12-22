@@ -1,13 +1,15 @@
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<html class="writer-html5" lang="en" data-content_root="../../../">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ibllib.pipes.misc &mdash; IBL Library  documentation</title>
-      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
-      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
-      <link rel="stylesheet" href="../../../_static/copybutton.css" type="text/css" />
-      <link rel="stylesheet" href="../../../_static/css/style.css" type="text/css" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/copybutton.css?v=76b2166b" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/style.css?v=17142d56" />
+
+  
   <!--[if lt IE 9]>
     <script src="../../../_static/js/html5shiv.min.js"></script>
   <![endif]-->
@@ -118,8 +120,9 @@
 <span class="kn">import</span> <span class="nn">sys</span>
 <span class="kn">import</span> <span class="nn">time</span>
 <span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">wraps</span>
 <span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Union</span><span class="p">,</span> <span class="n">List</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Union</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Any</span>
 <span class="kn">from</span> <span class="nn">inspect</span> <span class="kn">import</span> <span class="n">signature</span>
 <span class="kn">import</span> <span class="nn">uuid</span>
 <span class="kn">import</span> <span class="nn">socket</span>
@@ -149,6 +152,7 @@
 <a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.misc.html#ibllib.pipes.misc.subjects_data_folder">[docs]</a>
 <span class="k">def</span> <span class="nf">subjects_data_folder</span><span class="p">(</span><span class="n">folder</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">rglob</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Given a root_data_folder will try to find a &#39;Subjects&#39; data folder.</span>
+
 <span class="sd">    If Subjects folder is passed will return it directly.&quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="n">Path</span><span class="p">):</span>
         <span class="n">folder</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">folder</span><span class="p">)</span>
@@ -1364,22 +1368,66 @@
     <span class="n">ES_CONTINUOUS</span> <span class="o">=</span> <span class="mh">0x80000000</span>
     <span class="n">ES_SYSTEM_REQUIRED</span> <span class="o">=</span> <span class="mh">0x00000001</span>
 
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">pass</span>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_set_thread_execution_state</span><span class="p">(</span><span class="n">state</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">windll</span><span class="o">.</span><span class="n">kernel32</span><span class="o">.</span><span class="n">SetThreadExecutionState</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">result</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Failed to set thread execution state.&quot;</span><span class="p">)</span>
 
 <div class="viewcode-block" id="WindowsInhibitor.inhibit">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.misc.html#ibllib.pipes.misc.WindowsInhibitor.inhibit">[docs]</a>
-    <span class="k">def</span> <span class="nf">inhibit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Preventing Windows from going to sleep&quot;</span><span class="p">)</span>
-        <span class="n">ctypes</span><span class="o">.</span><span class="n">windll</span><span class="o">.</span><span class="n">kernel32</span><span class="o">.</span><span class="n">SetThreadExecutionState</span><span class="p">(</span><span class="n">WindowsInhibitor</span><span class="o">.</span><span class="n">ES_CONTINUOUS</span> <span class="o">|</span> <span class="n">WindowsInhibitor</span><span class="o">.</span><span class="n">ES_SYSTEM_REQUIRED</span><span class="p">)</span></div>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">inhibit</span><span class="p">(</span><span class="n">quiet</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">quiet</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Preventing Windows from going to sleep&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Preventing Windows from going to sleep&quot;</span><span class="p">)</span>
+        <span class="n">WindowsInhibitor</span><span class="o">.</span><span class="n">_set_thread_execution_state</span><span class="p">(</span><span class="n">WindowsInhibitor</span><span class="o">.</span><span class="n">ES_CONTINUOUS</span> <span class="o">|</span> <span class="n">WindowsInhibitor</span><span class="o">.</span><span class="n">ES_SYSTEM_REQUIRED</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="WindowsInhibitor.uninhibit">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.misc.html#ibllib.pipes.misc.WindowsInhibitor.uninhibit">[docs]</a>
-    <span class="k">def</span> <span class="nf">uninhibit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Allowing Windows to go to sleep&quot;</span><span class="p">)</span>
-        <span class="n">ctypes</span><span class="o">.</span><span class="n">windll</span><span class="o">.</span><span class="n">kernel32</span><span class="o">.</span><span class="n">SetThreadExecutionState</span><span class="p">(</span><span class="n">WindowsInhibitor</span><span class="o">.</span><span class="n">ES_CONTINUOUS</span><span class="p">)</span></div>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">uninhibit</span><span class="p">(</span><span class="n">quiet</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">quiet</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Allowing Windows to go to sleep&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Allowing Windows to go to sleep&quot;</span><span class="p">)</span>
+        <span class="n">WindowsInhibitor</span><span class="o">.</span><span class="n">_set_thread_execution_state</span><span class="p">(</span><span class="n">WindowsInhibitor</span><span class="o">.</span><span class="n">ES_CONTINUOUS</span><span class="p">)</span></div>
 </div>
+
+
+
+<div class="viewcode-block" id="sleepless">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.misc.html#ibllib.pipes.misc.sleepless">[docs]</a>
+<span class="k">def</span> <span class="nf">sleepless</span><span class="p">(</span><span class="n">func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Decorator to ensure that the system doesn&#39;t enter sleep or idle mode during a long-running task.</span>
+
+<span class="sd">    This decorator wraps a function and sets the thread execution state to prevent</span>
+<span class="sd">    the system from entering sleep or idle mode while the decorated function is</span>
+<span class="sd">    running.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    func : callable</span>
+<span class="sd">        The function to decorate.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    callable</span>
+<span class="sd">        The decorated function.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="nd">@wraps</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">inner</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s1">&#39;nt&#39;</span><span class="p">:</span>
+            <span class="n">WindowsInhibitor</span><span class="p">()</span><span class="o">.</span><span class="n">inhibit</span><span class="p">(</span><span class="n">quiet</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s1">&#39;nt&#39;</span><span class="p">:</span>
+            <span class="n">WindowsInhibitor</span><span class="p">()</span><span class="o">.</span><span class="n">uninhibit</span><span class="p">(</span><span class="n">quiet</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">result</span>
+    <span class="k">return</span> <span class="n">inner</span></div>
 
 </pre></div>
 

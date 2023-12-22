@@ -1,13 +1,15 @@
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<html class="writer-html5" lang="en" data-content_root="../../../">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ibllib.ephys.ephysqc &mdash; IBL Library  documentation</title>
-      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
-      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
-      <link rel="stylesheet" href="../../../_static/copybutton.css" type="text/css" />
-      <link rel="stylesheet" href="../../../_static/css/style.css" type="text/css" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/copybutton.css?v=76b2166b" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/style.css?v=17142d56" />
+
+  
   <!--[if lt IE 9]>
     <script src="../../../_static/js/html5shiv.min.js"></script>
   <![endif]-->
@@ -111,7 +113,6 @@
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
 <span class="kn">import</span> <span class="nn">logging</span>
-<span class="kn">import</span> <span class="nn">shutil</span>
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
@@ -127,7 +128,7 @@
 <span class="kn">from</span> <span class="nn">brainbox.metrics.single_units</span> <span class="kn">import</span> <span class="n">spike_sorting_metrics</span>
 <span class="kn">from</span> <span class="nn">ibllib.ephys</span> <span class="kn">import</span> <span class="n">sync_probes</span><span class="p">,</span> <span class="n">spikes</span>
 <span class="kn">from</span> <span class="nn">ibllib.qc</span> <span class="kn">import</span> <span class="n">base</span>
-<span class="kn">from</span> <span class="nn">ibllib.io.extractors</span> <span class="kn">import</span> <span class="n">ephys_fpga</span><span class="p">,</span> <span class="n">training_wheel</span>
+<span class="kn">from</span> <span class="nn">ibllib.io.extractors</span> <span class="kn">import</span> <span class="n">ephys_fpga</span>
 <span class="kn">from</span> <span class="nn">phylib.io</span> <span class="kn">import</span> <span class="n">model</span>
 
 
@@ -498,8 +499,9 @@
                        <span class="n">str_ok</span><span class="o">=</span><span class="s2">&quot;PASS: Bpod&quot;</span><span class="p">,</span> <span class="n">str_ko</span><span class="o">=</span><span class="s2">&quot;FAILED: Bpod&quot;</span><span class="p">)</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="c1"># note: tried to depend as little as possible on the extraction code but for the valve...</span>
-        <span class="n">bpod</span> <span class="o">=</span> <span class="n">ephys_fpga</span><span class="o">.</span><span class="n">get_sync_fronts</span><span class="p">(</span><span class="n">rawsync</span><span class="p">,</span> <span class="n">sync_map</span><span class="p">[</span><span class="s1">&#39;bpod&#39;</span><span class="p">])</span>
-        <span class="n">_</span><span class="p">,</span> <span class="n">t_valve_open</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">ephys_fpga</span><span class="o">.</span><span class="n">_assign_events_bpod</span><span class="p">(</span><span class="n">bpod</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">],</span> <span class="n">bpod</span><span class="p">[</span><span class="s1">&#39;polarities&#39;</span><span class="p">])</span>
+        <span class="n">extractor</span> <span class="o">=</span> <span class="n">ephys_fpga</span><span class="o">.</span><span class="n">FpgaTrials</span><span class="p">(</span><span class="n">ses_path</span><span class="p">)</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">bpod_intervals</span> <span class="o">=</span> <span class="n">extractor</span><span class="o">.</span><span class="n">get_bpod_event_times</span><span class="p">(</span><span class="n">rawsync</span><span class="p">,</span> <span class="n">sync_map</span><span class="p">)</span>
+        <span class="n">t_valve_open</span> <span class="o">=</span> <span class="n">bpod_intervals</span><span class="p">[</span><span class="s1">&#39;valve_open&#39;</span><span class="p">][:,</span> <span class="mi">0</span><span class="p">]</span>
         <span class="n">res</span> <span class="o">=</span> <span class="n">t_valve_open</span><span class="o">.</span><span class="n">size</span> <span class="o">&gt;</span> <span class="mi">1</span>
     <span class="k">except</span> <span class="ne">AssertionError</span><span class="p">:</span>
         <span class="n">res</span> <span class="o">=</span> <span class="kc">False</span>
@@ -707,45 +709,6 @@
 
     <span class="k">return</span> <span class="n">qc_session</span><span class="p">,</span> <span class="n">qc_trials</span></div>
 
-
-
-<span class="k">def</span> <span class="nf">_qc_from_path</span><span class="p">(</span><span class="n">sess_path</span><span class="p">,</span> <span class="n">display</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
-    <span class="n">WHEEL</span> <span class="o">=</span> <span class="kc">False</span>
-    <span class="n">sess_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">sess_path</span><span class="p">)</span>
-    <span class="n">temp_alf_folder</span> <span class="o">=</span> <span class="n">sess_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;fpga_test&#39;</span><span class="p">,</span> <span class="s1">&#39;alf&#39;</span><span class="p">)</span>
-    <span class="n">temp_alf_folder</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-
-    <span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span> <span class="o">=</span> <span class="n">ephys_fpga</span><span class="o">.</span><span class="n">get_main_probe_sync</span><span class="p">(</span><span class="n">sess_path</span><span class="p">,</span> <span class="n">bin_exists</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-    <span class="n">_</span> <span class="o">=</span> <span class="n">ephys_fpga</span><span class="o">.</span><span class="n">extract_all</span><span class="p">(</span><span class="n">sess_path</span><span class="p">,</span> <span class="n">output_path</span><span class="o">=</span><span class="n">temp_alf_folder</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-    <span class="c1"># check that the output is complete</span>
-    <span class="n">fpga_trials</span><span class="p">,</span> <span class="o">*</span><span class="n">_</span> <span class="o">=</span> <span class="n">ephys_fpga</span><span class="o">.</span><span class="n">extract_behaviour_sync</span><span class="p">(</span><span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span><span class="o">=</span><span class="n">chmap</span><span class="p">,</span> <span class="n">display</span><span class="o">=</span><span class="n">display</span><span class="p">)</span>
-    <span class="c1"># align with the bpod</span>
-    <span class="n">bpod2fpga</span> <span class="o">=</span> <span class="n">ephys_fpga</span><span class="o">.</span><span class="n">align_with_bpod</span><span class="p">(</span><span class="n">temp_alf_folder</span><span class="o">.</span><span class="n">parent</span><span class="p">)</span>
-    <span class="n">alf_trials</span> <span class="o">=</span> <span class="n">alfio</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="n">temp_alf_folder</span><span class="p">,</span> <span class="s1">&#39;trials&#39;</span><span class="p">)</span>
-    <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">temp_alf_folder</span><span class="p">)</span>
-    <span class="c1"># do the QC</span>
-    <span class="n">qcs</span><span class="p">,</span> <span class="n">qct</span> <span class="o">=</span> <span class="n">qc_fpga_task</span><span class="p">(</span><span class="n">fpga_trials</span><span class="p">,</span> <span class="n">alf_trials</span><span class="p">)</span>
-
-    <span class="c1"># do the wheel part</span>
-    <span class="k">if</span> <span class="n">WHEEL</span><span class="p">:</span>
-        <span class="n">bpod_wheel</span> <span class="o">=</span> <span class="n">training_wheel</span><span class="o">.</span><span class="n">get_wheel_data</span><span class="p">(</span><span class="n">sess_path</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-        <span class="n">fpga_wheel</span> <span class="o">=</span> <span class="n">ephys_fpga</span><span class="o">.</span><span class="n">extract_wheel_sync</span><span class="p">(</span><span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span><span class="o">=</span><span class="n">chmap</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-
-        <span class="k">if</span> <span class="n">display</span><span class="p">:</span>
-            <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
-            <span class="n">t0</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">bpod2fpga</span><span class="p">(</span><span class="n">bpod_wheel</span><span class="p">[</span><span class="s1">&#39;re_ts&#39;</span><span class="p">])),</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">fpga_wheel</span><span class="p">[</span><span class="s1">&#39;re_ts&#39;</span><span class="p">]))</span>
-            <span class="n">dy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">interp</span><span class="p">(</span><span class="n">t0</span><span class="p">,</span> <span class="n">fpga_wheel</span><span class="p">[</span><span class="s1">&#39;re_ts&#39;</span><span class="p">],</span> <span class="n">fpga_wheel</span><span class="p">[</span><span class="s1">&#39;re_pos&#39;</span><span class="p">])</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">interp</span><span class="p">(</span>
-                <span class="n">t0</span><span class="p">,</span> <span class="n">bpod2fpga</span><span class="p">(</span><span class="n">bpod_wheel</span><span class="p">[</span><span class="s1">&#39;re_ts&#39;</span><span class="p">]),</span> <span class="n">bpod_wheel</span><span class="p">[</span><span class="s1">&#39;re_pos&#39;</span><span class="p">])</span>
-
-            <span class="n">fix</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">nrows</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">sharex</span><span class="o">=</span><span class="s1">&#39;all&#39;</span><span class="p">,</span> <span class="n">sharey</span><span class="o">=</span><span class="s1">&#39;all&#39;</span><span class="p">)</span>
-            <span class="c1"># axes[0].plot(t, pos), axes[0].title.set_text(&#39;Extracted&#39;)</span>
-            <span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">bpod2fpga</span><span class="p">(</span><span class="n">bpod_wheel</span><span class="p">[</span><span class="s1">&#39;re_ts&#39;</span><span class="p">]),</span> <span class="n">bpod_wheel</span><span class="p">[</span><span class="s1">&#39;re_pos&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="n">dy</span><span class="p">)</span>
-            <span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">fpga_wheel</span><span class="p">[</span><span class="s1">&#39;re_ts&#39;</span><span class="p">],</span> <span class="n">fpga_wheel</span><span class="p">[</span><span class="s1">&#39;re_pos&#39;</span><span class="p">])</span>
-            <span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">title</span><span class="o">.</span><span class="n">set_text</span><span class="p">(</span><span class="s1">&#39;FPGA&#39;</span><span class="p">)</span>
-            <span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">bpod2fpga</span><span class="p">(</span><span class="n">bpod_wheel</span><span class="p">[</span><span class="s1">&#39;re_ts&#39;</span><span class="p">]),</span> <span class="n">bpod_wheel</span><span class="p">[</span><span class="s1">&#39;re_pos&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="n">dy</span><span class="p">)</span>
-            <span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">title</span><span class="o">.</span><span class="n">set_text</span><span class="p">(</span><span class="s1">&#39;Bpod&#39;</span><span class="p">)</span>
-
-    <span class="k">return</span> <span class="n">alfio</span><span class="o">.</span><span class="n">dataframe</span><span class="p">({</span><span class="o">**</span><span class="n">fpga_trials</span><span class="p">,</span> <span class="o">**</span><span class="n">alf_trials</span><span class="p">,</span> <span class="o">**</span><span class="n">qct</span><span class="p">})</span>
 </pre></div>
 
            </div>

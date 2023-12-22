@@ -1,13 +1,15 @@
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<html class="writer-html5" lang="en" data-content_root="../../../">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ibllib.pipes.tasks &mdash; IBL Library  documentation</title>
-      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
-      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
-      <link rel="stylesheet" href="../../../_static/copybutton.css" type="text/css" />
-      <link rel="stylesheet" href="../../../_static/css/style.css" type="text/css" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/copybutton.css?v=76b2166b" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/style.css?v=17142d56" />
+
+  
   <!--[if lt IE 9]>
     <script src="../../../_static/js/html5shiv.min.js"></script>
   <![endif]-->
@@ -107,7 +109,77 @@
            <div itemprop="articleBody">
              
   <h1>Source code for ibllib.pipes.tasks</h1><div class="highlight"><pre>
-<span></span><span class="sd">&quot;&quot;&quot;The abstract Pipeline and Task superclasses and concrete task runner.&quot;&quot;&quot;</span>
+<span></span><span class="sd">&quot;&quot;&quot;The abstract Pipeline and Task superclasses and concrete task runner.</span>
+
+<span class="sd">Examples</span>
+<span class="sd">--------</span>
+
+<span class="sd">1. Running a task on your local computer.</span>
+<span class="sd">|  Download: via ONE.</span>
+<span class="sd">|  Upload: N/A.</span>
+
+<span class="sd">&gt;&gt;&gt; task = VideoSyncQcBpod(session_path, one=one, location=&#39;remote&#39;, sync=&#39;bpod&#39;)</span>
+<span class="sd">&gt;&gt;&gt; task.run()</span>
+
+<span class="sd">2. Running a task on the local server that belongs to a given subject (e.g SWC054 on floferlab).</span>
+<span class="sd">|  Download: all data expected to be present.</span>
+<span class="sd">|  Upload: normal way of registering datasets, filerecords created and bulk sync, bulk transfer</span>
+<span class="sd">   jobs on Alyx transfer the data.</span>
+
+<span class="sd">&gt;&gt;&gt; from ibllib.pipes.video_tasks import VideoSyncQcBpod</span>
+<span class="sd">&gt;&gt;&gt; session_path = &#39;/mnt/ibl/s0/Data/Subjects/SWC054/2023-01-01/001&#39;</span>
+<span class="sd">&gt;&gt;&gt; task = VideoSyncQcBpod(session_path, one=one, sync=&#39;bpod&#39;)</span>
+<span class="sd">&gt;&gt;&gt; task.run()</span>
+<span class="sd">&gt;&gt;&gt; task.register_datasets(one=one, labs=get_lab(session_path, alyx=ONE().alyx))</span>
+
+<span class="sd">3. Running a task on the local server that belongs to that subject and forcing redownload of</span>
+<span class="sd">missing data.</span>
+<span class="sd">|  Download: via Globus (TODO we should change this to use boto3 as globus is slow).</span>
+<span class="sd">|  Upload: normal way of registering datasets, filerecords created and bulk sync, bulk transfer</span>
+<span class="sd">   jobs on Alyx transfer the data.</span>
+
+<span class="sd">&gt;&gt;&gt; task = VideoSyncQcBpod(session_path, one=one, sync=&#39;bpod&#39;)</span>
+<span class="sd">&gt;&gt;&gt; task.force = True</span>
+<span class="sd">&gt;&gt;&gt; task.run()</span>
+<span class="sd">&gt;&gt;&gt; task.register_datasets(one=one, labs=get_lab(session_path, alyx=ONE().alyx))</span>
+<span class="sd">&gt;&gt;&gt; task.cleanUp()  # Delete the files that have been downloaded</span>
+
+<span class="sd">4. Running a task on the local server that doesn&#39;t belongs to that subject</span>
+<span class="sd">(e.g SWC054 on angelakilab).</span>
+<span class="sd">|  Download: via boto3, the AWS file records must exist and be set to exists = True.</span>
+<span class="sd">|  Upload: via globus, automatically uploads the datasets directly to FlatIron via globus.</span>
+<span class="sd">   Creates FlatIron filerecords and sets these to True once the globus task has completed.</span>
+
+<span class="sd">&gt;&gt;&gt; task = VideoSyncQcBpod(session_path, one=one, location=&#39;AWS&#39;, sync=&#39;bpod&#39;)</span>
+<span class="sd">&gt;&gt;&gt; task.run()</span>
+<span class="sd">&gt;&gt;&gt; task.register_datasets()</span>
+<span class="sd">&gt;&gt;&gt; task.cleanUp()  # Delete the files that have been downloaded</span>
+
+<span class="sd">5. Running a task on SDSC.</span>
+<span class="sd">|  Download: via creating symlink to relevant datasets on SDSC.</span>
+<span class="sd">|  Upload: via copying files to relevant location on SDSC.</span>
+
+<span class="sd">&gt;&gt;&gt; task = VideoSyncQcBpod(session_path, one=one, location=&#39;SDSC&#39;, sync=&#39;bpod&#39;)</span>
+<span class="sd">&gt;&gt;&gt; task.run()</span>
+<span class="sd">&gt;&gt;&gt; response = task.register_datasets()</span>
+<span class="sd">&gt;&gt;&gt; # Here we just make sure filerecords are all correct</span>
+<span class="sd">&gt;&gt;&gt; for resp in response:</span>
+<span class="sd">...    fi = next((fr for fr in resp[&#39;file_records&#39;] if &#39;flatiron&#39; in fr[&#39;data_repository&#39;]), None)</span>
+<span class="sd">...    if fi is not None:</span>
+<span class="sd">...        if not fi[&#39;exists&#39;]:</span>
+<span class="sd">...            one.alyx.rest(&#39;files&#39;, &#39;partial_update&#39;, id=fi[&#39;id&#39;], data={&#39;exists&#39;: True})</span>
+<span class="sd">...</span>
+<span class="sd">...     aws = next((fr for fr in resp[&#39;file_records&#39;] if &#39;aws&#39; in fr[&#39;data_repository&#39;]), None)</span>
+<span class="sd">...     if aws is not None:</span>
+<span class="sd">...         one.alyx.rest(&#39;files&#39;, &#39;partial_update&#39;, id=aws[&#39;id&#39;], data={&#39;exists&#39;: False})</span>
+<span class="sd">...</span>
+<span class="sd">...     sr = next((fr for fr in resp[&#39;file_records&#39;] if &#39;SR&#39; in fr[&#39;data_repository&#39;]), None)</span>
+<span class="sd">...     if sr is not None:</span>
+<span class="sd">...         one.alyx.rest(&#39;files&#39;, &#39;partial_update&#39;, id=sr[&#39;id&#39;], data={&#39;exists&#39;: False})</span>
+<span class="sd">... # Finally remove symlinks once the task has completed</span>
+<span class="sd">... task.cleanUp()</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
 <span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
 <span class="kn">import</span> <span class="nn">abc</span>
 <span class="kn">import</span> <span class="nn">logging</span>
