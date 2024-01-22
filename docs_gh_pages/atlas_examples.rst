@@ -1,6 +1,8 @@
 Atlas Examples
 ==============
 
+We present a set of hands-on examples to illustrate how to manipulate and visualize hierarchical brain atlas ontologies.
+The full package documentation can be found `here <https://int-brain-lab.github.io/iblenv/_autosummary/iblatlas.html#module-iblatlas>`_
 
 Anatomical Atlases
 ******************
