@@ -16,6 +16,7 @@ from pathlib import Path
 
 _logger = logging.getLogger('ibllib')
 IPYTHON_VERSION = 4
+TIMEOUT_CELLS = 1200
 
 
 class NotebookConverter(object):
@@ -58,9 +59,9 @@ class NotebookConverter(object):
             self.executed_nb_path = self.output_path.joinpath(f'executed_{self.nb}')
 
         if kernel_name is not None:
-            self.execute_kwargs = dict(timeout=900, kernel_name=kernel_name, allow_errors=False)
+            self.execute_kwargs = dict(timeout=TIMEOUT_CELLS, kernel_name=kernel_name, allow_errors=False)
         else:
-            self.execute_kwargs = dict(timeout=900, kernel_name='python3', allow_errors=False)
+            self.execute_kwargs = dict(timeout=TIMEOUT_CELLS, kernel_name='python3', allow_errors=False)
 
     @staticmethod
     def py_to_ipynb(py_path):
