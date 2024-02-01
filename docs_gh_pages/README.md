@@ -23,7 +23,8 @@ e.g `docs_coronal_slice.py` or `docs_get_LFP_data.ipynb`. Each example/ tutorial
 description of the content. Please refer to the templates in the [templates folder](./templates) for examples of 
 how to layout the title and description in order for it to be correctly rendered and displayed on the website. 
 
-Once you have created the example/ tutorial you should link to the file in either `05_tutorials.rst` or `06_examples.rst`.
+Once you have created the example/ tutorial you should link to the file in the appropriate `.rst` file: `index.rst`, `06_examples.rst`
+, `atlas_examples.rst` etc...
 The link should be made by adding in the following line `notebooks_external\name_of_example_without_extension`, e.g
 `notebooks_external\docs_coronal_slice`
 
@@ -35,12 +36,24 @@ An example implementation can be seen in the `06_examples.rst` file
 Two github actions workflows have been made available to automate the building and the deployment of the docs. These are located in the int-brain-lab/iblenv repository and can be accessed under the actions tab
 
 ### Developing docs
-When testing and developing docs use the [Build docs workflow](https://github.com/int-brain-lab/iblenv/actions/workflows/build_docs.yml). Any changes to the documentation must be made on the `docs` branch of either ibllib and iblenv. At the moment the workflow requires the docs branch to exist in both repos (TODO if it doesn't exist make github action fallback to master). To run the workflow click on the `run_workflow` button in the top left corner and choose the branch you want to launch it from (this should normally be docs). After the docs build has completed succesfully your documentation will appear at this site http://testdocs.internationalbrainlab.org.s3-website-us-east-1.amazonaws.com
+
+Steps:
+- create documentation branches called `docs` on the `ibllib` and `iblenv` repositories. The workflow will only run if the branch exists in both repos  (TODO if it doesn't exist make github action fallback to master)
+- add your changes to the documentation
+- run the [Build docs workflow](https://github.com/int-brain-lab/iblenv/actions/workflows/build_docs.yml).  To run the workflow click on the `run_workflow` button in the top left corner and choose the branch you want to launch it from (this should normally be docs).
+
+After the docs build has completed succesfully your documentation will appear at this site http://testdocs.internationalbrainlab.org.s3-website-us-east-1.amazonaws.com
+ 
 
 ### Deploying docs
 **WARNING: Do not run this workflow unless you have run the build docs workflow above and checked that the documentation is correct**
 
-Once you are happy with the documentation, the docs branch/es you have been working on need to be merged into master in iblenv, and into develop in ibllib. Once those have been merged you should run the [Deploy docs workflow](https://github.com/int-brain-lab/iblenv/actions/workflows/deploy_docs.yml).  To run the workflow click on the `run_workflow` button in the top left corner and choose the branch you want to launch it from (this should be master). The new docs will then be deployed to the main documnetation website https://int-brain-lab.github.io/iblenv/
+Steps:
+-   merge the `docs` branch into `master` on the `iblenv` repository
+-   merge the `docs` branch into `develop` on the `ibllib` repository
+-   run the [Deploy docs workflow](https://github.com/int-brain-lab/iblenv/actions/workflows/deploy_docs.yml).  To run the workflow click on the `run_workflow` button in the top left corner and choose the branch you want to launch it from (this should be master).
+ 
+The new docs will then be deployed to the main documnetation website https://int-brain-lab.github.io/iblenv/
 
 
 ## Making documentation locally
