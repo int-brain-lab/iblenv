@@ -32,6 +32,48 @@ The link should be made by adding in the following line `notebooks_external\name
 
 An example implementation can be seen in the `06_examples.rst` file
 
+### Tips to create and edit example notebooks
+
+#### Hide a cell in the documentation
+In the cell metadata, add the key `nbsphinx` with the value `hidden` to hide the cell in the documentation.
+
+```json
+{
+    "nbsphinx": "hidden",
+    "trusted": false
+}
+```
+
+#### Prevent execution of a cell in the build documentation
+Let's say an example is using too large of a dataset. One cell can be disabled by adding the following key to the to cell metadata.
+
+```json
+{
+    "ibl_execute": false,
+    "trusted": false
+}
+```
+
+
+#### Disable logging and tqdm output:
+To have a clean output in the documentation, it is recommended to disable the logging and tqdm output in the example by adding a hidden cell at the top of the notebook.
+(make sure the cell metadata contains the key `nbsphinx` with the value `hidden` as specified above)
+
+```python
+# Turn off logging and disable tqdm this is a hidden cell on docs page
+import logging
+import os
+
+logger = logging.getLogger('ibllib')
+logger.setLevel(logging.CRITICAL)
+
+os.environ["TQDM_DISABLE"] = "1"
+```
+
+
+
+
+
 ## Making documentation using github actions
 Two github actions workflows have been made available to automate the building and the deployment of the docs. These are located in the int-brain-lab/iblenv repository and can be accessed under the actions tab
 
