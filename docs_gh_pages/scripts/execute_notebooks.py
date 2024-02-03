@@ -16,7 +16,7 @@ from pathlib import Path
 
 _logger = logging.getLogger('ibllib')
 IPYTHON_VERSION = 4
-TIMEOUT_CELLS = 1200
+TIMEOUT_CELLS = 1200 * 5
 
 
 class NotebookConverter(object):
