@@ -33,7 +33,6 @@ AGEA
 .. toctree::
    :maxdepth: 1
     notebooks_external/atlas_genomics_load_agea.ipynb
-    notebooks_external/atlas_genomics_agea_regions_predictor.py
 
 
 Lein, E.S. et al. (2007). Genome-wide atlas of gene expression in the adult mouse brain, Nature 445: 168-176. https://doi:10.1038/nature05453
