@@ -64,7 +64,8 @@
 <p class="caption" role="heading"><span class="caption-text">Exploring IBL Data</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_structure.html">Get to know the datasets and folder structure</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_download.html">Download the public datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_download.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_download.html#Explore-and-download-data-using-the-ONE-api">Explore and download data using the ONE-api</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../loading_examples.html">Loading Data</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Miscellaneous</span></p>
@@ -140,6 +141,7 @@
 <span class="kn">from</span> <span class="nn">copy</span> <span class="kn">import</span> <span class="n">deepcopy</span>
 
 <span class="kn">from</span> <span class="nn">one.converters</span> <span class="kn">import</span> <span class="n">ConversionMixin</span>
+<span class="kn">from</span> <span class="nn">iblutil.util</span> <span class="kn">import</span> <span class="n">flatten</span>
 <span class="kn">from</span> <span class="nn">packaging</span> <span class="kn">import</span> <span class="n">version</span>
 
 <span class="kn">import</span> <span class="nn">ibllib.pipes.misc</span> <span class="k">as</span> <span class="nn">misc</span>
@@ -465,7 +467,10 @@
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">collections</span> <span class="o">=</span> <span class="n">get_collections</span><span class="p">({</span><span class="s1">&#39;tasks&#39;</span><span class="p">:</span> <span class="n">sess_params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;tasks&#39;</span><span class="p">)})</span>
     <span class="k">if</span> <span class="n">task_collection</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">return</span> <span class="nb">set</span><span class="p">(</span><span class="n">collections</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>  <span class="c1"># Return all protocols</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">collections</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">set</span><span class="p">(</span><span class="n">collections</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>  <span class="c1"># Return all protocols</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="k">return</span> <span class="nb">next</span><span class="p">((</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">collections</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">v</span> <span class="o">==</span> <span class="n">task_collection</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span></div>
 
@@ -548,15 +553,15 @@
 <span class="sd">    sess_params : dict</span>
 <span class="sd">        The loaded experiment description map.</span>
 <span class="sd">    flat : bool (False)</span>
-<span class="sd">        If True, return a flat list of unique collections, otherwise return a map of device/sync/task</span>
+<span class="sd">        If True, return a flat set of collections, otherwise return a map of device/sync/task</span>
 
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
 <span class="sd">    dict[str, str]</span>
 <span class="sd">        A map of device/sync/task and the corresponding collection name.</span>
 
-<span class="sd">    list[str]</span>
-<span class="sd">        A flat list of unique collection names.</span>
+<span class="sd">    set[str]</span>
+<span class="sd">        A set of unique collection names.</span>
 
 <span class="sd">    Notes</span>
 <span class="sd">    -----</span>
@@ -580,16 +585,7 @@
                 <span class="n">iter_dict</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
 
     <span class="n">iter_dict</span><span class="p">(</span><span class="n">sess_params</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">flat</span><span class="p">:</span>
-        <span class="n">cflat</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">collection_map</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
-                <span class="n">cflat</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">cflat</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
-        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">cflat</span><span class="p">))</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">collection_map</span></div>
+    <span class="k">return</span> <span class="nb">set</span><span class="p">(</span><span class="n">flatten</span><span class="p">(</span><span class="n">collection_map</span><span class="o">.</span><span class="n">values</span><span class="p">()))</span> <span class="k">if</span> <span class="n">flat</span> <span class="k">else</span> <span class="n">collection_map</span></div>
 
 
 

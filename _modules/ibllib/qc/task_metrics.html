@@ -64,7 +64,8 @@
 <p class="caption" role="heading"><span class="caption-text">Exploring IBL Data</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_structure.html">Get to know the datasets and folder structure</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_download.html">Download the public datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_download.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_download.html#Explore-and-download-data-using-the-ONE-api">Explore and download data using the ONE-api</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../loading_examples.html">Loading Data</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Miscellaneous</span></p>
@@ -291,7 +292,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">criteria</span><span class="p">[</span><span class="s1">&#39;_task_passed_trial_checks&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;NOT_SET&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Session </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="si">}</span><span class="s1">: Running QC on behavior data...&#39;</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">metrics</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">passed</span> <span class="o">=</span> <span class="n">get_bpodqc_metrics_frame</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">get_bpodqc_metrics_frame</span><span class="p">(</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">extractor</span><span class="o">.</span><span class="n">data</span><span class="p">,</span>
             <span class="n">wheel_gain</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">extractor</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s1">&#39;STIM_GAIN&#39;</span><span class="p">],</span>  <span class="c1"># The wheel gain</span>
             <span class="n">photodiode</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">extractor</span><span class="o">.</span><span class="n">frame_ttls</span><span class="p">,</span>
@@ -299,8 +300,60 @@
             <span class="n">re_encoding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">extractor</span><span class="o">.</span><span class="n">wheel_encoding</span> <span class="ow">or</span> <span class="s1">&#39;X1&#39;</span><span class="p">,</span>
             <span class="n">min_qt</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">extractor</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;QUIESCENT_PERIOD&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="mf">0.2</span><span class="p">,</span>
             <span class="n">audio_output</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">extractor</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;device_sound&#39;</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;OUTPUT&#39;</span><span class="p">,</span> <span class="s1">&#39;unknown&#39;</span><span class="p">)</span>
-        <span class="p">)</span>
-        <span class="k">return</span></div>
+        <span class="p">)</span></div>
+
+
+    <span class="k">def</span> <span class="nf">_get_checks</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Find all methods that begin with &#39;check_&#39;.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        Dict[str, function]</span>
+<span class="sd">            A map of QC check function names and the corresponding functions that return `metric`</span>
+<span class="sd">            (any), `passed` (bool).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">def</span> <span class="nf">is_metric</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">isfunction</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="ow">and</span> <span class="n">x</span><span class="o">.</span><span class="vm">__name__</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;check_&#39;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="nb">dict</span><span class="p">(</span><span class="n">getmembers</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">modules</span><span class="p">[</span><span class="vm">__name__</span><span class="p">],</span> <span class="n">is_metric</span><span class="p">))</span>
+
+<div class="viewcode-block" id="TaskQC.get_bpodqc_metrics_frame">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.qc.task_metrics.html#ibllib.qc.task_metrics.TaskQC.get_bpodqc_metrics_frame">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_bpodqc_metrics_frame</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Evaluates all the QC metric functions in this module (those starting with &#39;check&#39;) and</span>
+<span class="sd">        returns the results.  The optional kwargs listed below are passed to each QC metric function.</span>
+<span class="sd">        :param data: dict of extracted task data</span>
+<span class="sd">        :param re_encoding: the encoding of the wheel data, X1, X2 or X4</span>
+<span class="sd">        :param enc_res: the rotary encoder resolution</span>
+<span class="sd">        :param wheel_gain: the STIM_GAIN task parameter</span>
+<span class="sd">        :param photodiode: the fronts from Bpod&#39;s BNC1 input or FPGA frame2ttl channel</span>
+<span class="sd">        :param audio: the fronts from Bpod&#39;s BNC2 input FPGA audio sync channel</span>
+<span class="sd">        :param min_qt: the QUIESCENT_PERIOD task parameter</span>
+<span class="sd">        :return metrics: dict of checks and their QC metrics</span>
+<span class="sd">        :return passed: dict of checks and a float array of which samples passed</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Find all methods that begin with &#39;check_&#39;</span>
+        <span class="n">checks</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_checks</span><span class="p">()</span>
+        <span class="n">prefix</span> <span class="o">=</span> <span class="s1">&#39;_task_&#39;</span>  <span class="c1"># Extended QC fields will start with this</span>
+        <span class="c1"># Method &#39;check_foobar&#39; stored with key &#39;_task_foobar&#39; in metrics map</span>
+        <span class="n">qc_metrics_map</span> <span class="o">=</span> <span class="p">{</span><span class="n">prefix</span> <span class="o">+</span> <span class="n">k</span><span class="p">[</span><span class="mi">6</span><span class="p">:]:</span> <span class="n">fn</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">fn</span> <span class="ow">in</span> <span class="n">checks</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+
+        <span class="c1"># Split metrics and passed frames</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">metrics</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">passed</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">qc_metrics_map</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">metrics</span><span class="p">[</span><span class="n">k</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">passed</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">qc_metrics_map</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+
+        <span class="c1"># Add a check for trial level pass: did a given trial pass all checks?</span>
+        <span class="n">n_trials</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;intervals&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="c1"># Trial-level checks return an array the length that equals the number of trials</span>
+        <span class="n">trial_level_passed</span> <span class="o">=</span> <span class="p">[</span><span class="n">m</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">passed</span><span class="o">.</span><span class="n">values</span><span class="p">()</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">Sized</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">m</span><span class="p">)</span> <span class="o">==</span> <span class="n">n_trials</span><span class="p">]</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="n">prefix</span> <span class="o">+</span> <span class="s1">&#39;passed_trial_checks&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">metrics</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">reduce</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">,</span> <span class="n">trial_level_passed</span> <span class="ow">or</span> <span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">passed</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">metrics</span><span class="p">[</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span> <span class="k">if</span> <span class="n">trial_level_passed</span> <span class="k">else</span> <span class="kc">None</span></div>
 
 
 <div class="viewcode-block" id="TaskQC.run">
@@ -508,49 +561,6 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">metrics</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">passed</span> <span class="o">=</span> <span class="p">(</span><span class="n">metrics</span><span class="p">,</span> <span class="n">passed</span><span class="p">)</span></div>
 </div>
-
-
-
-<div class="viewcode-block" id="get_bpodqc_metrics_frame">
-<a class="viewcode-back" href="../../../_autosummary/ibllib.qc.task_metrics.html#ibllib.qc.task_metrics.get_bpodqc_metrics_frame">[docs]</a>
-<span class="k">def</span> <span class="nf">get_bpodqc_metrics_frame</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Evaluates all the QC metric functions in this module (those starting with &#39;check&#39;) and</span>
-<span class="sd">    returns the results.  The optional kwargs listed below are passed to each QC metric function.</span>
-<span class="sd">    :param data: dict of extracted task data</span>
-<span class="sd">    :param re_encoding: the encoding of the wheel data, X1, X2 or X4</span>
-<span class="sd">    :param enc_res: the rotary encoder resolution</span>
-<span class="sd">    :param wheel_gain: the STIM_GAIN task parameter</span>
-<span class="sd">    :param photodiode: the fronts from Bpod&#39;s BNC1 input or FPGA frame2ttl channel</span>
-<span class="sd">    :param audio: the fronts from Bpod&#39;s BNC2 input FPGA audio sync channel</span>
-<span class="sd">    :param min_qt: the QUIESCENT_PERIOD task parameter</span>
-<span class="sd">    :return metrics: dict of checks and their QC metrics</span>
-<span class="sd">    :return passed: dict of checks and a float array of which samples passed</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">def</span> <span class="nf">is_metric</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">isfunction</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="ow">and</span> <span class="n">x</span><span class="o">.</span><span class="vm">__name__</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;check_&#39;</span><span class="p">)</span>
-    <span class="c1"># Find all methods that begin with &#39;check_&#39;</span>
-    <span class="n">checks</span> <span class="o">=</span> <span class="n">getmembers</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">modules</span><span class="p">[</span><span class="vm">__name__</span><span class="p">],</span> <span class="n">is_metric</span><span class="p">)</span>
-    <span class="n">prefix</span> <span class="o">=</span> <span class="s1">&#39;_task_&#39;</span>  <span class="c1"># Extended QC fields will start with this</span>
-    <span class="c1"># Method &#39;check_foobar&#39; stored with key &#39;_task_foobar&#39; in metrics map</span>
-    <span class="n">qc_metrics_map</span> <span class="o">=</span> <span class="p">{</span><span class="n">prefix</span> <span class="o">+</span> <span class="n">k</span><span class="p">[</span><span class="mi">6</span><span class="p">:]:</span> <span class="n">fn</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">fn</span> <span class="ow">in</span> <span class="n">checks</span><span class="p">}</span>
-
-    <span class="c1"># Split metrics and passed frames</span>
-    <span class="n">metrics</span> <span class="o">=</span> <span class="p">{}</span>
-    <span class="n">passed</span> <span class="o">=</span> <span class="p">{}</span>
-    <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">qc_metrics_map</span><span class="p">:</span>
-        <span class="n">metrics</span><span class="p">[</span><span class="n">k</span><span class="p">],</span> <span class="n">passed</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">qc_metrics_map</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
-
-    <span class="c1"># Add a check for trial level pass: did a given trial pass all checks?</span>
-    <span class="n">n_trials</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;intervals&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-    <span class="c1"># Trial-level checks return an array the length that equals the number of trials</span>
-    <span class="n">trial_level_passed</span> <span class="o">=</span> <span class="p">[</span><span class="n">m</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">passed</span><span class="o">.</span><span class="n">values</span><span class="p">()</span>
-                          <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">Sized</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">m</span><span class="p">)</span> <span class="o">==</span> <span class="n">n_trials</span><span class="p">]</span>
-    <span class="n">name</span> <span class="o">=</span> <span class="n">prefix</span> <span class="o">+</span> <span class="s1">&#39;passed_trial_checks&#39;</span>
-    <span class="n">metrics</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">reduce</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">,</span> <span class="n">trial_level_passed</span> <span class="ow">or</span> <span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
-    <span class="n">passed</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">metrics</span><span class="p">[</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span> <span class="k">if</span> <span class="n">trial_level_passed</span> <span class="k">else</span> <span class="kc">None</span>
-
-    <span class="k">return</span> <span class="n">metrics</span><span class="p">,</span> <span class="n">passed</span></div>
 
 
 
