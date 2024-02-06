@@ -49,11 +49,12 @@ Let's say an example is using too large of a dataset. One cell can be disabled b
 
 ```json
 {
-    "ibl_execute": false,
-    "trusted": false
+    "ibl_execute": false
 }
 ```
 
+#### Prevent execution of the whole notebook in the build documentation
+If the full notebook is to be skipped, you can also set the `ibl_execute` flag to `false` in the notebook metadata.
 
 #### Disable logging and tqdm output:
 To have a clean output in the documentation, it is recommended to disable the logging and tqdm output in the example by adding a hidden cell at the top of the notebook.
@@ -69,10 +70,6 @@ logger.setLevel(logging.CRITICAL)
 
 os.environ["TQDM_DISABLE"] = "1"
 ```
-
-
-
-
 
 ## Making documentation using github actions
 Two github actions workflows have been made available to automate the building and the deployment of the docs. These are located in the int-brain-lab/iblenv repository and can be accessed under the actions tab

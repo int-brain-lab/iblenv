@@ -26,13 +26,13 @@ https://www.sciencedirect.com/science/article/pii/S0092867420304025
 
 Gene expression
 ***************
-Ng, L., Bernard, A., Lau, C. et al. An anatomic gene expression atlas of the adult mouse brain. Nat Neurosci 12, 356–362 (2009). https://doi.org/10.1038/nn.2281
-https://www.nature.com/articles/nn.2281
-AGEA
 
 .. toctree::
    :maxdepth: 1
-    notebooks_external/atlas_genomics_load_agea.ipynb
 
+   notebooks_external/atlas_genomics_load_agea
+
+Ng, L., Bernard, A., Lau, C. et al. An anatomic gene expression atlas of the adult mouse brain. Nat Neurosci 12, 356–362 (2009). https://doi.org/10.1038/nn.2281
+https://www.nature.com/articles/nn.2281
 
 Lein, E.S. et al. (2007). Genome-wide atlas of gene expression in the adult mouse brain, Nature 445: 168-176. https://doi:10.1038/nature05453

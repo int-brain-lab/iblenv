@@ -4,10 +4,13 @@ import shutil
 import argparse
 import subprocess
 from pathlib import Path
-import logging
+
+from iblutil.util import setup_logger
 from scripts.execute_notebooks import process_notebooks
 
-_logger = logging.getLogger('ibllib')
+os.environ["TQDM_DISABLE"] = "1"
+_logger = setup_logger(name='íbllib', level=20)
+
 root = Path.cwd()
 scripts_path = root.joinpath('scripts')
 
@@ -21,6 +24,7 @@ nb_path_external = [# Path(root.parent.parent).joinpath('ibllib-repo', 'examples
                     Path(root.parent.parent).joinpath('ONE', 'docs', 'notebooks')]
 # external_file_patterns = ['docs', 'loading', 'atlas', 'docs', 'quickstart']
 external_file_patterns = ['loading', 'atlas', 'data', 'data', 'docs_wheel', 'quickstart']
+
 
 def make_documentation(execute, force, documentation, clean, specific, github, message, pre_clean):
 
