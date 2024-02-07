@@ -1,21 +1,22 @@
+import logging
 import os
 import json
+import logging
 import time
-import numpy as np
+import shutil
+from pathlib import Path
+import re
+
+
 from nbconvert.preprocessors import (ExecutePreprocessor, CellExecutionError,
                                      ClearOutputPreprocessor)
-from nbconvert.exporters import RSTExporter
-from nbconvert.writers import FilesWriter
 import nbformat
-import re
 import sphinx_gallery.notebook as sph_nb
 import sphinx_gallery.gen_gallery as gg
-import shutil
-import logging
-from pathlib import Path
 
-_logger = logging.getLogger('ibllib')
+_logger = logging.getLogger('íbllib')
 IPYTHON_VERSION = 4
+TIMEOUT_CELLS = 1200
 
 
 class NotebookConverter(object):
@@ -58,9 +59,9 @@ class NotebookConverter(object):
             self.executed_nb_path = self.output_path.joinpath(f'executed_{self.nb}')
 
         if kernel_name is not None:
-            self.execute_kwargs = dict(timeout=900, kernel_name=kernel_name, allow_errors=False)
+            self.execute_kwargs = dict(timeout=TIMEOUT_CELLS, kernel_name=kernel_name, allow_errors=False)
         else:
-            self.execute_kwargs = dict(timeout=900, kernel_name='python3', allow_errors=False)
+            self.execute_kwargs = dict(timeout=TIMEOUT_CELLS, kernel_name='python3', allow_errors=False)
 
     @staticmethod
     def py_to_ipynb(py_path):
@@ -108,10 +109,15 @@ class NotebookConverter(object):
         with open(self.nb_path, encoding='utf-8') as f:
             nb = nbformat.read(f, as_version=IPYTHON_VERSION)
 
+        skip_execution = not nb['metadata'].get('ibl_execute', True)
         is_executed = nb['metadata'].get('docs_executed')
 
-        if is_executed == 'executed' and not force:
-            _logger.warning(f"Notebook {self.nb} in {self.nb_dir} already executed, skipping,"
+        if skip_execution:
+            _logger.info(f"Notebook {self.nb} in {self.nb_dir} has the 'ibl_execute' flag set to True,"
+                         f"skipping")
+            status = 0
+        elif is_executed == 'executed' and not force:
+            _logger.info(f"Notebook {self.nb} in {self.nb_dir} already executed, skipping,"
                             f"to force execute, parse argument -f")
             status = 0
         else:
@@ -158,7 +164,9 @@ class NotebookConverter(object):
         Unexecutes the notebook i.e. removes all output cells. If remove_gh=True looks to see if
         notebook metadata contains an executed tag. If it doesn't it means the notebook either
         errored or was not run (for case when only specific notebooks chosen to build examples) and
-        removes the notebooks so old ones can be used
+        removes the notebooks so old ones can be used.
+
+        If the notebook has the flag `ibl_execute` set to false, we do not interfere with any of the outputs
         """
         _logger.info(f"Cleaning up notebook {self.nb} in {self.nb_dir}")
         if not self.executed_nb_path.exists():
@@ -167,6 +175,12 @@ class NotebookConverter(object):
 
         with open(self.executed_nb_path, encoding='utf-8') as f:
             nb = nbformat.read(f, as_version=IPYTHON_VERSION)
+
+        # if the flag for automatic execution is set to false, it means the notebook has
+        # been run manually as it may rely on large datasets, and in this case we do not interfere with outputs
+        skip_execution = not nb['metadata'].get('ibl_execute', True)
+        if skip_execution:
+            return
 
         if not remove_gh:
             if nb['metadata'].get('docs_executed', None):
@@ -248,10 +262,12 @@ def process_notebooks(nbfile_or_path, execute=True, force=False, link=False, cle
                             nbc.link()
                         # Execute the notebook
                         if execute:
+                            _logger.info(f"Executing notebook {full_path}")
                             _, status = nbc.execute(force=force)
                             overall_status += status
                         # If cleanup is true and execute is false unexecute the notebook
                         if cleanup:
+                            _logger.info(f"Cleaning up notebook {full_path}")
                             nbc.unexecute(remove_gh=remove_gh)
 
                 # if file has 'py' extension convert to '.ipynb' and then execute
