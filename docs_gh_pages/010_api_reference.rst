@@ -27,3 +27,11 @@ API Reference
    :recursive:
 
    iblatlas
+
+.. autosummary::
+   :toctree: _autosummary
+   :template: custom-module-template.rst
+   :recursive:
+
+   iblutil
+
