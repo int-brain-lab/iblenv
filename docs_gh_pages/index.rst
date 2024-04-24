@@ -85,6 +85,7 @@ IBL has released a suite of tools to process and visualize our data.
 
    atlas_examples
    notebooks_external/docs_wheel_moves
+   notebooks_external/docs_wheel_screen_stimulus
 
 .. toctree::
    :hidden:
