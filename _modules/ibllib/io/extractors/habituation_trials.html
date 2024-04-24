@@ -17,7 +17,7 @@
         <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
         <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
         <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
-        <script src="../../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../../_static/doctools.js?v=9a2dae69"></script>
         <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
         <script src="../../../../_static/clipboard.min.js?v=a7894cd8"></script>
         <script src="../../../../_static/copybutton.js?v=f281be69"></script>
@@ -77,6 +77,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../../atlas_examples.html">Atlas Examples</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../notebooks_external/docs_wheel_moves.html">Working with wheel data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notebooks_external/docs_wheel_screen_stimulus.html">Computing the stimulus position using the wheel</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
 <ul>
@@ -113,6 +114,8 @@
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 
+<span class="kn">from</span> <span class="nn">packaging</span> <span class="kn">import</span> <span class="n">version</span>
+
 <span class="kn">import</span> <span class="nn">ibllib.io.raw_data_loaders</span> <span class="k">as</span> <span class="nn">raw</span>
 <span class="kn">from</span> <span class="nn">ibllib.io.extractors.base</span> <span class="kn">import</span> <span class="n">BaseBpodTrialsExtractor</span><span class="p">,</span> <span class="n">run_extractor_classes</span>
 <span class="kn">from</span> <span class="nn">ibllib.io.extractors.biased_trials</span> <span class="kn">import</span> <span class="n">ContrastLR</span>
@@ -139,10 +142,13 @@
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Extract the Bpod trial events.</span>
 
-<span class="sd">        The Bpod state machine for this task has extremely misleading names! The &#39;iti&#39; state is</span>
-<span class="sd">        actually the delay between valve open and trial end (the stimulus is still present during</span>
-<span class="sd">        this period), and the &#39;trial_start&#39; state is actually the ITI during which there is a 1s</span>
-<span class="sd">        Bpod TTL and gray screen period.</span>
+<span class="sd">        For iblrig versions &lt; 8.13 the Bpod state machine for this task had extremely misleading names!</span>
+<span class="sd">        The &#39;iti&#39; state was actually the delay between valve close and trial end (the stimulus is</span>
+<span class="sd">        still present during this period), and the &#39;trial_start&#39; state is actually the ITI during</span>
+<span class="sd">        which there is a 1s Bpod TTL and gray screen period.</span>
+
+<span class="sd">        In version 8.13 and later, the &#39;iti&#39; state was renamed to &#39;post_reward&#39; and &#39;trial_start&#39;</span>
+<span class="sd">        was renamed to &#39;iti&#39;.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -170,12 +176,17 @@
                                        <span class="n">bpod_trials</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">,</span> <span class="n">settings</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">task_collection</span><span class="p">)</span>
 
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        The &#39;trial_start&#39; state is in fact the 1s grey screen period, therefore the first timestamp</span>
-<span class="sd">        is really the end of the previous trial and also the stimOff trigger time. The second</span>
-<span class="sd">        timestamp is the true trial start time.</span>
+<span class="sd">        The &#39;trial_start&#39;/&#39;iti&#39; state is in fact the 1s grey screen period, therefore the first</span>
+<span class="sd">        timestamp is really the end of the previous trial and also the stimOff trigger time. The</span>
+<span class="sd">        second timestamp is the true trial start time. This state was renamed in version 8.13.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">state_names</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;behavior_data&#39;</span><span class="p">][</span><span class="s1">&#39;States timestamps&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+        <span class="n">rig_version</span> <span class="o">=</span> <span class="n">version</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s1">&#39;IBLRIG_VERSION&#39;</span><span class="p">])</span>
+        <span class="n">legacy_state_machine</span> <span class="o">=</span> <span class="s1">&#39;post_reward&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">state_names</span> <span class="ow">and</span> <span class="s1">&#39;trial_start&#39;</span> <span class="ow">in</span> <span class="n">state_names</span>
+
+        <span class="n">key</span> <span class="o">=</span> <span class="s1">&#39;iti&#39;</span> <span class="k">if</span> <span class="p">(</span><span class="n">rig_version</span> <span class="o">&gt;=</span> <span class="n">version</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="s1">&#39;8.13&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">legacy_state_machine</span><span class="p">)</span> <span class="k">else</span> <span class="s1">&#39;trial_start&#39;</span>
         <span class="p">(</span><span class="n">_</span><span class="p">,</span> <span class="o">*</span><span class="n">ends</span><span class="p">),</span> <span class="n">starts</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="p">[</span>
-            <span class="n">t</span><span class="p">[</span><span class="s1">&#39;behavior_data&#39;</span><span class="p">][</span><span class="s1">&#39;States timestamps&#39;</span><span class="p">][</span><span class="s1">&#39;trial_start&#39;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">]</span>
+            <span class="n">t</span><span class="p">[</span><span class="s1">&#39;behavior_data&#39;</span><span class="p">][</span><span class="s1">&#39;States timestamps&#39;</span><span class="p">][</span><span class="n">key</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">]</span>
         <span class="p">)</span>
 
         <span class="c1"># StimOffTrigger times</span>

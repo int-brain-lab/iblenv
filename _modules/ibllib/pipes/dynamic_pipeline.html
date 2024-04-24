@@ -17,7 +17,7 @@
         <script src="../../../_static/jquery.js?v=5d32c60e"></script>
         <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
         <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
-        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/doctools.js?v=9a2dae69"></script>
         <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
         <script src="../../../_static/clipboard.min.js?v=a7894cd8"></script>
         <script src="../../../_static/copybutton.js?v=f281be69"></script>
@@ -77,6 +77,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../atlas_examples.html">Atlas Examples</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/docs_wheel_moves.html">Working with wheel data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/docs_wheel_screen_stimulus.html">Computing the stimulus position using the wheel</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
 <ul>
@@ -114,6 +115,23 @@
 
 <span class="sd">The principal function here is `make_pipeline` which reads an `_ibl_experiment.description.yaml`</span>
 <span class="sd">file and determines the set of tasks required to preprocess the session.</span>
+
+<span class="sd">In the experiment description file there is a &#39;tasks&#39; key that defines each task protocol and the</span>
+<span class="sd">location of the raw data (i.e. task collection). The protocol subkey may contain an &#39;extractors&#39;</span>
+<span class="sd">field that should contain a list of dynamic pipeline task class names for extracting the task data.</span>
+<span class="sd">These must be subclasses of the :class:`ibllib.pipes.base_tasks.DynamicTask` class. If the</span>
+<span class="sd">extractors key is absent or empty, the tasks are chosen based on the sync label and protocol name.</span>
+
+<span class="sd">NB: The standard behvaiour extraction task classes (e.g.</span>
+<span class="sd">:class:`ibllib.pipes.behaviour_tasks.ChoiceWorldTrialsBpod` and :class:`ibllib.pipes.behaviour_tasks.ChoiceWorldTrialsNidq`)</span>
+<span class="sd">handle the clock synchronization, behaviour plots and QC. This is typically independent of the Bpod</span>
+<span class="sd">trials extraction (i.e. extraction of trials data from the Bpod raw data, in Bpod time). The Bpod</span>
+<span class="sd">trials extractor class is determined by the :func:`ibllib.io.extractors.base.protocol2extractor`</span>
+<span class="sd">map. IBL protocols may be added to the ibllib.io.extractors.task_extractor_map.json file, while</span>
+<span class="sd">non-IBL ones should be in projects.base.task_extractor_map.json file located in the personal</span>
+<span class="sd">projects repo. The Bpod trials extractor class must be a subclass of the</span>
+<span class="sd">:class:`ibllib.io.extractors.base.BaseBpodTrialsExtractor` class, and located in either the</span>
+<span class="sd">personal projects repo or in :py:mod:`ibllib.io.extractors.bpod_trials` module.</span>
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">re</span>
@@ -318,10 +336,11 @@
                 <span class="k">for</span> <span class="n">sync_option</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;nidq&#39;</span><span class="p">,</span> <span class="s1">&#39;bpod&#39;</span><span class="p">):</span>
                     <span class="k">if</span> <span class="n">sync_option</span> <span class="ow">in</span> <span class="n">extractor</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">sync</span> <span class="o">==</span> <span class="n">sync_option</span><span class="p">:</span>
                         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Extractor &quot;</span><span class="si">{</span><span class="n">extractor</span><span class="si">}</span><span class="s1">&quot; and sync &quot;</span><span class="si">{</span><span class="n">sync</span><span class="si">}</span><span class="s1">&quot; do not match&#39;</span><span class="p">)</span>
+                <span class="c1"># TODO Assert sync_label correct here (currently unused)</span>
                 <span class="c1"># Look for the extractor in the behavior extractors module</span>
                 <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">btasks</span><span class="p">,</span> <span class="n">extractor</span><span class="p">):</span>
                     <span class="n">task</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">btasks</span><span class="p">,</span> <span class="n">extractor</span><span class="p">)</span>
-                <span class="c1"># This may happen that the extractor is tied to a specific sync task: look for TrialsChoiceWorldBpod for # example</span>
+                <span class="c1"># This may happen that the extractor is tied to a specific sync task: look for TrialsChoiceWorldBpod for example</span>
                 <span class="k">elif</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">btasks</span><span class="p">,</span> <span class="n">extractor</span> <span class="o">+</span> <span class="n">sync</span><span class="o">.</span><span class="n">capitalize</span><span class="p">()):</span>
                     <span class="n">task</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">btasks</span><span class="p">,</span> <span class="n">extractor</span> <span class="o">+</span> <span class="n">sync</span><span class="o">.</span><span class="n">capitalize</span><span class="p">())</span>
                 <span class="k">else</span><span class="p">:</span>
@@ -332,6 +351,8 @@
                     <span class="k">else</span><span class="p">:</span>
                         <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
                             <span class="sa">f</span><span class="s1">&#39;Extractor &quot;</span><span class="si">{</span><span class="n">extractor</span><span class="si">}</span><span class="s1">&quot; not found in main IBL pipeline nor in personal projects&#39;</span><span class="p">)</span>
+                <span class="n">_logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> (protocol #</span><span class="si">%i</span><span class="s1">, task #</span><span class="si">%i</span><span class="s1">) = </span><span class="si">%s</span><span class="s1">.</span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span>
+                              <span class="n">protocol</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="n">task</span><span class="o">.</span><span class="vm">__module__</span><span class="p">,</span> <span class="n">task</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
                 <span class="c1"># Rename the class to something more informative</span>
                 <span class="n">task_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">task</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="n">i</span><span class="si">:</span><span class="s1">02</span><span class="si">}</span><span class="s1">&#39;</span>
                 <span class="c1"># For now we assume that the second task in the list is always the trials extractor, which is dependent</span>
@@ -583,6 +604,9 @@
     <span class="c1"># Check for an experiment.description file; ensure downloaded if possible</span>
     <span class="k">if</span> <span class="n">one</span> <span class="ow">and</span> <span class="n">one</span><span class="o">.</span><span class="n">to_eid</span><span class="p">(</span><span class="n">session_path</span><span class="p">):</span>  <span class="c1"># to_eid returns None if session not registered</span>
         <span class="n">one</span><span class="o">.</span><span class="n">load_datasets</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;_ibl_experiment.description&#39;</span><span class="p">],</span> <span class="n">download_only</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">assert_present</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="c1"># NB: meta files only required to build neuropixel tasks in make_pipeline</span>
+        <span class="k">if</span> <span class="n">meta_files</span> <span class="o">:=</span> <span class="n">one</span><span class="o">.</span><span class="n">list_datasets</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="s1">&#39;*.ap.meta&#39;</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="s1">&#39;raw_ephys_data*&#39;</span><span class="p">):</span>
+            <span class="n">one</span><span class="o">.</span><span class="n">load_datasets</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">meta_files</span><span class="p">,</span> <span class="n">download_only</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">assert_present</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
     <span class="n">experiment_description</span> <span class="o">=</span> <span class="n">sess_params</span><span class="o">.</span><span class="n">read_params</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
 
     <span class="c1"># If experiment description file then use this to make the pipeline</span>
@@ -596,6 +620,8 @@
             <span class="n">tasks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="c1"># Otherwise default to old way of doing things</span>
+        <span class="k">if</span> <span class="n">one</span> <span class="ow">and</span> <span class="n">one</span><span class="o">.</span><span class="n">to_eid</span><span class="p">(</span><span class="n">session_path</span><span class="p">):</span>
+            <span class="n">one</span><span class="o">.</span><span class="n">load_dataset</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="s1">&#39;_iblrig_taskSettings.raw&#39;</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">,</span> <span class="n">download_only</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="n">pipeline</span> <span class="o">=</span> <span class="n">get_pipeline</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">pipeline</span> <span class="o">==</span> <span class="s1">&#39;training&#39;</span><span class="p">:</span>
             <span class="kn">from</span> <span class="nn">ibllib.pipes.training_preprocessing</span> <span class="kn">import</span> <span class="n">TrainingTrials</span>

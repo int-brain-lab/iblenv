@@ -17,7 +17,7 @@
         <script src="../../../_static/jquery.js?v=5d32c60e"></script>
         <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
         <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
-        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/doctools.js?v=9a2dae69"></script>
         <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
         <script src="../../../_static/clipboard.min.js?v=a7894cd8"></script>
         <script src="../../../_static/copybutton.js?v=f281be69"></script>
@@ -77,6 +77,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../atlas_examples.html">Atlas Examples</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/docs_wheel_moves.html">Working with wheel data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/docs_wheel_screen_stimulus.html">Computing the stimulus position using the wheel</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
 <ul>
@@ -154,11 +155,10 @@
 <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
 <span class="kn">from</span> <span class="nn">matplotlib.patches</span> <span class="kn">import</span> <span class="n">Rectangle</span>
-<span class="kn">from</span> <span class="nn">labcams</span> <span class="kn">import</span> <span class="n">parse_cam_log</span>
 
 <span class="kn">import</span> <span class="nn">one.alf.io</span> <span class="k">as</span> <span class="nn">alfio</span>
 <span class="kn">from</span> <span class="nn">one.util</span> <span class="kn">import</span> <span class="n">filter_datasets</span>
-<span class="kn">from</span> <span class="nn">one.alf.spec</span> <span class="kn">import</span> <span class="n">is_session_path</span>
+<span class="kn">from</span> <span class="nn">one.alf</span> <span class="kn">import</span> <span class="n">spec</span>
 <span class="kn">from</span> <span class="nn">one.alf.exceptions</span> <span class="kn">import</span> <span class="n">ALFObjectNotFound</span>
 <span class="kn">from</span> <span class="nn">iblutil.util</span> <span class="kn">import</span> <span class="n">Bunch</span>
 <span class="kn">from</span> <span class="nn">iblutil.numerical</span> <span class="kn">import</span> <span class="n">within_ranges</span>
@@ -176,11 +176,17 @@
 
 <span class="n">_log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">labcams</span> <span class="kn">import</span> <span class="n">parse_cam_log</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="n">_log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;labcams not installed&#39;</span><span class="p">)</span>
+
 
 <div class="viewcode-block" id="CameraQC">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.qc.camera.html#ibllib.qc.camera.CameraQC">[docs]</a>
 <span class="k">class</span> <span class="nc">CameraQC</span><span class="p">(</span><span class="n">base</span><span class="o">.</span><span class="n">QC</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;A class for computing camera QC metrics&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A class for computing camera QC metrics.&quot;&quot;&quot;</span>
+
     <span class="n">dstypes</span> <span class="o">=</span> <span class="p">[</span>
         <span class="s1">&#39;_ibl_experiment.description&#39;</span><span class="p">,</span>
         <span class="s1">&#39;_iblrig_Camera.frameData&#39;</span><span class="p">,</span>  <span class="c1"># Replaces the next 3 datasets</span>
@@ -232,6 +238,8 @@
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_path_or_eid</span><span class="p">,</span> <span class="n">camera</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Compute and view camera QC metrics.</span>
+
 <span class="sd">        :param session_path_or_eid: A session id or path</span>
 <span class="sd">        :param camera: The camera to run QC on, if None QC is run for all three cameras</span>
 <span class="sd">        :param n_samples: The number of frames to sample for the position and brightness QC</span>
@@ -241,7 +249,7 @@
 <span class="sd">        :param one: An ONE instance for fetching and setting the QC on Alyx</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># When an eid is provided, we will download the required data by default (if necessary)</span>
-        <span class="n">download_data</span> <span class="o">=</span> <span class="ow">not</span> <span class="n">is_session_path</span><span class="p">(</span><span class="n">session_path_or_eid</span><span class="p">)</span>
+        <span class="n">download_data</span> <span class="o">=</span> <span class="ow">not</span> <span class="n">spec</span><span class="o">.</span><span class="n">is_session_path</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">session_path_or_eid</span><span class="p">))</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">download_data</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;download_data&#39;</span><span class="p">,</span> <span class="n">download_data</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">stream</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;stream&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">n_samples</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;n_samples&#39;</span><span class="p">,</span> <span class="mi">100</span><span class="p">)</span>
@@ -272,7 +280,7 @@
 
         <span class="c1"># QC outcomes map</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">metrics</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">outcome</span> <span class="o">=</span> <span class="s1">&#39;NOT_SET&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">outcome</span> <span class="o">=</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">NOT_SET</span>
 
         <span class="c1"># Specify any checks to remove</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">checks_to_remove</span> <span class="o">=</span> <span class="p">[]</span>
@@ -282,6 +290,7 @@
     <span class="k">def</span> <span class="nf">type</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns the camera type based on the protocol.</span>
+
 <span class="sd">        :return: Returns either None, &#39;ephys&#39; or &#39;training&#39;</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_type</span><span class="p">:</span>
@@ -292,7 +301,8 @@
 <div class="viewcode-block" id="CameraQC.load_data">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.qc.camera.html#ibllib.qc.camera.CameraQC.load_data">[docs]</a>
     <span class="k">def</span> <span class="nf">load_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">download_data</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">extract_times</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">load_video</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Extract the data from raw data files</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Extract the data from raw data files.</span>
+
 <span class="sd">        Extracts all the required task data from the raw data files.</span>
 
 <span class="sd">        Data keys:</span>
@@ -413,7 +423,11 @@
 <div class="viewcode-block" id="CameraQC.load_video_data">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.qc.camera.html#ibllib.qc.camera.CameraQC.load_video_data">[docs]</a>
     <span class="k">def</span> <span class="nf">load_video_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="c1"># Get basic properties of video</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get basic properties of video.</span>
+
+<span class="sd">        Updates the `data` property with video metadata such as length and frame count, as well as</span>
+<span class="sd">        loading some frames to perform QC on.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;video&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">get_video_meta</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">video_path</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">)</span>
             <span class="c1"># Sample some frames from the video file</span>
@@ -423,7 +437,7 @@
                                                                   <span class="n">mask</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">s_</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">0</span><span class="p">])</span>
         <span class="k">except</span> <span class="ne">AssertionError</span><span class="p">:</span>
             <span class="n">_log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Failed to read video file; setting outcome to CRITICAL&#39;</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_outcome</span> <span class="o">=</span> <span class="s1">&#39;CRITICAL&#39;</span></div>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_outcome</span> <span class="o">=</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">CRITICAL</span></div>
 
 
 <div class="viewcode-block" id="CameraQC.get_active_wheel_period">
@@ -431,8 +445,11 @@
     <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">get_active_wheel_period</span><span class="p">(</span><span class="n">wheel</span><span class="p">,</span> <span class="n">duration_range</span><span class="o">=</span><span class="p">(</span><span class="mf">3.</span><span class="p">,</span> <span class="mf">20.</span><span class="p">),</span> <span class="n">display</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Attempts to find a period of movement where the wheel accelerates and decelerates for</span>
-<span class="sd">        the wheel motion alignment QC.</span>
+<span class="sd">        Find period of active wheel movement.</span>
+
+<span class="sd">        Attempts to find a period of movement where the wheel accelerates and decelerates for the</span>
+<span class="sd">        wheel motion alignment QC.</span>
+
 <span class="sd">        :param wheel: A Bunch of wheel timestamps and position data</span>
 <span class="sd">        :param duration_range: The candidates must be within min/max duration range</span>
 <span class="sd">        :param display: If true, plot the selected wheel movement</span>
@@ -460,13 +477,17 @@
 <div class="viewcode-block" id="CameraQC.ensure_required_data">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.qc.camera.html#ibllib.qc.camera.CameraQC.ensure_required_data">[docs]</a>
     <span class="k">def</span> <span class="nf">ensure_required_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Ensures the datasets required for QC are local.  If the download_data attribute is True,</span>
-<span class="sd">        any missing data are downloaded.  If all the data are not present locally at the end of</span>
-<span class="sd">        it an exception is raised.  If the stream attribute is True, the video file is not</span>
-<span class="sd">        required to be local, however it must be remotely accessible.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Ensure the datasets required for QC are local.</span>
+
+<span class="sd">        If the download_data attribute is True, any missing data are downloaded.  If all the data</span>
+<span class="sd">        are not present locally at the end of it an exception is raised.  If the stream attribute</span>
+<span class="sd">        is True, the video file is not required to be local, however it must be remotely accessible.</span>
 <span class="sd">        NB: Requires a valid instance of ONE and a valid session eid.</span>
-<span class="sd">        :return:</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        AssertionError</span>
+<span class="sd">            The data requires for complete QC are not present.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;ONE required to download data&#39;</span>
 
@@ -564,14 +585,15 @@
 
     <span class="k">def</span> <span class="nf">_update_meta_from_session_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sess_params</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Update the default expected video properties with those defined in the experiment</span>
-<span class="sd">        description file (if any).  This updates the `video_meta` property with the fps, width and</span>
-<span class="sd">        height for the type and camera label.</span>
+<span class="sd">        Update the default expected video properties.</span>
+
+<span class="sd">        Use properties defined in the experiment description file, if present.  This updates the</span>
+<span class="sd">        `video_meta` property with the fps, width and height for the type and camera label.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        sess_params : dict</span>
-<span class="sd">            The loaded experiment.description file.</span>
+<span class="sd">            The loaded experiment description file.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="k">assert</span> <span class="n">sess_params</span>
@@ -593,7 +615,8 @@
 <a class="viewcode-back" href="../../../_autosummary/ibllib.qc.camera.html#ibllib.qc.camera.CameraQC.run">[docs]</a>
     <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">update</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Run video QC checks and return outcome</span>
+<span class="sd">        Run video QC checks and return outcome.</span>
+
 <span class="sd">        :param update: if True, updates the session QC fields on Alyx</span>
 <span class="sd">        :param download_data: if True, downloads any missing data if required</span>
 <span class="sd">        :param extract_times: if True, re-extracts the camera timestamps from the raw data</span>
@@ -604,10 +627,10 @@
         <span class="k">if</span> <span class="nb">all</span><span class="p">(</span><span class="n">x</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">values</span><span class="p">()):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">load_data</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;frame_samples&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;timestamps&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">return</span> <span class="s1">&#39;NOT_SET&#39;</span><span class="p">,</span> <span class="p">{}</span>
+            <span class="k">return</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">NOT_SET</span><span class="p">,</span> <span class="p">{}</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;timestamps&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
             <span class="n">_log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;No timestamps for </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="si">}</span><span class="s1"> camera; setting outcome to CRITICAL&#39;</span><span class="p">)</span>
-            <span class="k">return</span> <span class="s1">&#39;CRITICAL&#39;</span><span class="p">,</span> <span class="p">{}</span>
+            <span class="k">return</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">CRITICAL</span><span class="p">,</span> <span class="p">{}</span>
 
         <span class="k">def</span> <span class="nf">is_metric</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
             <span class="k">return</span> <span class="n">isfunction</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="ow">and</span> <span class="n">x</span><span class="o">.</span><span class="vm">__name__</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;check_&#39;</span><span class="p">)</span>
@@ -616,16 +639,15 @@
         <span class="c1"># print(classe)</span>
 
         <span class="n">checks</span> <span class="o">=</span> <span class="n">getmembers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">,</span> <span class="n">is_metric</span><span class="p">)</span>
-        <span class="n">checks</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">remove_check</span><span class="p">(</span><span class="n">checks</span><span class="p">)</span>
+        <span class="n">checks</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_remove_check</span><span class="p">(</span><span class="n">checks</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">metrics</span> <span class="o">=</span> <span class="p">{</span><span class="sa">f</span><span class="s1">&#39;_</span><span class="si">{</span><span class="n">namespace</span><span class="si">}</span><span class="s1">_&#39;</span> <span class="o">+</span> <span class="n">k</span><span class="p">[</span><span class="mi">6</span><span class="p">:]:</span> <span class="n">fn</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">fn</span> <span class="ow">in</span> <span class="n">checks</span><span class="p">}</span>
 
-        <span class="n">values</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">else</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">metrics</span><span class="o">.</span><span class="n">values</span><span class="p">()]</span>
-        <span class="n">code</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">base</span><span class="o">.</span><span class="n">CRITERIA</span><span class="p">[</span><span class="n">x</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">values</span><span class="p">)</span>
-        <span class="n">outcome</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">base</span><span class="o">.</span><span class="n">CRITERIA</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">v</span> <span class="o">==</span> <span class="n">code</span><span class="p">)</span>
+        <span class="n">values</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="p">)</span> <span class="k">else</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">metrics</span><span class="o">.</span><span class="n">values</span><span class="p">()]</span>
+        <span class="n">outcome</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">validate</span><span class="p">,</span> <span class="n">values</span><span class="p">))</span>
 
         <span class="k">if</span> <span class="n">update</span><span class="p">:</span>
             <span class="n">extended</span> <span class="o">=</span> <span class="p">{</span>
-                <span class="n">k</span><span class="p">:</span> <span class="s1">&#39;NOT_SET&#39;</span> <span class="k">if</span> <span class="n">v</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">v</span>
+                <span class="n">k</span><span class="p">:</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">NOT_SET</span> <span class="k">if</span> <span class="n">v</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">v</span>
                 <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">metrics</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
             <span class="p">}</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">update_extended_qc</span><span class="p">(</span><span class="n">extended</span><span class="p">)</span>
@@ -633,9 +655,20 @@
         <span class="k">return</span> <span class="n">outcome</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">metrics</span></div>
 
 
-<div class="viewcode-block" id="CameraQC.remove_check">
-<a class="viewcode-back" href="../../../_autosummary/ibllib.qc.camera.html#ibllib.qc.camera.CameraQC.remove_check">[docs]</a>
-    <span class="k">def</span> <span class="nf">remove_check</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">checks</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_remove_check</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">checks</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Remove one or more check functions from QC checklist.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        checks : list of tuple</span>
+<span class="sd">            The complete list of check function name and handle.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        list of tuple</span>
+<span class="sd">            The list of check function name and handle, sans names in `checks_to_remove` property.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">checks_to_remove</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">checks</span>
         <span class="k">else</span><span class="p">:</span>
@@ -643,15 +676,15 @@
                 <span class="n">check_names</span> <span class="o">=</span> <span class="p">[</span><span class="n">ch</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">ch</span> <span class="ow">in</span> <span class="n">checks</span><span class="p">]</span>
                 <span class="n">idx</span> <span class="o">=</span> <span class="n">check_names</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">check</span><span class="p">)</span>
                 <span class="n">checks</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span>
-            <span class="k">return</span> <span class="n">checks</span></div>
-
+            <span class="k">return</span> <span class="n">checks</span>
 
 <div class="viewcode-block" id="CameraQC.check_brightness">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.qc.camera.html#ibllib.qc.camera.CameraQC.check_brightness">[docs]</a>
     <span class="k">def</span> <span class="nf">check_brightness</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bounds</span><span class="o">=</span><span class="p">(</span><span class="mi">40</span><span class="p">,</span> <span class="mi">200</span><span class="p">),</span> <span class="n">max_std</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">roi</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">display</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check that the video brightness is within a given range</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check that the video brightness is within a given range.</span>
+
 <span class="sd">        The mean brightness of each frame must be with the bounds provided, and the standard</span>
-<span class="sd">        deviation across samples frames should be less then the given value.  Assumes that the</span>
+<span class="sd">        deviation across samples frames should be less than the given value.  Assumes that the</span>
 <span class="sd">        frame samples are 2D (no colour channels).</span>
 
 <span class="sd">        :param bounds: For each frame, check that: bounds[0] &lt; M &lt; bounds[1],</span>
@@ -663,7 +696,7 @@
 <span class="sd">        The sample frames with the lowest and highest mean luminance are shown.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;frame_samples&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">return</span> <span class="s1">&#39;NOT_SET&#39;</span>
+            <span class="k">return</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">NOT_SET</span>
         <span class="k">if</span> <span class="n">roi</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
             <span class="n">_</span><span class="p">,</span> <span class="n">h</span><span class="p">,</span> <span class="n">w</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;frame_samples&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">label</span> <span class="o">==</span> <span class="s1">&#39;body&#39;</span><span class="p">:</span>  <span class="c1"># Latter half</span>
@@ -717,34 +750,34 @@
 <div class="viewcode-block" id="CameraQC.check_file_headers">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.qc.camera.html#ibllib.qc.camera.CameraQC.check_file_headers">[docs]</a>
     <span class="k">def</span> <span class="nf">check_file_headers</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check reported frame rate matches FPGA frame rate&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check reported frame rate matches FPGA frame rate.&quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="kc">None</span> <span class="ow">in</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;video&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">video_meta</span><span class="p">):</span>
-            <span class="k">return</span> <span class="s1">&#39;NOT_SET&#39;</span>
+            <span class="k">return</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">NOT_SET</span>
         <span class="n">expected</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">video_meta</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">type</span><span class="p">][</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">]</span>
-        <span class="k">return</span> <span class="s1">&#39;PASS&#39;</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;video&#39;</span><span class="p">][</span><span class="s1">&#39;fps&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">expected</span><span class="p">[</span><span class="s1">&#39;fps&#39;</span><span class="p">]</span> <span class="k">else</span> <span class="s1">&#39;FAIL&#39;</span></div>
+        <span class="k">return</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">PASS</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;video&#39;</span><span class="p">][</span><span class="s1">&#39;fps&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">expected</span><span class="p">[</span><span class="s1">&#39;fps&#39;</span><span class="p">]</span> <span class="k">else</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">FAIL</span></div>
 
 
 <div class="viewcode-block" id="CameraQC.check_framerate">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.qc.camera.html#ibllib.qc.camera.CameraQC.check_framerate">[docs]</a>
     <span class="k">def</span> <span class="nf">check_framerate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="mf">1.</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check camera times match specified frame rate for camera</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check camera times match specified frame rate for camera.</span>
 
 <span class="sd">        :param threshold: The maximum absolute difference between timestamp sample rate and video</span>
 <span class="sd">        frame rate.  NB: Does not take into account dropped frames.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">x</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;timestamps&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">video_meta</span><span class="p">)):</span>
-            <span class="k">return</span> <span class="s1">&#39;NOT_SET&#39;</span>
+            <span class="k">return</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">NOT_SET</span>
         <span class="n">fps</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">video_meta</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">type</span><span class="p">][</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">][</span><span class="s1">&#39;fps&#39;</span><span class="p">]</span>
         <span class="n">Fs</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;timestamps&#39;</span><span class="p">]))</span>  <span class="c1"># Approx. frequency of camera</span>
-        <span class="k">return</span> <span class="s1">&#39;PASS&#39;</span> <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">Fs</span> <span class="o">-</span> <span class="n">fps</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">threshold</span> <span class="k">else</span> <span class="s1">&#39;FAIL&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">Fs</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span></div>
+        <span class="k">return</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">PASS</span> <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">Fs</span> <span class="o">-</span> <span class="n">fps</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">threshold</span> <span class="k">else</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">FAIL</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">Fs</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span></div>
 
 
 <div class="viewcode-block" id="CameraQC.check_pin_state">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.qc.camera.html#ibllib.qc.camera.CameraQC.check_pin_state">[docs]</a>
     <span class="k">def</span> <span class="nf">check_pin_state</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">display</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check the pin state reflects Bpod TTLs&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check the pin state reflects Bpod TTLs.&quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">data_for_keys</span><span class="p">((</span><span class="s1">&#39;video&#39;</span><span class="p">,</span> <span class="s1">&#39;pin_state&#39;</span><span class="p">,</span> <span class="s1">&#39;audio&#39;</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">):</span>
-            <span class="k">return</span> <span class="s1">&#39;NOT_SET&#39;</span>
+            <span class="k">return</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">NOT_SET</span>
         <span class="n">size_diff</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;pin_state&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;video&#39;</span><span class="p">][</span><span class="s1">&#39;length&#39;</span><span class="p">])</span>
         <span class="c1"># NB: The pin state can be high for 2 consecutive frames</span>
         <span class="n">low2high</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;pin_state&#39;</span><span class="p">][:,</span> <span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">))</span> <span class="o">==</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
@@ -773,19 +806,19 @@
 <div class="viewcode-block" id="CameraQC.check_dropped_frames">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.qc.camera.html#ibllib.qc.camera.CameraQC.check_dropped_frames">[docs]</a>
     <span class="k">def</span> <span class="nf">check_dropped_frames</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="mf">.1</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check how many frames were reported missing</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check how many frames were reported missing.</span>
 
 <span class="sd">        :param threshold: The maximum allowable percentage of dropped frames</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">data_for_keys</span><span class="p">((</span><span class="s1">&#39;video&#39;</span><span class="p">,</span> <span class="s1">&#39;count&#39;</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">):</span>
-            <span class="k">return</span> <span class="s1">&#39;NOT_SET&#39;</span>
+            <span class="k">return</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">NOT_SET</span>
         <span class="n">size_diff</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;count&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">size</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;video&#39;</span><span class="p">][</span><span class="s1">&#39;length&#39;</span><span class="p">])</span>
         <span class="n">strict_increase</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;count&#39;</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">strict_increase</span><span class="p">:</span>
             <span class="n">n_effected</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">invert</span><span class="p">(</span><span class="n">strict_increase</span><span class="p">))</span>
             <span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;frame count not strictly increasing: &#39;</span>
                       <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">n_effected</span><span class="si">}</span><span class="s1"> frames effected (</span><span class="si">{</span><span class="n">n_effected</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">strict_increase</span><span class="o">.</span><span class="n">size</span><span class="si">:</span><span class="s1">.2%</span><span class="si">}</span><span class="s1">)&#39;</span><span class="p">)</span>
-            <span class="k">return</span> <span class="s1">&#39;CRITICAL&#39;</span>
+            <span class="k">return</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">CRITICAL</span>
         <span class="n">dropped</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;count&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
         <span class="n">pct_dropped</span> <span class="o">=</span> <span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="n">dropped</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">dropped</span><span class="p">)</span> <span class="o">*</span> <span class="mi">100</span><span class="p">)</span>
         <span class="c1"># Calculate overall outcome for this check</span>
@@ -799,26 +832,26 @@
 <div class="viewcode-block" id="CameraQC.check_timestamps">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.qc.camera.html#ibllib.qc.camera.CameraQC.check_timestamps">[docs]</a>
     <span class="k">def</span> <span class="nf">check_timestamps</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check that the camera.times array is reasonable&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check that the camera.times array is reasonable.&quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">data_for_keys</span><span class="p">((</span><span class="s1">&#39;timestamps&#39;</span><span class="p">,</span> <span class="s1">&#39;video&#39;</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">):</span>
-            <span class="k">return</span> <span class="s1">&#39;NOT_SET&#39;</span>
+            <span class="k">return</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">NOT_SET</span>
         <span class="c1"># Check number of timestamps matches video</span>
         <span class="n">length_matches</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;timestamps&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;video&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">length</span>
         <span class="c1"># Check times are strictly increasing</span>
         <span class="n">increasing</span> <span class="o">=</span> <span class="nb">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;timestamps&#39;</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
         <span class="c1"># Check times do not contain nans</span>
         <span class="n">nanless</span> <span class="o">=</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;timestamps&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">any</span><span class="p">()</span>
-        <span class="k">return</span> <span class="s1">&#39;PASS&#39;</span> <span class="k">if</span> <span class="n">increasing</span> <span class="ow">and</span> <span class="n">length_matches</span> <span class="ow">and</span> <span class="n">nanless</span> <span class="k">else</span> <span class="s1">&#39;FAIL&#39;</span></div>
+        <span class="k">return</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">PASS</span> <span class="k">if</span> <span class="n">increasing</span> <span class="ow">and</span> <span class="n">length_matches</span> <span class="ow">and</span> <span class="n">nanless</span> <span class="k">else</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">FAIL</span></div>
 
 
 <div class="viewcode-block" id="CameraQC.check_camera_times">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.qc.camera.html#ibllib.qc.camera.CameraQC.check_camera_times">[docs]</a>
     <span class="k">def</span> <span class="nf">check_camera_times</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check that the number of raw camera timestamps matches the number of video frames&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check that the number of raw camera timestamps matches the number of video frames.&quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">data_for_keys</span><span class="p">((</span><span class="s1">&#39;bonsai_times&#39;</span><span class="p">,</span> <span class="s1">&#39;video&#39;</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">):</span>
-            <span class="k">return</span> <span class="s1">&#39;NOT_SET&#39;</span>
+            <span class="k">return</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">NOT_SET</span>
         <span class="n">length_match</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;camera_times&#39;</span><span class="p">])</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;video&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">length</span>
-        <span class="n">outcome</span> <span class="o">=</span> <span class="s1">&#39;PASS&#39;</span> <span class="k">if</span> <span class="n">length_match</span> <span class="k">else</span> <span class="s1">&#39;WARNING&#39;</span>
+        <span class="n">outcome</span> <span class="o">=</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">PASS</span> <span class="k">if</span> <span class="n">length_match</span> <span class="k">else</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">WARNING</span>
         <span class="c1"># 1 / np.median(np.diff(self.data.camera_times))</span>
         <span class="k">return</span> <span class="n">outcome</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;camera_times&#39;</span><span class="p">])</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;video&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">length</span></div>
 
@@ -826,19 +859,19 @@
 <div class="viewcode-block" id="CameraQC.check_resolution">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.qc.camera.html#ibllib.qc.camera.CameraQC.check_resolution">[docs]</a>
     <span class="k">def</span> <span class="nf">check_resolution</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check that the timestamps and video file resolution match what we expect&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check that the timestamps and video file resolution match what we expect.&quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;video&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">return</span> <span class="s1">&#39;NOT_SET&#39;</span>
+            <span class="k">return</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">NOT_SET</span>
         <span class="n">actual</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;video&#39;</span><span class="p">]</span>
         <span class="n">expected</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">video_meta</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">type</span><span class="p">][</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">]</span>
         <span class="n">match</span> <span class="o">=</span> <span class="n">actual</span><span class="p">[</span><span class="s1">&#39;width&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">expected</span><span class="p">[</span><span class="s1">&#39;width&#39;</span><span class="p">]</span> <span class="ow">and</span> <span class="n">actual</span><span class="p">[</span><span class="s1">&#39;height&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">expected</span><span class="p">[</span><span class="s1">&#39;height&#39;</span><span class="p">]</span>
-        <span class="k">return</span> <span class="s1">&#39;PASS&#39;</span> <span class="k">if</span> <span class="n">match</span> <span class="k">else</span> <span class="s1">&#39;FAIL&#39;</span></div>
+        <span class="k">return</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">PASS</span> <span class="k">if</span> <span class="n">match</span> <span class="k">else</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">FAIL</span></div>
 
 
 <div class="viewcode-block" id="CameraQC.check_wheel_alignment">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.qc.camera.html#ibllib.qc.camera.CameraQC.check_wheel_alignment">[docs]</a>
     <span class="k">def</span> <span class="nf">check_wheel_alignment</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tolerance</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="n">display</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check wheel motion in video correlates with the rotary encoder signal</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check wheel motion in video correlates with the rotary encoder signal.</span>
 
 <span class="sd">        Check is skipped for body camera videos as the wheel is often obstructed</span>
 
@@ -852,8 +885,8 @@
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
-<span class="sd">        str</span>
-<span class="sd">            The outcome string, one of {&#39;NOT_SET&#39;, &#39;FAIL&#39;, &#39;WARNING&#39;, &#39;PASS&#39;}.</span>
+<span class="sd">        one.alf.spec.QC</span>
+<span class="sd">            The outcome, one of {&#39;NOT_SET&#39;, &#39;FAIL&#39;, &#39;WARNING&#39;, &#39;PASS&#39;}.</span>
 <span class="sd">        int</span>
 <span class="sd">            Frame offset, i.e. by how many frames the video was shifted to match the rotary encoder</span>
 <span class="sd">            signal.  Negative values mean the video was shifted backwards with respect to the wheel</span>
@@ -867,7 +900,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">wheel_present</span> <span class="o">=</span> <span class="n">data_for_keys</span><span class="p">((</span><span class="s1">&#39;position&#39;</span><span class="p">,</span> <span class="s1">&#39;timestamps&#39;</span><span class="p">,</span> <span class="s1">&#39;period&#39;</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;wheel&#39;</span><span class="p">])</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">wheel_present</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">label</span> <span class="o">==</span> <span class="s1">&#39;body&#39;</span><span class="p">:</span>
-            <span class="k">return</span> <span class="s1">&#39;NOT_SET&#39;</span>
+            <span class="k">return</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">NOT_SET</span>
 
         <span class="c1"># Check the selected wheel movement period occurred within camera timestamp time</span>
         <span class="n">camera_times</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;timestamps&#39;</span><span class="p">]</span>
@@ -880,10 +913,10 @@
             <span class="p">):</span>
                 <span class="n">_log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Unable to check wheel alignment: &#39;</span>
                              <span class="s1">&#39;chosen movement is not during video&#39;</span><span class="p">)</span>
-                <span class="k">return</span> <span class="s1">&#39;NOT_SET&#39;</span>
+                <span class="k">return</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">NOT_SET</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="c1"># No overlap, return fail</span>
-                <span class="k">return</span> <span class="s1">&#39;FAIL&#39;</span>
+                <span class="k">return</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">FAIL</span>
         <span class="n">aln</span> <span class="o">=</span> <span class="n">MotionAlignment</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">eid</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">,</span> <span class="n">session_path</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
         <span class="n">aln</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
         <span class="n">aln</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;camera_times&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">:</span> <span class="n">camera_times</span><span class="p">}</span>
@@ -891,13 +924,13 @@
         <span class="n">offset</span><span class="p">,</span> <span class="o">*</span><span class="n">_</span> <span class="o">=</span> <span class="n">aln</span><span class="o">.</span><span class="n">align_motion</span><span class="p">(</span><span class="n">period</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;wheel&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">period</span><span class="p">,</span>
                                       <span class="n">display</span><span class="o">=</span><span class="n">display</span><span class="p">,</span> <span class="n">side</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">offset</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">return</span> <span class="s1">&#39;NOT_SET&#39;</span>
+            <span class="k">return</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">NOT_SET</span>
         <span class="k">if</span> <span class="n">display</span><span class="p">:</span>
             <span class="n">aln</span><span class="o">.</span><span class="n">plot_alignment</span><span class="p">()</span>
 
         <span class="c1"># Determine the outcome.  If there are two values for the tolerance, one is taken to be</span>
         <span class="c1"># a warning threshold, the other a failure threshold.</span>
-        <span class="n">out_map</span> <span class="o">=</span> <span class="p">{</span><span class="mi">0</span><span class="p">:</span> <span class="s1">&#39;WARNING&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">:</span> <span class="s1">&#39;WARNING&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">:</span> <span class="s1">&#39;PASS&#39;</span><span class="p">}</span>  <span class="c1"># 0: FAIL -&gt; WARNING Aug 2022</span>
+        <span class="n">out_map</span> <span class="o">=</span> <span class="p">{</span><span class="mi">0</span><span class="p">:</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">WARNING</span><span class="p">,</span> <span class="mi">1</span><span class="p">:</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">WARNING</span><span class="p">,</span> <span class="mi">2</span><span class="p">:</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">PASS</span><span class="p">}</span>  <span class="c1"># 0: FAIL -&gt; WARNING Aug 2022</span>
         <span class="n">passed</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">offset</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">np</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">tolerance</span><span class="p">))</span>
         <span class="k">return</span> <span class="n">out_map</span><span class="p">[</span><span class="nb">sum</span><span class="p">(</span><span class="n">passed</span><span class="p">)],</span> <span class="nb">int</span><span class="p">(</span><span class="n">offset</span><span class="p">)</span></div>
 
@@ -907,7 +940,8 @@
     <span class="k">def</span> <span class="nf">check_position</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hist_thresh</span><span class="o">=</span><span class="p">(</span><span class="mi">75</span><span class="p">,</span> <span class="mi">80</span><span class="p">),</span> <span class="n">pos_thresh</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">15</span><span class="p">),</span>
                        <span class="n">metric</span><span class="o">=</span><span class="n">cv2</span><span class="o">.</span><span class="n">TM_CCOEFF_NORMED</span><span class="p">,</span>
                        <span class="n">display</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">test</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">roi</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pct_thresh</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check camera is positioned correctly</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check camera is positioned correctly.</span>
+
 <span class="sd">        For the template matching zero-normalized cross-correlation (default) should be more</span>
 <span class="sd">        robust to exposure (which we&#39;re not checking here).  The L2 norm (TM_SQDIFF) should</span>
 <span class="sd">        also work.</span>
@@ -926,7 +960,7 @@
 <span class="sd">        :param pct_thresh: If true, the thresholds are treated as percentages</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">test</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;frame_samples&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">return</span> <span class="s1">&#39;NOT_SET&#39;</span>
+            <span class="k">return</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">NOT_SET</span>
         <span class="n">refs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_reference_frames</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">)</span>
         <span class="c1"># ensure iterable</span>
         <span class="n">pos_thresh</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">pos_thresh</span><span class="p">))</span>
@@ -1019,7 +1053,8 @@
 <a class="viewcode-back" href="../../../_autosummary/ibllib.qc.camera.html#ibllib.qc.camera.CameraQC.check_focus">[docs]</a>
     <span class="k">def</span> <span class="nf">check_focus</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="mi">6</span><span class="p">),</span>
                     <span class="n">roi</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">display</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">test</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">equalize</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check video is in focus</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check video is in focus.</span>
+
 <span class="sd">        Two methods are used here: Looking at the high frequencies with a DFT and</span>
 <span class="sd">        applying a Laplacian HPF and looking at the variance.</span>
 
@@ -1033,21 +1068,33 @@
 <span class="sd">            - Focus check thrown off by brightness.  This may be fixed by equalizing the histogram</span>
 <span class="sd">              (set equalize=True)</span>
 
-<span class="sd">        :param n: number of frames from frame_samples data to use in check.</span>
-<span class="sd">        :param threshold: the lower boundary for Laplacian variance and mean FFT filtered</span>
-<span class="sd">         brightness, respectively</span>
-<span class="sd">        :param roi: if False, the roi is determined via template matching for the face or body.</span>
-<span class="sd">        If None, some set ROIs for face and paws are used.  A list of slices may also be passed.</span>
-<span class="sd">        :param display: if true, the results are displayed</span>
-<span class="sd">        :param test: if true, a set of artificially blurred reference frames are used as the</span>
-<span class="sd">        input.  This can be used to selecting reasonable thresholds.</span>
-<span class="sd">        :param equalize: if true, the histograms of the frames are equalized, resulting in an</span>
-<span class="sd">        increased the global contrast and linear CDF.  This makes check robust to low light</span>
-<span class="sd">        conditions.</span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        n : int</span>
+<span class="sd">            Number of frames from frame_samples data to use in check.</span>
+<span class="sd">        threshold : tuple of float</span>
+<span class="sd">            The lower boundary for Laplacian variance and mean FFT filtered brightness,</span>
+<span class="sd">            respectively.</span>
+<span class="sd">        roi : bool, None, list of slice</span>
+<span class="sd">            If False, the roi is determined via template matching for the face or body.</span>
+<span class="sd">            If None, some set ROIs for face and paws are used.  A list of slices may also be passed.</span>
+<span class="sd">        display : bool</span>
+<span class="sd">            If true, the results are displayed.</span>
+<span class="sd">        test : bool</span>
+<span class="sd">            If true, a set of artificially blurred reference frames are used as the input. This can</span>
+<span class="sd">            be used to selecting reasonable thresholds.</span>
+<span class="sd">        equalize : bool</span>
+<span class="sd">            If true, the histograms of the frames are equalized, resulting in an increased the</span>
+<span class="sd">            global contrast and linear CDF.  This makes check robust to low light conditions.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        one.spec.QC</span>
+<span class="sd">            The QC outcome, either FAIL or PASS.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">no_frames</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;frame_samples&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;frame_samples&#39;</span><span class="p">])</span> <span class="o">==</span> <span class="mi">0</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">test</span> <span class="ow">and</span> <span class="n">no_frames</span><span class="p">:</span>
-            <span class="k">return</span> <span class="s1">&#39;NOT_SET&#39;</span>
+            <span class="k">return</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">NOT_SET</span>
 
         <span class="k">if</span> <span class="n">roi</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
             <span class="n">top_left</span><span class="p">,</span> <span class="n">roi</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">find_face</span><span class="p">(</span><span class="n">test</span><span class="o">=</span><span class="n">test</span><span class="p">)</span>  <span class="c1"># (y1, y2), (x1, x2)</span>
@@ -1152,13 +1199,14 @@
                 <span class="n">f</span><span class="o">.</span><span class="n">suptitle</span><span class="p">(</span><span class="s1">&#39;Discrete Fourier Transform&#39;</span><span class="p">)</span>
                 <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
         <span class="n">passes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">lpc_var</span> <span class="o">&gt;</span> <span class="n">threshold</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="ow">or</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">filt_mean</span> <span class="o">&gt;</span> <span class="n">threshold</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
-        <span class="k">return</span> <span class="s1">&#39;PASS&#39;</span> <span class="k">if</span> <span class="n">passes</span> <span class="k">else</span> <span class="s1">&#39;FAIL&#39;</span></div>
+        <span class="k">return</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">PASS</span> <span class="k">if</span> <span class="n">passes</span> <span class="k">else</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">FAIL</span></div>
 
 
 <div class="viewcode-block" id="CameraQC.find_face">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.qc.camera.html#ibllib.qc.camera.CameraQC.find_face">[docs]</a>
     <span class="k">def</span> <span class="nf">find_face</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">roi</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">test</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">metric</span><span class="o">=</span><span class="n">cv2</span><span class="o">.</span><span class="n">TM_CCOEFF_NORMED</span><span class="p">,</span> <span class="n">refs</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Use template matching to find face location in frame</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Use template matching to find face location in frame.</span>
+
 <span class="sd">        For the template matching zero-normalized cross-correlation (default) should be more</span>
 <span class="sd">        robust to exposure (which we&#39;re not checking here).  The L2 norm (TM_SQDIFF) should</span>
 <span class="sd">        also work.  That said, normalizing the histograms works best.</span>
@@ -1194,7 +1242,7 @@
 <a class="viewcode-back" href="../../../_autosummary/ibllib.qc.camera.html#ibllib.qc.camera.CameraQC.load_reference_frames">[docs]</a>
     <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">load_reference_frames</span><span class="p">(</span><span class="n">side</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Load some reference frames for a given video</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Load some reference frames for a given video.</span>
 
 <span class="sd">        The reference frames are from sessions where the camera was well positioned. The</span>
 <span class="sd">        frames are in qc/reference, one file per camera, only one channel per frame.  The</span>
@@ -1212,7 +1260,7 @@
 <a class="viewcode-back" href="../../../_autosummary/ibllib.qc.camera.html#ibllib.qc.camera.CameraQC.imshow">[docs]</a>
     <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">imshow</span><span class="p">(</span><span class="n">frame</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;plt.imshow with some convenient defaults for greyscale frames&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;plt.imshow with some convenient defaults for greyscale frames.&quot;&quot;&quot;</span>
         <span class="n">h</span> <span class="o">=</span> <span class="n">ax</span> <span class="ow">or</span> <span class="n">plt</span><span class="o">.</span><span class="n">gca</span><span class="p">()</span>
         <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span>
             <span class="s1">&#39;cmap&#39;</span><span class="p">:</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;cmap&#39;</span><span class="p">,</span> <span class="s1">&#39;gray&#39;</span><span class="p">),</span>
@@ -1230,8 +1278,13 @@
 <div class="viewcode-block" id="CameraQCCamlog">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.qc.camera.html#ibllib.qc.camera.CameraQCCamlog">[docs]</a>
 <span class="k">class</span> <span class="nc">CameraQCCamlog</span><span class="p">(</span><span class="n">CameraQC</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;A class for computing camera QC metrics from camlog data. For this QC we expect the check_pin_state to be NOT_SET as we are</span>
-<span class="sd">    not using the GPIO for timestamp alignment&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A class for computing camera QC metrics from camlog data.</span>
+
+<span class="sd">    For this QC we expect the check_pin_state to be NOT_SET as we are not using the GPIO for</span>
+<span class="sd">    timestamp alignment.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
     <span class="n">dstypes</span> <span class="o">=</span> <span class="p">[</span>
         <span class="s1">&#39;_iblrig_taskData.raw&#39;</span><span class="p">,</span>
         <span class="s1">&#39;_iblrig_taskSettings.raw&#39;</span><span class="p">,</span>
@@ -1249,6 +1302,11 @@
     <span class="p">]</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_path_or_eid</span><span class="p">,</span> <span class="n">camera</span><span class="p">,</span> <span class="n">sync_collection</span><span class="o">=</span><span class="s1">&#39;raw_sync_data&#39;</span><span class="p">,</span> <span class="n">sync_type</span><span class="o">=</span><span class="s1">&#39;nidq&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute camera QC metrics from camlog data.</span>
+
+<span class="sd">        For this QC we expect the check_pin_state to be NOT_SET as we are not using the GPIO for</span>
+<span class="sd">        timestamp alignment.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">session_path_or_eid</span><span class="p">,</span> <span class="n">camera</span><span class="p">,</span> <span class="n">sync_collection</span><span class="o">=</span><span class="n">sync_collection</span><span class="p">,</span> <span class="n">sync_type</span><span class="o">=</span><span class="n">sync_type</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_type</span> <span class="o">=</span> <span class="s1">&#39;ephys&#39;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">checks_to_remove</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;check_pin_state&#39;</span><span class="p">]</span>
@@ -1257,7 +1315,8 @@
 <a class="viewcode-back" href="../../../_autosummary/ibllib.qc.camera.html#ibllib.qc.camera.CameraQCCamlog.load_data">[docs]</a>
     <span class="k">def</span> <span class="nf">load_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">download_data</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                   <span class="n">extract_times</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">load_video</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Extract the data from raw data files</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Extract the data from raw data files.</span>
+
 <span class="sd">        Extracts all the required task data from the raw data files.</span>
 
 <span class="sd">        Data keys:</span>
@@ -1312,8 +1371,9 @@
         <span class="n">alf_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span> <span class="o">/</span> <span class="s1">&#39;alf&#39;</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="k">assert</span> <span class="ow">not</span> <span class="n">extract_times</span>
+            <span class="n">cam_path</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">alf_path</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;*</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="si">}</span><span class="s1">Camera.times*&#39;</span><span class="p">))</span><span class="o">.</span><span class="n">parent</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;timestamps&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">alfio</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span>
-                <span class="n">alf_path</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="si">}</span><span class="s1">Camera&#39;</span><span class="p">,</span> <span class="n">short_keys</span><span class="o">=</span><span class="kc">True</span><span class="p">)[</span><span class="s1">&#39;times&#39;</span><span class="p">]</span>
+                <span class="n">cam_path</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="si">}</span><span class="s1">Camera&#39;</span><span class="p">,</span> <span class="n">short_keys</span><span class="o">=</span><span class="kc">True</span><span class="p">)[</span><span class="s1">&#39;times&#39;</span><span class="p">]</span>
         <span class="k">except</span> <span class="ne">AssertionError</span><span class="p">:</span>  <span class="c1"># Re-extract</span>
             <span class="n">kwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">video_path</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">video_path</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">)</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync</span> <span class="o">==</span> <span class="s1">&#39;bpod&#39;</span><span class="p">:</span>
@@ -1329,8 +1389,8 @@
         <span class="n">wheel_keys</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;timestamps&#39;</span><span class="p">,</span> <span class="s1">&#39;position&#39;</span><span class="p">)</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="c1"># glob in case wheel data are in sub-collections</span>
-            <span class="n">alf_path</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">alf_path</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="s1">&#39;*wheel.timestamps*&#39;</span><span class="p">))</span><span class="o">.</span><span class="n">parent</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;wheel&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">alfio</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="n">alf_path</span><span class="p">,</span> <span class="s1">&#39;wheel&#39;</span><span class="p">,</span> <span class="n">short_keys</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">wheel_path</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">alf_path</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="s1">&#39;*wheel.timestamps*&#39;</span><span class="p">))</span><span class="o">.</span><span class="n">parent</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;wheel&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">alfio</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="n">wheel_path</span><span class="p">,</span> <span class="s1">&#39;wheel&#39;</span><span class="p">,</span> <span class="n">short_keys</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="k">except</span> <span class="n">ALFObjectNotFound</span><span class="p">:</span>
             <span class="c1"># Extract from raw data</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync</span> <span class="o">!=</span> <span class="s1">&#39;bpod&#39;</span><span class="p">:</span>
@@ -1355,13 +1415,12 @@
 <div class="viewcode-block" id="CameraQCCamlog.ensure_required_data">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.qc.camera.html#ibllib.qc.camera.CameraQCCamlog.ensure_required_data">[docs]</a>
     <span class="k">def</span> <span class="nf">ensure_required_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Ensures the datasets required for QC are local.  If the download_data attribute is True,</span>
-<span class="sd">        any missing data are downloaded.  If all the data are not present locally at the end of</span>
-<span class="sd">        it an exception is raised.  If the stream attribute is True, the video file is not</span>
-<span class="sd">        required to be local, however it must be remotely accessible.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Ensure the datasets required for QC are local.</span>
+
+<span class="sd">        If the download_data attribute is True, any missing data are downloaded.  If all the data</span>
+<span class="sd">        are not present locally at the end of it an exception is raised.  If the stream attribute</span>
+<span class="sd">        is True, the video file is not required to be local, however it must be remotely accessible.</span>
 <span class="sd">        NB: Requires a valid instance of ONE and a valid session eid.</span>
-<span class="sd">        :return:</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;ONE required to download data&#39;</span>
 
@@ -1409,11 +1468,11 @@
 <div class="viewcode-block" id="CameraQCCamlog.check_camera_times">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.qc.camera.html#ibllib.qc.camera.CameraQCCamlog.check_camera_times">[docs]</a>
     <span class="k">def</span> <span class="nf">check_camera_times</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check that the number of raw camera timestamps matches the number of video frames&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check that the number of raw camera timestamps matches the number of video frames.&quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">data_for_keys</span><span class="p">((</span><span class="s1">&#39;camera_times&#39;</span><span class="p">,</span> <span class="s1">&#39;video&#39;</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">):</span>
-            <span class="k">return</span> <span class="s1">&#39;NOT_SET&#39;</span>
+            <span class="k">return</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">NOT_SET</span>
         <span class="n">length_match</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;camera_times&#39;</span><span class="p">])</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;video&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">length</span>
-        <span class="n">outcome</span> <span class="o">=</span> <span class="s1">&#39;PASS&#39;</span> <span class="k">if</span> <span class="n">length_match</span> <span class="k">else</span> <span class="s1">&#39;WARNING&#39;</span>
+        <span class="n">outcome</span> <span class="o">=</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">PASS</span> <span class="k">if</span> <span class="n">length_match</span> <span class="k">else</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">WARNING</span>
         <span class="c1"># 1 / np.median(np.diff(self.data.camera_times))</span>
         <span class="k">return</span> <span class="n">outcome</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;camera_times&#39;</span><span class="p">])</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;video&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">length</span></div>
 </div>
@@ -1423,7 +1482,7 @@
 <div class="viewcode-block" id="data_for_keys">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.qc.camera.html#ibllib.qc.camera.data_for_keys">[docs]</a>
 <span class="k">def</span> <span class="nf">data_for_keys</span><span class="p">(</span><span class="n">keys</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Check keys exist in &#39;data&#39; dict and contain values other than None&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Check keys exist in &#39;data&#39; dict and contain values other than None.&quot;&quot;&quot;</span>
     <span class="k">return</span> <span class="n">data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">all</span><span class="p">(</span><span class="n">k</span> <span class="ow">in</span> <span class="n">data</span> <span class="ow">and</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">keys</span><span class="p">)</span></div>
 
 
@@ -1432,6 +1491,8 @@
 <a class="viewcode-back" href="../../../_autosummary/ibllib.qc.camera.html#ibllib.qc.camera.get_task_collection">[docs]</a>
 <span class="k">def</span> <span class="nf">get_task_collection</span><span class="p">(</span><span class="n">sess_params</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Return the first non-passive task collection.</span>
+
 <span class="sd">    Returns the first task collection from the experiment description whose task name does not</span>
 <span class="sd">    contain &#39;passive&#39;, otherwise returns &#39;raw_behavior_data&#39;.</span>
 
@@ -1455,7 +1516,7 @@
 <a class="viewcode-back" href="../../../_autosummary/ibllib.qc.camera.html#ibllib.qc.camera.get_video_collection">[docs]</a>
 <span class="k">def</span> <span class="nf">get_video_collection</span><span class="p">(</span><span class="n">sess_params</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Returns the collection containing the raw video data for a given camera.</span>
+<span class="sd">    Return the collection containing the raw video data for a given camera.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -1482,8 +1543,10 @@
 <div class="viewcode-block" id="run_all_qc">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.qc.camera.html#ibllib.qc.camera.run_all_qc">[docs]</a>
 <span class="k">def</span> <span class="nf">run_all_qc</span><span class="p">(</span><span class="n">session</span><span class="p">,</span> <span class="n">cameras</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;left&#39;</span><span class="p">,</span> <span class="s1">&#39;right&#39;</span><span class="p">,</span> <span class="s1">&#39;body&#39;</span><span class="p">),</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Run QC for all cameras</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Run QC for all cameras.</span>
+
 <span class="sd">    Run the camera QC for left, right and body cameras.</span>
+
 <span class="sd">    :param session: A session path or eid.</span>
 <span class="sd">    :param update: If True, QC fields are updated on Alyx.</span>
 <span class="sd">    :param cameras: A list of camera names to perform QC on.</span>

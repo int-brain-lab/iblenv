@@ -17,7 +17,7 @@
         <script src="../../../_static/jquery.js?v=5d32c60e"></script>
         <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
         <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
-        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/doctools.js?v=9a2dae69"></script>
         <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
         <script src="../../../_static/clipboard.min.js?v=a7894cd8"></script>
         <script src="../../../_static/copybutton.js?v=f281be69"></script>
@@ -77,6 +77,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../atlas_examples.html">Atlas Examples</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/docs_wheel_moves.html">Working with wheel data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/docs_wheel_screen_stimulus.html">Computing the stimulus position using the wheel</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
 <ul>
@@ -125,7 +126,7 @@
 
 <span class="kn">from</span> <span class="nn">one.api</span> <span class="kn">import</span> <span class="n">ONE</span>
 <span class="kn">from</span> <span class="nn">one.webclient</span> <span class="kn">import</span> <span class="n">AlyxClient</span>
-<span class="kn">from</span> <span class="nn">one.util</span> <span class="kn">import</span> <span class="n">filter_datasets</span>
+<span class="kn">from</span> <span class="nn">one.util</span> <span class="kn">import</span> <span class="n">filter_datasets</span><span class="p">,</span> <span class="n">ensure_list</span>
 <span class="kn">from</span> <span class="nn">one.alf.files</span> <span class="kn">import</span> <span class="n">add_uuid_string</span><span class="p">,</span> <span class="n">session_path_parts</span>
 <span class="kn">from</span> <span class="nn">ibllib.oneibl.registration</span> <span class="kn">import</span> <span class="n">register_dataset</span><span class="p">,</span> <span class="n">get_lab</span><span class="p">,</span> <span class="n">get_local_data_repository</span>
 <span class="kn">from</span> <span class="nn">ibllib.oneibl.patcher</span> <span class="kn">import</span> <span class="n">FTPPatcher</span><span class="p">,</span> <span class="n">SDSCPatcher</span><span class="p">,</span> <span class="n">SDSC_ROOT_PATH</span><span class="p">,</span> <span class="n">SDSC_PATCH_PATH</span>
@@ -147,6 +148,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span> <span class="o">=</span> <span class="n">session_path</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">signature</span> <span class="o">=</span> <span class="n">signature</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">one</span> <span class="o">=</span> <span class="n">one</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">processed</span> <span class="o">=</span> <span class="p">{}</span>  <span class="c1"># Map of filepaths and their processed records (e.g. upload receipts or Alyx records)</span>
 
 <div class="viewcode-block" id="DataHandler.setUp">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.DataHandler.setUp">[docs]</a>
@@ -158,10 +160,7 @@
 <div class="viewcode-block" id="DataHandler.getData">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.DataHandler.getData">[docs]</a>
     <span class="k">def</span> <span class="nf">getData</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Finds the datasets required for task based on input signatures</span>
-<span class="sd">        :return:</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Finds the datasets required for task based on input signatures.&quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">one</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">return</span>
 
@@ -177,6 +176,25 @@
         <span class="k">if</span> <span class="s1">&#39;eid&#39;</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">names</span><span class="p">:</span>
             <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">droplevel</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="s1">&#39;eid&#39;</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">df</span></div>
+
+
+<div class="viewcode-block" id="DataHandler.getOutputFiles">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.DataHandler.getOutputFiles">[docs]</a>
+    <span class="k">def</span> <span class="nf">getOutputFiles</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span>
+        <span class="kn">from</span> <span class="nn">one.alf.io</span> <span class="kn">import</span> <span class="n">iter_datasets</span>
+        <span class="c1"># Next convert datasets to frame</span>
+        <span class="kn">from</span> <span class="nn">one.alf.cache</span> <span class="kn">import</span> <span class="n">DATASETS_COLUMNS</span><span class="p">,</span> <span class="n">_get_dataset_info</span>
+        <span class="c1"># Create dataframe of all ALF datasets</span>
+        <span class="n">dsets</span> <span class="o">=</span> <span class="n">iter_datasets</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="n">records</span> <span class="o">=</span> <span class="p">[</span><span class="n">_get_dataset_info</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">dset</span><span class="p">,</span> <span class="n">compute_hash</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="k">for</span> <span class="n">dset</span> <span class="ow">in</span> <span class="n">dsets</span><span class="p">]</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">records</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="n">DATASETS_COLUMNS</span><span class="p">)</span>
+        <span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
+        <span class="n">filt</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">filter_datasets</span><span class="p">,</span> <span class="n">df</span><span class="p">,</span> <span class="n">wildcards</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">assert_unique</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="c1"># Filter outputs</span>
+        <span class="n">dids</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">filt</span><span class="p">(</span><span class="n">filename</span><span class="o">=</span><span class="n">file</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">collection</span><span class="o">=</span><span class="n">file</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">index</span> <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="p">[</span><span class="s1">&#39;output_files&#39;</span><span class="p">])</span>
+        <span class="n">present</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">dids</span><span class="p">,</span> <span class="p">:]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">present</span></div>
 
 
 <div class="viewcode-block" id="DataHandler.uploadData">
@@ -199,10 +217,7 @@
 <div class="viewcode-block" id="DataHandler.cleanUp">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.DataHandler.cleanUp">[docs]</a>
     <span class="k">def</span> <span class="nf">cleanUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Function to optionally overload to cleanup files after running task</span>
-<span class="sd">        :return:</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Function to optionally overload to clean up files after running task.&quot;&quot;&quot;</span>
         <span class="k">pass</span></div>
 </div>
 
@@ -237,16 +252,49 @@
 
 <div class="viewcode-block" id="ServerDataHandler.uploadData">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.ServerDataHandler.uploadData">[docs]</a>
-    <span class="k">def</span> <span class="nf">uploadData</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">outputs</span><span class="p">,</span> <span class="n">version</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">uploadData</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">outputs</span><span class="p">,</span> <span class="n">version</span><span class="p">,</span> <span class="n">clobber</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Function to upload and register data of completed task</span>
-<span class="sd">        :param outputs: output files from task to register</span>
-<span class="sd">        :param version: ibllib version</span>
-<span class="sd">        :return: output info of registered datasets</span>
+<span class="sd">        Upload and/or register output data.</span>
+
+<span class="sd">        This is typically called by :meth:`ibllib.pipes.tasks.Task.register_datasets`.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        outputs : list of pathlib.Path</span>
+<span class="sd">            A set of ALF paths to register to Alyx.</span>
+<span class="sd">        version : str, list of str</span>
+<span class="sd">            The version of ibllib used to generate these output files.</span>
+<span class="sd">        clobber : bool</span>
+<span class="sd">            If True, re-upload outputs that have already been passed to this method.</span>
+<span class="sd">        kwargs</span>
+<span class="sd">            Optional keyword arguments for one.registration.RegistrationClient.register_files.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        list of dicts, dict</span>
+<span class="sd">            A list of newly created Alyx dataset records or the registration data if dry.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">versions</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">uploadData</span><span class="p">(</span><span class="n">outputs</span><span class="p">,</span> <span class="n">version</span><span class="p">)</span>
         <span class="n">data_repo</span> <span class="o">=</span> <span class="n">get_local_data_repository</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">register_dataset</span><span class="p">(</span><span class="n">outputs</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">,</span> <span class="n">versions</span><span class="o">=</span><span class="n">versions</span><span class="p">,</span> <span class="n">repository</span><span class="o">=</span><span class="n">data_repo</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+        <span class="c1"># If clobber = False, do not re-upload the outputs that have already been processed</span>
+        <span class="n">outputs</span> <span class="o">=</span> <span class="n">ensure_list</span><span class="p">(</span><span class="n">outputs</span><span class="p">)</span>
+        <span class="n">to_upload</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="kc">None</span> <span class="k">if</span> <span class="n">clobber</span> <span class="k">else</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">processed</span><span class="p">,</span> <span class="n">outputs</span><span class="p">))</span>
+        <span class="n">records</span> <span class="o">=</span> <span class="n">register_dataset</span><span class="p">(</span><span class="n">to_upload</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">,</span> <span class="n">versions</span><span class="o">=</span><span class="n">versions</span><span class="p">,</span> <span class="n">repository</span><span class="o">=</span><span class="n">data_repo</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="ow">or</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;dry&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">records</span>
+        <span class="c1"># Store processed outputs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">processed</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">to_upload</span><span class="p">,</span> <span class="n">records</span><span class="p">)</span> <span class="k">if</span> <span class="n">v</span><span class="p">})</span>
+        <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">processed</span><span class="p">[</span><span class="n">x</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">outputs</span> <span class="k">if</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">processed</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="ServerDataHandler.cleanUp">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.ServerDataHandler.cleanUp">[docs]</a>
+    <span class="k">def</span> <span class="nf">cleanUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Empties and returns the processed dataset mep.&quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">cleanUp</span><span class="p">()</span>
+        <span class="n">processed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">processed</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">processed</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">return</span> <span class="n">processed</span></div>
 </div>
 
 

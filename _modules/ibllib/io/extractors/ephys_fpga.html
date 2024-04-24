@@ -17,7 +17,7 @@
         <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
         <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
         <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
-        <script src="../../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../../_static/doctools.js?v=9a2dae69"></script>
         <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
         <script src="../../../../_static/clipboard.min.js?v=a7894cd8"></script>
         <script src="../../../../_static/copybutton.js?v=f281be69"></script>
@@ -77,6 +77,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../../atlas_examples.html">Atlas Examples</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../notebooks_external/docs_wheel_moves.html">Working with wheel data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notebooks_external/docs_wheel_screen_stimulus.html">Computing the stimulus position using the wheel</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
 <ul>
@@ -155,8 +156,9 @@
 <span class="kn">from</span> <span class="nn">packaging</span> <span class="kn">import</span> <span class="n">version</span>
 
 <span class="kn">import</span> <span class="nn">spikeglx</span>
-<span class="kn">import</span> <span class="nn">neurodsp.utils</span>
+<span class="kn">import</span> <span class="nn">ibldsp.utils</span>
 <span class="kn">import</span> <span class="nn">one.alf.io</span> <span class="k">as</span> <span class="nn">alfio</span>
+<span class="kn">from</span> <span class="nn">one.alf.files</span> <span class="kn">import</span> <span class="n">filename_parts</span>
 <span class="kn">from</span> <span class="nn">iblutil.util</span> <span class="kn">import</span> <span class="n">Bunch</span>
 <span class="kn">from</span> <span class="nn">iblutil.spacer</span> <span class="kn">import</span> <span class="n">Spacer</span>
 
@@ -277,11 +279,11 @@
     <span class="n">file_ftcp</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">output_path</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;fronts_times_channel_polarity</span><span class="si">{</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()</span><span class="si">}</span><span class="s1">.bin&#39;</span><span class="p">)</span>
 
     <span class="c1"># loop over chunks of the raw ephys file</span>
-    <span class="n">wg</span> <span class="o">=</span> <span class="n">neurodsp</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">WindowGenerator</span><span class="p">(</span><span class="n">sr</span><span class="o">.</span><span class="n">ns</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">SYNC_BATCH_SIZE_SECS</span> <span class="o">*</span> <span class="n">sr</span><span class="o">.</span><span class="n">fs</span><span class="p">),</span> <span class="n">overlap</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">wg</span> <span class="o">=</span> <span class="n">ibldsp</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">WindowGenerator</span><span class="p">(</span><span class="n">sr</span><span class="o">.</span><span class="n">ns</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">SYNC_BATCH_SIZE_SECS</span> <span class="o">*</span> <span class="n">sr</span><span class="o">.</span><span class="n">fs</span><span class="p">),</span> <span class="n">overlap</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
     <span class="n">fid_ftcp</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_ftcp</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span>
     <span class="k">for</span> <span class="n">sl</span> <span class="ow">in</span> <span class="n">wg</span><span class="o">.</span><span class="n">slice</span><span class="p">:</span>
         <span class="n">ss</span> <span class="o">=</span> <span class="n">sr</span><span class="o">.</span><span class="n">read_sync</span><span class="p">(</span><span class="n">sl</span><span class="p">)</span>
-        <span class="n">ind</span><span class="p">,</span> <span class="n">fronts</span> <span class="o">=</span> <span class="n">neurodsp</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">fronts</span><span class="p">(</span><span class="n">ss</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">ind</span><span class="p">,</span> <span class="n">fronts</span> <span class="o">=</span> <span class="n">ibldsp</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">fronts</span><span class="p">(</span><span class="n">ss</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
         <span class="c1"># a = sr.read_sync_analog(sl)</span>
         <span class="n">sav</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">c_</span><span class="p">[(</span><span class="n">ind</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:]</span> <span class="o">+</span> <span class="n">sl</span><span class="o">.</span><span class="n">start</span><span class="p">)</span> <span class="o">/</span> <span class="n">sr</span><span class="o">.</span><span class="n">fs</span><span class="p">,</span> <span class="n">ind</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">:],</span> <span class="n">fronts</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">double</span><span class="p">)]</span>
         <span class="n">sav</span><span class="o">.</span><span class="n">tofile</span><span class="p">(</span><span class="n">fid_ftcp</span><span class="p">)</span>
@@ -915,7 +917,7 @@
             <span class="n">bpod_start</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">[</span><span class="s1">&#39;intervals&#39;</span><span class="p">][:,</span> <span class="mi">0</span><span class="p">]</span>
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">t_trial_start</span><span class="p">)</span> <span class="o">&gt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">bpod_start</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span><span class="p">:</span>  <span class="c1"># if least half the trial start TTLs detected</span>
                 <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Attempting to get protocol period from aligning trial start TTLs&#39;</span><span class="p">)</span>
-                <span class="n">fcn</span><span class="p">,</span> <span class="o">*</span><span class="n">_</span> <span class="o">=</span> <span class="n">neurodsp</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">sync_timestamps</span><span class="p">(</span><span class="n">bpod_start</span><span class="p">,</span> <span class="n">t_trial_start</span><span class="p">)</span>
+                <span class="n">fcn</span><span class="p">,</span> <span class="o">*</span><span class="n">_</span> <span class="o">=</span> <span class="n">ibldsp</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">sync_timestamps</span><span class="p">(</span><span class="n">bpod_start</span><span class="p">,</span> <span class="n">t_trial_start</span><span class="p">)</span>
                 <span class="n">buffer</span> <span class="o">=</span> <span class="mf">2.5</span>  <span class="c1"># the number of seconds to include before/after task</span>
                 <span class="n">start</span><span class="p">,</span> <span class="n">end</span> <span class="o">=</span> <span class="n">fcn</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">[</span><span class="s1">&#39;intervals&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">flat</span><span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">]])</span>
                 <span class="n">tmin</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">sync</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="n">start</span> <span class="o">-</span> <span class="n">buffer</span><span class="p">)</span>
@@ -955,6 +957,34 @@
         <span class="n">out</span> <span class="o">=</span> <span class="n">alfio</span><span class="o">.</span><span class="n">AlfBunch</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="n">out</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">var_names</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">out</span><span class="p">})</span>  <span class="c1"># Reorder output</span>
         <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">var_names</span> <span class="o">==</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">out</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
         <span class="k">return</span> <span class="n">out</span>
+
+    <span class="k">def</span> <span class="nf">_is_trials_object_attribute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">var_name</span><span class="p">,</span> <span class="n">variable_length_vars</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Check if variable name is expected to have the same length as trials.intervals.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        var_name : str</span>
+<span class="sd">            The variable name to check.</span>
+<span class="sd">        variable_length_vars : list</span>
+<span class="sd">            Set of variable names that are not expected to have the same length as trials.intervals.</span>
+<span class="sd">            This list may be passed by superclasses.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        bool</span>
+<span class="sd">            True if variable is a trials dataset.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        &gt;&gt;&gt; assert self._is_trials_object_attribute(&#39;stimOnTrigger_times&#39;) is True</span>
+<span class="sd">        &gt;&gt;&gt; assert self._is_trials_object_attribute(&#39;wheel_position&#39;) is False</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">save_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">save_names</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">var_names</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">var_name</span><span class="p">)]</span> <span class="k">if</span> <span class="n">var_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">var_names</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">save_name</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">filename_parts</span><span class="p">(</span><span class="n">save_name</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;trials&#39;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">var_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="n">variable_length_vars</span> <span class="ow">or</span> <span class="p">[])</span>
 
 <div class="viewcode-block" id="FpgaTrials.build_trials">
 <a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.ephys_fpga.html#ibllib.io.extractors.ephys_fpga.FpgaTrials.build_trials">[docs]</a>
@@ -1056,7 +1086,10 @@
         <span class="c1"># Add the Bpod trial events, converting the timestamp fields to FPGA time.</span>
         <span class="c1"># NB: The trial intervals are by default a Bpod rsync field.</span>
         <span class="n">out</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="n">ibpod</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_fields</span><span class="p">})</span>
-        <span class="n">out</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod2fpga</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="n">ibpod</span><span class="p">])</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_rsync_fields</span><span class="p">})</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_rsync_fields</span><span class="p">:</span>
+            <span class="c1"># Some personal projects may extract non-trials object datasets that may not have 1 event per trial</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="n">ibpod</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_trials_object_attribute</span><span class="p">(</span><span class="n">k</span><span class="p">)</span> <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">[</span><span class="n">k</span><span class="p">]),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+            <span class="n">out</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod2fpga</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="n">idx</span><span class="p">])</span>
         <span class="n">out</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="n">fpga_trials</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="n">ifpga</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">fpga_trials</span><span class="o">.</span><span class="n">keys</span><span class="p">()})</span>
 
         <span class="k">if</span> <span class="n">display</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
@@ -1359,7 +1392,7 @@
                 <span class="n">bpod_fpga_timestamps</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">trials</span><span class="p">[</span><span class="n">sync_field</span><span class="p">]</span>
 
         <span class="c1"># Sync the two timestamps</span>
-        <span class="n">fcn</span><span class="p">,</span> <span class="n">drift</span><span class="p">,</span> <span class="n">ibpod</span><span class="p">,</span> <span class="n">ifpga</span> <span class="o">=</span> <span class="n">neurodsp</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">sync_timestamps</span><span class="p">(</span><span class="o">*</span><span class="n">bpod_fpga_timestamps</span><span class="p">,</span> <span class="n">return_indices</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">fcn</span><span class="p">,</span> <span class="n">drift</span><span class="p">,</span> <span class="n">ibpod</span><span class="p">,</span> <span class="n">ifpga</span> <span class="o">=</span> <span class="n">ibldsp</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">sync_timestamps</span><span class="p">(</span><span class="o">*</span><span class="n">bpod_fpga_timestamps</span><span class="p">,</span> <span class="n">return_indices</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
         <span class="c1"># If it&#39;s drifting too much throw warning or error</span>
         <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;N trials: </span><span class="si">%i</span><span class="s1"> bpod, </span><span class="si">%i</span><span class="s1"> FPGA, </span><span class="si">%i</span><span class="s1"> merged, sync </span><span class="si">%.5f</span><span class="s1"> ppm&#39;</span><span class="p">,</span>

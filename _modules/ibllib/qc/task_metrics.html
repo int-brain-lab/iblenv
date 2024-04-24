@@ -17,7 +17,7 @@
         <script src="../../../_static/jquery.js?v=5d32c60e"></script>
         <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
         <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
-        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/doctools.js?v=9a2dae69"></script>
         <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
         <script src="../../../_static/clipboard.min.js?v=a7894cd8"></script>
         <script src="../../../_static/copybutton.js?v=f281be69"></script>
@@ -77,6 +77,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../atlas_examples.html">Atlas Examples</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/docs_wheel_moves.html">Working with wheel data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/docs_wheel_screen_stimulus.html">Computing the stimulus position using the wheel</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
 <ul>
@@ -112,6 +113,9 @@
 <span></span><span class="sd">&quot;&quot;&quot;Behaviour QC.</span>
 
 <span class="sd">This module runs a list of quality control metrics on the behaviour data.</span>
+
+<span class="sd">NB: The QC should be loaded using :meth:`ibllib.pipes.base_tasks.BehaviourTask.run_qc` and not</span>
+<span class="sd">instantiated directly.</span>
 
 <span class="sd">Examples</span>
 <span class="sd">--------</span>
@@ -160,22 +164,155 @@
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">from</span> <span class="nn">packaging</span> <span class="kn">import</span> <span class="n">version</span>
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span><span class="p">,</span> <span class="n">PurePosixPath</span>
 <span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">timedelta</span>
 <span class="kn">from</span> <span class="nn">inspect</span> <span class="kn">import</span> <span class="n">getmembers</span><span class="p">,</span> <span class="n">isfunction</span>
-<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">reduce</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">reduce</span><span class="p">,</span> <span class="n">wraps</span>
 <span class="kn">from</span> <span class="nn">collections.abc</span> <span class="kn">import</span> <span class="n">Sized</span>
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
-<span class="kn">from</span> <span class="nn">packaging</span> <span class="kn">import</span> <span class="n">version</span>
 <span class="kn">from</span> <span class="nn">scipy.stats</span> <span class="kn">import</span> <span class="n">chisquare</span>
 
 <span class="kn">from</span> <span class="nn">brainbox.behavior.wheel</span> <span class="kn">import</span> <span class="n">cm_to_rad</span><span class="p">,</span> <span class="n">traces_by_trial</span>
 <span class="kn">from</span> <span class="nn">ibllib.qc.task_extractors</span> <span class="kn">import</span> <span class="n">TaskQCExtractor</span>
 <span class="kn">from</span> <span class="nn">ibllib.io.extractors</span> <span class="kn">import</span> <span class="n">ephys_fpga</span>
-<span class="kn">from</span> <span class="nn">one.alf.spec</span> <span class="kn">import</span> <span class="n">is_session_path</span>
+<span class="kn">from</span> <span class="nn">one.alf</span> <span class="kn">import</span> <span class="n">spec</span>
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">base</span>
 
 <span class="n">_log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<span class="n">BWM_CRITERIA</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s1">&#39;default&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;PASS&#39;</span><span class="p">:</span> <span class="mf">0.99</span><span class="p">,</span> <span class="s1">&#39;WARNING&#39;</span><span class="p">:</span> <span class="mf">0.90</span><span class="p">,</span> <span class="s1">&#39;FAIL&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>  <span class="c1"># Note: WARNING was 0.95 prior to Aug 2022</span>
+    <span class="s1">&#39;_task_stimOff_itiIn_delays&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;PASS&#39;</span><span class="p">:</span> <span class="mf">0.99</span><span class="p">,</span> <span class="s1">&#39;WARNING&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
+    <span class="s1">&#39;_task_positive_feedback_stimOff_delays&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;PASS&#39;</span><span class="p">:</span> <span class="mf">0.99</span><span class="p">,</span> <span class="s1">&#39;WARNING&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
+    <span class="s1">&#39;_task_negative_feedback_stimOff_delays&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;PASS&#39;</span><span class="p">:</span> <span class="mf">0.99</span><span class="p">,</span> <span class="s1">&#39;WARNING&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
+    <span class="s1">&#39;_task_wheel_move_during_closed_loop&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;PASS&#39;</span><span class="p">:</span> <span class="mf">0.99</span><span class="p">,</span> <span class="s1">&#39;WARNING&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
+    <span class="s1">&#39;_task_response_stimFreeze_delays&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;PASS&#39;</span><span class="p">:</span> <span class="mf">0.99</span><span class="p">,</span> <span class="s1">&#39;WARNING&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
+    <span class="s1">&#39;_task_detected_wheel_moves&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;PASS&#39;</span><span class="p">:</span> <span class="mf">0.99</span><span class="p">,</span> <span class="s1">&#39;WARNING&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
+    <span class="s1">&#39;_task_trial_length&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;PASS&#39;</span><span class="p">:</span> <span class="mf">0.99</span><span class="p">,</span> <span class="s1">&#39;WARNING&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
+    <span class="s1">&#39;_task_goCue_delays&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;PASS&#39;</span><span class="p">:</span> <span class="mf">0.99</span><span class="p">,</span> <span class="s1">&#39;WARNING&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
+    <span class="s1">&#39;_task_errorCue_delays&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;PASS&#39;</span><span class="p">:</span> <span class="mf">0.99</span><span class="p">,</span> <span class="s1">&#39;WARNING&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
+    <span class="s1">&#39;_task_stimOn_delays&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;PASS&#39;</span><span class="p">:</span> <span class="mf">0.99</span><span class="p">,</span> <span class="s1">&#39;WARNING&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
+    <span class="s1">&#39;_task_stimOff_delays&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;PASS&#39;</span><span class="p">:</span> <span class="mf">0.99</span><span class="p">,</span> <span class="s1">&#39;WARNING&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
+    <span class="s1">&#39;_task_stimFreeze_delays&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;PASS&#39;</span><span class="p">:</span> <span class="mf">0.99</span><span class="p">,</span> <span class="s1">&#39;WARNING&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
+    <span class="s1">&#39;_task_iti_delays&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;NOT_SET&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
+    <span class="s1">&#39;_task_passed_trial_checks&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;NOT_SET&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span>
+<span class="p">}</span>
+
+
+<span class="k">def</span> <span class="nf">_static_check</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Log a warning when static method called with class instead of object.</span>
+
+<span class="sd">    The TaskQC &#39;criteria&#39; attribute is now varies depending on the task version and may be changed</span>
+<span class="sd">    in subclasses depending on hardware and task protocol. Therefore the</span>
+<span class="sd">    TaskQC.compute_session_status_from_dict method should be called with an object instance in</span>
+<span class="sd">    order use the correct criteria.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nd">@wraps</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">inner</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;TaskQC.compute_session_status_from_dict is deprecated. &#39;</span>
+                      <span class="s1">&#39;Use ibllib.qc.task_metrics.compute_session_status_from_dict instead&#39;</span><span class="p">,</span> <span class="ne">DeprecationWarning</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">args</span><span class="p">:</span>  <span class="c1"># allow function to raise on missing param</span>
+            <span class="k">return</span> <span class="n">compute_session_status_from_dict</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">TaskQC</span><span class="p">):</span>
+            <span class="n">_log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="s1">&#39;Calling TaskQC.compute_session_status_from_dict as a static method yields inconsistent results.&#39;</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;criteria&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;criteria&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">BWM_CRITERIA</span>  <span class="c1"># old behaviour</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;criteria&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;criteria&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">criteria</span>  <span class="c1"># ensure we use the obj&#39;s modified criteria</span>
+            <span class="n">args</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+        <span class="k">return</span> <span class="n">compute_session_status_from_dict</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">inner</span>
+
+
+<div class="viewcode-block" id="compute_session_status_from_dict">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.qc.task_metrics.html#ibllib.qc.task_metrics.compute_session_status_from_dict">[docs]</a>
+<span class="k">def</span> <span class="nf">compute_session_status_from_dict</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="n">criteria</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Given a dictionary of results, computes the overall session QC for each key and aggregates</span>
+<span class="sd">    in a single value</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    results : dict</span>
+<span class="sd">        A dictionary of QC keys containing (usually scalar) values.</span>
+<span class="sd">    criteria : dict</span>
+<span class="sd">        A dictionary of qc keys containing map of PASS, WARNING, FAIL thresholds.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    one.alf.spec.QC</span>
+<span class="sd">        Overall session QC outcome.</span>
+<span class="sd">    dict</span>
+<span class="sd">        A map of QC tests and their outcomes.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">criteria</span><span class="p">:</span>
+        <span class="n">criteria</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;default&#39;</span><span class="p">:</span> <span class="n">BWM_CRITERIA</span><span class="p">[</span><span class="s1">&#39;default&#39;</span><span class="p">]}</span>
+    <span class="n">outcomes</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">TaskQC</span><span class="o">.</span><span class="n">thresholding</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">thresholds</span><span class="o">=</span><span class="n">criteria</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">criteria</span><span class="p">[</span><span class="s1">&#39;default&#39;</span><span class="p">]))</span>
+                <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">results</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+
+    <span class="c1"># Criteria map is in order of severity so the max index is our overall QC outcome</span>
+    <span class="n">session_outcome</span> <span class="o">=</span> <span class="n">base</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">overall_outcome</span><span class="p">(</span><span class="n">outcomes</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+    <span class="k">return</span> <span class="n">session_outcome</span><span class="p">,</span> <span class="n">outcomes</span></div>
+
+
+
+<div class="viewcode-block" id="update_dataset_qc">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.qc.task_metrics.html#ibllib.qc.task_metrics.update_dataset_qc">[docs]</a>
+<span class="k">def</span> <span class="nf">update_dataset_qc</span><span class="p">(</span><span class="n">qc</span><span class="p">,</span> <span class="n">registered_datasets</span><span class="p">,</span> <span class="n">one</span><span class="p">,</span> <span class="n">override</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Update QC values for individual datasets.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    qc : ibllib.qc.task_metrics.TaskQC</span>
+<span class="sd">        A TaskQC object that has been run.</span>
+<span class="sd">    registered_datasets : list of dict</span>
+<span class="sd">        A list of Alyx dataset records.</span>
+<span class="sd">    one : one.api.OneAlyx</span>
+<span class="sd">        An online instance of ONE.</span>
+<span class="sd">    override : bool</span>
+<span class="sd">        If True the QC field is updated even if new value is better than previous.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    list of dict</span>
+<span class="sd">        The list of registered datasets but with the &#39;qc&#39; fields updated.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Create map of dataset name, sans extension, to dataset id</span>
+    <span class="n">stem2id</span> <span class="o">=</span> <span class="p">{</span><span class="n">PurePosixPath</span><span class="p">(</span><span class="n">dset</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">stem</span><span class="p">:</span> <span class="n">dset</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">dset</span> <span class="ow">in</span> <span class="n">registered_datasets</span><span class="p">}</span>
+    <span class="c1"># Ensure dataset stems are unique</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">stem2id</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">registered_datasets</span><span class="p">),</span> <span class="s1">&#39;ambiguous dataset names&#39;</span>
+
+    <span class="c1"># dict of QC check to outcome (as enum value)</span>
+    <span class="o">*</span><span class="n">_</span><span class="p">,</span> <span class="n">outcomes</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">compute_session_status</span><span class="p">()</span>
+    <span class="c1"># work over map of dataset name (sans extension) to outcome (enum or dict of columns: enum)</span>
+    <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">outcome</span> <span class="ow">in</span> <span class="n">qc</span><span class="o">.</span><span class="n">compute_dataset_qc_status</span><span class="p">(</span><span class="n">outcomes</span><span class="p">)</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="c1"># if outcome is a dict, calculate aggregate outcome for each column</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">outcome</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="n">extended_qc</span> <span class="o">=</span> <span class="n">outcome</span>
+            <span class="n">outcome</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">overall_outcome</span><span class="p">(</span><span class="n">outcome</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">extended_qc</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="c1"># check if dataset was registered to Alyx</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">did</span> <span class="o">:=</span> <span class="n">stem2id</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">)):</span>
+            <span class="n">_log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;dataset </span><span class="si">%s</span><span class="s1"> not registered, skipping&#39;</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+            <span class="k">continue</span>
+        <span class="c1"># update the dataset QC value on Alyx</span>
+        <span class="k">if</span> <span class="n">outcome</span> <span class="o">&gt;</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">NOT_SET</span> <span class="ow">or</span> <span class="n">override</span><span class="p">:</span>
+            <span class="n">dset_qc</span> <span class="o">=</span> <span class="n">base</span><span class="o">.</span><span class="n">QC</span><span class="p">(</span><span class="n">did</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">,</span> <span class="n">log</span><span class="o">=</span><span class="n">_log</span><span class="p">,</span> <span class="n">endpoint</span><span class="o">=</span><span class="s1">&#39;datasets&#39;</span><span class="p">)</span>
+            <span class="n">dset</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">registered_datasets</span> <span class="k">if</span> <span class="n">did</span> <span class="o">==</span> <span class="n">x</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">))</span>
+            <span class="n">dset</span><span class="p">[</span><span class="s1">&#39;qc&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">dset_qc</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">outcome</span><span class="p">,</span> <span class="n">namespace</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">override</span><span class="o">=</span><span class="n">override</span><span class="p">)</span><span class="o">.</span><span class="n">name</span>
+            <span class="k">if</span> <span class="n">extended_qc</span><span class="p">:</span>
+                <span class="n">dset_qc</span><span class="o">.</span><span class="n">update_extended_qc</span><span class="p">(</span><span class="n">extended_qc</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">registered_datasets</span></div>
+
 
 
 <div class="viewcode-block" id="TaskQC">
@@ -183,52 +320,43 @@
 <span class="k">class</span> <span class="nc">TaskQC</span><span class="p">(</span><span class="n">base</span><span class="o">.</span><span class="n">QC</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;A class for computing task QC metrics&quot;&quot;&quot;</span>
 
-    <span class="n">criteria</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
-    <span class="n">criteria</span><span class="p">[</span><span class="s1">&#39;default&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;PASS&#39;</span><span class="p">:</span> <span class="mf">0.99</span><span class="p">,</span> <span class="s1">&#39;WARNING&#39;</span><span class="p">:</span> <span class="mf">0.90</span><span class="p">,</span> <span class="s1">&#39;FAIL&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span>  <span class="c1"># Note: WARNING was 0.95 prior to Aug 2022</span>
-    <span class="n">criteria</span><span class="p">[</span><span class="s1">&#39;_task_stimOff_itiIn_delays&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;PASS&#39;</span><span class="p">:</span> <span class="mf">0.99</span><span class="p">,</span> <span class="s1">&#39;WARNING&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span>
-    <span class="n">criteria</span><span class="p">[</span><span class="s1">&#39;_task_positive_feedback_stimOff_delays&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;PASS&#39;</span><span class="p">:</span> <span class="mf">0.99</span><span class="p">,</span> <span class="s1">&#39;WARNING&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span>
-    <span class="n">criteria</span><span class="p">[</span><span class="s1">&#39;_task_negative_feedback_stimOff_delays&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;PASS&#39;</span><span class="p">:</span> <span class="mf">0.99</span><span class="p">,</span> <span class="s1">&#39;WARNING&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span>
-    <span class="n">criteria</span><span class="p">[</span><span class="s1">&#39;_task_wheel_move_during_closed_loop&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;PASS&#39;</span><span class="p">:</span> <span class="mf">0.99</span><span class="p">,</span> <span class="s1">&#39;WARNING&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span>
-    <span class="n">criteria</span><span class="p">[</span><span class="s1">&#39;_task_response_stimFreeze_delays&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;PASS&#39;</span><span class="p">:</span> <span class="mf">0.99</span><span class="p">,</span> <span class="s1">&#39;WARNING&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span>
-    <span class="n">criteria</span><span class="p">[</span><span class="s1">&#39;_task_detected_wheel_moves&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;PASS&#39;</span><span class="p">:</span> <span class="mf">0.99</span><span class="p">,</span> <span class="s1">&#39;WARNING&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span>
-    <span class="n">criteria</span><span class="p">[</span><span class="s1">&#39;_task_trial_length&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;PASS&#39;</span><span class="p">:</span> <span class="mf">0.99</span><span class="p">,</span> <span class="s1">&#39;WARNING&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span>
-    <span class="n">criteria</span><span class="p">[</span><span class="s1">&#39;_task_goCue_delays&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;PASS&#39;</span><span class="p">:</span> <span class="mf">0.99</span><span class="p">,</span> <span class="s1">&#39;WARNING&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span>
-    <span class="n">criteria</span><span class="p">[</span><span class="s1">&#39;_task_errorCue_delays&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;PASS&#39;</span><span class="p">:</span> <span class="mf">0.99</span><span class="p">,</span> <span class="s1">&#39;WARNING&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span>
-    <span class="n">criteria</span><span class="p">[</span><span class="s1">&#39;_task_stimOn_delays&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;PASS&#39;</span><span class="p">:</span> <span class="mf">0.99</span><span class="p">,</span> <span class="s1">&#39;WARNING&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span>
-    <span class="n">criteria</span><span class="p">[</span><span class="s1">&#39;_task_stimOff_delays&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;PASS&#39;</span><span class="p">:</span> <span class="mf">0.99</span><span class="p">,</span> <span class="s1">&#39;WARNING&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span>
-    <span class="n">criteria</span><span class="p">[</span><span class="s1">&#39;_task_stimFreeze_delays&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;PASS&#39;</span><span class="p">:</span> <span class="mf">0.99</span><span class="p">,</span> <span class="s1">&#39;WARNING&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span>
-    <span class="n">criteria</span><span class="p">[</span><span class="s1">&#39;_task_iti_delays&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;NOT_SET&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span>
-    <span class="n">criteria</span><span class="p">[</span><span class="s1">&#39;_task_passed_trial_checks&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;NOT_SET&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span>
+    <span class="n">criteria</span> <span class="o">=</span> <span class="n">BWM_CRITERIA</span>
 
     <span class="n">extractor</span> <span class="o">=</span> <span class="kc">None</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;ibllib.qc.task_extractors.TaskQCExtractor: A task extractor object containing raw and extracted data.&quot;&quot;&quot;</span>
 
+<div class="viewcode-block" id="TaskQC.thresholding">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.qc.task_metrics.html#ibllib.qc.task_metrics.TaskQC.thresholding">[docs]</a>
     <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">_thresholding</span><span class="p">(</span><span class="n">qc_value</span><span class="p">,</span> <span class="n">thresholds</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">thresholding</span><span class="p">(</span><span class="n">qc_value</span><span class="p">,</span> <span class="n">thresholds</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Computes the outcome of a single key by applying thresholding.</span>
-<span class="sd">        :param qc_value: proportion of passing qcs, between 0 and 1</span>
-<span class="sd">        :param thresholds: dictionary with keys &#39;PASS&#39;, &#39;WARNING&#39;, &#39;FAIL&#39;</span>
-<span class="sd">         (cf. TaskQC.criteria attribute)</span>
-<span class="sd">        :return: int where -1: NOT_SET, 0: PASS, 1: WARNING, 2: FAIL</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        qc_value : float</span>
+<span class="sd">            Proportion of passing qcs, between 0 and 1.</span>
+<span class="sd">        thresholds : dict</span>
+<span class="sd">            Dictionary with keys &#39;PASS&#39;, &#39;WARNING&#39;, &#39;FAIL&#39;, (or enum</span>
+<span class="sd">            integers, c.f. one.alf.spec.QC).</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        one.alf.spec.QC</span>
+<span class="sd">            The outcome.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">thresholds</span> <span class="o">=</span> <span class="p">{</span><span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">k</span><span class="p">):</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">thresholds</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="ow">or</span> <span class="p">{}}</span>
         <span class="n">MAX_BOUND</span><span class="p">,</span> <span class="n">MIN_BOUND</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">thresholds</span><span class="p">:</span>
-            <span class="n">thresholds</span> <span class="o">=</span> <span class="n">TaskQC</span><span class="o">.</span><span class="n">criteria</span><span class="p">[</span><span class="s1">&#39;default&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
         <span class="k">if</span> <span class="n">qc_value</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">qc_value</span><span class="p">):</span>
-            <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">NOT_SET</span>
         <span class="k">elif</span> <span class="p">(</span><span class="n">qc_value</span> <span class="o">&gt;</span> <span class="n">MAX_BOUND</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="n">qc_value</span> <span class="o">&lt;</span> <span class="n">MIN_BOUND</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Values out of bound&#39;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="s1">&#39;PASS&#39;</span> <span class="ow">in</span> <span class="n">thresholds</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="ow">and</span> <span class="n">qc_value</span> <span class="o">&gt;=</span> <span class="n">thresholds</span><span class="p">[</span><span class="s1">&#39;PASS&#39;</span><span class="p">]:</span>
-            <span class="k">return</span> <span class="mi">0</span>
-        <span class="k">if</span> <span class="s1">&#39;WARNING&#39;</span> <span class="ow">in</span> <span class="n">thresholds</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="ow">and</span> <span class="n">qc_value</span> <span class="o">&gt;=</span> <span class="n">thresholds</span><span class="p">[</span><span class="s1">&#39;WARNING&#39;</span><span class="p">]:</span>
-            <span class="k">return</span> <span class="mi">1</span>
-        <span class="k">if</span> <span class="s1">&#39;FAIL&#39;</span> <span class="ow">in</span> <span class="n">thresholds</span> <span class="ow">and</span> <span class="n">qc_value</span> <span class="o">&gt;=</span> <span class="n">thresholds</span><span class="p">[</span><span class="s1">&#39;FAIL&#39;</span><span class="p">]:</span>
-            <span class="k">return</span> <span class="mi">2</span>
-        <span class="k">if</span> <span class="s1">&#39;NOT_SET&#39;</span> <span class="ow">in</span> <span class="n">thresholds</span> <span class="ow">and</span> <span class="n">qc_value</span> <span class="o">&gt;=</span> <span class="n">thresholds</span><span class="p">[</span><span class="s1">&#39;NOT_SET&#39;</span><span class="p">]:</span>
-            <span class="k">return</span> <span class="o">-</span><span class="mi">1</span>
+        <span class="k">for</span> <span class="n">crit</span> <span class="ow">in</span> <span class="nb">filter</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="p">)):</span>
+            <span class="k">if</span> <span class="n">crit</span> <span class="ow">in</span> <span class="n">thresholds</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="ow">and</span> <span class="n">qc_value</span> <span class="o">&gt;=</span> <span class="n">thresholds</span><span class="p">[</span><span class="n">crit</span><span class="p">]:</span>
+                <span class="k">return</span> <span class="n">crit</span>
         <span class="c1"># if None of this applies, return &#39;NOT_SET&#39;</span>
-        <span class="k">return</span> <span class="o">-</span><span class="mi">1</span>
+        <span class="k">return</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">NOT_SET</span></div>
+
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_path_or_eid</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
@@ -237,7 +365,7 @@
 <span class="sd">        :param one: An ONE instance for fetching and setting the QC on Alyx</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># When an eid is provided, we will download the required data by default (if necessary)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">download_data</span> <span class="o">=</span> <span class="ow">not</span> <span class="n">is_session_path</span><span class="p">(</span><span class="n">session_path_or_eid</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">download_data</span> <span class="o">=</span> <span class="ow">not</span> <span class="n">spec</span><span class="o">.</span><span class="n">is_session_path</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">session_path_or_eid</span><span class="p">))</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">session_path_or_eid</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
         <span class="c1"># Data</span>
@@ -246,6 +374,9 @@
         <span class="c1"># Metrics and passed trials</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">metrics</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">passed</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="c1"># Criteria (initialize as outcomes vary by class, task, and hardware)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">criteria</span> <span class="o">=</span> <span class="n">BWM_CRITERIA</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
 
 <div class="viewcode-block" id="TaskQC.load_data">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.qc.task_metrics.html#ibllib.qc.task_metrics.TaskQC.load_data">[docs]</a>
@@ -395,11 +526,15 @@
 
 <div class="viewcode-block" id="TaskQC.compute_session_status_from_dict">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.qc.task_metrics.html#ibllib.qc.task_metrics.TaskQC.compute_session_status_from_dict">[docs]</a>
+    <span class="nd">@_static_check</span>
     <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">compute_session_status_from_dict</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="n">criteria</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Given a dictionary of results, computes the overall session QC for each key and aggregates</span>
-<span class="sd">        in a single value</span>
+<span class="sd">        (DEPRECATED) Given a dictionary of results, computes the overall session QC for each key</span>
+<span class="sd">        and aggregates in a single value.</span>
+
+<span class="sd">        NB: Use :func:`ibllib.qc.task_metrics.compute_session_status_from_dict` instead and always</span>
+<span class="sd">        pass in the criteria.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
@@ -415,20 +550,7 @@
 <span class="sd">        dict</span>
 <span class="sd">            A map of QC tests and their outcomes.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">indices</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
-        <span class="n">criteria</span> <span class="o">=</span> <span class="n">criteria</span> <span class="ow">or</span> <span class="n">TaskQC</span><span class="o">.</span><span class="n">criteria</span>
-        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">results</span><span class="p">):</span>
-            <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">criteria</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
-                <span class="n">indices</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">TaskQC</span><span class="o">.</span><span class="n">_thresholding</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="n">k</span><span class="p">],</span> <span class="n">thresholds</span><span class="o">=</span><span class="n">criteria</span><span class="p">[</span><span class="n">k</span><span class="p">])</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">indices</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">TaskQC</span><span class="o">.</span><span class="n">_thresholding</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="n">k</span><span class="p">],</span> <span class="n">thresholds</span><span class="o">=</span><span class="n">criteria</span><span class="p">[</span><span class="s1">&#39;default&#39;</span><span class="p">])</span>
-
-        <span class="k">def</span> <span class="nf">key_map</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
-            <span class="k">return</span> <span class="s1">&#39;NOT_SET&#39;</span> <span class="k">if</span> <span class="n">x</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="nb">list</span><span class="p">(</span><span class="n">TaskQC</span><span class="o">.</span><span class="n">criteria</span><span class="p">[</span><span class="s1">&#39;default&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="n">x</span><span class="p">]</span>
-        <span class="c1"># Criteria map is in order of severity so the max index is our overall QC outcome</span>
-        <span class="n">session_outcome</span> <span class="o">=</span> <span class="n">key_map</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">indices</span><span class="p">))</span>
-        <span class="n">outcomes</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">results</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span> <span class="nb">map</span><span class="p">(</span><span class="n">key_map</span><span class="p">,</span> <span class="n">indices</span><span class="p">)))</span>
-        <span class="k">return</span> <span class="n">session_outcome</span><span class="p">,</span> <span class="n">outcomes</span></div>
+        <span class="o">...</span>  <span class="c1"># no longer called by decorator</span></div>
 
 
 <div class="viewcode-block" id="TaskQC.compute_session_status">
@@ -451,8 +573,45 @@
         <span class="c1"># Get mean passed of each check, or None if passed is None or all NaN</span>
         <span class="n">results</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="kc">None</span> <span class="k">if</span> <span class="n">v</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">v</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span> <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmean</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
                    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">passed</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
-        <span class="n">session_outcome</span><span class="p">,</span> <span class="n">outcomes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_session_status_from_dict</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">criteria</span><span class="p">)</span>
+        <span class="n">session_outcome</span><span class="p">,</span> <span class="n">outcomes</span> <span class="o">=</span> <span class="n">compute_session_status_from_dict</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">criteria</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">session_outcome</span><span class="p">,</span> <span class="n">results</span><span class="p">,</span> <span class="n">outcomes</span></div>
+
+
+<div class="viewcode-block" id="TaskQC.compute_dataset_qc_status">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.qc.task_metrics.html#ibllib.qc.task_metrics.TaskQC.compute_dataset_qc_status">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">compute_dataset_qc_status</span><span class="p">(</span><span class="n">outcomes</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return map of dataset specific QC values.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        outcomes : dict</span>
+<span class="sd">            Map of checks and their individual outcomes.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        dict</span>
+<span class="sd">            Map of dataset names and their outcome.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">trials_table_outcomes</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;intervals&#39;</span><span class="p">:</span> <span class="n">outcomes</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;_task_iti_delays&#39;</span><span class="p">,</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">NOT_SET</span><span class="p">),</span>
+            <span class="s1">&#39;goCue_times&#39;</span><span class="p">:</span> <span class="n">outcomes</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;_task_goCue_delays&#39;</span><span class="p">,</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">NOT_SET</span><span class="p">),</span>
+            <span class="s1">&#39;response_times&#39;</span><span class="p">:</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">NOT_SET</span><span class="p">,</span> <span class="s1">&#39;choice&#39;</span><span class="p">:</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">NOT_SET</span><span class="p">,</span>
+            <span class="s1">&#39;stimOn_times&#39;</span><span class="p">:</span> <span class="n">outcomes</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;_task_stimOn_delays&#39;</span><span class="p">,</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">NOT_SET</span><span class="p">),</span>
+            <span class="s1">&#39;contrastLeft&#39;</span><span class="p">:</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">NOT_SET</span><span class="p">,</span> <span class="s1">&#39;contrastRight&#39;</span><span class="p">:</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">NOT_SET</span><span class="p">,</span>
+            <span class="s1">&#39;feedbackType&#39;</span><span class="p">:</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">NOT_SET</span><span class="p">,</span> <span class="s1">&#39;probabilityLeft&#39;</span><span class="p">:</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">NOT_SET</span><span class="p">,</span>
+            <span class="s1">&#39;feedback_times&#39;</span><span class="p">:</span> <span class="n">outcomes</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;_task_errorCue_delays&#39;</span><span class="p">,</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">NOT_SET</span><span class="p">),</span>
+            <span class="s1">&#39;firstMovement_times&#39;</span><span class="p">:</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">NOT_SET</span>
+        <span class="p">}</span>
+        <span class="n">reward_checks</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;_task_reward_volumes&#39;</span><span class="p">,</span> <span class="s1">&#39;_task_reward_volume_set&#39;</span><span class="p">)</span>
+        <span class="n">trials_table_outcomes</span><span class="p">[</span><span class="s1">&#39;rewardVolume&#39;</span><span class="p">]:</span> <span class="n">TaskQC</span><span class="o">.</span><span class="n">overall_outcome</span><span class="p">(</span>
+            <span class="p">(</span><span class="n">outcomes</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">NOT_SET</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">reward_checks</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">dataset_outcomes</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;_ibl_trials.stimOff_times&#39;</span><span class="p">:</span> <span class="n">outcomes</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;_task_stimOff_delays&#39;</span><span class="p">,</span> <span class="n">spec</span><span class="o">.</span><span class="n">QC</span><span class="o">.</span><span class="n">NOT_SET</span><span class="p">),</span>
+            <span class="s1">&#39;_ibl_trials.table&#39;</span><span class="p">:</span> <span class="n">trials_table_outcomes</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="k">return</span> <span class="n">dataset_outcomes</span></div>
 </div>
 
 
@@ -482,6 +641,11 @@
         <span class="n">audio_output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">extractor</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;device_sound&#39;</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;OUTPUT&#39;</span><span class="p">,</span> <span class="s1">&#39;unknown&#39;</span><span class="p">)</span>
         <span class="n">metrics</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="n">passed</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="c1"># Modify criteria based on version</span>
+        <span class="n">ver</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">extractor</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;IBLRIG_VERSION&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="s1">&#39;0.0.0&#39;</span>
+        <span class="n">is_v8</span> <span class="o">=</span> <span class="n">version</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">ver</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">version</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="s1">&#39;8.0.0&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">criteria</span><span class="p">[</span><span class="s1">&#39;_task_iti_delays&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;PASS&#39;</span><span class="p">:</span> <span class="mf">0.99</span><span class="p">,</span> <span class="s1">&#39;WARNING&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span> <span class="k">if</span> <span class="n">is_v8</span> <span class="k">else</span> <span class="p">{</span><span class="s1">&#39;NOT_SET&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span>
 
         <span class="c1"># Check all reward volumes == 3.0ul</span>
         <span class="n">check</span> <span class="o">=</span> <span class="n">prefix</span> <span class="o">+</span> <span class="s1">&#39;reward_volumes&#39;</span>
@@ -553,6 +717,15 @@
         <span class="n">metric</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">histogram</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;phase&#39;</span><span class="p">])</span>
         <span class="n">_</span><span class="p">,</span> <span class="n">p</span> <span class="o">=</span> <span class="n">chisquare</span><span class="p">(</span><span class="n">metric</span><span class="p">)</span>
         <span class="n">passed</span><span class="p">[</span><span class="n">check</span><span class="p">]</span> <span class="o">=</span> <span class="n">p</span> <span class="o">&lt;</span> <span class="mf">0.05</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;phase&#39;</span><span class="p">])</span> <span class="o">&gt;=</span> <span class="mi">400</span> <span class="k">else</span> <span class="kc">None</span>  <span class="c1"># skip if too few trials</span>
+        <span class="n">metrics</span><span class="p">[</span><span class="n">check</span><span class="p">]</span> <span class="o">=</span> <span class="n">metric</span>
+
+        <span class="c1"># Check that the period of gray screen between stim off and the start of the next trial is</span>
+        <span class="c1"># 1s +/- 10%.</span>
+        <span class="n">check</span> <span class="o">=</span> <span class="n">prefix</span> <span class="o">+</span> <span class="s1">&#39;iti_delays&#39;</span>
+        <span class="n">iti</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">roll</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;stimOn_times&#39;</span><span class="p">],</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="o">-</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;stimOff_times&#39;</span><span class="p">])[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">metric</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">nan_to_num</span><span class="p">(</span><span class="n">iti</span><span class="p">,</span> <span class="n">nan</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">]</span> <span class="o">-</span> <span class="mf">1.</span>
+        <span class="n">passed</span><span class="p">[</span><span class="n">check</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">metric</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="mf">0.1</span>
+        <span class="n">passed</span><span class="p">[</span><span class="n">check</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">NaN</span>
         <span class="n">metrics</span><span class="p">[</span><span class="n">check</span><span class="p">]</span> <span class="o">=</span> <span class="n">metric</span>
 
         <span class="c1"># Checks common to training QC</span>
@@ -678,23 +851,24 @@
 <div class="viewcode-block" id="check_iti_delays">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.qc.task_metrics.html#ibllib.qc.task_metrics.check_iti_delays">[docs]</a>
 <span class="k">def</span> <span class="nf">check_iti_delays</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="o">**</span><span class="n">_</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot; Check that the period of gray screen between stim off and the start of the next trial is</span>
-<span class="sd">    0.5s +/- 200%.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; Check that the period of grey screen between stim off and the start of the next trial is</span>
+<span class="sd">    1s +/- 10%.</span>
 
-<span class="sd">    Metric: M = stimOff (n) - trialStart (n+1) - 0.5</span>
-<span class="sd">    Criterion: |M| &lt; 1</span>
+<span class="sd">    Metric: M = stimOff (n) - trialStart (n+1) - 1.</span>
+<span class="sd">    Criterion: |M| &lt; 0.1</span>
 <span class="sd">    Units: seconds [s]</span>
 
 <span class="sd">    :param data: dict of trial data with keys (&#39;stimOff_times&#39;, &#39;intervals&#39;)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="c1"># Initialize array the length of completed trials</span>
+    <span class="n">ITI</span> <span class="o">=</span> <span class="mf">1.</span>
     <span class="n">metric</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;intervals&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
     <span class="n">passed</span> <span class="o">=</span> <span class="n">metric</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
     <span class="c1"># Get the difference between stim off and the start of the next trial</span>
     <span class="c1"># Missing data are set to Inf, except for the last trial which is a NaN</span>
     <span class="n">metric</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> \
-        <span class="n">np</span><span class="o">.</span><span class="n">nan_to_num</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;intervals&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;stimOff_times&#39;</span><span class="p">][:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="mf">0.5</span><span class="p">,</span> <span class="n">nan</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span>
-    <span class="n">passed</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">metric</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span> <span class="o">&lt;</span> <span class="mf">.5</span>  <span class="c1"># Last trial is not counted</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">nan_to_num</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;intervals&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;stimOff_times&#39;</span><span class="p">][:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">ITI</span><span class="p">,</span> <span class="n">nan</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span>
+    <span class="n">passed</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">metric</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span> <span class="o">&lt;</span> <span class="p">(</span><span class="n">ITI</span> <span class="o">/</span> <span class="mi">10</span><span class="p">)</span>  <span class="c1"># Last trial is not counted</span>
     <span class="k">assert</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;intervals&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">metric</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">passed</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">metric</span><span class="p">,</span> <span class="n">passed</span></div>
 

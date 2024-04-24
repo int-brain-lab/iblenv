@@ -17,7 +17,7 @@
         <script src="../../../_static/jquery.js?v=5d32c60e"></script>
         <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
         <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
-        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/doctools.js?v=9a2dae69"></script>
         <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
         <script src="../../../_static/clipboard.min.js?v=a7894cd8"></script>
         <script src="../../../_static/copybutton.js?v=f281be69"></script>
@@ -77,6 +77,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../atlas_examples.html">Atlas Examples</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/docs_wheel_moves.html">Working with wheel data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/docs_wheel_screen_stimulus.html">Computing the stimulus position using the wheel</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
 <ul>
@@ -110,33 +111,32 @@
            <div itemprop="articleBody">
              
   <h1>Source code for ibllib.pipes.training_status</h1><div class="highlight"><pre>
-<span></span><span class="kn">import</span> <span class="nn">one.alf.io</span> <span class="k">as</span> <span class="nn">alfio</span>
-<span class="kn">from</span> <span class="nn">one.alf.exceptions</span> <span class="kn">import</span> <span class="n">ALFObjectNotFound</span>
-
-<span class="kn">from</span> <span class="nn">ibllib.io.raw_data_loaders</span> <span class="kn">import</span> <span class="n">load_bpod</span>
-<span class="kn">from</span> <span class="nn">ibllib.oneibl.registration</span> <span class="kn">import</span> <span class="n">_get_session_times</span>
-<span class="kn">from</span> <span class="nn">ibllib.io.extractors.base</span> <span class="kn">import</span> <span class="n">get_session_extractor_type</span>
-<span class="kn">from</span> <span class="nn">ibllib.io.session_params</span> <span class="kn">import</span> <span class="n">read_params</span>
-<span class="kn">from</span> <span class="nn">ibllib.io.extractors.bpod_trials</span> <span class="kn">import</span> <span class="n">get_bpod_extractor</span>
-
-<span class="kn">from</span> <span class="nn">iblutil.util</span> <span class="kn">import</span> <span class="n">setup_logger</span>
-<span class="kn">from</span> <span class="nn">ibllib.plots.snapshot</span> <span class="kn">import</span> <span class="n">ReportSnapshot</span>
-<span class="kn">from</span> <span class="nn">iblutil.numerical</span> <span class="kn">import</span> <span class="n">ismember</span>
-<span class="kn">from</span> <span class="nn">brainbox.behavior</span> <span class="kn">import</span> <span class="n">training</span>
+<span></span><span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
+<span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">chain</span>
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
-<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span> <span class="nn">iblutil.numerical</span> <span class="kn">import</span> <span class="n">ismember</span>
+<span class="kn">import</span> <span class="nn">one.alf.io</span> <span class="k">as</span> <span class="nn">alfio</span>
+<span class="kn">from</span> <span class="nn">one.alf.exceptions</span> <span class="kn">import</span> <span class="n">ALFObjectNotFound</span>
 <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
 <span class="kn">import</span> <span class="nn">matplotlib.dates</span> <span class="k">as</span> <span class="nn">mdates</span>
 <span class="kn">from</span> <span class="nn">matplotlib.lines</span> <span class="kn">import</span> <span class="n">Line2D</span>
-<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
 <span class="kn">import</span> <span class="nn">seaborn</span> <span class="k">as</span> <span class="nn">sns</span>
 <span class="kn">import</span> <span class="nn">boto3</span>
 <span class="kn">from</span> <span class="nn">botocore.exceptions</span> <span class="kn">import</span> <span class="n">ProfileNotFound</span><span class="p">,</span> <span class="n">ClientError</span>
-<span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">chain</span>
 
-<span class="n">logger</span> <span class="o">=</span> <span class="n">setup_logger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">ibllib.io.raw_data_loaders</span> <span class="kn">import</span> <span class="n">load_bpod</span>
+<span class="kn">from</span> <span class="nn">ibllib.oneibl.registration</span> <span class="kn">import</span> <span class="n">_get_session_times</span>
+<span class="kn">from</span> <span class="nn">ibllib.io.extractors.base</span> <span class="kn">import</span> <span class="n">get_session_extractor_type</span><span class="p">,</span> <span class="n">get_bpod_extractor_class</span>
+<span class="kn">from</span> <span class="nn">ibllib.io.session_params</span> <span class="kn">import</span> <span class="n">read_params</span>
+<span class="kn">from</span> <span class="nn">ibllib.io.extractors.bpod_trials</span> <span class="kn">import</span> <span class="n">get_bpod_extractor</span>
+<span class="kn">from</span> <span class="nn">ibllib.plots.snapshot</span> <span class="kn">import</span> <span class="n">ReportSnapshot</span>
+<span class="kn">from</span> <span class="nn">brainbox.behavior</span> <span class="kn">import</span> <span class="n">training</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
 
 <span class="n">TRAINING_STATUS</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;untrainable&#39;</span><span class="p">:</span> <span class="p">(</span><span class="o">-</span><span class="mi">4</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)),</span>
@@ -216,8 +216,8 @@
 <div class="viewcode-block" id="save_dataframe">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.save_dataframe">[docs]</a>
 <span class="k">def</span> <span class="nf">save_dataframe</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">subj_path</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Save training dataframe to disk</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Save training dataframe to disk.</span>
+
 <span class="sd">    :param df: dataframe to save</span>
 <span class="sd">    :param subj_path: path to subject folder</span>
 <span class="sd">    :return:</span>
@@ -229,8 +229,8 @@
 <div class="viewcode-block" id="load_existing_dataframe">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.load_existing_dataframe">[docs]</a>
 <span class="k">def</span> <span class="nf">load_existing_dataframe</span><span class="p">(</span><span class="n">subj_path</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Load training dataframe from disk, if dataframe doesn&#39;t exist returns None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Load training dataframe from disk, if dataframe doesn&#39;t exist returns None.</span>
+
 <span class="sd">    :param subj_path: path to subject folder</span>
 <span class="sd">    :return:</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -400,7 +400,7 @@
     <span class="n">save_dataframe</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">subj_path</span><span class="p">)</span>
 
     <span class="c1"># Now go through the backlog and compute the training status for sessions. If for example one was missing as it is cumulative</span>
-    <span class="c1"># we need to go through and compute all the back log</span>
+    <span class="c1"># we need to go through and compute all the backlog</span>
     <span class="c1"># Find the earliest date in missing dates that we need to recompute the training status for</span>
     <span class="n">missing_status</span> <span class="o">=</span> <span class="n">find_earliest_recompute_date</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">drop_duplicates</span><span class="p">(</span><span class="s1">&#39;date&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
     <span class="k">for</span> <span class="n">date</span> <span class="ow">in</span> <span class="n">missing_status</span><span class="p">:</span>
@@ -454,13 +454,28 @@
 
 <div class="viewcode-block" id="compute_training_status">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.compute_training_status">[docs]</a>
-<span class="k">def</span> <span class="nf">compute_training_status</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">compute_date</span><span class="p">,</span> <span class="n">one</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">compute_training_status</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">compute_date</span><span class="p">,</span> <span class="n">one</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Compute the training status for compute date based on training from that session and two previous days</span>
-<span class="sd">    :param df: training dataframe</span>
-<span class="sd">    :param compute_date: date to compute training on</span>
-<span class="sd">    :param one: ONE instance</span>
+<span class="sd">    Compute the training status for compute date based on training from that session and two previous days.</span>
+
+<span class="sd">    When true and if the session trials can&#39;t be found, will attempt to re-extract from disk.</span>
 <span class="sd">    :return:</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    df : pandas.DataFrame</span>
+<span class="sd">        A training data frame, e.g. one generated from :func:`get_training_info_for_session`.</span>
+<span class="sd">    compute_date : str, datetime.datetime, pandas.Timestamp</span>
+<span class="sd">        The date to compute training on.</span>
+<span class="sd">    one : one.api.One</span>
+<span class="sd">        An instance of ONE for loading trials data.</span>
+<span class="sd">    force : bool</span>
+<span class="sd">        When true and if the session trials can&#39;t be found, will attempt to re-extract from disk.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    pandas.DataFrame</span>
+<span class="sd">        The input data frame with a &#39;training_status&#39; column populated for `compute_date`.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="c1"># compute_date = str(one.path2ref(session_path)[&#39;date&#39;])</span>
@@ -581,11 +596,34 @@
 <div class="viewcode-block" id="get_data_collection">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.get_data_collection">[docs]</a>
 <span class="k">def</span> <span class="nf">get_data_collection</span><span class="p">(</span><span class="n">session_path</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Returns the location of the raw behavioral data and extracted trials data for the session path. If</span>
-<span class="sd">    multiple locations in one session (e.g for dynamic) returns all of these</span>
-<span class="sd">    :param session_path: path of session</span>
-<span class="sd">    :return:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the location of the raw behavioral data and extracted trials data for a given session.</span>
+
+<span class="sd">    For multiple locations in one session (e.g. chained protocols), returns all collections.</span>
+<span class="sd">    Passive protocols are excluded.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    session_path : pathlib.Path</span>
+<span class="sd">        A session path in the form subject/date/number.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    list of str</span>
+<span class="sd">        A list of sub-directory names that contain raw behaviour data.</span>
+<span class="sd">    list of str</span>
+<span class="sd">        A list of sub-directory names that contain ALF trials data.</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    An iblrig v7 session</span>
+
+<span class="sd">    &gt;&gt;&gt; get_data_collection(Path(r&#39;C:/data/subject/2023-01-01/001&#39;))</span>
+<span class="sd">    [&#39;raw_behavior_data&#39;], [&#39;alf&#39;]</span>
+
+<span class="sd">    An iblrig v8 session where two protocols were run</span>
+
+<span class="sd">    &gt;&gt;&gt; get_data_collection(Path(r&#39;C:/data/subject/2023-01-01/001&#39;))</span>
+<span class="sd">    [&#39;raw_task_data_00&#39;, &#39;raw_task_data_01], [&#39;alf/task_00&#39;, &#39;alf/task_01&#39;]</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">experiment_description</span> <span class="o">=</span> <span class="n">read_params</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
     <span class="n">collections</span> <span class="o">=</span> <span class="p">[]</span>
@@ -678,10 +716,22 @@
 <a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.training_status.html#ibllib.pipes.training_status.get_training_info_for_session">[docs]</a>
 <span class="k">def</span> <span class="nf">get_training_info_for_session</span><span class="p">(</span><span class="n">session_paths</span><span class="p">,</span> <span class="n">one</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Extract the training information needed for plots for each session</span>
-<span class="sd">    :param session_paths: list of session paths on same date</span>
-<span class="sd">    :param one: ONE instance</span>
-<span class="sd">    :return:</span>
+<span class="sd">    Extract the training information needed for plots for each session.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    session_paths : list of pathlib.Path</span>
+<span class="sd">        List of session paths on same date.</span>
+<span class="sd">    one : one.api.One</span>
+<span class="sd">        An ONE instance.</span>
+<span class="sd">    force : bool</span>
+<span class="sd">        When true and if the session trials can&#39;t be found, will attempt to re-extract from disk.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    list of dict</span>
+<span class="sd">        A list of dictionaries the length of `session_paths` containing individual and aggregate</span>
+<span class="sd">        performance information.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="c1"># return list of dicts to add</span>
@@ -691,7 +741,12 @@
         <span class="n">session_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
         <span class="n">protocols</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">collections</span><span class="p">:</span>
-            <span class="n">protocols</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">get_session_extractor_type</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="n">c</span><span class="p">))</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">prot</span> <span class="o">=</span> <span class="n">get_bpod_extractor_class</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="n">c</span><span class="p">)</span>
+                <span class="n">prot</span> <span class="o">=</span> <span class="n">prot</span><span class="p">[:</span><span class="o">-</span><span class="mi">6</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                <span class="n">prot</span> <span class="o">=</span> <span class="n">get_session_extractor_type</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="n">c</span><span class="p">)</span>
+            <span class="n">protocols</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">prot</span><span class="p">)</span>
 
         <span class="n">un_protocols</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">protocols</span><span class="p">)</span>
         <span class="c1"># Example, training, training, biased - training would be combined, biased not</span>
@@ -710,8 +765,8 @@
                 <span class="n">sess_dict</span> <span class="o">=</span> <span class="n">get_sess_dict</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="p">,</span> <span class="n">prot</span><span class="p">,</span> <span class="n">alf_collections</span><span class="o">=</span><span class="n">alf</span><span class="p">,</span> <span class="n">raw_collections</span><span class="o">=</span><span class="n">raw</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="n">force</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">prot</span> <span class="o">=</span> <span class="n">un_protocols</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-            <span class="n">sess_dict</span> <span class="o">=</span> <span class="n">get_sess_dict</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="p">,</span> <span class="n">prot</span><span class="p">,</span> <span class="n">alf_collections</span><span class="o">=</span><span class="n">alf_collections</span><span class="p">,</span> <span class="n">raw_collections</span><span class="o">=</span><span class="n">collections</span><span class="p">,</span>
-                                      <span class="n">force</span><span class="o">=</span><span class="n">force</span><span class="p">)</span>
+            <span class="n">sess_dict</span> <span class="o">=</span> <span class="n">get_sess_dict</span><span class="p">(</span>
+                <span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="p">,</span> <span class="n">prot</span><span class="p">,</span> <span class="n">alf_collections</span><span class="o">=</span><span class="n">alf_collections</span><span class="p">,</span> <span class="n">raw_collections</span><span class="o">=</span><span class="n">collections</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="n">force</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">sess_dict</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">sess_dicts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">sess_dict</span><span class="p">)</span>
@@ -800,9 +855,9 @@
 <span class="sd">    pandas.DataFrame</span>
 <span class="sd">        A table of dates and session paths that are missing from the computed training table.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">df_session</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">()</span>
+    <span class="n">df_session</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;date&#39;</span><span class="p">,</span> <span class="s1">&#39;session_path&#39;</span><span class="p">])</span>
 
-    <span class="k">for</span> <span class="n">session</span> <span class="ow">in</span> <span class="n">alfio</span><span class="o">.</span><span class="n">iter_sessions</span><span class="p">(</span><span class="n">subj_path</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">session</span> <span class="ow">in</span> <span class="n">alfio</span><span class="o">.</span><span class="n">iter_sessions</span><span class="p">(</span><span class="n">subj_path</span><span class="p">,</span> <span class="n">pattern</span><span class="o">=</span><span class="s1">&#39;????-??-??/*&#39;</span><span class="p">):</span>
         <span class="n">s_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s1">&#39;date&#39;</span><span class="p">:</span> <span class="n">session</span><span class="o">.</span><span class="n">parts</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">],</span> <span class="s1">&#39;session_path&#39;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">session</span><span class="p">)},</span> <span class="n">index</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
         <span class="n">df_session</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">df_session</span><span class="p">,</span> <span class="n">s_df</span><span class="p">],</span> <span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 

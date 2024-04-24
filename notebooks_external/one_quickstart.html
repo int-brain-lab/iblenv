@@ -19,7 +19,7 @@
         <script src="../_static/jquery.js?v=5d32c60e"></script>
         <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
         <script src="../_static/documentation_options.js?v=5929fcd5"></script>
-        <script src="../_static/doctools.js?v=888ff710"></script>
+        <script src="../_static/doctools.js?v=9a2dae69"></script>
         <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
         <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
         <script src="../_static/copybutton.js?v=f281be69"></script>
@@ -83,6 +83,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../atlas_examples.html">Atlas Examples</a></li>
 <li class="toctree-l1"><a class="reference internal" href="docs_wheel_moves.html">Working with wheel data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="docs_wheel_screen_stimulus.html">Computing the stimulus position using the wheel</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
 <ul>
@@ -147,7 +148,7 @@
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-(&#39;dataset&#39;, &#39;date_range&#39;, &#39;laboratory&#39;, &#39;number&#39;, &#39;projects&#39;, &#39;subject&#39;, &#39;task_protocol&#39;)
+(&#39;dataset&#39;, &#39;date_range&#39;, &#39;laboratory&#39;, &#39;number&#39;, &#39;projects&#39;, &#39;subject&#39;, &#39;task_protocol&#39;, &#39;dataset_qc_lte&#39;)
 </pre></div></div>
 </div>
 <p>Let’s search for sessions recorded in August 2020, which contain a dataset ‘probes.description’, meaning that electrophysiology was recorded. By adding the argument <code class="docutils literal notranslate"><span class="pre">details=True</span></code>, we get two outputs - the experiment IDs uniquely identifying these sessions, and some information about the experiments.</p>
@@ -163,7 +164,7 @@
 </pre></div>
 </div>
 </div>
-<div class="nboutput docutils container">
+<div class="nboutput nblast docutils container">
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
@@ -294,15 +295,6 @@
   &#39;projects&#39;: &#39;ibl_neuropixel_brainwide_01&#39;,
   &#39;subject&#39;: &#39;SWC_038&#39;,
   &#39;task_protocol&#39;: &#39;_iblrig_tasks_ephysChoiceWorld6.4.1&#39;}]
-</pre></div></div>
-</div>
-<div class="nboutput nblast docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area stderr docutils container">
-<div class="highlight"><pre>
-/opt/hostedtoolcache/Python/3.9.18/x64/lib/python3.9/site-packages/one/api.py:524: FutureWarning: Starting with pandas version 3.0 all arguments of to_dict except for the argument &#39;orient&#39; will be keyword-only.
-  return eids, sessions.reset_index(drop=True).to_dict(&#39;records&#39;, Bunch)
 </pre></div></div>
 </div>
 <p>So there were four experiments matching the criteria in the public database. Now let’s load the probe information for the first experiment. <code class="docutils literal notranslate"><span class="pre">one.load_dataset</span></code> returns a single named dataset</p>
@@ -478,10 +470,11 @@ dict_keys([&#39;times&#39;, &#39;dlc&#39;])
 <div class="highlight"><pre>
 Help on method list_datasets in module one.api:
 
-list_datasets(eid=None, filename=None, collection=None, revision=None, details=False, query_type=None) -&gt; Union[numpy.ndarray, pandas.core.frame.DataFrame] method of one.api.OneAlyx instance
-    Given an eid, return the datasets for those sessions.  If no eid is provided,
-    a list of all datasets is returned.  When details is false, a sorted array of unique
-    datasets is returned (their relative paths).
+list_datasets(eid=None, filename=None, collection=None, revision=None, qc=&lt;QC.FAIL: 40&gt;, ignore_qc_not_set=False, details=False, query_type=None) -&gt; Union[numpy.ndarray, pandas.core.frame.DataFrame] method of one.api.OneAlyx instance
+    Given an eid, return the datasets for those sessions.
+
+    If no eid is provided, a list of all datasets is returned.  When details is false, a sorted
+    array of unique datasets is returned (their relative paths).
 
     Parameters
     ----------
@@ -498,6 +491,11 @@ list_datasets(eid=None, filename=None, collection=None, revision=None, details=F
     revision : str
         Filters datasets and returns only the ones matching the revision.
         Supports asterisks as wildcards.
+    qc : str, int, one.alf.spec.QC
+        Returns datasets at or below this QC level.  Integer values should correspond to the QC
+        enumeration NOT the qc category column codes in the pandas table.
+    ignore_qc_not_set : bool
+        When true, do not return datasets for which QC is NOT_SET.
     details : bool
         When true, a pandas DataFrame is returned, otherwise a numpy array of
         relative paths (collection/revision/filename) - see one.alf.spec.describe for details.

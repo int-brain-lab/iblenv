@@ -18,7 +18,7 @@
         <script src="../_static/jquery.js?v=5d32c60e"></script>
         <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
         <script src="../_static/documentation_options.js?v=5929fcd5"></script>
-        <script src="../_static/doctools.js?v=888ff710"></script>
+        <script src="../_static/doctools.js?v=9a2dae69"></script>
         <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
         <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
         <script src="../_static/copybutton.js?v=f281be69"></script>
@@ -80,6 +80,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../atlas_examples.html">Atlas Examples</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../notebooks_external/docs_wheel_moves.html">Working with wheel data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../notebooks_external/docs_wheel_screen_stimulus.html">Computing the stimulus position using the wheel</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
 <ul class="current">
@@ -111,6 +112,7 @@
 </li>
 <li class="toctree-l2"><a class="reference internal" href="brainbox.html">brainbox</a></li>
 <li class="toctree-l2"><a class="reference internal" href="iblatlas.html">iblatlas</a></li>
+<li class="toctree-l2"><a class="reference internal" href="iblutil.html">iblutil</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../genindex.html">Index</a></li>
@@ -147,6 +149,8 @@
 <span id="ibllib-qc-task-metrics"></span><h1>ibllib.qc.task_metrics<a class="headerlink" href="#module-ibllib.qc.task_metrics" title="Link to this heading"></a></h1>
 <p>Behaviour QC.</p>
 <p>This module runs a list of quality control metrics on the behaviour data.</p>
+<p>NB: The QC should be loaded using <a class="reference internal" href="ibllib.pipes.base_tasks.html#ibllib.pipes.base_tasks.BehaviourTask.run_qc" title="ibllib.pipes.base_tasks.BehaviourTask.run_qc"><code class="xref py py-meth docutils literal notranslate"><span class="pre">ibllib.pipes.base_tasks.BehaviourTask.run_qc()</span></code></a> and not
+instantiated directly.</p>
 <p class="rubric">Examples</p>
 <p>Running on a rig computer and updating QC fields in Alyx:</p>
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">ibllib.qc.task_metrics</span> <span class="kn">import</span> <span class="n">TaskQC</span>
@@ -213,7 +217,7 @@
 <td><p>Check that the time difference between the go cue sound being triggered and effectively played is smaller than 1ms.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="#ibllib.qc.task_metrics.check_iti_delays" title="ibllib.qc.task_metrics.check_iti_delays"><code class="xref py py-obj docutils literal notranslate"><span class="pre">check_iti_delays</span></code></a></p></td>
-<td><p>Check that the period of gray screen between stim off and the start of the next trial is 0.5s +/- 200%.</p></td>
+<td><p>Check that the period of grey screen between stim off and the start of the next trial is 1s +/- 10%.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="#ibllib.qc.task_metrics.check_n_trial_events" title="ibllib.qc.task_metrics.check_n_trial_events"><code class="xref py py-obj docutils literal notranslate"><span class="pre">check_n_trial_events</span></code></a></p></td>
 <td><p>Check that the number events per trial is correct Within every trial interval there should be one of each trial event, except for goCueTrigger_times which should only be defined for incorrect trials</p></td>
@@ -272,6 +276,12 @@
 <tr class="row-even"><td><p><a class="reference internal" href="#ibllib.qc.task_metrics.check_wheel_move_during_closed_loop_bpod" title="ibllib.qc.task_metrics.check_wheel_move_during_closed_loop_bpod"><code class="xref py py-obj docutils literal notranslate"><span class="pre">check_wheel_move_during_closed_loop_bpod</span></code></a></p></td>
 <td><p>Check that the wheel moves by approximately 35 degrees during the closed-loop period on trials where a feedback (error sound or valve) is delivered.</p></td>
 </tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ibllib.qc.task_metrics.compute_session_status_from_dict" title="ibllib.qc.task_metrics.compute_session_status_from_dict"><code class="xref py py-obj docutils literal notranslate"><span class="pre">compute_session_status_from_dict</span></code></a></p></td>
+<td><p>Given a dictionary of results, computes the overall session QC for each key and aggregates in a single value</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#ibllib.qc.task_metrics.update_dataset_qc" title="ibllib.qc.task_metrics.update_dataset_qc"><code class="xref py py-obj docutils literal notranslate"><span class="pre">update_dataset_qc</span></code></a></p></td>
+<td><p>Update QC values for individual datasets.</p></td>
+</tr>
 </tbody>
 </table>
 <p class="rubric">Classes</p>
@@ -285,15 +295,75 @@
 </tr>
 </tbody>
 </table>
+<dl class="py function">
+<dt class="sig sig-object py" id="ibllib.qc.task_metrics.compute_session_status_from_dict">
+<span class="sig-name descname"><span class="pre">compute_session_status_from_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">results</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">criteria</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ibllib/qc/task_metrics.html#compute_session_status_from_dict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ibllib.qc.task_metrics.compute_session_status_from_dict" title="Link to this definition"></a></dt>
+<dd><p>Given a dictionary of results, computes the overall session QC for each key and aggregates
+in a single value</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>results</strong> (<em>dict</em>) – A dictionary of QC keys containing (usually scalar) values.</p></li>
+<li><p><strong>criteria</strong> (<em>dict</em>) – A dictionary of qc keys containing map of PASS, WARNING, FAIL thresholds.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><em>one.alf.spec.QC</em> – Overall session QC outcome.</p></li>
+<li><p><em>dict</em> – A map of QC tests and their outcomes.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ibllib.qc.task_metrics.update_dataset_qc">
+<span class="sig-name descname"><span class="pre">update_dataset_qc</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">qc</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">registered_datasets</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">one</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">override</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ibllib/qc/task_metrics.html#update_dataset_qc"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ibllib.qc.task_metrics.update_dataset_qc" title="Link to this definition"></a></dt>
+<dd><p>Update QC values for individual datasets.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>qc</strong> (<a class="reference internal" href="#ibllib.qc.task_metrics.TaskQC" title="ibllib.qc.task_metrics.TaskQC"><em>ibllib.qc.task_metrics.TaskQC</em></a>) – A TaskQC object that has been run.</p></li>
+<li><p><strong>registered_datasets</strong> (<em>list</em><em> of </em><em>dict</em>) – A list of Alyx dataset records.</p></li>
+<li><p><strong>one</strong> (<a class="reference external" href="https://int-brain-lab.github.io/ONE/_autosummary/one.api.html#one.api.OneAlyx" title="(in ONE)"><em>one.api.OneAlyx</em></a>) – An online instance of ONE.</p></li>
+<li><p><strong>override</strong> (<em>bool</em>) – If True the QC field is updated even if new value is better than previous.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The list of registered datasets but with the ‘qc’ fields updated.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list of dict</p>
+</dd>
+</dl>
+</dd></dl>
+
 <dl class="py class">
 <dt class="sig sig-object py" id="ibllib.qc.task_metrics.TaskQC">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">TaskQC</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">session_path_or_eid</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ibllib/qc/task_metrics.html#TaskQC"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ibllib.qc.task_metrics.TaskQC" title="Link to this definition"></a></dt>
 <dd><p>Bases: <a class="reference internal" href="ibllib.qc.base.html#ibllib.qc.base.QC" title="ibllib.qc.base.QC"><code class="xref py py-class docutils literal notranslate"><span class="pre">QC</span></code></a></p>
 <p>A class for computing task QC metrics</p>
-<dl class="py attribute">
-<dt class="sig sig-object py" id="ibllib.qc.task_metrics.TaskQC.criteria">
-<span class="sig-name descname"><span class="pre">criteria</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'_task_detected_wheel_moves':</span> <span class="pre">{'PASS':</span> <span class="pre">0.99,</span> <span class="pre">'WARNING':</span> <span class="pre">0},</span> <span class="pre">'_task_errorCue_delays':</span> <span class="pre">{'PASS':</span> <span class="pre">0.99,</span> <span class="pre">'WARNING':</span> <span class="pre">0},</span> <span class="pre">'_task_goCue_delays':</span> <span class="pre">{'PASS':</span> <span class="pre">0.99,</span> <span class="pre">'WARNING':</span> <span class="pre">0},</span> <span class="pre">'_task_iti_delays':</span> <span class="pre">{'NOT_SET':</span> <span class="pre">0},</span> <span class="pre">'_task_negative_feedback_stimOff_delays':</span> <span class="pre">{'PASS':</span> <span class="pre">0.99,</span> <span class="pre">'WARNING':</span> <span class="pre">0},</span> <span class="pre">'_task_passed_trial_checks':</span> <span class="pre">{'NOT_SET':</span> <span class="pre">0},</span> <span class="pre">'_task_positive_feedback_stimOff_delays':</span> <span class="pre">{'PASS':</span> <span class="pre">0.99,</span> <span class="pre">'WARNING':</span> <span class="pre">0},</span> <span class="pre">'_task_response_stimFreeze_delays':</span> <span class="pre">{'PASS':</span> <span class="pre">0.99,</span> <span class="pre">'WARNING':</span> <span class="pre">0},</span> <span class="pre">'_task_stimFreeze_delays':</span> <span class="pre">{'PASS':</span> <span class="pre">0.99,</span> <span class="pre">'WARNING':</span> <span class="pre">0},</span> <span class="pre">'_task_stimOff_delays':</span> <span class="pre">{'PASS':</span> <span class="pre">0.99,</span> <span class="pre">'WARNING':</span> <span class="pre">0},</span> <span class="pre">'_task_stimOff_itiIn_delays':</span> <span class="pre">{'PASS':</span> <span class="pre">0.99,</span> <span class="pre">'WARNING':</span> <span class="pre">0},</span> <span class="pre">'_task_stimOn_delays':</span> <span class="pre">{'PASS':</span> <span class="pre">0.99,</span> <span class="pre">'WARNING':</span> <span class="pre">0},</span> <span class="pre">'_task_trial_length':</span> <span class="pre">{'PASS':</span> <span class="pre">0.99,</span> <span class="pre">'WARNING':</span> <span class="pre">0},</span> <span class="pre">'_task_wheel_move_during_closed_loop':</span> <span class="pre">{'PASS':</span> <span class="pre">0.99,</span> <span class="pre">'WARNING':</span> <span class="pre">0},</span> <span class="pre">'default':</span> <span class="pre">{'FAIL':</span> <span class="pre">0,</span> <span class="pre">'PASS':</span> <span class="pre">0.99,</span> <span class="pre">'WARNING':</span> <span class="pre">0.9}}</span></em><a class="headerlink" href="#ibllib.qc.task_metrics.TaskQC.criteria" title="Link to this definition"></a></dt>
-<dd></dd></dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="ibllib.qc.task_metrics.TaskQC.thresholding">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">thresholding</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">qc_value</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">thresholds</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://int-brain-lab.github.io/ONE/_autosummary/one.alf.spec.html#one.alf.spec.QC" title="(in ONE)"><span class="pre">QC</span></a></span></span><a class="reference internal" href="../_modules/ibllib/qc/task_metrics.html#TaskQC.thresholding"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ibllib.qc.task_metrics.TaskQC.thresholding" title="Link to this definition"></a></dt>
+<dd><p>Computes the outcome of a single key by applying thresholding.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>qc_value</strong> (<em>float</em>) – Proportion of passing qcs, between 0 and 1.</p></li>
+<li><p><strong>thresholds</strong> (<em>dict</em>) – Dictionary with keys ‘PASS’, ‘WARNING’, ‘FAIL’, (or enum
+integers, c.f. one.alf.spec.QC).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The outcome.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://int-brain-lab.github.io/ONE/_autosummary/one.alf.spec.html#one.alf.spec.QC" title="(in ONE)">one.alf.spec.QC</a></p>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="ibllib.qc.task_metrics.TaskQC.extractor">
@@ -305,6 +375,11 @@
 </dd>
 </dl>
 </dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ibllib.qc.task_metrics.TaskQC.criteria">
+<span class="sig-name descname"><span class="pre">criteria</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'_task_detected_wheel_moves':</span> <span class="pre">{'PASS':</span> <span class="pre">0.99,</span> <span class="pre">'WARNING':</span> <span class="pre">0},</span> <span class="pre">'_task_errorCue_delays':</span> <span class="pre">{'PASS':</span> <span class="pre">0.99,</span> <span class="pre">'WARNING':</span> <span class="pre">0},</span> <span class="pre">'_task_goCue_delays':</span> <span class="pre">{'PASS':</span> <span class="pre">0.99,</span> <span class="pre">'WARNING':</span> <span class="pre">0},</span> <span class="pre">'_task_iti_delays':</span> <span class="pre">{'NOT_SET':</span> <span class="pre">0},</span> <span class="pre">'_task_negative_feedback_stimOff_delays':</span> <span class="pre">{'PASS':</span> <span class="pre">0.99,</span> <span class="pre">'WARNING':</span> <span class="pre">0},</span> <span class="pre">'_task_passed_trial_checks':</span> <span class="pre">{'NOT_SET':</span> <span class="pre">0},</span> <span class="pre">'_task_positive_feedback_stimOff_delays':</span> <span class="pre">{'PASS':</span> <span class="pre">0.99,</span> <span class="pre">'WARNING':</span> <span class="pre">0},</span> <span class="pre">'_task_response_stimFreeze_delays':</span> <span class="pre">{'PASS':</span> <span class="pre">0.99,</span> <span class="pre">'WARNING':</span> <span class="pre">0},</span> <span class="pre">'_task_stimFreeze_delays':</span> <span class="pre">{'PASS':</span> <span class="pre">0.99,</span> <span class="pre">'WARNING':</span> <span class="pre">0},</span> <span class="pre">'_task_stimOff_delays':</span> <span class="pre">{'PASS':</span> <span class="pre">0.99,</span> <span class="pre">'WARNING':</span> <span class="pre">0},</span> <span class="pre">'_task_stimOff_itiIn_delays':</span> <span class="pre">{'PASS':</span> <span class="pre">0.99,</span> <span class="pre">'WARNING':</span> <span class="pre">0},</span> <span class="pre">'_task_stimOn_delays':</span> <span class="pre">{'PASS':</span> <span class="pre">0.99,</span> <span class="pre">'WARNING':</span> <span class="pre">0},</span> <span class="pre">'_task_trial_length':</span> <span class="pre">{'PASS':</span> <span class="pre">0.99,</span> <span class="pre">'WARNING':</span> <span class="pre">0},</span> <span class="pre">'_task_wheel_move_during_closed_loop':</span> <span class="pre">{'PASS':</span> <span class="pre">0.99,</span> <span class="pre">'WARNING':</span> <span class="pre">0},</span> <span class="pre">'default':</span> <span class="pre">{'FAIL':</span> <span class="pre">0,</span> <span class="pre">'PASS':</span> <span class="pre">0.99,</span> <span class="pre">'WARNING':</span> <span class="pre">0.9}}</span></em><a class="headerlink" href="#ibllib.qc.task_metrics.TaskQC.criteria" title="Link to this definition"></a></dt>
+<dd></dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="ibllib.qc.task_metrics.TaskQC.load_data">
@@ -389,26 +464,28 @@ if a session path was provided to the constructor.</p></li>
 </dl>
 </dd></dl>
 
-<dl class="py method">
+<dl class="py attribute">
 <dt class="sig sig-object py" id="ibllib.qc.task_metrics.TaskQC.compute_session_status_from_dict">
-<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">compute_session_status_from_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">results</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">criteria</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ibllib/qc/task_metrics.html#TaskQC.compute_session_status_from_dict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ibllib.qc.task_metrics.TaskQC.compute_session_status_from_dict" title="Link to this definition"></a></dt>
-<dd><p>Given a dictionary of results, computes the overall session QC for each key and aggregates
-in a single value</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>results</strong> (<em>dict</em>) – A dictionary of QC keys containing (usually scalar) values.</p></li>
-<li><p><strong>criteria</strong> (<em>dict</em>) – A dictionary of qc keys containing map of PASS, WARNING, FAIL thresholds.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p><ul class="simple">
-<li><p><em>str</em> – Overall session QC outcome as a string.</p></li>
-<li><p><em>dict</em> – A map of QC tests and their outcomes.</p></li>
-</ul>
-</p>
+<span class="sig-name descname"><span class="pre">compute_session_status_from_dict</span></span><a class="reference internal" href="../_modules/ibllib/qc/task_metrics.html#TaskQC.compute_session_status_from_dict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ibllib.qc.task_metrics.TaskQC.compute_session_status_from_dict" title="Link to this definition"></a></dt>
+<dd><p>staticmethod(function) -&gt; method</p>
+<p>Convert a function to be a static method.</p>
+<p>A static method does not receive an implicit first argument.
+To declare a static method, use this idiom:</p>
+<blockquote>
+<div><dl>
+<dt>class C:</dt><dd><p>&#64;staticmethod
+def f(arg1, arg2, …):</p>
+<blockquote>
+<div><p>…</p>
+</div></blockquote>
 </dd>
 </dl>
+</div></blockquote>
+<p>It can be called either on the class (e.g. C.f()) or on an instance
+(e.g. C().f()). Both the class and the instance are ignored, and
+neither is passed implicitly as the first argument to the method.</p>
+<p>Static methods in Python are similar to those found in Java or C++.
+For a more advanced concept, see the classmethod builtin.</p>
 </dd></dl>
 
 <dl class="py method">
@@ -423,6 +500,23 @@ in a single value</p>
 <li><p><em>dict</em> – A map of QC tests and their outcomes.</p></li>
 </ul>
 </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ibllib.qc.task_metrics.TaskQC.compute_dataset_qc_status">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">compute_dataset_qc_status</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">outcomes</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ibllib/qc/task_metrics.html#TaskQC.compute_dataset_qc_status"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ibllib.qc.task_metrics.TaskQC.compute_dataset_qc_status" title="Link to this definition"></a></dt>
+<dd><p>Return map of dataset specific QC values.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>outcomes</strong> (<em>dict</em>) – Map of checks and their individual outcomes.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Map of dataset names and their outcome.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict</p>
 </dd>
 </dl>
 </dd></dl>
@@ -520,10 +614,10 @@ Units: seconds [s]</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="ibllib.qc.task_metrics.check_iti_delays">
 <span class="sig-name descname"><span class="pre">check_iti_delays</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">_</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ibllib/qc/task_metrics.html#check_iti_delays"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ibllib.qc.task_metrics.check_iti_delays" title="Link to this definition"></a></dt>
-<dd><p>Check that the period of gray screen between stim off and the start of the next trial is
-0.5s +/- 200%.</p>
-<p>Metric: M = stimOff (n) - trialStart (n+1) - 0.5
-Criterion: <a href="#id1"><span class="problematic" id="id2">|M|</span></a> &lt; 1
+<dd><p>Check that the period of grey screen between stim off and the start of the next trial is
+1s +/- 10%.</p>
+<p>Metric: M = stimOff (n) - trialStart (n+1) - 1.
+Criterion: <a href="#id1"><span class="problematic" id="id2">|M|</span></a> &lt; 0.1
 Units: seconds [s]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
