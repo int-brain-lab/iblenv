@@ -112,6 +112,7 @@
   <h1>Source code for ibllib.io.extractors.training_trials</h1><div class="highlight"><pre>
 <span></span><span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">accumulate</span>
 <span class="kn">from</span> <span class="nn">packaging</span> <span class="kn">import</span> <span class="n">version</span>
 <span class="kn">from</span> <span class="nn">one.alf.io</span> <span class="kn">import</span> <span class="n">AlfBunch</span>
 
@@ -235,19 +236,16 @@
         <span class="k">def</span> <span class="nf">get_trial_repeat</span><span class="p">(</span><span class="n">trial</span><span class="p">):</span>
             <span class="k">if</span> <span class="s1">&#39;debias_trial&#39;</span> <span class="ow">in</span> <span class="n">trial</span><span class="p">:</span>
                 <span class="k">return</span> <span class="n">trial</span><span class="p">[</span><span class="s1">&#39;debias_trial&#39;</span><span class="p">]</span>
-            <span class="k">else</span><span class="p">:</span>
+            <span class="k">elif</span> <span class="s1">&#39;contrast&#39;</span> <span class="ow">in</span> <span class="n">trial</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">trial</span><span class="p">[</span><span class="s1">&#39;contrast&#39;</span><span class="p">],</span> <span class="nb">dict</span><span class="p">):</span>
                 <span class="k">return</span> <span class="n">trial</span><span class="p">[</span><span class="s1">&#39;contrast&#39;</span><span class="p">][</span><span class="s1">&#39;type&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;RepeatContrast&#39;</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># For advanced choice world before version 8.19.0 there was no &#39;debias_trial&#39; field</span>
+                <span class="c1"># and no debiasing protocol applied, so simply return False</span>
+                <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s1">&#39;PYBPOD_PROTOCOL&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;_iblrig_tasks_advancedChoiceWorld&#39;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="kc">False</span>
 
-        <span class="n">trial_repeated</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="n">get_trial_repeat</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">)))</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
-        <span class="n">repNum</span> <span class="o">=</span> <span class="n">trial_repeated</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
-        <span class="n">c</span> <span class="o">=</span> <span class="mi">0</span>
-        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">trial_repeated</span><span class="p">)):</span>
-            <span class="k">if</span> <span class="n">trial_repeated</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="n">c</span> <span class="o">=</span> <span class="mi">0</span>
-                <span class="n">repNum</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
-                <span class="k">continue</span>
-            <span class="n">c</span> <span class="o">+=</span> <span class="mi">1</span>
-            <span class="n">repNum</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">c</span>
+        <span class="n">trial_repeated</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fromiter</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="n">get_trial_repeat</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">),</span> <span class="nb">int</span><span class="p">)</span>
+        <span class="n">repNum</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fromiter</span><span class="p">(</span><span class="n">accumulate</span><span class="p">(</span><span class="n">trial_repeated</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">x</span> <span class="o">+</span> <span class="n">y</span> <span class="k">if</span> <span class="n">y</span> <span class="k">else</span> <span class="mi">0</span><span class="p">),</span> <span class="nb">int</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">repNum</span>
 
 
@@ -275,7 +273,7 @@
 <span class="sd">    **Optional:** saves _ibl_trials.feedback_times.npy</span>
 
 <span class="sd">    Gets reward  and error state init times vectors,</span>
-<span class="sd">    checks if theintersection of nans is empty, then</span>
+<span class="sd">    checks if the intersection of nans is empty, then</span>
 <span class="sd">    merges the 2 vectors.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">save_names</span> <span class="o">=</span> <span class="s1">&#39;_ibl_trials.feedback_times.npy&#39;</span>

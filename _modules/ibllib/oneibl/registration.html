@@ -122,7 +122,7 @@
 <span class="kn">from</span> <span class="nn">one.alf.files</span> <span class="kn">import</span> <span class="n">get_session_path</span><span class="p">,</span> <span class="n">folder_parts</span><span class="p">,</span> <span class="n">get_alf_path</span>
 <span class="kn">from</span> <span class="nn">one.registration</span> <span class="kn">import</span> <span class="n">RegistrationClient</span><span class="p">,</span> <span class="n">get_dataset_type</span>
 <span class="kn">from</span> <span class="nn">one.remote.globus</span> <span class="kn">import</span> <span class="n">get_local_endpoint_id</span><span class="p">,</span> <span class="n">get_lab_from_endpoint_id</span>
-<span class="kn">from</span> <span class="nn">one.webclient</span> <span class="kn">import</span> <span class="n">AlyxClient</span>
+<span class="kn">from</span> <span class="nn">one.webclient</span> <span class="kn">import</span> <span class="n">AlyxClient</span><span class="p">,</span> <span class="n">no_cache</span>
 <span class="kn">from</span> <span class="nn">one.converters</span> <span class="kn">import</span> <span class="n">ConversionMixin</span>
 <span class="kn">import</span> <span class="nn">one.alf.exceptions</span> <span class="k">as</span> <span class="nn">alferr</span>
 <span class="kn">from</span> <span class="nn">one.util</span> <span class="kn">import</span> <span class="n">datasets2records</span><span class="p">,</span> <span class="n">ensure_list</span>
@@ -295,7 +295,7 @@
 
 <div class="viewcode-block" id="IBLRegistrationClient.register_session">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.registration.html#ibllib.oneibl.registration.IBLRegistrationClient.register_session">[docs]</a>
-    <span class="k">def</span> <span class="nf">register_session</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ses_path</span><span class="p">,</span> <span class="n">file_list</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">projects</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">procedures</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">register_session</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ses_path</span><span class="p">,</span> <span class="n">file_list</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">projects</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">procedures</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">register_reward</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Register an IBL Bpod session in Alyx.</span>
 
@@ -310,11 +310,16 @@
 <span class="sd">            The project(s) to which the experiment belongs (optional).</span>
 <span class="sd">        procedures : str, list</span>
 <span class="sd">            An optional list of procedures, e.g. &#39;Behavior training/tasks&#39;.</span>
+<span class="sd">        register_reward : bool</span>
+<span class="sd">            If true, register all water administrations in the settings files, if no admins already</span>
+<span class="sd">            present for this session.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
 <span class="sd">        dict</span>
 <span class="sd">            An Alyx session record.</span>
+<span class="sd">        list of dict, None</span>
+<span class="sd">            Alyx file records (or None if file_list is False).</span>
 
 <span class="sd">        Notes</span>
 <span class="sd">        -----</span>
@@ -341,10 +346,11 @@
         <span class="n">subject</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">assert_exists</span><span class="p">(</span><span class="n">subject</span><span class="p">,</span> <span class="s1">&#39;subjects&#39;</span><span class="p">)</span>
 
         <span class="c1"># look for a session from the same subject, same number on the same day</span>
-        <span class="n">session_id</span><span class="p">,</span> <span class="n">session</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">subject</span><span class="o">=</span><span class="n">subject</span><span class="p">[</span><span class="s1">&#39;nickname&#39;</span><span class="p">],</span>
-                                              <span class="n">date_range</span><span class="o">=</span><span class="n">date</span><span class="p">,</span>
-                                              <span class="n">number</span><span class="o">=</span><span class="n">number</span><span class="p">,</span>
-                                              <span class="n">details</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">query_type</span><span class="o">=</span><span class="s1">&#39;remote&#39;</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">no_cache</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="p">):</span>
+            <span class="n">session_id</span><span class="p">,</span> <span class="n">session</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">subject</span><span class="o">=</span><span class="n">subject</span><span class="p">[</span><span class="s1">&#39;nickname&#39;</span><span class="p">],</span>
+                                                  <span class="n">date_range</span><span class="o">=</span><span class="n">date</span><span class="p">,</span>
+                                                  <span class="n">number</span><span class="o">=</span><span class="n">number</span><span class="p">,</span>
+                                                  <span class="n">details</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">query_type</span><span class="o">=</span><span class="s1">&#39;remote&#39;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">collections</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>  <span class="c1"># No task data</span>
             <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">session</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;no session on Alyx and no tasks in experiment description&#39;</span>
             <span class="c1"># Fetch the full session JSON and assert that some basic information is present.</span>
@@ -442,7 +448,7 @@
 
         <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">session</span><span class="p">[</span><span class="s1">&#39;url&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="s1">&#39; &#39;</span><span class="p">)</span>
         <span class="c1"># create associated water administration if not found</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">session</span><span class="p">[</span><span class="s1">&#39;wateradmin_session_related&#39;</span><span class="p">]</span> <span class="ow">and</span> <span class="nb">any</span><span class="p">(</span><span class="n">task_data</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">register_reward</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">session</span><span class="p">[</span><span class="s1">&#39;wateradmin_session_related&#39;</span><span class="p">]</span> <span class="ow">and</span> <span class="nb">any</span><span class="p">(</span><span class="n">task_data</span><span class="p">):</span>
             <span class="k">for</span> <span class="n">md</span><span class="p">,</span> <span class="n">d</span> <span class="ow">in</span> <span class="nb">filter</span><span class="p">(</span><span class="nb">all</span><span class="p">,</span> <span class="nb">zip</span><span class="p">(</span><span class="n">settings</span><span class="p">,</span> <span class="n">task_data</span><span class="p">)):</span>
                 <span class="n">_</span><span class="p">,</span> <span class="n">_end_time</span> <span class="o">=</span> <span class="n">_get_session_times</span><span class="p">(</span><span class="n">ses_path</span><span class="p">,</span> <span class="n">md</span><span class="p">,</span> <span class="n">d</span><span class="p">)</span>
                 <span class="n">user</span> <span class="o">=</span> <span class="n">md</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;PYBPOD_CREATOR&#39;</span><span class="p">)</span>
