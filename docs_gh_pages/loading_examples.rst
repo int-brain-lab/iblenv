@@ -16,3 +16,5 @@ Below is a list of examples showing how to load different types of IBL data
    notebooks_external/loading_video_data
    notebooks_external/loading_raw_video_data
    notebooks_external/loading_widefield_data
+   notebooks_external/loading_multi_photon_imaging_data
+   notebooks_external/loading_raw_mesoscope_data
