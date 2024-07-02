@@ -170,6 +170,8 @@
         <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="p">[</span><span class="s1">&#39;input_files&#39;</span><span class="p">]:</span>
             <span class="n">dfs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">filter_datasets</span><span class="p">(</span><span class="n">session_datasets</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="n">file</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">collection</span><span class="o">=</span><span class="n">file</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
                        <span class="n">wildcards</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">assert_unique</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">dfs</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">()</span>
         <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">dfs</span><span class="p">)</span>
 
         <span class="c1"># Some cases the eid is stored in the index. If so we drop this level</span>
@@ -599,9 +601,12 @@
 <span class="sd">    :param signature: input and output file signatures</span>
 <span class="sd">    :param one: ONE instance</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task</span><span class="p">,</span> <span class="n">session_path</span><span class="p">,</span> <span class="n">signatures</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">signatures</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">task</span> <span class="o">=</span> <span class="n">task</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">SDSC_PATCH_PATH</span> <span class="o">=</span> <span class="n">SDSC_PATCH_PATH</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">SDSC_ROOT_PATH</span> <span class="o">=</span> <span class="n">SDSC_ROOT_PATH</span>
 
 <div class="viewcode-block" id="SDSCDataHandler.setUp">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.SDSCDataHandler.setUp">[docs]</a>
@@ -609,15 +614,18 @@
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Function to create symlinks to necessary data to run tasks.&quot;&quot;&quot;</span>
         <span class="n">df</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">getData</span><span class="p">()</span>
 
-        <span class="n">SDSC_TMP</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">SDSC_PATCH_PATH</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">task</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">))</span>
+        <span class="n">SDSC_TMP</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">SDSC_PATCH_PATH</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">task</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">))</span>
         <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">iterrows</span><span class="p">():</span>
             <span class="n">file_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="s1">&#39;session_path&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="s1">&#39;rel_path&#39;</span><span class="p">])</span>
             <span class="n">uuid</span> <span class="o">=</span> <span class="n">i</span>
             <span class="n">file_uuid</span> <span class="o">=</span> <span class="n">add_uuid_string</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">uuid</span><span class="p">)</span>
             <span class="n">file_link</span> <span class="o">=</span> <span class="n">SDSC_TMP</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
             <span class="n">file_link</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-            <span class="n">file_link</span><span class="o">.</span><span class="n">symlink_to</span><span class="p">(</span>
-                <span class="n">Path</span><span class="p">(</span><span class="n">SDSC_ROOT_PATH</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">file_uuid</span><span class="p">)))</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">file_link</span><span class="o">.</span><span class="n">symlink_to</span><span class="p">(</span>
+                    <span class="n">Path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">SDSC_ROOT_PATH</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">file_uuid</span><span class="p">)))</span>
+            <span class="k">except</span> <span class="ne">FileExistsError</span><span class="p">:</span>
+                <span class="k">pass</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">task</span><span class="o">.</span><span class="n">session_path</span> <span class="o">=</span> <span class="n">SDSC_TMP</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="s1">&#39;session_path&#39;</span><span class="p">])</span></div>
 
@@ -642,6 +650,32 @@
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Function to clean up symlinks created to run task.&quot;&quot;&quot;</span>
         <span class="k">assert</span> <span class="n">SDSC_PATCH_PATH</span><span class="o">.</span><span class="n">parts</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">4</span><span class="p">]</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">task</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">parts</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">4</span><span class="p">]</span>
         <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">task</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="PopeyeDataHandler">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.PopeyeDataHandler">[docs]</a>
+<span class="k">class</span> <span class="nc">PopeyeDataHandler</span><span class="p">(</span><span class="n">SDSCDataHandler</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task</span><span class="p">,</span> <span class="n">session_path</span><span class="p">,</span> <span class="n">signatures</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">task</span><span class="p">,</span> <span class="n">session_path</span><span class="p">,</span> <span class="n">signatures</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">SDSC_PATCH_PATH</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s1">&#39;SDSC_PATCH_PATH&#39;</span><span class="p">,</span> <span class="s2">&quot;/mnt/sdceph/users/ibl/data/quarantine/tasks/&quot;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">SDSC_ROOT_PATH</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;/mnt/sdceph/users/ibl/data&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="PopeyeDataHandler.uploadData">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.PopeyeDataHandler.uploadData">[docs]</a>
+    <span class="k">def</span> <span class="nf">uploadData</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">outputs</span><span class="p">,</span> <span class="n">version</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+            <span class="s2">&quot;Cannot register data from Popeye. Login as Datauser and use the RegisterSpikeSortingSDSC task.&quot;</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="PopeyeDataHandler.cleanUp">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.PopeyeDataHandler.cleanUp">[docs]</a>
+    <span class="k">def</span> <span class="nf">cleanUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Symlinks are preserved until registration.&quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
 </div>
 
 </pre></div>

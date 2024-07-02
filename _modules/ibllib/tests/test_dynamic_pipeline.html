@@ -121,6 +121,7 @@
 <span class="kn">import</span> <span class="nn">ibllib.tests</span>
 <span class="kn">import</span> <span class="nn">ibllib.pipes.dynamic_pipeline</span> <span class="k">as</span> <span class="nn">dyn</span>
 <span class="kn">from</span> <span class="nn">ibllib.pipes.tasks</span> <span class="kn">import</span> <span class="n">Pipeline</span><span class="p">,</span> <span class="n">Task</span>
+<span class="kn">import</span> <span class="nn">ibllib.pipes.behavior_tasks</span> <span class="k">as</span> <span class="nn">btasks</span>
 <span class="kn">from</span> <span class="nn">ibllib.pipes</span> <span class="kn">import</span> <span class="n">ephys_preprocessing</span>
 <span class="kn">from</span> <span class="nn">ibllib.pipes</span> <span class="kn">import</span> <span class="n">training_preprocessing</span>
 <span class="kn">from</span> <span class="nn">ibllib.io</span> <span class="kn">import</span> <span class="n">session_params</span>
@@ -196,6 +197,7 @@
                            <span class="p">{</span><span class="s1">&#39;ephysChoiceWorld&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;task_collection&#39;</span><span class="p">:</span> <span class="s1">&#39;raw_task_data_00&#39;</span><span class="p">}},</span>
                            <span class="p">{</span><span class="s1">&#39;passiveChoiceWorld&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;task_collection&#39;</span><span class="p">:</span> <span class="s1">&#39;raw_task_data_01&#39;</span><span class="p">}},</span>
                        <span class="p">]}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">description</span> <span class="o">=</span> <span class="n">description</span>
         <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path_dynamic</span> <span class="o">/</span> <span class="s1">&#39;_ibl_experiment.description.yaml&#39;</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fp</span><span class="p">:</span>
             <span class="n">yaml</span><span class="o">.</span><span class="n">safe_dump</span><span class="p">(</span><span class="n">description</span><span class="p">,</span> <span class="n">fp</span><span class="p">)</span>
 
@@ -221,7 +223,24 @@
         <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">cache_mode</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># sneaky hack as this is checked by the pipeline somewhere</span>
         <span class="n">tasks</span> <span class="o">=</span> <span class="n">dyn</span><span class="o">.</span><span class="n">get_trials_tasks</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path_dynamic</span><span class="p">,</span> <span class="n">one</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">tasks</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIsInstance</span><span class="p">(</span><span class="n">tasks</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">btasks</span><span class="o">.</span><span class="n">ChoiceWorldTrialsNidq</span><span class="p">)</span>
         <span class="n">one</span><span class="o">.</span><span class="n">load_datasets</span><span class="o">.</span><span class="n">assert_called</span><span class="p">()</span>  <span class="c1"># check that description file is checked on disk</span>
+
+        <span class="c1"># A session with timeline acquisition</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">description</span><span class="p">[</span><span class="s1">&#39;sync&#39;</span><span class="p">][</span><span class="s1">&#39;nidq&#39;</span><span class="p">][</span><span class="s1">&#39;acquisition_software&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;timeline&#39;</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path_dynamic</span> <span class="o">/</span> <span class="s1">&#39;_ibl_experiment.description.yaml&#39;</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fp</span><span class="p">:</span>
+            <span class="n">yaml</span><span class="o">.</span><span class="n">safe_dump</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">description</span><span class="p">,</span> <span class="n">fp</span><span class="p">)</span>
+        <span class="n">tasks</span> <span class="o">=</span> <span class="n">dyn</span><span class="o">.</span><span class="n">get_trials_tasks</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path_dynamic</span><span class="p">,</span> <span class="n">one</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIsInstance</span><span class="p">(</span><span class="n">tasks</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">btasks</span><span class="o">.</span><span class="n">ChoiceWorldTrialsTimeline</span><span class="p">)</span>
+
+        <span class="c1"># A session with an unknown sync namespace</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">description</span><span class="p">[</span><span class="s1">&#39;sync&#39;</span><span class="p">][</span><span class="s1">&#39;nidq&#39;</span><span class="p">][</span><span class="s1">&#39;acquisition_software&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;notepad&#39;</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path_dynamic</span> <span class="o">/</span> <span class="s1">&#39;_ibl_experiment.description.yaml&#39;</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fp</span><span class="p">:</span>
+            <span class="n">yaml</span><span class="o">.</span><span class="n">safe_dump</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">description</span><span class="p">,</span> <span class="n">fp</span><span class="p">)</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertLogs</span><span class="p">(</span><span class="n">dyn</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="s1">&#39;WARNING&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">cm</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">([],</span> <span class="n">dyn</span><span class="o">.</span><span class="n">get_trials_tasks</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path_dynamic</span><span class="p">))</span>
+        <span class="n">log_message</span> <span class="o">=</span> <span class="n">cm</span><span class="o">.</span><span class="n">records</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">getMessage</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="s1">&#39;sync namespace &quot;notepad&quot;&#39;</span><span class="p">,</span> <span class="n">log_message</span><span class="p">)</span>
 
         <span class="c1"># An ephys session</span>
         <span class="n">tasks</span> <span class="o">=</span> <span class="n">dyn</span><span class="o">.</span><span class="n">get_trials_tasks</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path_legacy</span><span class="p">)</span>
@@ -268,6 +287,22 @@
             <span class="c1"># Should handle absent trials tasks</span>
             <span class="n">pipeline</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;FooBarTrials&#39;</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">([],</span> <span class="n">dyn</span><span class="o">.</span><span class="n">get_trials_tasks</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path_legacy</span><span class="p">))</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="TestMisc">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.tests.test_dynamic_pipeline.html#ibllib.tests.test_dynamic_pipeline.TestMisc">[docs]</a>
+<span class="k">class</span> <span class="nc">TestMisc</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Test miscellaneous functions in pipes.dynamic_pipeline.&quot;&quot;&quot;</span>
+<div class="viewcode-block" id="TestMisc.test_sync_label">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.tests.test_dynamic_pipeline.html#ibllib.tests.test_dynamic_pipeline.TestMisc.test_sync_label">[docs]</a>
+    <span class="k">def</span> <span class="nf">test_sync_label</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Test pipes.dynamic_pipeline._sync_label function.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="s1">&#39;nidq&#39;</span><span class="p">,</span> <span class="n">dyn</span><span class="o">.</span><span class="n">_sync_label</span><span class="p">(</span><span class="s1">&#39;nidq&#39;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="s1">&#39;timeline&#39;</span><span class="p">,</span> <span class="n">dyn</span><span class="o">.</span><span class="n">_sync_label</span><span class="p">(</span><span class="s1">&#39;nidq&#39;</span><span class="p">,</span> <span class="n">acquisition_software</span><span class="o">=</span><span class="s1">&#39;timeline&#39;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="s1">&#39;nidq&#39;</span><span class="p">,</span> <span class="n">dyn</span><span class="o">.</span><span class="n">_sync_label</span><span class="p">(</span><span class="s1">&#39;nidq&#39;</span><span class="p">,</span> <span class="n">acquisition_software</span><span class="o">=</span><span class="s1">&#39;spikeglx&#39;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="s1">&#39;tdms&#39;</span><span class="p">,</span> <span class="n">dyn</span><span class="o">.</span><span class="n">_sync_label</span><span class="p">(</span><span class="s1">&#39;tdms&#39;</span><span class="p">))</span></div>
 </div>
 
 </pre></div>

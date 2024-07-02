@@ -132,10 +132,10 @@
 <span class="kn">from</span> <span class="nn">one.remote.globus</span> <span class="kn">import</span> <span class="n">get_lab_from_endpoint_id</span><span class="p">,</span> <span class="n">get_local_endpoint_id</span>
 
 <span class="kn">from</span> <span class="nn">ibllib</span> <span class="kn">import</span> <span class="n">__version__</span> <span class="k">as</span> <span class="n">ibllib_version</span>
-<span class="kn">from</span> <span class="nn">ibllib.io.extractors.base</span> <span class="kn">import</span> <span class="n">get_pipeline</span><span class="p">,</span> <span class="n">get_task_protocol</span><span class="p">,</span> <span class="n">get_session_extractor_type</span>
+<span class="kn">from</span> <span class="nn">ibllib.io.extractors.base</span> <span class="kn">import</span> <span class="n">get_pipeline</span><span class="p">,</span> <span class="n">get_session_extractor_type</span>
 <span class="kn">from</span> <span class="nn">ibllib.pipes</span> <span class="kn">import</span> <span class="n">tasks</span><span class="p">,</span> <span class="n">training_preprocessing</span><span class="p">,</span> <span class="n">ephys_preprocessing</span>
 <span class="kn">from</span> <span class="nn">ibllib.time</span> <span class="kn">import</span> <span class="n">date2isostr</span>
-<span class="kn">from</span> <span class="nn">ibllib.oneibl.registration</span> <span class="kn">import</span> <span class="n">IBLRegistrationClient</span><span class="p">,</span> <span class="n">register_session_raw_data</span><span class="p">,</span> <span class="n">get_lab</span>
+<span class="kn">from</span> <span class="nn">ibllib.oneibl.registration</span> <span class="kn">import</span> <span class="n">IBLRegistrationClient</span>
 <span class="kn">from</span> <span class="nn">ibllib.oneibl.data_handlers</span> <span class="kn">import</span> <span class="n">get_local_data_repository</span>
 <span class="kn">from</span> <span class="nn">ibllib.io.session_params</span> <span class="kn">import</span> <span class="n">read_params</span>
 <span class="kn">from</span> <span class="nn">ibllib.pipes.dynamic_pipeline</span> <span class="kn">import</span> <span class="n">make_pipeline</span><span class="p">,</span> <span class="n">acquisition_description_legacy_session</span>
@@ -206,7 +206,7 @@
 
 <div class="viewcode-block" id="job_creator">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.local_server.html#ibllib.pipes.local_server.job_creator">[docs]</a>
-<span class="k">def</span> <span class="nf">job_creator</span><span class="p">(</span><span class="n">root_path</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dry</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">rerun</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">max_md5_size</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">job_creator</span><span class="p">(</span><span class="n">root_path</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dry</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">rerun</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Create new sessions and pipelines.</span>
 
@@ -226,8 +226,6 @@
 <span class="sd">        If true, simply log the session_path(s) found, without registering anything.</span>
 <span class="sd">    rerun : bool</span>
 <span class="sd">        If true and session pipeline tasks already exist, set them all to waiting.</span>
-<span class="sd">    max_md5_size : int</span>
-<span class="sd">        (legacy sessions) The maximum file size to calculate the MD5 hash sum for.</span>
 
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
@@ -252,21 +250,11 @@
             <span class="c1"># if the subject doesn&#39;t exist in the database, skip</span>
             <span class="n">rc</span><span class="o">.</span><span class="n">register_session</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">file_list</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
-            <span class="c1"># See if we need to create a dynamic pipeline</span>
-            <span class="n">experiment_description_file</span> <span class="o">=</span> <span class="n">read_params</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">experiment_description_file</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">pipe</span> <span class="o">=</span> <span class="n">make_pipeline</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># NB: all sessions now extracted using dynamic pipeline</span>
+            <span class="k">if</span> <span class="n">read_params</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="c1"># Create legacy experiment description file</span>
                 <span class="n">acquisition_description_legacy_session</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-                <span class="n">lab</span> <span class="o">=</span> <span class="n">get_lab</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="p">)</span>  <span class="c1"># Can be set to None to do this Alyx-side if using ONE v1.20.1</span>
-                <span class="n">_</span><span class="p">,</span> <span class="n">dsets</span> <span class="o">=</span> <span class="n">register_session_raw_data</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">,</span> <span class="n">max_md5_size</span><span class="o">=</span><span class="n">max_md5_size</span><span class="p">,</span> <span class="n">labs</span><span class="o">=</span><span class="n">lab</span><span class="p">)</span>
-                <span class="k">if</span> <span class="n">dsets</span><span class="p">:</span>
-                    <span class="n">all_datasets</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">dsets</span><span class="p">)</span>
-                <span class="n">pipe</span> <span class="o">=</span> <span class="n">_get_pipeline_class</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="p">)</span>
-                <span class="k">if</span> <span class="n">pipe</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                    <span class="n">task_protocol</span> <span class="o">=</span> <span class="n">get_task_protocol</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
-                    <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Session task protocol </span><span class="si">{</span><span class="n">task_protocol</span><span class="si">}</span><span class="s1"> has no matching pipeline pattern </span><span class="si">{</span><span class="n">session_path</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="n">pipe</span> <span class="o">=</span> <span class="n">make_pipeline</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">rerun</span><span class="p">:</span>
                 <span class="n">rerun__status__in</span> <span class="o">=</span> <span class="s1">&#39;__all__&#39;</span>
             <span class="k">else</span><span class="p">:</span>
@@ -285,7 +273,7 @@
 
 <div class="viewcode-block" id="task_queue">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.local_server.html#ibllib.pipes.local_server.task_queue">[docs]</a>
-<span class="k">def</span> <span class="nf">task_queue</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s1">&#39;all&#39;</span><span class="p">,</span> <span class="n">lab</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">alyx</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">task_queue</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s1">&#39;all&#39;</span><span class="p">,</span> <span class="n">lab</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">alyx</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">env</span><span class="o">=</span><span class="p">(</span><span class="kc">None</span><span class="p">,)):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Query waiting jobs from the specified Lab</span>
 
@@ -297,12 +285,18 @@
 <span class="sd">        Lab name as per Alyx, otherwise try to infer from local Globus install.</span>
 <span class="sd">    alyx : one.webclient.AlyxClient</span>
 <span class="sd">        An Alyx instance.</span>
+<span class="sd">    env : list</span>
+<span class="sd">        One or more environments to filter by. See :prop:`ibllib.pipes.tasks.Task.env`.</span>
 
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
 <span class="sd">    list of dict</span>
 <span class="sd">        A list of Alyx tasks associated with `lab` that have a &#39;Waiting&#39; status.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">predicate</span><span class="p">(</span><span class="n">task</span><span class="p">):</span>
+        <span class="n">classe</span> <span class="o">=</span> <span class="n">tasks</span><span class="o">.</span><span class="n">str2class</span><span class="p">(</span><span class="n">task</span><span class="p">[</span><span class="s1">&#39;executable&#39;</span><span class="p">])</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">mode</span> <span class="o">==</span> <span class="s1">&#39;all&#39;</span> <span class="ow">or</span> <span class="n">classe</span><span class="o">.</span><span class="n">job_size</span> <span class="o">==</span> <span class="n">mode</span><span class="p">)</span> <span class="ow">and</span> <span class="n">classe</span><span class="o">.</span><span class="n">env</span> <span class="ow">in</span> <span class="n">env</span>
+
     <span class="n">alyx</span> <span class="o">=</span> <span class="n">alyx</span> <span class="ow">or</span> <span class="n">AlyxClient</span><span class="p">(</span><span class="n">cache_rest</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">lab</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">_logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Trying to infer lab from globus installation&#39;</span><span class="p">)</span>
@@ -312,28 +306,12 @@
         <span class="k">return</span>  <span class="c1"># if the lab is none, this will return empty tasks each time</span>
     <span class="n">data_repo</span> <span class="o">=</span> <span class="n">get_local_data_repository</span><span class="p">(</span><span class="n">alyx</span><span class="p">)</span>
     <span class="c1"># Filter for tasks</span>
-    <span class="n">tasks_all</span> <span class="o">=</span> <span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;tasks&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span> <span class="n">status</span><span class="o">=</span><span class="s1">&#39;Waiting&#39;</span><span class="p">,</span>
-                          <span class="n">django</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;session__lab__name__in,</span><span class="si">{</span><span class="n">lab</span><span class="si">}</span><span class="s1">,data_repository__name,</span><span class="si">{</span><span class="n">data_repo</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">no_cache</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s1">&#39;all&#39;</span><span class="p">:</span>
-        <span class="n">waiting_tasks</span> <span class="o">=</span> <span class="n">tasks_all</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">small_jobs</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="n">large_jobs</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">tasks_all</span><span class="p">:</span>
-            <span class="n">strmodule</span><span class="p">,</span> <span class="n">strclass</span> <span class="o">=</span> <span class="n">t</span><span class="p">[</span><span class="s1">&#39;executable&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
-            <span class="n">classe</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">importlib</span><span class="o">.</span><span class="n">import_module</span><span class="p">(</span><span class="n">strmodule</span><span class="p">),</span> <span class="n">strclass</span><span class="p">)</span>
-            <span class="n">job_size</span> <span class="o">=</span> <span class="n">classe</span><span class="o">.</span><span class="n">job_size</span>
-            <span class="k">if</span> <span class="n">job_size</span> <span class="o">==</span> <span class="s1">&#39;small&#39;</span><span class="p">:</span>
-                <span class="n">small_jobs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">large_jobs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s1">&#39;small&#39;</span><span class="p">:</span>
-        <span class="n">waiting_tasks</span> <span class="o">=</span> <span class="n">small_jobs</span>
-    <span class="k">elif</span> <span class="n">mode</span> <span class="o">==</span> <span class="s1">&#39;large&#39;</span><span class="p">:</span>
-        <span class="n">waiting_tasks</span> <span class="o">=</span> <span class="n">large_jobs</span>
-
+    <span class="n">waiting_tasks</span> <span class="o">=</span> <span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;tasks&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span> <span class="n">status</span><span class="o">=</span><span class="s1">&#39;Waiting&#39;</span><span class="p">,</span>
+                              <span class="n">django</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;session__lab__name__in,</span><span class="si">{</span><span class="n">lab</span><span class="si">}</span><span class="s1">,data_repository__name,</span><span class="si">{</span><span class="n">data_repo</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">no_cache</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="c1"># Filter tasks by size</span>
+    <span class="n">filtered_tasks</span> <span class="o">=</span> <span class="nb">filter</span><span class="p">(</span><span class="n">predicate</span><span class="p">,</span> <span class="n">waiting_tasks</span><span class="p">)</span>
     <span class="c1"># Order tasks by priority</span>
-    <span class="n">sorted_tasks</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">waiting_tasks</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">d</span><span class="p">:</span> <span class="n">d</span><span class="p">[</span><span class="s1">&#39;priority&#39;</span><span class="p">],</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">sorted_tasks</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">filtered_tasks</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">d</span><span class="p">:</span> <span class="n">d</span><span class="p">[</span><span class="s1">&#39;priority&#39;</span><span class="p">],</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">sorted_tasks</span></div>
 
@@ -388,8 +366,7 @@
         <span class="k">if</span> <span class="n">dry</span><span class="p">:</span>
             <span class="nb">print</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">tdict</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">])</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">task</span><span class="p">,</span> <span class="n">dsets</span> <span class="o">=</span> <span class="n">tasks</span><span class="o">.</span><span class="n">run_alyx_task</span><span class="p">(</span><span class="n">tdict</span><span class="o">=</span><span class="n">tdict</span><span class="p">,</span> <span class="n">session_path</span><span class="o">=</span><span class="n">session_path</span><span class="p">,</span>
-                                              <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="n">task</span><span class="p">,</span> <span class="n">dsets</span> <span class="o">=</span> <span class="n">tasks</span><span class="o">.</span><span class="n">run_alyx_task</span><span class="p">(</span><span class="n">tdict</span><span class="o">=</span><span class="n">tdict</span><span class="p">,</span> <span class="n">session_path</span><span class="o">=</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">dsets</span><span class="p">:</span>
                 <span class="n">all_datasets</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">dsets</span><span class="p">)</span>
                 <span class="n">c</span> <span class="o">+=</span> <span class="mi">1</span>

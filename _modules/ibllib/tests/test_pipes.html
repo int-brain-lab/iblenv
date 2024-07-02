@@ -123,19 +123,103 @@
 <span class="kn">import</span> <span class="nn">random</span>
 <span class="kn">import</span> <span class="nn">string</span>
 <span class="kn">from</span> <span class="nn">uuid</span> <span class="kn">import</span> <span class="n">uuid4</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
 
-<span class="kn">from</span> <span class="nn">one.api</span> <span class="kn">import</span> <span class="n">ONE</span>
+<span class="kn">from</span> <span class="nn">one.webclient</span> <span class="kn">import</span> <span class="n">AlyxClient</span>
+<span class="kn">from</span> <span class="nn">one.api</span> <span class="kn">import</span> <span class="n">ONE</span><span class="p">,</span> <span class="n">OneAlyx</span>
 <span class="kn">import</span> <span class="nn">iblutil.io.params</span> <span class="k">as</span> <span class="nn">iopar</span>
 <span class="kn">from</span> <span class="nn">packaging.version</span> <span class="kn">import</span> <span class="n">Version</span><span class="p">,</span> <span class="n">InvalidVersion</span>
 
 <span class="kn">import</span> <span class="nn">ibllib.io.extractors.base</span>
 <span class="kn">import</span> <span class="nn">ibllib.tests.fixtures.utils</span> <span class="k">as</span> <span class="nn">fu</span>
-<span class="kn">from</span> <span class="nn">ibllib.pipes</span> <span class="kn">import</span> <span class="n">misc</span>
+<span class="kn">from</span> <span class="nn">ibllib.pipes</span> <span class="kn">import</span> <span class="n">misc</span><span class="p">,</span> <span class="n">local_server</span>
 <span class="kn">from</span> <span class="nn">ibllib.pipes.misc</span> <span class="kn">import</span> <span class="n">sleepless</span>
 <span class="kn">from</span> <span class="nn">ibllib.tests</span> <span class="kn">import</span> <span class="n">TEST_DB</span>
 <span class="kn">import</span> <span class="nn">ibllib.pipes.scan_fix_passive_files</span> <span class="k">as</span> <span class="nn">fix</span>
 <span class="kn">from</span> <span class="nn">ibllib.pipes.base_tasks</span> <span class="kn">import</span> <span class="n">RegisterRawDataTask</span>
 <span class="kn">from</span> <span class="nn">ibllib.pipes.ephys_preprocessing</span> <span class="kn">import</span> <span class="n">SpikeSorting</span>
+
+
+<div class="viewcode-block" id="TestLocalServer">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.tests.test_pipes.html#ibllib.tests.test_pipes.TestLocalServer">[docs]</a>
+<span class="k">class</span> <span class="nc">TestLocalServer</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Tests for the ibllib.pipes.local_server module.&quot;&quot;&quot;</span>
+<div class="viewcode-block" id="TestLocalServer.setUp">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.tests.test_pipes.html#ibllib.tests.test_pipes.TestLocalServer.setUp">[docs]</a>
+    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">tmp</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tmpdir</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">tmp</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">addCleanup</span><span class="p">(</span><span class="n">tmp</span><span class="o">.</span><span class="n">cleanup</span><span class="p">)</span>
+        <span class="n">raw_behaviour_data</span> <span class="o">=</span> <span class="n">fu</span><span class="o">.</span><span class="n">create_fake_raw_behavior_data_folder</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tmpdir</span> <span class="o">/</span> <span class="s1">&#39;subject/2020-01-01/001&#39;</span><span class="p">,</span> <span class="n">task</span><span class="o">=</span><span class="s1">&#39;ephys&#39;</span><span class="p">)</span>
+        <span class="n">raw_behaviour_data</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;raw_session.flag&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">touch</span><span class="p">()</span>
+        <span class="n">fu</span><span class="o">.</span><span class="n">populate_task_settings</span><span class="p">(</span><span class="n">raw_behaviour_data</span><span class="p">,</span> <span class="n">patch</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;PYBPOD_PROTOCOL&#39;</span><span class="p">:</span> <span class="s1">&#39;_iblrig_ephysChoiceWorld5.2.1&#39;</span><span class="p">})</span>
+        <span class="n">raw_behaviour_data</span> <span class="o">=</span> <span class="n">fu</span><span class="o">.</span><span class="n">create_fake_raw_behavior_data_folder</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tmpdir</span> <span class="o">/</span> <span class="s1">&#39;subject/2020-01-01/002&#39;</span><span class="p">)</span>
+        <span class="n">raw_behaviour_data</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;raw_session.flag&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">touch</span><span class="p">()</span>
+        <span class="n">fu</span><span class="o">.</span><span class="n">populate_task_settings</span><span class="p">(</span><span class="n">raw_behaviour_data</span><span class="p">,</span> <span class="n">patch</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;PYBPOD_PROTOCOL&#39;</span><span class="p">:</span> <span class="s1">&#39;ephys_optoChoiceWorld6.0.1&#39;</span><span class="p">})</span></div>
+
+
+<div class="viewcode-block" id="TestLocalServer.test_task_queue">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.tests.test_pipes.html#ibllib.tests.test_pipes.TestLocalServer.test_task_queue">[docs]</a>
+    <span class="nd">@mock</span><span class="o">.</span><span class="n">patch</span><span class="p">(</span><span class="s1">&#39;ibllib.pipes.local_server.get_local_data_repository&#39;</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">test_task_queue</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lab_repo_mock</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Test ibllib.pipes.local_server.task_queue function.&quot;&quot;&quot;</span>
+        <span class="n">lab_repo_mock</span><span class="o">.</span><span class="n">return_value</span> <span class="o">=</span> <span class="s1">&#39;foo_repo&#39;</span>
+        <span class="n">tasks</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="p">{</span><span class="s1">&#39;executable&#39;</span><span class="p">:</span> <span class="s1">&#39;ibllib.pipes.mesoscope_tasks.MesoscopePreprocess&#39;</span><span class="p">,</span> <span class="s1">&#39;priority&#39;</span><span class="p">:</span> <span class="mi">80</span><span class="p">},</span>
+            <span class="p">{</span><span class="s1">&#39;executable&#39;</span><span class="p">:</span> <span class="s1">&#39;ibllib.pipes.ephys_preprocessing.SpikeSorting&#39;</span><span class="p">,</span> <span class="s1">&#39;priority&#39;</span><span class="p">:</span> <span class="n">SpikeSorting</span><span class="o">.</span><span class="n">priority</span><span class="p">},</span>
+            <span class="p">{</span><span class="s1">&#39;executable&#39;</span><span class="p">:</span> <span class="s1">&#39;ibllib.pipes.base_tasks.RegisterRawDataTask&#39;</span><span class="p">,</span> <span class="s1">&#39;priority&#39;</span><span class="p">:</span> <span class="n">RegisterRawDataTask</span><span class="o">.</span><span class="n">priority</span><span class="p">}</span>
+        <span class="p">]</span>
+        <span class="n">alyx</span> <span class="o">=</span> <span class="n">mock</span><span class="o">.</span><span class="n">Mock</span><span class="p">(</span><span class="n">spec</span><span class="o">=</span><span class="n">AlyxClient</span><span class="p">)</span>
+        <span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">return_value</span> <span class="o">=</span> <span class="n">tasks</span>
+        <span class="n">queue</span> <span class="o">=</span> <span class="n">local_server</span><span class="o">.</span><span class="n">task_queue</span><span class="p">(</span><span class="n">lab</span><span class="o">=</span><span class="s1">&#39;foolab&#39;</span><span class="p">,</span> <span class="n">alyx</span><span class="o">=</span><span class="n">alyx</span><span class="p">)</span>
+        <span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">assert_called</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="s1">&#39;Waiting&#39;</span><span class="p">,</span> <span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">call_args</span><span class="o">.</span><span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;status&#39;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="s1">&#39;foolab&#39;</span><span class="p">,</span> <span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">call_args</span><span class="o">.</span><span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;django&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="s1">&#39;foo_repo&#39;</span><span class="p">,</span> <span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">call_args</span><span class="o">.</span><span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;django&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">))</span>
+        <span class="c1"># Expect to return tasks in descending priority order, without mesoscope task (different env)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">([</span><span class="n">tasks</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">tasks</span><span class="p">[</span><span class="mi">1</span><span class="p">]],</span> <span class="n">queue</span><span class="p">)</span>
+        <span class="c1"># Expect only mesoscope task returned when relevant env passed</span>
+        <span class="n">queue</span> <span class="o">=</span> <span class="n">local_server</span><span class="o">.</span><span class="n">task_queue</span><span class="p">(</span><span class="n">lab</span><span class="o">=</span><span class="s1">&#39;foolab&#39;</span><span class="p">,</span> <span class="n">alyx</span><span class="o">=</span><span class="n">alyx</span><span class="p">,</span> <span class="n">env</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;suite2p&#39;</span><span class="p">,))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">([</span><span class="n">tasks</span><span class="p">[</span><span class="mi">0</span><span class="p">]],</span> <span class="n">queue</span><span class="p">)</span>
+        <span class="c1"># Expect no tasks as mesoscope task is a large job</span>
+        <span class="n">queue</span> <span class="o">=</span> <span class="n">local_server</span><span class="o">.</span><span class="n">task_queue</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s1">&#39;small&#39;</span><span class="p">,</span> <span class="n">lab</span><span class="o">=</span><span class="s1">&#39;foolab&#39;</span><span class="p">,</span> <span class="n">alyx</span><span class="o">=</span><span class="n">alyx</span><span class="p">,</span> <span class="n">env</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;suite2p&#39;</span><span class="p">,))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">([],</span> <span class="n">queue</span><span class="p">)</span>
+        <span class="c1"># Expect only register task as it&#39;s the only small job</span>
+        <span class="n">queue</span> <span class="o">=</span> <span class="n">local_server</span><span class="o">.</span><span class="n">task_queue</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s1">&#39;small&#39;</span><span class="p">,</span> <span class="n">lab</span><span class="o">=</span><span class="s1">&#39;foolab&#39;</span><span class="p">,</span> <span class="n">alyx</span><span class="o">=</span><span class="n">alyx</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">([</span><span class="n">tasks</span><span class="p">[</span><span class="mi">2</span><span class="p">]],</span> <span class="n">queue</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="TestLocalServer.test_job_creator">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.tests.test_pipes.html#ibllib.tests.test_pipes.TestLocalServer.test_job_creator">[docs]</a>
+    <span class="nd">@mock</span><span class="o">.</span><span class="n">patch</span><span class="p">(</span><span class="s1">&#39;ibllib.pipes.local_server.IBLRegistrationClient&#39;</span><span class="p">)</span>
+    <span class="nd">@mock</span><span class="o">.</span><span class="n">patch</span><span class="p">(</span><span class="s1">&#39;ibllib.pipes.local_server.make_pipeline&#39;</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">test_job_creator</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pipeline_mock</span><span class="p">,</span> <span class="n">_</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Test the job_creator function.</span>
+
+<span class="sd">        This test was created after retiring the legacy pipeline. Here we test that an experiment</span>
+<span class="sd">        description file is created for each legacy session, followed by dynamic pipeline creation.</span>
+<span class="sd">        The second session tests the behaviour of a legacy pipeline with no corresponding experiment</span>
+<span class="sd">        description template.  For these sessions we will simply update acquisition_description_legacy_session</span>
+<span class="sd">        to add support.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">one</span> <span class="o">=</span> <span class="n">mock</span><span class="o">.</span><span class="n">Mock</span><span class="p">(</span><span class="n">spec</span><span class="o">=</span><span class="n">OneAlyx</span><span class="p">)</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertLogs</span><span class="p">(</span><span class="n">local_server</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="s1">&#39;ERROR&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">log</span><span class="p">:</span>
+            <span class="n">pipes</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">local_server</span><span class="o">.</span><span class="n">job_creator</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tmpdir</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="s2">&quot;KeyError: &#39;biased_opto&#39;&quot;</span><span class="p">,</span> <span class="n">log</span><span class="o">.</span><span class="n">records</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">getMessage</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">pipes</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">pipeline_mock</span><span class="o">.</span><span class="n">assert_called_once</span><span class="p">()</span>
+
+        <span class="c1"># In September 2024, the legacy pipeline will be removed. This entails removing the</span>
+        <span class="c1"># code in pipes.training_preprocessing and pipes.ephys_preprocessing, as well as the</span>
+        <span class="c1"># code in qc.task_extractors and the extract_all functions in the io.extractors modules.</span>
+        <span class="c1"># NB: some tasks such as ephys opto do not have experiment description templates and some</span>
+        <span class="c1"># legacy tasks are imported for use in the dynamic pipeline.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span>
+            <span class="n">datetime</span><span class="o">.</span><span class="n">today</span><span class="p">()</span> <span class="o">&gt;</span> <span class="n">datetime</span><span class="p">(</span><span class="mi">2024</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+            <span class="s1">&#39;Legacy pipeline code scheduled to be removed after 2024-09-01&#39;</span>
+        <span class="p">)</span></div>
+</div>
+
 
 
 <div class="viewcode-block" id="TestExtractors2Tasks">
@@ -147,7 +231,7 @@
     <span class="k">def</span> <span class="nf">test_task_to_pipeline</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">dd</span> <span class="o">=</span> <span class="n">ibllib</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">extractors</span><span class="o">.</span><span class="n">base</span><span class="o">.</span><span class="n">_get_task_types_json_config</span><span class="p">()</span>
         <span class="n">types</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">([</span><span class="n">dd</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">dd</span><span class="p">]))</span>
-        <span class="c1"># makes sure that for every defined task type there is an acutal pipeline</span>
+        <span class="c1"># makes sure that for every defined task type there is an actual pipeline</span>
         <span class="k">for</span> <span class="nb">type</span> <span class="ow">in</span> <span class="n">types</span><span class="p">:</span>
             <span class="k">assert</span> <span class="n">ibllib</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">extractors</span><span class="o">.</span><span class="n">base</span><span class="o">.</span><span class="n">_get_pipeline_from_task_type</span><span class="p">(</span><span class="nb">type</span><span class="p">)</span>
             <span class="nb">print</span><span class="p">(</span><span class="nb">type</span><span class="p">,</span> <span class="n">ibllib</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">extractors</span><span class="o">.</span><span class="n">base</span><span class="o">.</span><span class="n">_get_pipeline_from_task_type</span><span class="p">(</span><span class="nb">type</span><span class="p">))</span>
@@ -921,12 +1005,13 @@
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Test upload of snapshots.</span>
 
 <span class="sd">        Another test for this exists in ibllib.tests.test_base_tasks.TestRegisterRawDataTask.</span>
+<span class="sd">        This test does not work on real files and works without a test db.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># Add base dir snapshot</span>
         <span class="p">(</span><span class="n">folder</span> <span class="o">:=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;snapshots&#39;</span><span class="p">))</span><span class="o">.</span><span class="n">mkdir</span><span class="p">()</span>
         <span class="n">folder</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;snap.PNG&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">touch</span><span class="p">()</span>
         <span class="n">collection</span> <span class="o">=</span> <span class="s1">&#39;raw_task_data&#39;</span>
-        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">ext</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">([</span><span class="s1">&#39;tif&#39;</span><span class="p">,</span> <span class="s1">&#39;jpg&#39;</span><span class="p">]):</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">ext</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">([</span><span class="s1">&#39;tif&#39;</span><span class="p">,</span> <span class="s1">&#39;jpg&#39;</span><span class="p">,</span> <span class="s1">&#39;gif&#39;</span><span class="p">]):</span>
             <span class="p">(</span><span class="n">p</span> <span class="o">:=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">collection</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="n">i</span><span class="si">:</span><span class="s1">02</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s1">&#39;snapshots&#39;</span><span class="p">))</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
             <span class="n">p</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;snapshot.</span><span class="si">{</span><span class="n">ext</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">touch</span><span class="p">()</span>
         <span class="c1"># Stuff with text note</span>
@@ -937,15 +1022,22 @@
             <span class="n">fp</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;bar&#39;</span><span class="p">)</span>
 
         <span class="n">task</span> <span class="o">=</span> <span class="n">RegisterRawDataTask</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">)</span>
+        <span class="c1"># Mock the _is_animated_gif function to return true for any GIF file</span>
+        <span class="n">as_png_side_effect</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s1">&#39;.png&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">touch</span><span class="p">()</span> <span class="ow">or</span> <span class="n">x</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s1">&#39;.png&#39;</span><span class="p">)</span>  <span class="c1"># noqa</span>
         <span class="k">with</span> <span class="n">mock</span><span class="o">.</span><span class="n">patch</span><span class="o">.</span><span class="n">object</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="p">,</span> <span class="s1">&#39;rest&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">rest</span><span class="p">,</span> \
-                <span class="n">mock</span><span class="o">.</span><span class="n">patch</span><span class="o">.</span><span class="n">object</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">,</span> <span class="s1">&#39;path2eid&#39;</span><span class="p">,</span> <span class="n">return_value</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">uuid4</span><span class="p">())):</span>
+                <span class="n">mock</span><span class="o">.</span><span class="n">patch</span><span class="o">.</span><span class="n">object</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">,</span> <span class="s1">&#39;path2eid&#39;</span><span class="p">,</span> <span class="n">return_value</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">uuid4</span><span class="p">())),</span> \
+                <span class="n">mock</span><span class="o">.</span><span class="n">patch</span><span class="o">.</span><span class="n">object</span><span class="p">(</span><span class="n">task</span><span class="p">,</span> <span class="s1">&#39;_save_as_png&#39;</span><span class="p">,</span> <span class="n">side_effect</span><span class="o">=</span><span class="n">as_png_side_effect</span><span class="p">),</span> \
+                <span class="n">mock</span><span class="o">.</span><span class="n">patch</span><span class="o">.</span><span class="n">object</span><span class="p">(</span><span class="n">task</span><span class="p">,</span> <span class="s1">&#39;_is_animated_gif&#39;</span><span class="p">,</span> <span class="n">side_effect</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">suffix</span> <span class="o">==</span> <span class="s1">&#39;.gif&#39;</span><span class="p">):</span>
             <span class="n">task</span><span class="o">.</span><span class="n">register_snapshots</span><span class="p">(</span><span class="n">collection</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">collection</span><span class="si">}</span><span class="s1">*&#39;</span><span class="p">])</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="n">rest</span><span class="o">.</span><span class="n">call_count</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="n">rest</span><span class="o">.</span><span class="n">call_count</span><span class="p">)</span>
             <span class="n">files</span> <span class="o">=</span> <span class="p">[]</span>
             <span class="k">for</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span> <span class="ow">in</span> <span class="n">rest</span><span class="o">.</span><span class="n">call_args_list</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">((</span><span class="s1">&#39;notes&#39;</span><span class="p">,</span> <span class="s1">&#39;create&#39;</span><span class="p">),</span> <span class="n">args</span><span class="p">)</span>
                 <span class="n">files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;files&#39;</span><span class="p">][</span><span class="s1">&#39;image&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">name</span><span class="p">)</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
-            <span class="n">expected</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;snap.PNG&#39;</span><span class="p">,</span> <span class="s1">&#39;pic.jpeg&#39;</span><span class="p">,</span> <span class="s1">&#39;snapshot.tif&#39;</span><span class="p">,</span> <span class="s1">&#39;snapshot.jpg&#39;</span><span class="p">)</span>
+                <span class="n">width</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;data&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;width&#39;</span><span class="p">)</span>
+                <span class="c1"># Test that original size passed as width only for gif file</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="s1">&#39;orig&#39;</span><span class="p">,</span> <span class="n">width</span><span class="p">)</span> <span class="k">if</span> <span class="n">files</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;gif&#39;</span><span class="p">)</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertIsNone</span><span class="p">(</span><span class="n">width</span><span class="p">)</span>
+            <span class="n">expected</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;snap.PNG&#39;</span><span class="p">,</span> <span class="s1">&#39;pic.jpeg&#39;</span><span class="p">,</span> <span class="s1">&#39;snapshot.png&#39;</span><span class="p">,</span> <span class="s1">&#39;snapshot.jpg&#39;</span><span class="p">,</span> <span class="s1">&#39;snapshot.gif&#39;</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">assertCountEqual</span><span class="p">(</span><span class="n">expected</span><span class="p">,</span> <span class="n">files</span><span class="p">)</span></div>
 </div>
 
@@ -971,6 +1063,74 @@
         <span class="c1"># Check if arguments are passed correctly</span>
         <span class="n">result</span> <span class="o">=</span> <span class="n">decorated_func</span><span class="p">(</span><span class="s2">&quot;test1&quot;</span><span class="p">,</span> <span class="s2">&quot;test2&quot;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="p">(</span><span class="s2">&quot;test1&quot;</span><span class="p">,</span> <span class="s2">&quot;test2&quot;</span><span class="p">))</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="TestLegacyDeprecations">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.tests.test_pipes.html#ibllib.tests.test_pipes.TestLegacyDeprecations">[docs]</a>
+<span class="k">class</span> <span class="nc">TestLegacyDeprecations</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Assert removal of old code.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="TestLegacyDeprecations.test_remove_legacy_pipeline">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.tests.test_pipes.html#ibllib.tests.test_pipes.TestLegacyDeprecations.test_remove_legacy_pipeline">[docs]</a>
+    <span class="k">def</span> <span class="nf">test_remove_legacy_pipeline</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Remove old legacy pipeline code.</span>
+
+<span class="sd">        The following code is an incomplete list of modules and functions that should be removed:</span>
+
+<span class="sd">        - pipes.ephys_preprocessing</span>
+<span class="sd">        - pipes.training_preprocessing</span>
+<span class="sd">        - io.extractors.biased_trials.extract_all</span>
+<span class="sd">        - io.extractors.bpod_trials.extract_all</span>
+<span class="sd">        - io.extractors.base.get_session_extractor_type</span>
+<span class="sd">        - io.extractors.base.get_pipeline</span>
+<span class="sd">        - io.extractors.base._get_pipeline_from_task_type</span>
+<span class="sd">        - io.extractors.base._get_task_types_json_config</span>
+<span class="sd">        - io.extractors.extractor_types.json</span>
+<span class="sd">        - qc.task_extractors.TaskQCExtractor.extract_data</span>
+
+<span class="sd">        NB: some tasks in ephys_preprocessing and maybe training_preprocessing may be directly used</span>
+<span class="sd">        or subclassed by the dynamic pipeline. The TaskQCExtractor class could be removed entirely.</span>
+<span class="sd">        Instead, a function could exist to simply fetch the relevant data from the task&#39;s extractor</span>
+<span class="sd">        class.  Alos, there may be plenty of iblscripts CI tests to be removed.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">today</span><span class="p">()</span> <span class="o">&lt;</span> <span class="n">datetime</span><span class="p">(</span><span class="mi">2024</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="s1">&#39;remove legacy pipeline&#39;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="TestLegacyDeprecations.test_remove_legacy_rig_code">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.tests.test_pipes.html#ibllib.tests.test_pipes.TestLegacyDeprecations.test_remove_legacy_rig_code">[docs]</a>
+    <span class="k">def</span> <span class="nf">test_remove_legacy_rig_code</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Remove old legacy (v7) rig code.</span>
+
+<span class="sd">        The following code is an incomplete list of modules and functions that should be removed:</span>
+
+<span class="sd">        - pipes.transfer_rig_data</span>
+<span class="sd">        - pipes.misc.check_transfer</span>
+<span class="sd">        - pipes.misc.transfer_session_folders</span>
+<span class="sd">        - pipes.misc.copy_with_check</span>
+<span class="sd">        - pipes.misc.backup_session</span>
+<span class="sd">        - pipes.misc.transfer_folder</span>
+<span class="sd">        - pipes.misc.load_videopc_params</span>
+<span class="sd">        - pipes.misc.load_ephyspc_params</span>
+<span class="sd">        - pipes.misc.create_basic_transfer_params</span>
+<span class="sd">        - pipes.misc.create_videopc_params</span>
+<span class="sd">        - pipes.misc.create_ephyspc_params</span>
+<span class="sd">        - pipes.misc.rdiff_install</span>
+<span class="sd">        - pipes.misc.rsync_paths</span>
+<span class="sd">        - pipes.misc.confirm_ephys_remote_folder</span>
+<span class="sd">        - pipes.misc.create_ephys_flags</span>
+<span class="sd">        - pipes.misc.create_ephys_transfer_done_flag</span>
+<span class="sd">        - pipes.misc.create_video_transfer_done_flag</span>
+<span class="sd">        - pipes.misc.create_transfer_done_flag</span>
+
+<span class="sd">        pipes.misc.backup_session may be worth keeping and utilized by the iblrig code (arguably</span>
+<span class="sd">        useful on both rig and local server). The corresponding tests should also be removed.</span>
+
+<span class="sd">        In addition some iblscripts.deploy files should be removed, e.g. prepare_ephys_session,</span>
+<span class="sd">        prepare_video_session.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">today</span><span class="p">()</span> <span class="o">&lt;</span> <span class="n">datetime</span><span class="p">(</span><span class="mi">2024</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="s1">&#39;remove legacy rig code&#39;</span><span class="p">)</span></div>
 </div>
 
 

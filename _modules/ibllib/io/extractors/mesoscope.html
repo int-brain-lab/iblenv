@@ -165,6 +165,7 @@
         <span class="k">for</span> <span class="n">fov</span> <span class="ow">in</span> <span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;FOV&#39;</span><span class="p">,</span> <span class="p">[]):</span>
             <span class="k">if</span> <span class="s1">&#39;roiUuid&#39;</span> <span class="ow">in</span> <span class="n">fov</span><span class="p">:</span>
                 <span class="n">fov</span><span class="p">[</span><span class="s1">&#39;roiUUID&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">fov</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;roiUuid&#39;</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="s1">&#39;nFrames&#39;</span> <span class="ow">in</span> <span class="n">meta</span><span class="p">,</span> <span class="s1">&#39;&quot;nFrames&quot; key missing from meta data; rawImagingData.meta.json likely an old version&#39;</span>
     <span class="k">return</span> <span class="n">meta</span></div>
 
 
@@ -363,7 +364,7 @@
         <span class="n">start_times</span> <span class="o">=</span> <span class="n">out</span><span class="p">[</span><span class="s1">&#39;intervals&#39;</span><span class="p">][:,</span> <span class="mi">0</span><span class="p">]</span>
         <span class="n">last_trial_end</span> <span class="o">=</span> <span class="n">out</span><span class="p">[</span><span class="s1">&#39;intervals&#39;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
 
-        <span class="k">def</span> <span class="nf">assign_to_trial</span><span class="p">(</span><span class="n">events</span><span class="p">,</span> <span class="n">take</span><span class="o">=</span><span class="s1">&#39;last&#39;</span><span class="p">):</span>
+        <span class="k">def</span> <span class="nf">assign_to_trial</span><span class="p">(</span><span class="n">events</span><span class="p">,</span> <span class="n">take</span><span class="o">=</span><span class="s1">&#39;last&#39;</span><span class="p">,</span> <span class="n">starts</span><span class="o">=</span><span class="n">start_times</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">            </span><span class="sd">&quot;&quot;&quot;Assign DAQ events to trials.</span>
 
 <span class="sd">            Because we may not have trial start TTLs on the DAQ (because of the low sampling rate),</span>
@@ -371,7 +372,7 @@
 <span class="sd">            ignores the last trial. This function trims the input array before assigning so that</span>
 <span class="sd">            the last trial&#39;s events are correctly assigned.</span>
 <span class="sd">            &quot;&quot;&quot;</span>
-            <span class="k">return</span> <span class="n">_assign_events_to_trial</span><span class="p">(</span><span class="n">start_times</span><span class="p">,</span> <span class="n">events</span><span class="p">[</span><span class="n">events</span> <span class="o">&lt;=</span> <span class="n">last_trial_end</span><span class="p">],</span> <span class="n">take</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">_assign_events_to_trial</span><span class="p">(</span><span class="n">starts</span><span class="p">,</span> <span class="n">events</span><span class="p">[</span><span class="n">events</span> <span class="o">&lt;=</span> <span class="n">last_trial_end</span><span class="p">],</span> <span class="n">take</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="n">out</span><span class="p">[</span><span class="s1">&#39;itiIn_times&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">assign_to_trial</span><span class="p">(</span><span class="n">fpga_events</span><span class="p">[</span><span class="s1">&#39;itiIn_times&#39;</span><span class="p">][</span><span class="n">ifpga</span><span class="p">])</span>
 
         <span class="c1"># Extract valve open times from the DAQ</span>
@@ -400,10 +401,17 @@
             <span class="c1"># Use the valve controller TTLs recorded on the Bpod channel as the reward time</span>
             <span class="n">out</span><span class="p">[</span><span class="s1">&#39;valveOpen_times&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">assign_to_trial</span><span class="p">(</span><span class="n">valve_driver_ttls</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">])</span>
 
-        <span class="c1"># Stimulus times extracted the same as usual</span>
-        <span class="n">out</span><span class="p">[</span><span class="s1">&#39;stimFreeze_times&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">assign_to_trial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">frame2ttl</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">],</span> <span class="n">take</span><span class="o">=-</span><span class="mi">2</span><span class="p">)</span>
-        <span class="n">out</span><span class="p">[</span><span class="s1">&#39;stimOn_times&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">assign_to_trial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">frame2ttl</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">],</span> <span class="n">take</span><span class="o">=</span><span class="s1">&#39;first&#39;</span><span class="p">)</span>
-        <span class="n">out</span><span class="p">[</span><span class="s1">&#39;stimOff_times&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">assign_to_trial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">frame2ttl</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">])</span>
+        <span class="c1"># Stimulus times extracted based on trigger times</span>
+        <span class="n">out</span><span class="p">[</span><span class="s1">&#39;stimFreeze_times&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">assign_to_trial</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">frame2ttl</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">],</span> <span class="s1">&#39;last&#39;</span><span class="p">,</span>
+            <span class="n">starts</span><span class="o">=</span><span class="n">out</span><span class="p">[</span><span class="s1">&#39;stimFreezeTrigger_times&#39;</span><span class="p">],</span> <span class="n">t_trial_end</span><span class="o">=</span><span class="n">out</span><span class="p">[</span><span class="s1">&#39;stimOffTrigger_times&#39;</span><span class="p">])</span>
+        <span class="n">out</span><span class="p">[</span><span class="s1">&#39;stimOn_times&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">assign_to_trial</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">frame2ttl</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">],</span> <span class="s1">&#39;first&#39;</span><span class="p">,</span>
+            <span class="n">starts</span><span class="o">=</span><span class="n">out</span><span class="p">[</span><span class="s1">&#39;stimOnTrigger_times&#39;</span><span class="p">],</span> <span class="n">t_trial_end</span><span class="o">=</span><span class="n">out</span><span class="p">[</span><span class="s1">&#39;stimFreezeTrigger_times&#39;</span><span class="p">])</span>
+        <span class="n">out</span><span class="p">[</span><span class="s1">&#39;stimOff_times&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">assign_to_trial</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">frame2ttl</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">],</span> <span class="s1">&#39;first&#39;</span><span class="p">,</span>
+            <span class="n">starts</span><span class="o">=</span><span class="n">out</span><span class="p">[</span><span class="s1">&#39;stimOffTrigger_times&#39;</span><span class="p">],</span> <span class="n">t_trial_end</span><span class="o">=</span><span class="n">out</span><span class="p">[</span><span class="s1">&#39;intervals&#39;</span><span class="p">][:,</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="p">)</span>
 
         <span class="c1"># Audio times</span>
         <span class="n">error_cue</span> <span class="o">=</span> <span class="n">fpga_events</span><span class="p">[</span><span class="s1">&#39;errorTone_times&#39;</span><span class="p">]</span>
@@ -892,6 +900,15 @@
 <span class="sd">        Calculate the time shifts for each field of view (FOV) and the relative offsets for each</span>
 <span class="sd">        scan line.</span>
 
+<span class="sd">        For a 2 scan field, 2 depth recording (so 4 FOVs):</span>
+
+<span class="sd">        Frame 1, lines 1-512 correspond to FOV_00</span>
+<span class="sd">        Frame 1, lines 551-1062 correspond to FOV_01</span>
+<span class="sd">        Frame 2, lines 1-512 correspond to FOV_02</span>
+<span class="sd">        Frame 2, lines 551-1062 correspond to FOV_03</span>
+<span class="sd">        Frame 3, lines 1-512 correspond to FOV_00</span>
+<span class="sd">        ...</span>
+
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        raw_imaging_meta : dict</span>
@@ -911,27 +928,28 @@
         <span class="n">FOVs</span> <span class="o">=</span> <span class="n">raw_imaging_meta</span><span class="p">[</span><span class="s1">&#39;FOV&#39;</span><span class="p">]</span>
 
         <span class="c1"># Double-check meta extracted properly</span>
-        <span class="n">raw_meta</span> <span class="o">=</span> <span class="n">raw_imaging_meta</span><span class="p">[</span><span class="s1">&#39;rawScanImageMeta&#39;</span><span class="p">]</span>
-        <span class="n">artist</span> <span class="o">=</span> <span class="n">raw_meta</span><span class="p">[</span><span class="s1">&#39;Artist&#39;</span><span class="p">]</span>
-        <span class="k">assert</span> <span class="nb">sum</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="s1">&#39;enable&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">artist</span><span class="p">[</span><span class="s1">&#39;RoiGroups&#39;</span><span class="p">][</span><span class="s1">&#39;imagingRoiGroup&#39;</span><span class="p">][</span><span class="s1">&#39;rois&#39;</span><span class="p">])</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">FOVs</span><span class="p">)</span>
-
+        <span class="c1"># assert meta.FOV.Zs is ascending but use slice_id field. This may not be necessary but is expected.</span>
+        <span class="n">slice_ids</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">fov</span><span class="p">[</span><span class="s1">&#39;slice_id&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">fov</span> <span class="ow">in</span> <span class="n">FOVs</span><span class="p">])</span>
+        <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">([</span><span class="n">x</span><span class="p">[</span><span class="s1">&#39;Zs&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">FOVs</span><span class="p">])</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">),</span> <span class="s1">&#39;FOV depths not in ascending order&#39;</span>
+        <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">slice_ids</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">),</span> <span class="s1">&#39;slice IDs not ordered&#39;</span>
         <span class="c1"># Number of scan lines per FOV, i.e. number of Y pixels / image height</span>
         <span class="n">n_lines</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">x</span><span class="p">[</span><span class="s1">&#39;nXnYnZ&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">FOVs</span><span class="p">])</span>
-        <span class="n">n_valid_lines</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">n_lines</span><span class="p">)</span>  <span class="c1"># Number of lines imaged excluding flybacks</span>
-        <span class="c1"># Number of lines during flyback</span>
-        <span class="n">n_lines_per_gap</span> <span class="o">=</span> <span class="nb">int</span><span class="p">((</span><span class="n">raw_meta</span><span class="p">[</span><span class="s1">&#39;Height&#39;</span><span class="p">]</span> <span class="o">-</span> <span class="n">n_valid_lines</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">FOVs</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span>
-        <span class="c1"># The start and end indices of each FOV in the raw images</span>
-        <span class="n">fov_start_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="n">n_lines</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">n_lines_per_gap</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
-        <span class="n">fov_end_idx</span> <span class="o">=</span> <span class="n">fov_start_idx</span> <span class="o">+</span> <span class="n">n_lines</span>
+
+        <span class="c1"># We get indices from MATLAB extracted metadata so below two lines are no longer needed</span>
+        <span class="c1"># n_valid_lines = np.sum(n_lines)  # Number of lines imaged excluding flybacks</span>
+        <span class="c1"># n_lines_per_gap = int((raw_meta[&#39;Height&#39;] - n_valid_lines) / (len(FOVs) - 1))  # N lines during flyback</span>
         <span class="n">line_period</span> <span class="o">=</span> <span class="n">raw_imaging_meta</span><span class="p">[</span><span class="s1">&#39;scanImageParams&#39;</span><span class="p">][</span><span class="s1">&#39;hRoiManager&#39;</span><span class="p">][</span><span class="s1">&#39;linePeriod&#39;</span><span class="p">]</span>
+        <span class="n">frame_time_shifts</span> <span class="o">=</span> <span class="n">slice_ids</span> <span class="o">/</span> <span class="n">raw_imaging_meta</span><span class="p">[</span><span class="s1">&#39;scanImageParams&#39;</span><span class="p">][</span><span class="s1">&#39;hRoiManager&#39;</span><span class="p">][</span><span class="s1">&#39;scanFrameRate&#39;</span><span class="p">]</span>
 
-        <span class="n">line_indices</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="n">fov_time_shifts</span> <span class="o">=</span> <span class="n">fov_start_idx</span> <span class="o">*</span> <span class="n">line_period</span>
-        <span class="n">line_time_shifts</span> <span class="o">=</span> <span class="p">[]</span>
-
-        <span class="k">for</span> <span class="n">ln</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">e</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">n_lines</span><span class="p">,</span> <span class="n">fov_start_idx</span><span class="p">,</span> <span class="n">fov_end_idx</span><span class="p">):</span>
-            <span class="n">line_indices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">e</span><span class="p">))</span>
-            <span class="n">line_time_shifts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">ln</span><span class="p">)</span> <span class="o">*</span> <span class="n">line_period</span><span class="p">)</span>
+        <span class="c1"># Line indices are now extracted by the MATLAB function mesoscopeMetadataExtraction.m</span>
+        <span class="c1"># They are indexed from 1 so we subtract 1 to convert to zero-indexed</span>
+        <span class="n">line_indices</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">fov</span><span class="p">[</span><span class="s1">&#39;lineIdx&#39;</span><span class="p">])</span> <span class="o">-</span> <span class="mi">1</span> <span class="k">for</span> <span class="n">fov</span> <span class="ow">in</span> <span class="n">FOVs</span><span class="p">]</span>  <span class="c1"># Convert to zero-indexed from MATLAB 1-indexed</span>
+        <span class="k">assert</span> <span class="nb">all</span><span class="p">(</span><span class="n">lns</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="n">n</span> <span class="k">for</span> <span class="n">lns</span><span class="p">,</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">line_indices</span><span class="p">,</span> <span class="n">n_lines</span><span class="p">)),</span> <span class="s1">&#39;unexpected number of scan lines&#39;</span>
+        <span class="c1"># The start indices of each FOV in the raw images</span>
+        <span class="n">fov_start_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">lns</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">lns</span> <span class="ow">in</span> <span class="n">line_indices</span><span class="p">])</span>
+        <span class="n">roi_time_shifts</span> <span class="o">=</span> <span class="n">fov_start_idx</span> <span class="o">*</span> <span class="n">line_period</span>   <span class="c1"># The time offset for each FOV</span>
+        <span class="n">fov_time_shifts</span> <span class="o">=</span> <span class="n">roi_time_shifts</span> <span class="o">+</span> <span class="n">frame_time_shifts</span>
+        <span class="n">line_time_shifts</span> <span class="o">=</span> <span class="p">[(</span><span class="n">lns</span> <span class="o">-</span> <span class="n">ln0</span><span class="p">)</span> <span class="o">*</span> <span class="n">line_period</span> <span class="k">for</span> <span class="n">lns</span><span class="p">,</span> <span class="n">ln0</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">line_indices</span><span class="p">,</span> <span class="n">fov_start_idx</span><span class="p">)]</span>
 
         <span class="k">return</span> <span class="n">line_indices</span><span class="p">,</span> <span class="n">fov_time_shifts</span><span class="p">,</span> <span class="n">line_time_shifts</span></div>
 </div>

@@ -118,6 +118,8 @@
 <span class="kn">from</span> <span class="nn">packaging</span> <span class="kn">import</span> <span class="n">version</span>
 <span class="kn">from</span> <span class="nn">one.webclient</span> <span class="kn">import</span> <span class="n">no_cache</span>
 <span class="kn">from</span> <span class="nn">iblutil.util</span> <span class="kn">import</span> <span class="n">flatten</span>
+<span class="kn">import</span> <span class="nn">matplotlib.image</span>
+<span class="kn">from</span> <span class="nn">skimage.io</span> <span class="kn">import</span> <span class="n">ImageCollection</span><span class="p">,</span> <span class="n">imread</span>
 
 <span class="kn">from</span> <span class="nn">ibllib.pipes.tasks</span> <span class="kn">import</span> <span class="n">Task</span>
 <span class="kn">import</span> <span class="nn">ibllib.io.session_params</span> <span class="k">as</span> <span class="nn">sess_params</span>
@@ -601,6 +603,48 @@
                 <span class="n">old_path</span><span class="o">.</span><span class="n">symlink_to</span><span class="p">(</span><span class="n">new_path</span><span class="p">)</span></div>
 
 
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_is_animated_gif</span><span class="p">(</span><span class="n">snapshot</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Test if image is an animated GIF file.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        snapshot : pathlib.Path</span>
+<span class="sd">            An image filepath to test.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        bool</span>
+<span class="sd">            True if image is an animated GIF.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        This could be achieved more succinctly with `from PIL import Image; Image.open(snapshot).is_animated`,</span>
+<span class="sd">        however despite being an indirect dependency, the Pillow library is not in the requirements,</span>
+<span class="sd">        whereas skimage is.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">snapshot</span><span class="o">.</span><span class="n">suffix</span> <span class="o">==</span> <span class="s1">&#39;.gif&#39;</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">ImageCollection</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">snapshot</span><span class="p">)))</span> <span class="o">&gt;</span> <span class="mi">1</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_save_as_png</span><span class="p">(</span><span class="n">snapshot</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Save an image to PNG format.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        snapshot : pathlib.Path</span>
+<span class="sd">            An image filepath to convert.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        pathlib.Path</span>
+<span class="sd">            The new PNG image filepath.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">img</span> <span class="o">=</span> <span class="n">imread</span><span class="p">(</span><span class="n">snapshot</span><span class="p">,</span> <span class="n">as_gray</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">matplotlib</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">imsave</span><span class="p">(</span><span class="n">snapshot</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s1">&#39;.png&#39;</span><span class="p">),</span> <span class="n">img</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s1">&#39;gray&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">snapshot</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s1">&#39;.png&#39;</span><span class="p">)</span>
+
 <div class="viewcode-block" id="RegisterRawDataTask.register_snapshots">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.base_tasks.html#ibllib.pipes.base_tasks.RegisterRawDataTask.register_snapshots">[docs]</a>
     <span class="k">def</span> <span class="nf">register_snapshots</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">unlink</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
@@ -623,6 +667,12 @@
 <span class="sd">        -------</span>
 <span class="sd">        list of dict</span>
 <span class="sd">            The newly registered Alyx notes.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        - Animated GIF files are not resized and therefore may take up significant space on the database.</span>
+<span class="sd">        - TIFF files are converted to PNG format before upload. The original file is not replaced.</span>
+<span class="sd">        - JPEG and PNG files are resized by Alyx.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">collection</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;device_collection&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="k">if</span> <span class="n">collection</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">collection</span>
         <span class="n">collection</span> <span class="o">=</span> <span class="n">collection</span> <span class="ow">or</span> <span class="s1">&#39;&#39;</span>  <span class="c1"># If not defined, use no collection</span>
@@ -630,7 +680,7 @@
             <span class="n">collection</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">collection</span><span class="p">)]</span>
             <span class="c1"># Check whether folders on disk contain &#39;*&#39;; this is to stop an infinite recursion</span>
             <span class="k">assert</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">(</span><span class="s1">&#39;*&#39;</span> <span class="ow">in</span> <span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">collection</span><span class="p">),</span> <span class="s1">&#39;folders containing asterisks not supported&#39;</span>
-        <span class="c1"># If more that one collection exists, register snapshots in each collection</span>
+        <span class="c1"># If more than one collection exists, register snapshots in each collection</span>
         <span class="k">if</span> <span class="n">collection</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">collection</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
             <span class="k">return</span> <span class="n">flatten</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">register_snapshots</span><span class="p">(</span><span class="n">unlink</span><span class="p">,</span> <span class="n">c</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">collection</span><span class="p">]))</span>
         <span class="n">snapshots_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="o">*</span><span class="nb">filter</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="p">(</span><span class="n">collection</span><span class="p">,</span> <span class="s1">&#39;snapshots&#39;</span><span class="p">)))</span>
@@ -644,14 +694,20 @@
         <span class="n">note</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">user</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">user</span><span class="p">,</span> <span class="n">content_type</span><span class="o">=</span><span class="s1">&#39;session&#39;</span><span class="p">,</span> <span class="n">object_id</span><span class="o">=</span><span class="n">eid</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
 
         <span class="n">notes</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="n">exts</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;.jpg&#39;</span><span class="p">,</span> <span class="s1">&#39;.jpeg&#39;</span><span class="p">,</span> <span class="s1">&#39;.png&#39;</span><span class="p">,</span> <span class="s1">&#39;.tif&#39;</span><span class="p">,</span> <span class="s1">&#39;.tiff&#39;</span><span class="p">)</span>
+        <span class="n">exts</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;.jpg&#39;</span><span class="p">,</span> <span class="s1">&#39;.jpeg&#39;</span><span class="p">,</span> <span class="s1">&#39;.png&#39;</span><span class="p">,</span> <span class="s1">&#39;.tif&#39;</span><span class="p">,</span> <span class="s1">&#39;.tiff&#39;</span><span class="p">,</span> <span class="s1">&#39;.gif&#39;</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">snapshot</span> <span class="ow">in</span> <span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">suffix</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">exts</span><span class="p">,</span> <span class="n">snapshots_path</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s1">&#39;*.*&#39;</span><span class="p">)):</span>
+            <span class="k">if</span> <span class="n">snapshot</span><span class="o">.</span><span class="n">suffix</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;.tif&#39;</span><span class="p">,</span> <span class="s1">&#39;.tiff&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">snapshot</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s1">&#39;.png&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+                <span class="n">_logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;converting &quot;</span><span class="si">%s</span><span class="s1">&quot; to png...&#39;</span><span class="p">,</span> <span class="n">snapshot</span><span class="o">.</span><span class="n">relative_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">))</span>
+                <span class="n">snapshot</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_save_as_png</span><span class="p">(</span><span class="n">snapshot_tif</span> <span class="o">:=</span> <span class="n">snapshot</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">unlink</span><span class="p">:</span>
+                    <span class="n">snapshot_tif</span><span class="o">.</span><span class="n">unlink</span><span class="p">()</span>
             <span class="n">_logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Uploading &quot;</span><span class="si">%s</span><span class="s1">&quot;...&#39;</span><span class="p">,</span> <span class="n">snapshot</span><span class="o">.</span><span class="n">relative_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">))</span>
             <span class="k">if</span> <span class="n">snapshot</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s1">&#39;.txt&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
                 <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">snapshot</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s1">&#39;.txt&#39;</span><span class="p">),</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">txt_file</span><span class="p">:</span>
                     <span class="n">note</span><span class="p">[</span><span class="s1">&#39;text&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">txt_file</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">note</span><span class="p">[</span><span class="s1">&#39;text&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+            <span class="n">note</span><span class="p">[</span><span class="s1">&#39;width&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;orig&#39;</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_animated_gif</span><span class="p">(</span><span class="n">snapshot</span><span class="p">)</span> <span class="k">else</span> <span class="kc">None</span>
             <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">snapshot</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">img_file</span><span class="p">:</span>
                 <span class="n">files</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;image&#39;</span><span class="p">:</span> <span class="n">img_file</span><span class="p">}</span>
                 <span class="n">notes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;notes&#39;</span><span class="p">,</span> <span class="s1">&#39;create&#39;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">note</span><span class="p">,</span> <span class="n">files</span><span class="o">=</span><span class="n">files</span><span class="p">))</span>

@@ -154,11 +154,12 @@
     <span class="s1">&#39;missed_spikes_est&#39;</span><span class="p">:</span> <span class="nb">dict</span><span class="p">(</span><span class="n">spks_per_bin</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">sigma</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">min_num_bins</span><span class="o">=</span><span class="mi">50</span><span class="p">),</span>
     <span class="s1">&#39;acceptable_contamination&#39;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span>
     <span class="s1">&#39;bin_size&#39;</span><span class="p">:</span> <span class="mf">0.25</span><span class="p">,</span>
-    <span class="s1">&#39;med_amp_thresh_uv&#39;</span><span class="p">:</span> <span class="mi">50</span><span class="p">,</span>
+    <span class="s1">&#39;med_amp_thresh_uv&#39;</span><span class="p">:</span> <span class="mi">50</span><span class="p">,</span>  <span class="c1"># units below this threshold are considered noise</span>
     <span class="s1">&#39;min_isi&#39;</span><span class="p">:</span> <span class="mf">0.0001</span><span class="p">,</span>
     <span class="s1">&#39;presence_window&#39;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>
     <span class="s1">&#39;refractory_period&#39;</span><span class="p">:</span> <span class="mf">0.0015</span><span class="p">,</span>
     <span class="s1">&#39;RPslide_thresh&#39;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span>
+    <span class="s1">&#39;RPmax_confidence&#39;</span><span class="p">:</span> <span class="mi">90</span><span class="p">,</span>  <span class="c1"># a unit needs to pass with at least this confidence percentage (0 - 100)</span>
 <span class="p">}</span>
 
 
@@ -1095,7 +1096,11 @@
         <span class="s1">&#39;presence_ratio&#39;</span><span class="p">,</span>
         <span class="s1">&#39;presence_ratio_std&#39;</span><span class="p">,</span>
         <span class="s1">&#39;slidingRP_viol&#39;</span><span class="p">,</span>
-        <span class="s1">&#39;spike_count&#39;</span>
+        <span class="s1">&#39;spike_count&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;slidingRP_viol_forced&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;max_confidence&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;min_contamination&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;n_spikes_below2&#39;</span>
     <span class="p">]</span>
     <span class="k">if</span> <span class="n">tbounds</span><span class="p">:</span>
         <span class="n">ispi</span> <span class="o">=</span> <span class="n">between_sorted</span><span class="p">(</span><span class="n">spike_times</span><span class="p">,</span> <span class="n">tbounds</span><span class="p">)</span>
@@ -1135,6 +1140,10 @@
     <span class="n">srp</span> <span class="o">=</span> <span class="n">metrics</span><span class="o">.</span><span class="n">slidingRP_all</span><span class="p">(</span><span class="n">spikeTimes</span><span class="o">=</span><span class="n">spike_times</span><span class="p">,</span> <span class="n">spikeClusters</span><span class="o">=</span><span class="n">spike_clusters</span><span class="p">,</span>
                                 <span class="n">sampleRate</span><span class="o">=</span><span class="mi">30000</span><span class="p">,</span> <span class="n">binSizeCorr</span><span class="o">=</span><span class="mi">1</span> <span class="o">/</span> <span class="mi">30000</span><span class="p">)</span>
     <span class="n">r</span><span class="o">.</span><span class="n">slidingRP_viol</span><span class="p">[</span><span class="n">ir</span><span class="p">]</span> <span class="o">=</span> <span class="n">srp</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">]</span>
+    <span class="n">r</span><span class="o">.</span><span class="n">slidingRP_viol_forced</span><span class="p">[</span><span class="n">ir</span><span class="p">]</span> <span class="o">=</span> <span class="n">srp</span><span class="p">[</span><span class="s1">&#39;value_forced&#39;</span><span class="p">]</span>
+    <span class="n">r</span><span class="o">.</span><span class="n">max_confidence</span><span class="p">[</span><span class="n">ir</span><span class="p">]</span> <span class="o">=</span> <span class="n">srp</span><span class="p">[</span><span class="s1">&#39;max_confidence&#39;</span><span class="p">]</span>
+    <span class="n">r</span><span class="o">.</span><span class="n">min_contamination</span><span class="p">[</span><span class="n">ir</span><span class="p">]</span> <span class="o">=</span> <span class="n">srp</span><span class="p">[</span><span class="s1">&#39;min_contamination&#39;</span><span class="p">]</span>
+    <span class="n">r</span><span class="o">.</span><span class="n">n_spikes_below2</span> <span class="o">=</span> <span class="n">srp</span><span class="p">[</span><span class="s1">&#39;n_spikes_below2&#39;</span><span class="p">]</span>
 
     <span class="c1"># loop over each cluster to compute the rest of the metrics</span>
     <span class="k">for</span> <span class="n">ic</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">nclust</span><span class="p">):</span>
@@ -1153,35 +1162,42 @@
         <span class="n">r</span><span class="o">.</span><span class="n">missed_spikes_est</span><span class="p">[</span><span class="n">ic</span><span class="p">],</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">missed_spikes_est</span><span class="p">(</span><span class="n">amps</span><span class="p">,</span> <span class="o">**</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;missed_spikes_est&#39;</span><span class="p">])</span>
         <span class="c1"># wonder if there is a need to low-cut this</span>
         <span class="n">r</span><span class="o">.</span><span class="n">drift</span><span class="p">[</span><span class="n">ic</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">depths</span><span class="p">)))</span> <span class="o">/</span> <span class="p">(</span><span class="n">tmax</span> <span class="o">-</span> <span class="n">tmin</span><span class="p">)</span> <span class="o">*</span> <span class="mi">3600</span>
-
-    <span class="n">r</span><span class="o">.</span><span class="n">label</span> <span class="o">=</span> <span class="n">compute_labels</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
+    <span class="n">r</span><span class="o">.</span><span class="n">label</span><span class="p">,</span> <span class="n">r</span><span class="o">.</span><span class="n">bitwise_fail</span> <span class="o">=</span> <span class="n">compute_labels</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">return_bitwise</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">r</span></div>
 
 
 
 <div class="viewcode-block" id="compute_labels">
 <a class="viewcode-back" href="../../../_autosummary/brainbox.metrics.single_units.html#brainbox.metrics.single_units.compute_labels">[docs]</a>
-<span class="k">def</span> <span class="nf">compute_labels</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">METRICS_PARAMS</span><span class="p">,</span> <span class="n">return_details</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">compute_labels</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">METRICS_PARAMS</span><span class="p">,</span> <span class="n">return_bitwise</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    From a dataframe or a dictionary of unit metrics, compute a lablel</span>
+<span class="sd">    From a dataframe or a dictionary of unit metrics, compute a label</span>
 <span class="sd">    :param r: dictionary or pandas dataframe containing unit qcs</span>
-<span class="sd">    :param return_details: False (returns a full dictionary of metrics)</span>
+<span class="sd">    :param return_bitwise: True (returns a full dictionary of metrics)</span>
 <span class="sd">    :return: vector of proportion of qcs passed between 0 and 1, where 1 denotes an all pass</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="c1"># right now the score is a value between 0 and 1 denoting the proportion of passing qcs</span>
-    <span class="c1"># we could eventually do a bitwise qc</span>
+    <span class="c1"># right now the score is a value between 0 and 1 denoting the proportion of passing qcs,</span>
+    <span class="c1"># where 1 means passing and 0 means failing</span>
     <span class="n">labels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">c_</span><span class="p">[</span>
-        <span class="n">r</span><span class="o">.</span><span class="n">slidingRP_viol</span><span class="p">,</span>
+        <span class="n">r</span><span class="p">[</span><span class="s1">&#39;max_confidence&#39;</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;RPmax_confidence&#39;</span><span class="p">],</span>  <span class="c1"># this is the least significant bit</span>
         <span class="n">r</span><span class="o">.</span><span class="n">noise_cutoff</span> <span class="o">&lt;</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;noise_cutoff&#39;</span><span class="p">][</span><span class="s1">&#39;nc_threshold&#39;</span><span class="p">],</span>
         <span class="n">r</span><span class="o">.</span><span class="n">amp_median</span> <span class="o">&gt;</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;med_amp_thresh_uv&#39;</span><span class="p">]</span> <span class="o">/</span> <span class="mf">1e6</span><span class="p">,</span>
+        <span class="c1"># add a new metric here on higher significant bits</span>
     <span class="p">]</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">return_details</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-    <span class="n">column_names</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;slidingRP_viol&#39;</span><span class="p">,</span> <span class="s1">&#39;noise_cutoff&#39;</span><span class="p">,</span> <span class="s1">&#39;amp_median&#39;</span><span class="p">]</span>
-    <span class="n">qcdict</span> <span class="o">=</span> <span class="p">{}</span>
-    <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">labels</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
-        <span class="n">qcdict</span><span class="p">[</span><span class="n">column_names</span><span class="p">[</span><span class="n">c</span><span class="p">]]</span> <span class="o">=</span> <span class="n">labels</span><span class="p">[:,</span> <span class="n">c</span><span class="p">]</span>
-    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span> <span class="n">qcdict</span></div>
+    <span class="c1"># The first column takes binary values 001 or 000 to represent fail or pass,</span>
+    <span class="c1"># the second, 010 or 000, the third, 100 or 000 etc.</span>
+    <span class="c1"># The bitwise or &quot;sum&quot; produces 111 if all metrics fail, or 000 if all metrics pass</span>
+    <span class="c1"># All other permutations are also captured, i.e. 110 ==  000 || 010 || 100 means</span>
+    <span class="c1"># the second and third metrics failed and the first metric was a pass</span>
+    <span class="n">score</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">return_bitwise</span><span class="p">:</span>
+        <span class="c1"># note the cast to uint8 casts nan to 0</span>
+        <span class="c1"># a nan implies no metrics was computed which we mark as a failure here</span>
+        <span class="n">n_criteria</span> <span class="o">=</span> <span class="n">labels</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">bitwise</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">bitwise_or</span><span class="o">.</span><span class="n">reduce</span><span class="p">(</span><span class="mi">2</span> <span class="o">**</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n_criteria</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="o">~</span> <span class="n">labels</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">bool</span><span class="p">))</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">score</span><span class="p">,</span> <span class="n">bitwise</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">score</span></div>
 
 </pre></div>
 
