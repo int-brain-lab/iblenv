@@ -56,7 +56,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../public_docs/public_introduction.html">Publicly available IBL data</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_release_behavior.html">Data Release - Behavior</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../public_docs/data_release_pilot.html">Data Release - Pilot Dataset</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_release_repro_ephys.html">Data Release - Reproducible Ephys Paper</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_release_repro_ephys.html">Data Release - Reproducible Ephys</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_release_brainwidemap.html">Data Release - Brain Wide Map</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../notebooks_external/data_release_spikesorting_benchmarks.html">Data Release - Spike sorting benchmark datasets</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../public_docs/information_contact.html">Information and troubleshooting</a></li>
@@ -841,12 +841,12 @@
 
 <div class="viewcode-block" id="check_iti_delays">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.qc.task_metrics.html#ibllib.qc.task_metrics.check_iti_delays">[docs]</a>
-<span class="k">def</span> <span class="nf">check_iti_delays</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="o">**</span><span class="n">_</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">check_iti_delays</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">subtract_pauses</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">_</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Check the open-loop grey screen period is approximately 1 second.</span>
 
 <span class="sd">    Check that the period of grey screen between stim off and the start of the next trial is</span>
-<span class="sd">    1s +/- 10%.</span>
+<span class="sd">    1s +/- 10%.  If the trial was paused during this time, the check will account for that</span>
 
 <span class="sd">    Metric:</span>
 <span class="sd">        M = stimOff (n) - trialStart (n+1) - 1.</span>
@@ -857,16 +857,30 @@
 <span class="sd">    Units:</span>
 <span class="sd">        seconds [s]</span>
 
-<span class="sd">    :param data: dict of trial data with keys (&#39;stimOff_times&#39;, &#39;intervals&#39;)</span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    data : dict</span>
+<span class="sd">        Trial data with keys (&#39;stimOff_times&#39;, &#39;intervals&#39;, &#39;pause_duration&#39;).</span>
+<span class="sd">    subtract_pauses: bool</span>
+<span class="sd">        If True, account for experimenter-initiated pauses between trials; if False, trials where</span>
+<span class="sd">        the experimenter paused the task may fail this check.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    numpy.array</span>
+<span class="sd">        An array of metric values to threshold.</span>
+<span class="sd">    numpy.array</span>
+<span class="sd">        An array of boolean values, 1 per trial, where True means trial passes QC threshold.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="c1"># Initialize array the length of completed trials</span>
     <span class="n">ITI</span> <span class="o">=</span> <span class="mf">1.</span>
     <span class="n">metric</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;intervals&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
     <span class="n">passed</span> <span class="o">=</span> <span class="n">metric</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">pauses</span> <span class="o">=</span> <span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;pause_duration&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="n">subtract_pauses</span> <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">metric</span><span class="p">))[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
     <span class="c1"># Get the difference between stim off and the start of the next trial</span>
     <span class="c1"># Missing data are set to Inf, except for the last trial which is a NaN</span>
     <span class="n">metric</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> \
-        <span class="n">np</span><span class="o">.</span><span class="n">nan_to_num</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;intervals&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;stimOff_times&#39;</span><span class="p">][:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">ITI</span><span class="p">,</span> <span class="n">nan</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">nan_to_num</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;intervals&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;stimOff_times&#39;</span><span class="p">][:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">ITI</span> <span class="o">-</span> <span class="n">pauses</span><span class="p">,</span> <span class="n">nan</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span>
     <span class="n">passed</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">metric</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span> <span class="o">&lt;</span> <span class="p">(</span><span class="n">ITI</span> <span class="o">/</span> <span class="mi">10</span><span class="p">)</span>  <span class="c1"># Last trial is not counted</span>
     <span class="k">assert</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;intervals&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">metric</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">passed</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">metric</span><span class="p">,</span> <span class="n">passed</span></div>
@@ -1631,7 +1645,7 @@
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
 <span class="sd">    data : dict</span>
-<span class="sd">        Dict of trial data with keys (&#39;goCue_times&#39;, &#39;intervals&#39;, &#39;choice&#39;).</span>
+<span class="sd">        Trial data with keys (&#39;goCue_times&#39;, &#39;intervals&#39;, &#39;choice&#39;).</span>
 <span class="sd">    photodiode : dict</span>
 <span class="sd">        The fronts from Bpod&#39;s BNC1 input or FPGA frame2ttl channel.</span>
 

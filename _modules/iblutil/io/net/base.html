@@ -56,7 +56,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../public_docs/public_introduction.html">Publicly available IBL data</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../notebooks_external/data_release_behavior.html">Data Release - Behavior</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../public_docs/data_release_pilot.html">Data Release - Pilot Dataset</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../../notebooks_external/data_release_repro_ephys.html">Data Release - Reproducible Ephys Paper</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notebooks_external/data_release_repro_ephys.html">Data Release - Reproducible Ephys</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../notebooks_external/data_release_brainwidemap.html">Data Release - Brain Wide Map</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../notebooks_external/data_release_spikesorting_benchmarks.html">Data Release - Spike sorting benchmark datasets</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../public_docs/information_contact.html">Information and troubleshooting</a></li>
@@ -121,9 +121,20 @@
 <span class="kn">from</span> <span class="nn">urllib.parse</span> <span class="kn">import</span> <span class="n">urlparse</span>
 <span class="kn">import</span> <span class="nn">urllib.request</span>
 <span class="kn">import</span> <span class="nn">ipaddress</span>
-<span class="kn">from</span> <span class="nn">enum</span> <span class="kn">import</span> <span class="n">IntEnum</span>
+<span class="kn">from</span> <span class="nn">operator</span> <span class="kn">import</span> <span class="n">or_</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">reduce</span>
+<span class="kn">from</span> <span class="nn">enum</span> <span class="kn">import</span> <span class="n">IntFlag</span><span class="p">,</span> <span class="n">IntEnum</span><span class="p">,</span> <span class="n">auto</span>  <span class="c1"># py3.11 STRICT</span>
 
-<span class="n">LISTEN_PORT</span> <span class="o">=</span> <span class="mi">10001</span>  <span class="c1"># listen for commands on this port</span>
+<span class="n">LISTEN_PORT</span> <span class="o">=</span> <span class="mi">11001</span>  <span class="c1"># listen for commands on this port</span>
+<span class="n">PROTOCOL_VERSION</span> <span class="o">=</span> <span class="s1">&#39;1.0.0&#39;</span>  <span class="c1"># Versioning for ExpMessage, ExpStatus enumerations, and Service base class</span>
+
+
+<div class="viewcode-block" id="is_success">
+<a class="viewcode-back" href="../../../../_autosummary/iblutil.io.net.base.html#iblutil.io.net.base.is_success">[docs]</a>
+<span class="k">def</span> <span class="nf">is_success</span><span class="p">(</span><span class="n">future</span><span class="p">:</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Future</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Check if future successfully resolved.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">future</span><span class="o">.</span><span class="n">done</span><span class="p">()</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">future</span><span class="o">.</span><span class="n">cancelled</span><span class="p">()</span> <span class="ow">and</span> <span class="n">future</span><span class="o">.</span><span class="n">exception</span><span class="p">()</span> <span class="ow">is</span> <span class="kc">None</span></div>
+
 
 
 <div class="viewcode-block" id="external_ip">
@@ -261,40 +272,55 @@
 
 
 
+<span class="c1"># class ExpMessage(IntFlag, boundary=STRICT):  # py3.11</span>
 <div class="viewcode-block" id="ExpMessage">
 <a class="viewcode-back" href="../../../../_autosummary/iblutil.io.net.base.html#iblutil.io.net.base.ExpMessage">[docs]</a>
-<span class="k">class</span> <span class="nc">ExpMessage</span><span class="p">(</span><span class="n">IntEnum</span><span class="p">):</span>
+<span class="k">class</span> <span class="nc">ExpMessage</span><span class="p">(</span><span class="n">IntFlag</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;A set of standard experiment messages for communicating between rigs.&quot;&quot;&quot;</span>
 
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Experiment is initializing.&quot;&quot;&quot;</span>
-    <span class="n">EXPINIT</span> <span class="o">=</span> <span class="mi">10</span>
+    <span class="n">EXPINIT</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Experiment has begun.&quot;&quot;&quot;</span>
-    <span class="n">EXPSTART</span> <span class="o">=</span> <span class="mi">20</span>
+    <span class="n">EXPSTART</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Experiment has stopped.&quot;&quot;&quot;</span>
-    <span class="n">EXPEND</span> <span class="o">=</span> <span class="mi">30</span>
+    <span class="n">EXPEND</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Experiment cleanup begun.&quot;&quot;&quot;</span>
-    <span class="n">EXPCLEANUP</span> <span class="o">=</span> <span class="mi">40</span>
+    <span class="n">EXPCLEANUP</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Experiment interrupted.&quot;&quot;&quot;</span>
-    <span class="n">EXPINTERRUPT</span> <span class="o">=</span> <span class="mi">50</span>
+    <span class="n">EXPINTERRUPT</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Experiment status.&quot;&quot;&quot;</span>
-    <span class="n">EXPSTATUS</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">EXPSTATUS</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Experiment info, including task protocol start and end.&quot;&quot;&quot;</span>
-    <span class="n">EXPINFO</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="n">EXPINFO</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Alyx token.&quot;&quot;&quot;</span>
-    <span class="n">ALYX</span> <span class="o">=</span> <span class="mi">3</span>
+    <span class="n">ALYX</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">__version__</span> <span class="o">=</span> <span class="n">PROTOCOL_VERSION</span>
+
+<div class="viewcode-block" id="ExpMessage.any">
+<a class="viewcode-back" href="../../../../_autosummary/iblutil.io.net.base.html#iblutil.io.net.base.ExpMessage.any">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">any</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;ExpMessage&#39;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return enumeration comprising all possible messages.</span>
+
+<span class="sd">        NB: This doesn&#39;t include the null ExpMessage (0), used to indicate API errors.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">reduce</span><span class="p">(</span><span class="n">or_</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span></div>
+
 
 <div class="viewcode-block" id="ExpMessage.validate">
 <a class="viewcode-back" href="../../../../_autosummary/iblutil.io.net.base.html#iblutil.io.net.base.ExpMessage.validate">[docs]</a>
     <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">validate</span><span class="p">(</span><span class="n">event</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">validate</span><span class="p">(</span><span class="n">event</span><span class="p">,</span> <span class="n">allow_bitwise</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Validate an event message, returning an corresponding enumeration if valid and raising an</span>
+<span class="sd">        Validate an event message, returning a corresponding enumeration if valid and raising an</span>
 <span class="sd">        exception if not.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        event : str, int, ExpMessage</span>
 <span class="sd">            An event message to validate.</span>
+<span class="sd">        allow_bitwise : bool</span>
+<span class="sd">            If false, raise if event is the result of a bitwise operation.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -307,7 +333,7 @@
 <span class="sd">            event is neither a string, integer nor enumeration.</span>
 <span class="sd">        ValueError</span>
 <span class="sd">            event does not correspond to any ExpMessage enumeration, neither in its integer form</span>
-<span class="sd">            nor its string name.</span>
+<span class="sd">            nor its string name, or `allow_bitwise` is false and value is combination of events.</span>
 
 <span class="sd">        Examples</span>
 <span class="sd">        --------</span>
@@ -330,9 +356,40 @@
                     <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Unknown event type </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">event</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
             <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Unrecognized event &quot;</span><span class="si">{</span><span class="n">event</span><span class="si">}</span><span class="s1">&quot;. &#39;</span>
-                                 <span class="sa">f</span><span class="s1">&#39;Choices: </span><span class="si">{</span><span class="nb">tuple</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span><span class="w"> </span><span class="n">item</span><span class="p">:</span><span class="w"> </span><span class="n">item</span><span class="o">.</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">ExpMessage</span><span class="p">))</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+                                 <span class="sa">f</span><span class="s1">&#39;Choices: </span><span class="si">{</span><span class="nb">tuple</span><span class="p">(</span><span class="n">ExpMessage</span><span class="o">.</span><span class="n">__members__</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">allow_bitwise</span> <span class="ow">and</span> <span class="n">event</span> <span class="ow">not</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">ExpMessage</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Compound (bitwise) events not permitted. &#39;</span>
+                             <span class="sa">f</span><span class="s1">&#39;Choices: </span><span class="si">{</span><span class="nb">tuple</span><span class="p">(</span><span class="n">ExpMessage</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">event</span></div>
-</div>
+
+
+    <span class="k">def</span> <span class="fm">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>  <span class="c1"># py3.11 remove this method</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Iterate over the individual bits in the enumeration.</span>
+
+<span class="sd">        NB: This method is copied from Python 3.11 which supports iteration of Enum objects.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">num</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span>
+        <span class="k">while</span> <span class="n">num</span><span class="p">:</span>
+            <span class="n">b</span> <span class="o">=</span> <span class="n">num</span> <span class="o">&amp;</span> <span class="p">(</span><span class="o">~</span><span class="n">num</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="k">yield</span> <span class="n">b</span>
+            <span class="n">num</span> <span class="o">^=</span> <span class="n">b</span></div>
+
+
+
+<div class="viewcode-block" id="ExpStatus">
+<a class="viewcode-back" href="../../../../_autosummary/iblutil.io.net.base.html#iblutil.io.net.base.ExpStatus">[docs]</a>
+<span class="k">class</span> <span class="nc">ExpStatus</span><span class="p">(</span><span class="n">IntEnum</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A set of standard statuses for communicating between rigs.&quot;&quot;&quot;</span>
+
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Service is connected.&quot;&quot;&quot;</span>
+    <span class="n">CONNECTED</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Service is initialized.&quot;&quot;&quot;</span>
+    <span class="n">INITIALIZED</span> <span class="o">=</span> <span class="mi">10</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Service is running.&quot;&quot;&quot;</span>
+    <span class="n">RUNNING</span> <span class="o">=</span> <span class="mi">20</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Experiment has stopped.&quot;&quot;&quot;</span>
+    <span class="n">STOPPED</span> <span class="o">=</span> <span class="mi">30</span>
+    <span class="n">__version__</span> <span class="o">=</span> <span class="n">PROTOCOL_VERSION</span></div>
 
 
 
@@ -340,6 +397,7 @@
 <a class="viewcode-back" href="../../../../_autosummary/iblutil.io.net.base.html#iblutil.io.net.base.Service">[docs]</a>
 <span class="k">class</span> <span class="nc">Service</span><span class="p">(</span><span class="n">ABC</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;An abstract base class for auxiliary experiment services.&quot;&quot;&quot;</span>
+    <span class="n">__version__</span> <span class="o">=</span> <span class="n">PROTOCOL_VERSION</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="s1">&#39;name&#39;</span>
 
 <div class="viewcode-block" id="Service.init">
@@ -393,6 +451,9 @@
 <span class="sd">        any, None</span>
 <span class="sd">            Optional extra data.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">exp_ref</span> <span class="o">=</span> <span class="n">exp_ref</span> <span class="ow">or</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">exp_ref</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="n">exp_ref</span> <span class="o">=</span> <span class="s1">&#39;_&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="p">(</span><span class="n">exp_ref</span><span class="p">[</span><span class="s1">&#39;date&#39;</span><span class="p">],</span> <span class="nb">int</span><span class="p">(</span><span class="n">exp_ref</span><span class="p">[</span><span class="s1">&#39;sequence&#39;</span><span class="p">]),</span> <span class="n">exp_ref</span><span class="p">[</span><span class="s1">&#39;subject&#39;</span><span class="p">])))</span>
         <span class="k">return</span> <span class="n">ExpMessage</span><span class="o">.</span><span class="n">EXPSTART</span><span class="p">,</span> <span class="n">exp_ref</span><span class="p">,</span> <span class="n">data</span></div>
 
 
@@ -421,6 +482,65 @@
 <span class="sd">            Optional extra data.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="n">ExpMessage</span><span class="o">.</span><span class="n">EXPINTERRUPT</span> <span class="k">if</span> <span class="n">immediately</span> <span class="k">else</span> <span class="n">ExpMessage</span><span class="o">.</span><span class="n">EXPEND</span><span class="p">,</span> <span class="n">data</span></div>
+
+
+<div class="viewcode-block" id="Service.status">
+<a class="viewcode-back" href="../../../../_autosummary/iblutil.io.net.base.html#iblutil.io.net.base.Service.status">[docs]</a>
+    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span> <span class="nf">status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">status</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Report experiment status.</span>
+
+<span class="sd">        NB: This is intended to be lightweight. For more detail and custom data use the info</span>
+<span class="sd">        method.</span>
+
+<span class="sd">        This is intended to specify the expected message signature. The subclassed method should</span>
+<span class="sd">        serialize the returned values and pass them to the transport layer.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        status : ExpStatus</span>
+<span class="sd">            The experiment status enumeration.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ExpMessage.EXPSTATUS</span>
+<span class="sd">            The EXPSTATUS event.</span>
+<span class="sd">        ExpStatus</span>
+<span class="sd">            The validated experiment status.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">status</span><span class="p">,</span> <span class="n">ExpStatus</span><span class="p">):</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="n">ExpStatus</span><span class="p">(</span><span class="n">status</span><span class="p">)</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">status</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="k">else</span> <span class="n">ExpStatus</span><span class="p">[</span><span class="n">status</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">ExpMessage</span><span class="o">.</span><span class="n">EXPSTATUS</span><span class="p">,</span> <span class="n">status</span></div>
+
+
+<div class="viewcode-block" id="Service.info">
+<a class="viewcode-back" href="../../../../_autosummary/iblutil.io.net.base.html#iblutil.io.net.base.Service.info">[docs]</a>
+    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span> <span class="nf">info</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">status</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Report experiment information.</span>
+
+<span class="sd">        This is intended to specify the expected message signature. The subclassed method should</span>
+<span class="sd">        serialize the returned values and pass them to the transport layer.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        status : ExpStatus</span>
+<span class="sd">            The experiment status enumeration.</span>
+<span class="sd">        data : any</span>
+<span class="sd">            Optional extra data to send to the remote server.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ExpMessage.EXPINFO</span>
+<span class="sd">            The EXPINFO event.</span>
+<span class="sd">        ExpStatus</span>
+<span class="sd">            The validated experiment status.</span>
+<span class="sd">        any, None</span>
+<span class="sd">            Optional extra data.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">ExpMessage</span><span class="o">.</span><span class="n">EXPINFO</span><span class="p">,</span> <span class="n">Service</span><span class="o">.</span><span class="n">status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">status</span><span class="p">)[</span><span class="mi">1</span><span class="p">],</span> <span class="n">data</span></div>
 
 
 <div class="viewcode-block" id="Service.cleanup">
@@ -472,7 +592,9 @@
 <span class="sd">        dict</span>
 <span class="sd">            The Alyx token in the form {user: token}.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="n">ExpMessage</span><span class="o">.</span><span class="n">ALYX</span><span class="p">,</span> <span class="n">alyx</span><span class="o">.</span><span class="n">base_url</span><span class="p">,</span> <span class="n">alyx</span><span class="o">.</span><span class="n">_par</span><span class="o">.</span><span class="n">TOKEN</span></div>
+        <span class="n">base_url</span> <span class="o">=</span> <span class="n">alyx</span><span class="o">.</span><span class="n">base_url</span> <span class="k">if</span> <span class="n">alyx</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="n">token</span> <span class="o">=</span> <span class="p">{</span><span class="n">alyx</span><span class="o">.</span><span class="n">user</span><span class="p">:</span> <span class="n">alyx</span><span class="o">.</span><span class="n">_token</span><span class="p">}</span> <span class="k">if</span> <span class="n">alyx</span> <span class="ow">and</span> <span class="n">alyx</span><span class="o">.</span><span class="n">is_logged_in</span> <span class="k">else</span> <span class="p">{}</span>
+        <span class="k">return</span> <span class="n">ExpMessage</span><span class="o">.</span><span class="n">ALYX</span><span class="p">,</span> <span class="n">base_url</span><span class="p">,</span> <span class="n">token</span></div>
 </div>
 
 
@@ -489,13 +611,14 @@
 <span class="sd">    server_uri : str</span>
 <span class="sd">        The full URI of the remote device, e.g. udp://192.168.0.1:1001</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;server_uri&#39;</span><span class="p">,</span> <span class="s1">&#39;_callbacks&#39;</span><span class="p">,</span> <span class="s1">&#39;logger&#39;</span><span class="p">)</span>
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;server_uri&#39;</span><span class="p">,</span> <span class="s1">&#39;_callbacks&#39;</span><span class="p">,</span> <span class="s1">&#39;logger&#39;</span><span class="p">,</span> <span class="s1">&#39;name&#39;</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">server_uri</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">server_uri</span> <span class="o">=</span> <span class="n">validate_uri</span><span class="p">(</span><span class="n">server_uri</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span> <span class="ow">or</span> <span class="n">server_uri</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">logger</span> <span class="o">=</span> <span class="n">logger</span> <span class="ow">or</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_callbacks</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">item</span><span class="p">:</span> <span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="p">[]),</span> <span class="n">ExpMessage</span><span class="p">))</span>
+        <span class="c1"># Init callbacks map of ExpMessage -&gt; list, including null ExpMessage for processing callback errors</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_callbacks</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">item</span><span class="p">:</span> <span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="p">[]),</span> <span class="p">(</span><span class="n">ExpMessage</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="o">*</span><span class="n">ExpMessage</span><span class="o">.</span><span class="n">__members__</span><span class="o">.</span><span class="n">values</span><span class="p">())))</span>
 
 <div class="viewcode-block" id="Communicator.assign_callback">
 <a class="viewcode-back" href="../../../../_autosummary/iblutil.io.net.base.html#iblutil.io.net.base.Communicator.assign_callback">[docs]</a>
@@ -521,12 +644,17 @@
         <span class="n">event</span> <span class="o">=</span> <span class="n">ExpMessage</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="nb">callable</span><span class="p">(</span><span class="n">callback</span><span class="p">)</span> <span class="ow">or</span> <span class="n">isfuture</span><span class="p">(</span><span class="n">callback</span><span class="p">)):</span>
             <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;Callback must be callable or a Future&#39;</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_callbacks</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">event</span><span class="p">,</span> <span class="p">[])</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">callback</span><span class="p">)</span></div>
+        <span class="k">if</span> <span class="n">event</span> <span class="ow">is</span> <span class="n">ExpMessage</span><span class="p">(</span><span class="mi">0</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_callbacks</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">event</span><span class="p">,</span> <span class="p">[])</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">callback</span><span class="p">,</span> <span class="kc">False</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">return_event</span> <span class="o">=</span> <span class="n">event</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">ExpMessage</span>
+            <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">event</span><span class="p">:</span>  <span class="c1"># iterate over enum as bitwise ops permitted</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_callbacks</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="p">[])</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">callback</span><span class="p">,</span> <span class="n">return_event</span><span class="p">))</span></div>
 
 
 <div class="viewcode-block" id="Communicator.clear_callbacks">
 <a class="viewcode-back" href="../../../../_autosummary/iblutil.io.net.base.html#iblutil.io.net.base.Communicator.clear_callbacks">[docs]</a>
-    <span class="k">def</span> <span class="nf">clear_callbacks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">,</span> <span class="n">callback</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">clear_callbacks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">,</span> <span class="n">callback</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">cancel_futures</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        For a given event, remove the provided callback, or all callbacks if none were provided.</span>
 
@@ -536,6 +664,8 @@
 <span class="sd">            The event for which the callback was registered.</span>
 <span class="sd">        callback : function, asyncio.Future</span>
 <span class="sd">            The callback or future to remove.</span>
+<span class="sd">        cancel_futures : bool</span>
+<span class="sd">            If True and callback is a Future, cancel before removing.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -546,19 +676,26 @@
         <span class="n">event</span> <span class="o">=</span> <span class="n">ExpMessage</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">callback</span><span class="p">:</span>  <span class="c1"># clear specific callback</span>
             <span class="c1"># Wrapped callables have an id attribute containing the hash of the inner function</span>
-            <span class="n">ids</span> <span class="o">=</span> <span class="p">[</span><span class="nb">getattr</span><span class="p">(</span><span class="n">cb</span><span class="p">,</span> <span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">hash</span><span class="p">(</span><span class="n">cb</span><span class="p">)</span> <span class="k">for</span> <span class="n">cb</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_callbacks</span><span class="p">[</span><span class="n">event</span><span class="p">]]</span>
-            <span class="n">cb_id</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">callback</span><span class="p">,</span> <span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">hash</span><span class="p">(</span><span class="n">callback</span><span class="p">)</span>
-            <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
-                <span class="k">try</span><span class="p">:</span>
-                    <span class="n">idx</span> <span class="o">=</span> <span class="n">ids</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">cb_id</span><span class="p">)</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">_callbacks</span><span class="p">[</span><span class="n">event</span><span class="p">]</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span>
-                    <span class="n">ids</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span>
-                    <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
-                <span class="k">except</span> <span class="p">(</span><span class="ne">IndexError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">):</span>
-                    <span class="k">break</span>
+            <span class="k">for</span> <span class="n">evt</span> <span class="ow">in</span> <span class="n">event</span><span class="p">:</span>  <span class="c1"># iterate as bitwise enums permitted, e.g. ~ExpMessage.ALYX</span>
+                <span class="n">ids</span> <span class="o">=</span> <span class="p">[</span><span class="nb">getattr</span><span class="p">(</span><span class="n">cb</span><span class="p">,</span> <span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">hash</span><span class="p">(</span><span class="n">cb</span><span class="p">)</span> <span class="k">for</span> <span class="n">cb</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_callbacks</span><span class="p">[</span><span class="n">evt</span><span class="p">]]</span>
+                <span class="n">cb_id</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">callback</span><span class="p">,</span> <span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">hash</span><span class="p">(</span><span class="n">callback</span><span class="p">)</span>
+                <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">idx</span> <span class="o">=</span> <span class="n">ids</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">cb_id</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="n">cancel_futures</span> <span class="ow">and</span> <span class="n">isfuture</span><span class="p">(</span><span class="n">cb</span> <span class="o">:=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_callbacks</span><span class="p">[</span><span class="n">evt</span><span class="p">][</span><span class="n">idx</span><span class="p">][</span><span class="mi">0</span><span class="p">]):</span>
+                            <span class="n">cb</span><span class="o">.</span><span class="n">cancel</span><span class="p">()</span>
+                        <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_callbacks</span><span class="p">[</span><span class="n">evt</span><span class="p">][</span><span class="n">idx</span><span class="p">]</span>
+                        <span class="k">del</span> <span class="n">ids</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+                        <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="k">except</span> <span class="p">(</span><span class="ne">IndexError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">):</span>
+                        <span class="k">break</span>
         <span class="k">else</span><span class="p">:</span>  <span class="c1"># clear all callbacks for event</span>
-            <span class="n">i</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_callbacks</span><span class="p">[</span><span class="n">event</span><span class="p">])</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_callbacks</span><span class="p">[</span><span class="n">event</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">evt</span> <span class="ow">in</span> <span class="n">event</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">cancel_futures</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="n">cb</span> <span class="ow">in</span> <span class="nb">filter</span><span class="p">(</span><span class="n">isfuture</span><span class="p">,</span> <span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">_callbacks</span><span class="p">[</span><span class="n">evt</span><span class="p">])):</span>
+                        <span class="n">cb</span><span class="o">.</span><span class="n">cancel</span><span class="p">()</span>
+                <span class="n">i</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_callbacks</span><span class="p">[</span><span class="n">evt</span><span class="p">])</span>
+                <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_callbacks</span><span class="p">[</span><span class="n">evt</span><span class="p">][:]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;[</span><span class="si">%s</span><span class="s1">] </span><span class="si">%i</span><span class="s1"> callbacks cleared&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">i</span></div>
 
@@ -581,11 +718,15 @@
 
 <span class="sd">        Examples</span>
 <span class="sd">        --------</span>
-<span class="sd">        &gt;&gt;&gt; data = await com.on_event(&#39;EXPSTART&#39;)</span>
+<span class="sd">        &gt;&gt;&gt; data, addr = await com.on_event(&#39;EXPSTART&#39;)</span>
 
 <span class="sd">        &gt;&gt;&gt; event = await asyncio.create_task(com.on_event(&#39;EXPSTART&#39;))</span>
 <span class="sd">        &gt;&gt;&gt; ...</span>
 <span class="sd">        &gt;&gt;&gt; data = await event</span>
+
+<span class="sd">        Await more than one event</span>
+
+<span class="sd">        &gt;&gt;&gt; data, addr, event = await com.on_event(ExpMessage.EXPEND | ExpMessage.EXPINTERRUPT)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">loop</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">get_running_loop</span><span class="p">()</span>
         <span class="n">fut</span> <span class="o">=</span> <span class="n">loop</span><span class="o">.</span><span class="n">create_future</span><span class="p">()</span>
@@ -596,7 +737,7 @@
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">port</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;int: the remote port&quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="n">urlparse</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">server_uri</span><span class="p">)</span><span class="o">.</span><span class="n">port</span>
+        <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">urlparse</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">server_uri</span><span class="p">)</span><span class="o">.</span><span class="n">port</span><span class="p">)</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">hostname</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
@@ -647,18 +788,26 @@
         <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">))</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
             <span class="n">event</span><span class="p">,</span> <span class="o">*</span><span class="n">data</span> <span class="o">=</span> <span class="n">data</span>
-            <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_callbacks</span><span class="p">[</span><span class="n">ExpMessage</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">event</span><span class="p">)]</span><span class="o">.</span><span class="n">copy</span><span class="p">():</span>
+            <span class="n">event</span> <span class="o">=</span> <span class="n">ExpMessage</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">event</span><span class="p">,</span> <span class="n">allow_bitwise</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="k">if</span> <span class="n">event</span> <span class="k">else</span> <span class="n">ExpMessage</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">event</span> <span class="ow">is</span> <span class="n">ExpMessage</span><span class="p">(</span><span class="mi">0</span><span class="p">):</span>
+                <span class="c1"># An error in the remote callback function occurred</span>
+                <span class="n">err</span><span class="p">,</span> <span class="n">evt</span> <span class="o">=</span> <span class="n">data</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Callback for </span><span class="si">%s</span><span class="s1"> on </span><span class="si">%s</span><span class="s1">://</span><span class="si">%s</span><span class="s1">:</span><span class="si">%i</span><span class="s1"> failed with </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span>
+                                  <span class="n">ExpMessage</span><span class="p">(</span><span class="n">evt</span><span class="p">)</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">protocol</span><span class="p">,</span> <span class="o">*</span><span class="n">addr</span><span class="p">,</span> <span class="n">err</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">f</span><span class="p">,</span> <span class="n">return_event</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_callbacks</span><span class="p">[</span><span class="n">event</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">():</span>
                 <span class="k">if</span> <span class="n">isfuture</span><span class="p">(</span><span class="n">f</span><span class="p">):</span>
-                    <span class="k">if</span> <span class="ow">not</span> <span class="n">f</span><span class="o">.</span><span class="n">cancelled</span><span class="p">():</span>
-                        <span class="n">f</span><span class="o">.</span><span class="n">set_result</span><span class="p">((</span><span class="n">data</span><span class="p">,</span> <span class="n">addr</span><span class="p">))</span>
+                    <span class="k">if</span> <span class="n">f</span><span class="o">.</span><span class="n">done</span><span class="p">():</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Future </span><span class="si">%s</span><span class="s1"> already resolved&#39;</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span>
+                    <span class="k">elif</span> <span class="ow">not</span> <span class="n">f</span><span class="o">.</span><span class="n">cancelled</span><span class="p">():</span>
+                        <span class="n">f</span><span class="o">.</span><span class="n">set_result</span><span class="p">((</span><span class="n">data</span><span class="p">,</span> <span class="n">addr</span><span class="p">,</span> <span class="n">event</span><span class="p">)</span> <span class="k">if</span> <span class="n">return_event</span> <span class="k">else</span> <span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">addr</span><span class="p">))</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">clear_callbacks</span><span class="p">(</span><span class="n">event</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span>  <span class="c1"># Remove future from list</span>
                 <span class="k">else</span><span class="p">:</span>
                     <span class="k">try</span><span class="p">:</span>
-                        <span class="n">f</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">addr</span><span class="p">)</span>
+                        <span class="n">f</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">addr</span><span class="p">,</span> <span class="n">event</span><span class="p">)</span> <span class="k">if</span> <span class="n">return_event</span> <span class="k">else</span> <span class="n">f</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">addr</span><span class="p">)</span>
                     <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">ex</span><span class="p">:</span>
                         <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Callback &quot;</span><span class="si">%s</span><span class="s1">&quot; failed with error &quot;</span><span class="si">%s</span><span class="s1">&quot;&#39;</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">ex</span><span class="p">)</span>
-                        <span class="n">message</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">encode</span><span class="p">([</span><span class="n">ExpMessage</span><span class="o">.</span><span class="n">EXPINTERRUPT</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">ex</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">ex</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">])</span>
-                        <span class="bp">self</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">message</span><span class="p">,</span> <span class="n">addr</span><span class="p">)</span>  <span class="c1"># FIXME should be confirmed send</span>
+                        <span class="n">message</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">encode</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">ex</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">ex</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">event</span><span class="p">])</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">message</span><span class="p">,</span> <span class="n">addr</span><span class="p">)</span>
                         <span class="k">break</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Expected list, got </span><span class="si">{</span><span class="n">data</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="ne">RuntimeWarning</span><span class="p">)</span>
@@ -722,9 +871,9 @@
     <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;De-register all callbacks and cancel futures&quot;&quot;&quot;</span>
         <span class="k">for</span> <span class="n">event</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_callbacks</span><span class="p">:</span>
-            <span class="k">for</span> <span class="n">fut</span> <span class="ow">in</span> <span class="nb">filter</span><span class="p">(</span><span class="n">isfuture</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_callbacks</span><span class="p">[</span><span class="n">event</span><span class="p">]):</span>
+            <span class="k">for</span> <span class="n">fut</span> <span class="ow">in</span> <span class="nb">filter</span><span class="p">(</span><span class="n">isfuture</span><span class="p">,</span> <span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">_callbacks</span><span class="p">[</span><span class="n">event</span><span class="p">])):</span>
                 <span class="n">fut</span><span class="o">.</span><span class="n">cancel</span><span class="p">(</span><span class="s1">&#39;Close called on communicator&#39;</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_callbacks</span><span class="p">[</span><span class="n">event</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span></div>
+            <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_callbacks</span><span class="p">[</span><span class="n">event</span><span class="p">][:]</span></div>
 </div>
 
 </pre></div>
