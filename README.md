@@ -32,6 +32,7 @@ something like `int-brain-lab` and work from within it). Then run the following 
 ```commandline
 conda update -n base -c defaults conda
 conda create --name iblenv python=3.10 --yes
+conda activate iblenv
 git clone https://github.com/int-brain-lab/iblapps
 pip install --editable iblapps
 git clone https://github.com/int-brain-lab/iblenv
