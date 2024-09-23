@@ -276,22 +276,66 @@
 <a class="viewcode-back" href="../../../_autosummary/iblutil.io.params.html#iblutil.io.params.FileLock">[docs]</a>
 <span class="k">class</span> <span class="nc">FileLock</span><span class="p">:</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">log</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">timeout_action</span><span class="o">=</span><span class="s1">&#39;delete&#39;</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        A context manager to ensure a file is not written to.</span>
+
+<span class="sd">        This context manager checks whether a lock file already exists, indicating that the</span>
+<span class="sd">        filename is currently being written to by another process, and waits until it is free</span>
+<span class="sd">        before entering.  If the lock file is not removed within the timeout period, it is either</span>
+<span class="sd">        forcebly removed (assumes other process hanging or killed), or raises an exception.</span>
+
+<span class="sd">        Before entering, a new lock file is created, containing the hostname, datetime and pid,</span>
+<span class="sd">        then subsequenctly removed upon exit.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        filename : pathlib.Path, str</span>
+<span class="sd">            A filepath to &#39;lock&#39;.</span>
+<span class="sd">        log : logging.Logger</span>
+<span class="sd">            A logger instance to use.</span>
+<span class="sd">        timeout : float</span>
+<span class="sd">            How long to wait before either raising an exception or deleting the previous lock file.</span>
+<span class="sd">        timeout_action : {&#39;delete&#39;, &#39;raise&#39;} str</span>
+<span class="sd">            Action to take if previous lock file remains throughout timeout period. Either delete</span>
+<span class="sd">            the old lock file or raise an exception.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        Ensure a file is not being written to by another process before writing</span>
+
+<span class="sd">        &gt;&gt;&gt; with FileLock(filename, timeout_action=&#39;delete&#39;):</span>
+<span class="sd">        &gt;&gt;&gt;     with open(filename, &#39;w&#39;) as fp:</span>
+<span class="sd">        &gt;&gt;&gt;         fp.write(r&#39;{&quot;foo&quot;: &quot;bar&quot;}&#39;)</span>
+
+<span class="sd">        Asychronous implementation example with raise behaviour</span>
+
+<span class="sd">        &gt;&gt;&gt; try:</span>
+<span class="sd">        &gt;&gt;&gt;     async with FileLock(filename, timeout_action=&#39;raise&#39;):</span>
+<span class="sd">        &gt;&gt;&gt;         with open(filename, &#39;w&#39;) as fp:</span>
+<span class="sd">        &gt;&gt;&gt;             fp.write(r&#39;{&quot;foo&quot;: &quot;bar&quot;}&#39;)</span>
+<span class="sd">        &gt;&gt;&gt; except asyncio.TimeoutError:</span>
+<span class="sd">        &gt;&gt;&gt;     print(f&#39;failed to write to {filename}&#39;)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">filename</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span> <span class="o">=</span> <span class="n">log</span> <span class="ow">or</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span> <span class="o">=</span> <span class="n">log</span> <span class="ow">or</span> <span class="vm">__name__</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">log</span><span class="p">,</span> <span class="n">logging</span><span class="o">.</span><span class="n">Logger</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="p">)</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">timeout</span> <span class="o">=</span> <span class="n">timeout</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">timeout_action</span> <span class="o">=</span> <span class="n">timeout_action</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">timeout_action</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;delete&#39;</span><span class="p">,</span> <span class="s1">&#39;raise&#39;</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Invalid timeout action: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">timeout_action</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_poll_freq</span> <span class="o">=</span> <span class="mf">0.2</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_async_poll_freq</span> <span class="o">=</span> <span class="mf">0.2</span>  <span class="c1"># how long to sleep between lock file checks in async mode</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">lockfile</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;pathlib.Path: the lock filepath.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">filename</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s1">&#39;.lock&#39;</span><span class="p">)</span>
 
     <span class="k">async</span> <span class="k">def</span> <span class="nf">_lock_check_async</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">while</span> <span class="bp">self</span><span class="o">.</span><span class="n">lockfile</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
-            <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">_poll_freq</span> <span class="o">&gt;</span> <span class="mi">0</span>
-            <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_poll_freq</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">_async_poll_freq</span> <span class="o">&gt;</span> <span class="mi">0</span>
+            <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_async_poll_freq</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="fm">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="c1"># if a lock file exists retries n times to see if it exists</span>
@@ -334,7 +378,8 @@
 
         <span class="c1"># add in the lock file, add some metadata to ease debugging if one gets stuck</span>
         <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lockfile</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fp</span><span class="p">:</span>
-            <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="nb">dict</span><span class="p">(</span><span class="n">datetime</span><span class="o">=</span><span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span><span class="o">.</span><span class="n">isoformat</span><span class="p">(),</span> <span class="n">hostname</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">socket</span><span class="o">.</span><span class="n">gethostname</span><span class="p">)),</span> <span class="n">fp</span><span class="p">)</span>
+            <span class="n">info</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">datetime</span><span class="o">=</span><span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span><span class="o">.</span><span class="n">isoformat</span><span class="p">(),</span> <span class="n">hostname</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">socket</span><span class="o">.</span><span class="n">gethostname</span><span class="p">),</span> <span class="n">pid</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">getpid</span><span class="p">())</span>
+            <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">info</span><span class="p">,</span> <span class="n">fp</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="fm">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exc_type</span><span class="p">,</span> <span class="n">exc_value</span><span class="p">,</span> <span class="n">exc_tb</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">lockfile</span><span class="o">.</span><span class="n">unlink</span><span class="p">()</span>

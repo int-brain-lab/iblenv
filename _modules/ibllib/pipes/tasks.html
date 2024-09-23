@@ -188,7 +188,7 @@
 <span class="kn">import</span> <span class="nn">io</span>
 <span class="kn">import</span> <span class="nn">importlib</span>
 <span class="kn">import</span> <span class="nn">time</span>
-<span class="kn">from</span> <span class="nn">_collections</span> <span class="kn">import</span> <span class="n">OrderedDict</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">OrderedDict</span>
 <span class="kn">import</span> <span class="nn">traceback</span>
 <span class="kn">import</span> <span class="nn">json</span>
 
@@ -198,11 +198,12 @@
 <span class="kn">from</span> <span class="nn">ibllib.oneibl</span> <span class="kn">import</span> <span class="n">data_handlers</span>
 <span class="kn">from</span> <span class="nn">ibllib.oneibl.data_handlers</span> <span class="kn">import</span> <span class="n">get_local_data_repository</span>
 <span class="kn">from</span> <span class="nn">ibllib.oneibl.registration</span> <span class="kn">import</span> <span class="n">get_lab</span>
-<span class="kn">from</span> <span class="nn">iblutil.util</span> <span class="kn">import</span> <span class="n">Bunch</span>
+<span class="kn">from</span> <span class="nn">iblutil.util</span> <span class="kn">import</span> <span class="n">Bunch</span><span class="p">,</span> <span class="n">flatten</span>
 <span class="kn">import</span> <span class="nn">one.params</span>
 <span class="kn">from</span> <span class="nn">one.api</span> <span class="kn">import</span> <span class="n">ONE</span>
 <span class="kn">from</span> <span class="nn">one.util</span> <span class="kn">import</span> <span class="n">ensure_list</span>
 <span class="kn">from</span> <span class="nn">one</span> <span class="kn">import</span> <span class="n">webclient</span>
+<span class="kn">import</span> <span class="nn">one.alf.io</span> <span class="k">as</span> <span class="nn">alfio</span>
 
 <span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 <span class="n">TASK_STATUS_SET</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;Waiting&#39;</span><span class="p">,</span> <span class="s1">&#39;Held&#39;</span><span class="p">,</span> <span class="s1">&#39;Started&#39;</span><span class="p">,</span> <span class="s1">&#39;Errored&#39;</span><span class="p">,</span> <span class="s1">&#39;Empty&#39;</span><span class="p">,</span> <span class="s1">&#39;Complete&#39;</span><span class="p">,</span> <span class="s1">&#39;Incomplete&#39;</span><span class="p">,</span> <span class="s1">&#39;Abandoned&#39;</span><span class="p">}</span>
@@ -418,25 +419,28 @@
 <span class="sd">        -------</span>
 <span class="sd">        list of pathlib.Path</span>
 <span class="sd">            A list of input files to register.</span>
+
+<span class="sd">        # TODO This method currently does not support wildcards</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">I</span> <span class="o">=</span> <span class="n">data_handlers</span><span class="o">.</span><span class="n">ExpectedDataset</span><span class="o">.</span><span class="n">input</span>  <span class="c1"># noqa</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="n">input_files</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_files</span>
+            <span class="c1"># Ensure all input files are ExpectedDataset instances</span>
+            <span class="n">input_files</span> <span class="o">=</span> <span class="p">[</span><span class="n">I</span><span class="p">(</span><span class="o">*</span><span class="n">i</span><span class="p">)</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)</span> <span class="k">else</span> <span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_files</span> <span class="ow">or</span> <span class="p">[]]</span>
         <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;Task.setUp must be run before calling this method.&#39;</span><span class="p">)</span>
-        <span class="n">to_register</span><span class="p">,</span> <span class="n">missing</span> <span class="o">=</span> <span class="p">[],</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">filename</span><span class="p">,</span> <span class="n">collection</span><span class="p">,</span> <span class="n">required</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">f</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">f</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">3</span> <span class="ow">and</span> <span class="n">f</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="n">input_files</span><span class="p">):</span>
-            <span class="n">filepath</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">collection</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">filepath</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
-                <span class="n">to_register</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">filepath</span><span class="p">)</span>
-            <span class="k">elif</span> <span class="n">required</span><span class="p">:</span>
-                <span class="n">missing</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">filepath</span><span class="p">)</span>
-        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">missing</span><span class="p">):</span>
-            <span class="n">missing_str</span> <span class="o">=</span> <span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">relative_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">as_posix</span><span class="p">(),</span> <span class="n">missing</span><span class="p">))</span>
+        <span class="n">to_register</span><span class="p">,</span> <span class="n">missing</span> <span class="o">=</span> <span class="p">[],</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">dataset</span> <span class="ow">in</span> <span class="n">input_files</span><span class="p">:</span>
+            <span class="n">ok</span><span class="p">,</span> <span class="n">filepaths</span><span class="p">,</span> <span class="n">_missing</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">find_files</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">register</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">to_register</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">filepaths</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">ok</span> <span class="ow">and</span> <span class="n">_missing</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">missing</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">_missing</span><span class="p">)</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">_missing</span><span class="p">,</span> <span class="nb">set</span><span class="p">)</span> <span class="k">else</span> <span class="n">missing</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">_missing</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">missing</span><span class="p">):</span>  <span class="c1"># NB: These are either glob patterns that have no matches or match files that should be absent</span>
+            <span class="n">missing_str</span> <span class="o">=</span> <span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">missing</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">assert_all_exist</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">AssertionError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Missing required input files: </span><span class="si">{</span><span class="n">missing_str</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Missing required input files: </span><span class="si">{</span><span class="n">missing_str</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">to_register</span><span class="p">)</span> <span class="o">-</span> <span class="nb">set</span><span class="p">(</span><span class="n">missing</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">to_register</span>
 
 <div class="viewcode-block" id="Task.register_images">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.tasks.html#ibllib.pipes.tasks.Task.register_images">[docs]</a>
@@ -467,8 +471,9 @@
 <span class="sd">        This is the default but should be overwritten for each task</span>
 <span class="sd">        :return:</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">input_files</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="p">[</span><span class="s1">&#39;input_files&#39;</span><span class="p">]</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">output_files</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="p">[</span><span class="s1">&#39;output_files&#39;</span><span class="p">]</span></div>
+        <span class="n">signature</span> <span class="o">=</span> <span class="n">data_handlers</span><span class="o">.</span><span class="n">_parse_signature</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">input_files</span> <span class="o">=</span> <span class="n">signature</span><span class="p">[</span><span class="s1">&#39;input_files&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">output_files</span> <span class="o">=</span> <span class="n">signature</span><span class="p">[</span><span class="s1">&#39;output_files&#39;</span><span class="p">]</span></div>
 
 
     <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
@@ -518,7 +523,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">data_handler</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_data_handler</span><span class="p">()</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">data_handler</span><span class="o">.</span><span class="n">setUp</span><span class="p">()</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">get_signatures</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">assert_expected_inputs</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assert_expected_inputs</span><span class="p">(</span><span class="n">raise_error</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
             <span class="k">return</span> <span class="kc">True</span></div>
 
 
@@ -560,7 +565,7 @@
             <span class="k">for</span> <span class="n">out</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">outputs</span><span class="p">:</span>
                 <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">out</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">raise_error</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="s2">&quot;Missing outputs after task completion&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="s1">&#39;Missing outputs after task completion&#39;</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">everything_is_fine</span><span class="p">,</span> <span class="n">files</span></div>
 
@@ -569,9 +574,19 @@
 <a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.tasks.html#ibllib.pipes.tasks.Task.assert_expected_inputs">[docs]</a>
     <span class="k">def</span> <span class="nf">assert_expected_inputs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raise_error</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Before running a task, check that all the files necessary to run the task have been downloaded/ are on the local file</span>
-<span class="sd">        system already</span>
-<span class="sd">        :return:</span>
+<span class="sd">        Check that all the files necessary to run the task have been are present on disk.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        raise_error : bool</span>
+<span class="sd">            If true, raise FileNotFoundError if required files are missing.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        bool</span>
+<span class="sd">            True if all required files were found.</span>
+<span class="sd">        list of pathlib.Path</span>
+<span class="sd">            A list of file paths that exist on disk.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Checking input files&#39;</span><span class="p">)</span>
         <span class="n">everything_is_fine</span><span class="p">,</span> <span class="n">files</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">assert_expected</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">input_files</span><span class="p">)</span>
@@ -579,30 +594,57 @@
         <span class="k">if</span> <span class="ow">not</span> <span class="n">everything_is_fine</span> <span class="ow">and</span> <span class="n">raise_error</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="s1">&#39;Missing inputs to run task&#39;</span><span class="p">)</span>
 
+        <span class="c1"># Check for duplicate datasets that may complicate extraction.</span>
+        <span class="c1"># Some sessions may contain revisions and without ONE it&#39;s difficult to determine which</span>
+        <span class="c1"># are the default datasets. Likewise SDSC may contain multiple datasets with different</span>
+        <span class="c1"># UUIDs in the name after patching data.</span>
+        <span class="n">variant_datasets</span> <span class="o">=</span> <span class="n">alfio</span><span class="o">.</span><span class="n">find_variants</span><span class="p">(</span><span class="n">files</span><span class="p">,</span> <span class="n">extra</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">len</span><span class="p">,</span> <span class="n">variant_datasets</span><span class="o">.</span><span class="n">values</span><span class="p">())):</span>
+            <span class="c1"># Keep those with variants and make paths relative to session for logging purposes</span>
+            <span class="n">to_frag</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">relative_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">as_posix</span><span class="p">()</span>  <span class="c1"># noqa</span>
+            <span class="n">ambiguous</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="n">to_frag</span><span class="p">(</span><span class="n">k</span><span class="p">):</span> <span class="p">[</span><span class="n">to_frag</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">v</span><span class="p">]</span>
+                <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">variant_datasets</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">v</span><span class="p">)}</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Ambiguous input datasets found: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">ambiguous</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">raise_error</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">location</span> <span class="o">==</span> <span class="s1">&#39;sdsc&#39;</span><span class="p">:</span>  <span class="c1"># take no chances on SDSC</span>
+                <span class="c1"># This could be mitigated if loading with data OneSDSC</span>
+                <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+                    <span class="s1">&#39;Multiple variant datasets found. Loading for these is undefined.&#39;</span><span class="p">)</span>
+
         <span class="k">return</span> <span class="n">everything_is_fine</span><span class="p">,</span> <span class="n">files</span></div>
 
 
 <div class="viewcode-block" id="Task.assert_expected">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.tasks.html#ibllib.pipes.tasks.Task.assert_expected">[docs]</a>
     <span class="k">def</span> <span class="nf">assert_expected</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">expected_files</span><span class="p">,</span> <span class="n">silent</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-        <span class="n">everything_is_fine</span> <span class="o">=</span> <span class="kc">True</span>
-        <span class="n">files</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">expected_file</span> <span class="ow">in</span> <span class="n">expected_files</span><span class="p">:</span>
-            <span class="n">actual_files</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="o">*</span><span class="nb">filter</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="nb">reversed</span><span class="p">(</span><span class="n">expected_file</span><span class="p">[:</span><span class="mi">2</span><span class="p">]))))))</span>
-            <span class="c1"># Account for revisions</span>
-            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">actual_files</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="n">collection</span> <span class="o">=</span> <span class="s1">&#39;/&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="p">(</span><span class="n">expected_file</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="s1">&#39;#*&#39;</span><span class="p">)))</span>  <span class="c1"># append pound with wildcard</span>
-                <span class="n">expected_revision</span> <span class="o">=</span> <span class="p">(</span><span class="n">expected_file</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">collection</span><span class="p">,</span> <span class="n">expected_file</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
-                <span class="n">actual_files</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span>
-                    <span class="n">Path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="o">*</span><span class="nb">filter</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="nb">reversed</span><span class="p">(</span><span class="n">expected_revision</span><span class="p">[:</span><span class="mi">2</span><span class="p">])))))</span>
-                <span class="p">)</span>
-            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">actual_files</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">expected_file</span><span class="p">[</span><span class="mi">2</span><span class="p">]:</span>
-                <span class="n">everything_is_fine</span> <span class="o">=</span> <span class="kc">False</span>
-                <span class="k">if</span> <span class="ow">not</span> <span class="n">silent</span><span class="p">:</span>
-                    <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Signature file expected </span><span class="si">{</span><span class="n">expected_file</span><span class="si">}</span><span class="s1"> not found&#39;</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">actual_files</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
-                    <span class="n">files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">actual_files</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Assert that expected files are present.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        expected_files : list of ExpectedDataset</span>
+<span class="sd">            A list of expected files in the form (file_pattern_str, collection_str, required_bool).</span>
+<span class="sd">        silent : bool</span>
+<span class="sd">            If true, log an error if any required files are not found.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        bool</span>
+<span class="sd">            True if all required files were found.</span>
+<span class="sd">        list of pathlib.Path</span>
+<span class="sd">            A list of file paths that exist on disk.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">(</span><span class="n">expected_files</span><span class="p">):</span>
+            <span class="k">return</span> <span class="kc">True</span><span class="p">,</span> <span class="p">[]</span>
+        <span class="n">ok</span><span class="p">,</span> <span class="n">actual_files</span><span class="p">,</span> <span class="n">missing</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">find_files</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">expected_files</span><span class="p">))</span>
+        <span class="n">everything_is_fine</span> <span class="o">=</span> <span class="nb">all</span><span class="p">(</span><span class="n">ok</span><span class="p">)</span>
+        <span class="c1"># For unknown reasons only the first file of each expected dataset was returned and this</span>
+        <span class="c1"># behaviour was preserved after refactoring the code</span>
+        <span class="n">files</span> <span class="o">=</span> <span class="p">[</span><span class="n">file_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">file_list</span> <span class="ow">in</span> <span class="n">actual_files</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">file_list</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">everything_is_fine</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">silent</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">missing_pattern</span> <span class="ow">in</span> <span class="nb">filter</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">flatten</span><span class="p">(</span><span class="n">missing</span><span class="p">)):</span>
+                <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Signature file pattern </span><span class="si">%s</span><span class="s1"> not found&#39;</span><span class="p">,</span> <span class="n">missing_pattern</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">everything_is_fine</span><span class="p">,</span> <span class="n">files</span></div>
 

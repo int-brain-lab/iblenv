@@ -147,7 +147,6 @@
 <span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
 <span class="kn">import</span> <span class="nn">uuid</span>
 <span class="kn">import</span> <span class="nn">re</span>
-<span class="kn">import</span> <span class="nn">warnings</span>
 <span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
 
 <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
@@ -164,7 +163,7 @@
 
 <span class="kn">import</span> <span class="nn">ibllib.exceptions</span> <span class="k">as</span> <span class="nn">err</span>
 <span class="kn">from</span> <span class="nn">ibllib.io</span> <span class="kn">import</span> <span class="n">raw_data_loaders</span> <span class="k">as</span> <span class="n">raw</span><span class="p">,</span> <span class="n">session_params</span>
-<span class="kn">from</span> <span class="nn">ibllib.io.extractors.bpod_trials</span> <span class="kn">import</span> <span class="n">extract_all</span> <span class="k">as</span> <span class="n">bpod_extract_all</span>
+<span class="kn">from</span> <span class="nn">ibllib.io.extractors.bpod_trials</span> <span class="kn">import</span> <span class="n">get_bpod_extractor</span>
 <span class="kn">import</span> <span class="nn">ibllib.io.extractors.base</span> <span class="k">as</span> <span class="nn">extractors_base</span>
 <span class="kn">from</span> <span class="nn">ibllib.io.extractors.training_wheel</span> <span class="kn">import</span> <span class="n">extract_wheel_moves</span>
 <span class="kn">from</span> <span class="nn">ibllib</span> <span class="kn">import</span> <span class="n">plots</span>
@@ -718,7 +717,8 @@
 <div class="viewcode-block" id="FpgaTrials">
 <a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.ephys_fpga.html#ibllib.io.extractors.ephys_fpga.FpgaTrials">[docs]</a>
 <span class="k">class</span> <span class="nc">FpgaTrials</span><span class="p">(</span><span class="n">extractors_base</span><span class="o">.</span><span class="n">BaseExtractor</span><span class="p">):</span>
-    <span class="n">save_names</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;_ibl_trials.goCueTrigger_times.npy&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">save_names</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;_ibl_trials.goCueTrigger_times.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;_ibl_trials.stimOnTrigger_times.npy&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;_ibl_trials.stimOffTrigger_times.npy&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span>
                   <span class="s1">&#39;_ibl_trials.stimOff_times.npy&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;_ibl_trials.quiescencePeriod.npy&#39;</span><span class="p">,</span>
                   <span class="s1">&#39;_ibl_trials.table.pqt&#39;</span><span class="p">,</span> <span class="s1">&#39;_ibl_wheel.timestamps.npy&#39;</span><span class="p">,</span>
                   <span class="s1">&#39;_ibl_wheel.position.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;_ibl_wheelMoves.intervals.npy&#39;</span><span class="p">,</span>
@@ -898,9 +898,9 @@
             <span class="n">chmap</span> <span class="o">=</span> <span class="n">chmap</span> <span class="ow">or</span> <span class="n">_chmap</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">:</span>  <span class="c1"># extract the behaviour data from bpod</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">,</span> <span class="o">*</span><span class="n">_</span> <span class="o">=</span> <span class="n">bpod_extract_all</span><span class="p">(</span>
-                <span class="n">session_path</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="n">task_collection</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                <span class="n">extractor_type</span><span class="o">=</span><span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;extractor_type&#39;</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">extractor</span> <span class="o">=</span> <span class="n">get_bpod_extractor</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="n">task_collection</span><span class="p">)</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Bpod trials extractor: </span><span class="si">%s</span><span class="s1">.</span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">extractor</span><span class="o">.</span><span class="vm">__module__</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">extractor</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">bpod_trials</span><span class="p">,</span> <span class="o">*</span><span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">extractor</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span><span class="n">task_collection</span><span class="o">=</span><span class="n">task_collection</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
         <span class="c1"># Explode trials table df</span>
         <span class="k">if</span> <span class="s1">&#39;table&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">var_names</span><span class="p">:</span>
@@ -1235,7 +1235,7 @@
         <span class="k">if</span> <span class="n">audio_event_ttls</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="c1"># For training/biased/ephys protocols, the ready tone should be below 110 ms. The error</span>
             <span class="c1"># tone should be between 400ms and 1200ms</span>
-            <span class="n">audio_event_ttls</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;ready_tone&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mf">0.11</span><span class="p">),</span> <span class="s1">&#39;error_tone&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mf">0.4</span><span class="p">,</span> <span class="mf">1.2</span><span class="p">)}</span>
+            <span class="n">audio_event_ttls</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;ready_tone&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mf">0.1101</span><span class="p">),</span> <span class="s1">&#39;error_tone&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mf">0.4</span><span class="p">,</span> <span class="mf">1.2</span><span class="p">)}</span>
         <span class="n">audio_event_intervals</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_assign_events</span><span class="p">(</span><span class="n">audio</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">],</span> <span class="n">audio</span><span class="p">[</span><span class="s1">&#39;polarities&#39;</span><span class="p">],</span> <span class="n">audio_event_ttls</span><span class="p">,</span> <span class="n">display</span><span class="o">=</span><span class="n">display</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">audio</span><span class="p">,</span> <span class="n">audio_event_intervals</span></div>
@@ -1675,73 +1675,6 @@
 
         <span class="k">return</span> <span class="n">out</span></div>
 </div>
-
-
-
-<div class="viewcode-block" id="extract_all">
-<a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.ephys_fpga.html#ibllib.io.extractors.ephys_fpga.extract_all">[docs]</a>
-<span class="k">def</span> <span class="nf">extract_all</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">sync_collection</span><span class="o">=</span><span class="s1">&#39;raw_ephys_data&#39;</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">save_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                <span class="n">task_collection</span><span class="o">=</span><span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">,</span> <span class="n">protocol_number</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    For the IBL ephys task, reads ephys binary file and extract:</span>
-<span class="sd">        -   sync</span>
-<span class="sd">        -   wheel</span>
-<span class="sd">        -   behaviour</span>
-
-<span class="sd">    These `extract_all` functions should be deprecated as they make assumptions about hardware</span>
-<span class="sd">    parameters.  Additionally the FpgaTrials class now automatically loads DAQ sync files, extracts</span>
-<span class="sd">    the Bpod trials, and returns a dict instead of a tuple. Therefore this function is entirely</span>
-<span class="sd">    redundant. See the examples for the correct way to extract NI DAQ behaviour sessions.</span>
-
-<span class="sd">    Parameters</span>
-<span class="sd">    ----------</span>
-<span class="sd">    session_path : str, pathlib.Path</span>
-<span class="sd">        The absolute session path, i.e. &#39;/path/to/subject/yyyy-mm-dd/nnn&#39;.</span>
-<span class="sd">    sync_collection : str</span>
-<span class="sd">        The session subdirectory where the sync data are located.</span>
-<span class="sd">    save : bool</span>
-<span class="sd">        If true, save the extracted files to save_path.</span>
-<span class="sd">    task_collection : str</span>
-<span class="sd">        The location of the behaviour protocol data.</span>
-<span class="sd">    save_path : str, pathlib.Path</span>
-<span class="sd">        The save location of the extracted files, defaults to the alf directory of the session path.</span>
-<span class="sd">    protocol_number : int</span>
-<span class="sd">        The order that the protocol was run in.</span>
-<span class="sd">    **kwargs</span>
-<span class="sd">        Optional extractor keyword arguments.</span>
-
-<span class="sd">    Returns</span>
-<span class="sd">    -------</span>
-<span class="sd">    list</span>
-<span class="sd">        The extracted data.</span>
-<span class="sd">    list of pathlib.Path, None</span>
-<span class="sd">        If save is True, a list of file paths to the extracted data.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
-        <span class="s1">&#39;ibllib.io.extractors.ephys_fpga.extract_all will be removed in future versions; &#39;</span>
-        <span class="s1">&#39;use FpgaTrials instead. For reliable extraction, use the dynamic pipeline behaviour tasks.&#39;</span><span class="p">,</span>
-        <span class="ne">FutureWarning</span><span class="p">)</span>
-    <span class="n">return_extractor</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;return_extractor&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
-    <span class="c1"># Extract Bpod trials</span>
-    <span class="n">bpod_raw</span> <span class="o">=</span> <span class="n">raw</span><span class="o">.</span><span class="n">load_data</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="n">task_collection</span><span class="p">)</span>
-    <span class="k">assert</span> <span class="n">bpod_raw</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;No task trials data in raw_behavior_data - Exit&#39;</span>
-    <span class="n">bpod_trials</span><span class="p">,</span> <span class="n">bpod_wheel</span><span class="p">,</span> <span class="o">*</span><span class="n">_</span> <span class="o">=</span> <span class="n">bpod_extract_all</span><span class="p">(</span>
-        <span class="n">session_path</span><span class="o">=</span><span class="n">session_path</span><span class="p">,</span> <span class="n">bpod_trials</span><span class="o">=</span><span class="n">bpod_raw</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="n">task_collection</span><span class="p">,</span>
-        <span class="n">save</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">extractor_type</span><span class="o">=</span><span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;extractor_type&#39;</span><span class="p">))</span>
-
-    <span class="c1"># Sync Bpod trials to FPGA</span>
-    <span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span> <span class="o">=</span> <span class="n">get_sync_and_chn_map</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">sync_collection</span><span class="p">)</span>
-    <span class="c1"># sync, chmap = get_main_probe_sync(session_path, bin_exists=bin_exists)</span>
-    <span class="n">trials</span> <span class="o">=</span> <span class="n">FpgaTrials</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">bpod_trials</span><span class="o">=</span><span class="p">{</span><span class="o">**</span><span class="n">bpod_trials</span><span class="p">,</span> <span class="o">**</span><span class="n">bpod_wheel</span><span class="p">})</span>  <span class="c1"># py3.9 -&gt; |</span>
-    <span class="n">outputs</span><span class="p">,</span> <span class="n">files</span> <span class="o">=</span> <span class="n">trials</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span>
-        <span class="n">save</span><span class="o">=</span><span class="n">save</span><span class="p">,</span> <span class="n">sync</span><span class="o">=</span><span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span><span class="o">=</span><span class="n">chmap</span><span class="p">,</span> <span class="n">path_out</span><span class="o">=</span><span class="n">save_path</span><span class="p">,</span>
-        <span class="n">task_collection</span><span class="o">=</span><span class="n">task_collection</span><span class="p">,</span> <span class="n">protocol_number</span><span class="o">=</span><span class="n">protocol_number</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">outputs</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
-        <span class="n">outputs</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">trials</span><span class="o">.</span><span class="n">var_names</span><span class="p">,</span> <span class="n">outputs</span><span class="p">)}</span>
-    <span class="k">if</span> <span class="n">return_extractor</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">outputs</span><span class="p">,</span> <span class="n">files</span><span class="p">,</span> <span class="n">trials</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">outputs</span><span class="p">,</span> <span class="n">files</span></div>
 
 
 

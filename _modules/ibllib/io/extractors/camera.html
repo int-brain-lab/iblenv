@@ -115,7 +115,6 @@
 <span class="sd">This module handles extraction of camera timestamps for both Bpod and DAQ.</span>
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="kn">import</span> <span class="nn">logging</span>
-<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
 
 <span class="kn">import</span> <span class="nn">cv2</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
@@ -126,15 +125,12 @@
 <span class="kn">from</span> <span class="nn">ibllib.plots</span> <span class="kn">import</span> <span class="n">squares</span><span class="p">,</span> <span class="n">vertical_lines</span>
 <span class="kn">from</span> <span class="nn">ibllib.io.video</span> <span class="kn">import</span> <span class="n">assert_valid_label</span><span class="p">,</span> <span class="n">VideoStreamer</span>
 <span class="kn">from</span> <span class="nn">iblutil.numerical</span> <span class="kn">import</span> <span class="n">within_ranges</span>
-<span class="kn">from</span> <span class="nn">ibllib.io.extractors.base</span> <span class="kn">import</span> <span class="n">get_session_extractor_type</span>
-<span class="kn">from</span> <span class="nn">ibllib.io.extractors.ephys_fpga</span> <span class="kn">import</span> <span class="n">get_sync_fronts</span><span class="p">,</span> <span class="n">get_sync_and_chn_map</span>
+<span class="kn">from</span> <span class="nn">ibllib.io.extractors.ephys_fpga</span> <span class="kn">import</span> <span class="n">get_sync_fronts</span>
 <span class="kn">import</span> <span class="nn">ibllib.io.raw_data_loaders</span> <span class="k">as</span> <span class="nn">raw</span>
 <span class="kn">import</span> <span class="nn">ibllib.io.extractors.video_motion</span> <span class="k">as</span> <span class="nn">vmotion</span>
 <span class="kn">from</span> <span class="nn">ibllib.io.extractors.base</span> <span class="kn">import</span> <span class="p">(</span>
     <span class="n">BaseBpodTrialsExtractor</span><span class="p">,</span>
     <span class="n">BaseExtractor</span><span class="p">,</span>
-    <span class="n">run_extractor_classes</span><span class="p">,</span>
-    <span class="n">_get_task_types_json_config</span>
 <span class="p">)</span>
 
 <span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
@@ -328,7 +324,7 @@
             <span class="n">raw_ts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="n">raw_ts</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">raw_ts</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">med_time</span><span class="p">])]</span>
 
         <span class="k">assert</span> <span class="n">video_frames</span> <span class="o">==</span> <span class="n">raw_ts</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;dimension mismatch between video frames and TTL pulses for </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="si">}</span><span class="s1"> camera&#39;</span> \
-                                            <span class="sa">f</span><span class="s1">&#39;by </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">video_frames</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">raw_ts</span><span class="o">.</span><span class="n">size</span><span class="p">)</span><span class="si">}</span><span class="s1"> frames&#39;</span>
+                                            <span class="sa">f</span><span class="s1">&#39; by </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">video_frames</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">raw_ts</span><span class="o">.</span><span class="n">size</span><span class="p">)</span><span class="si">}</span><span class="s1"> frames&#39;</span>
 
         <span class="k">return</span> <span class="n">raw_ts</span></div>
 
@@ -881,68 +877,6 @@
         <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 
     <span class="k">return</span> <span class="n">gpio</span><span class="p">,</span> <span class="n">ttl_</span><span class="p">,</span> <span class="n">fcn_a2b</span><span class="p">(</span><span class="n">ts</span><span class="p">)</span></div>
-
-
-
-<div class="viewcode-block" id="extract_all">
-<a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.camera.html#ibllib.io.extractors.camera.extract_all">[docs]</a>
-<span class="k">def</span> <span class="nf">extract_all</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">sync_type</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    For the IBL ephys task, reads ephys binary file and extract:</span>
-<span class="sd">        -   video time stamps</span>
-<span class="sd">    :param session_type: the session type to extract, i.e. &#39;ephys&#39;, &#39;training&#39; or &#39;biased&#39;. If</span>
-<span class="sd">    None the session type is inferred from the settings file.</span>
-<span class="sd">    :param save: Bool, defaults to False</span>
-<span class="sd">    :param kwargs: parameters to pass to the extractor</span>
-<span class="sd">    :return: outputs, files</span>
-
-<span class="sd">    Parameters</span>
-<span class="sd">    ----------</span>
-<span class="sd">    session_path : str, pathlib.Path</span>
-<span class="sd">        The session path, e.g. &#39;/path/to/subject/yyyy-mm-dd/001&#39;.</span>
-<span class="sd">    sync_type : str</span>
-<span class="sd">        The sync label from the experiment description file.</span>
-<span class="sd">    sync_collection : str</span>
-<span class="sd">        The subdirectory containing the sync files.</span>
-<span class="sd">    save : bool</span>
-<span class="sd">        If True, save the camera timestamp files to disk.</span>
-<span class="sd">    session_type : str</span>
-<span class="sd">        (DEPRECATED) The session type, e.g. &#39;ephys&#39;.</span>
-<span class="sd">    **kwargs</span>
-<span class="sd">        Extra keyword args to pass to the camera extractor classes.</span>
-
-<span class="sd">    Returns</span>
-<span class="sd">    -------</span>
-<span class="sd">    list of numpy.array</span>
-<span class="sd">        List of extracted output data, i.e. the camera times.</span>
-<span class="sd">    list of pathlib.Path</span>
-<span class="sd">        The paths of the extracted data, if save = True</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-
-    <span class="n">sync_collection</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;sync_collection&#39;</span><span class="p">,</span> <span class="s1">&#39;raw_ephys_data&#39;</span><span class="p">)</span>
-    <span class="n">camlog</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;camlog&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
-
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">sync_type</span><span class="p">:</span>  <span class="c1"># infer from session type</span>
-        <span class="n">session_type</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;session_type&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">get_session_extractor_type</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">session_type</span> <span class="ow">or</span> <span class="n">session_type</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">_get_task_types_json_config</span><span class="p">()</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Session type </span><span class="si">{</span><span class="n">session_type</span><span class="si">}</span><span class="s2"> has no matching extractor&quot;</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">sync_type</span> <span class="o">=</span> <span class="s1">&#39;nidq&#39;</span> <span class="k">if</span> <span class="n">session_type</span> <span class="o">==</span> <span class="s1">&#39;ephys&#39;</span> <span class="k">else</span> <span class="s1">&#39;bpod&#39;</span>
-
-    <span class="k">if</span> <span class="n">sync_type</span> <span class="o">==</span> <span class="s1">&#39;nidq&#39;</span><span class="p">:</span>
-        <span class="n">labels</span> <span class="o">=</span> <span class="n">assert_valid_label</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;labels&#39;</span><span class="p">,</span> <span class="p">(</span><span class="s1">&#39;left&#39;</span><span class="p">,</span> <span class="s1">&#39;right&#39;</span><span class="p">,</span> <span class="s1">&#39;body&#39;</span><span class="p">)))</span>
-        <span class="n">labels</span> <span class="o">=</span> <span class="p">(</span><span class="n">labels</span><span class="p">,)</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">else</span> <span class="n">labels</span>  <span class="c1"># Ensure list/tuple</span>
-        <span class="n">CamExtractor</span> <span class="o">=</span> <span class="n">CameraTimestampsCamlog</span> <span class="k">if</span> <span class="n">camlog</span> <span class="k">else</span> <span class="n">CameraTimestampsFPGA</span>
-        <span class="n">extractor</span> <span class="o">=</span> <span class="p">[</span><span class="n">partial</span><span class="p">(</span><span class="n">CamExtractor</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span> <span class="k">for</span> <span class="n">label</span> <span class="ow">in</span> <span class="n">labels</span><span class="p">]</span>
-        <span class="k">if</span> <span class="s1">&#39;sync&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
-            <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;sync&#39;</span><span class="p">],</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;chmap&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">get_sync_and_chn_map</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">sync_collection</span><span class="p">)</span>
-    <span class="k">else</span><span class="p">:</span>  <span class="c1"># assume Bpod otherwise</span>
-        <span class="k">assert</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;labels&#39;</span><span class="p">,</span> <span class="s1">&#39;left&#39;</span><span class="p">),</span> <span class="s1">&#39;only left camera is currently supported&#39;</span>
-        <span class="n">extractor</span> <span class="o">=</span> <span class="n">CameraTimestampsBpod</span>
-
-    <span class="n">outputs</span><span class="p">,</span> <span class="n">files</span> <span class="o">=</span> <span class="n">run_extractor_classes</span><span class="p">(</span>
-        <span class="n">extractor</span><span class="p">,</span> <span class="n">session_path</span><span class="o">=</span><span class="n">session_path</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="n">save</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">outputs</span><span class="p">,</span> <span class="n">files</span></div>
 
 </pre></div>
 

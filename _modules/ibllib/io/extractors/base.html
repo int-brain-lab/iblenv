@@ -335,39 +335,6 @@
 
 
 
-<span class="k">def</span> <span class="nf">_get_task_types_json_config</span><span class="p">():</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Return the extractor types map.</span>
-
-<span class="sd">    This function is only used for legacy sessions, i.e. those without an experiment description</span>
-<span class="sd">    file and will be removed in favor of :func:`_get_task_extractor_map`, which directly returns</span>
-<span class="sd">    the Bpod extractor class name. The experiment description file cuts out the need for pipeline</span>
-<span class="sd">    name identifiers.</span>
-
-<span class="sd">    Returns</span>
-<span class="sd">    -------</span>
-<span class="sd">    Dict[str, str]</span>
-<span class="sd">        A map of task protocol to task extractor identifier, e.g. &#39;ephys&#39;, &#39;habituation&#39;, etc.</span>
-
-<span class="sd">    See Also</span>
-<span class="sd">    --------</span>
-<span class="sd">    _get_task_extractor_map - returns a map of task protocol to Bpod trials extractor class name.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;extractor_types.json&#39;</span><span class="p">))</span> <span class="k">as</span> <span class="n">fp</span><span class="p">:</span>
-        <span class="n">task_types</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">fp</span><span class="p">)</span>
-    <span class="k">try</span><span class="p">:</span>
-        <span class="c1"># look if there are custom extractor types in the personal projects repo</span>
-        <span class="kn">import</span> <span class="nn">projects.base</span>
-        <span class="n">custom_extractors</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">projects</span><span class="o">.</span><span class="n">base</span><span class="o">.</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;extractor_types.json&#39;</span><span class="p">)</span>
-        <span class="n">_logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Loading extractor types from </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">custom_extractors</span><span class="p">)</span>
-        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">custom_extractors</span><span class="p">)</span> <span class="k">as</span> <span class="n">fp</span><span class="p">:</span>
-            <span class="n">custom_task_types</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">fp</span><span class="p">)</span>
-        <span class="n">task_types</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">custom_task_types</span><span class="p">)</span>
-    <span class="k">except</span> <span class="p">(</span><span class="ne">ModuleNotFoundError</span><span class="p">,</span> <span class="ne">FileNotFoundError</span><span class="p">):</span>
-        <span class="k">pass</span>
-    <span class="k">return</span> <span class="n">task_types</span>
-
-
 <div class="viewcode-block" id="get_task_protocol">
 <a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.base.html#ibllib.io.extractors.base.get_task_protocol">[docs]</a>
 <span class="k">def</span> <span class="nf">get_task_protocol</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">):</span>
@@ -403,134 +370,6 @@
 
 
 
-<div class="viewcode-block" id="get_task_extractor_type">
-<a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.base.html#ibllib.io.extractors.base.get_task_extractor_type">[docs]</a>
-<span class="k">def</span> <span class="nf">get_task_extractor_type</span><span class="p">(</span><span class="n">task_name</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Returns the task type string from the full pybpod task name.</span>
-
-<span class="sd">    Parameters</span>
-<span class="sd">    ----------</span>
-<span class="sd">    task_name : str</span>
-<span class="sd">        The complete task protocol name from the PYBPOD_PROTOCOL field of the task settings.</span>
-
-<span class="sd">    Returns</span>
-<span class="sd">    -------</span>
-<span class="sd">    str</span>
-<span class="sd">        The extractor type identifier. Examples include &#39;biased&#39;, &#39;habituation&#39;, &#39;training&#39;,</span>
-<span class="sd">        &#39;ephys&#39;, &#39;mock_ephys&#39; and &#39;sync_ephys&#39;.</span>
-
-<span class="sd">    Examples</span>
-<span class="sd">    --------</span>
-<span class="sd">    &gt;&gt;&gt; get_task_extractor_type(&#39;_iblrig_tasks_biasedChoiceWorld3.7.0&#39;)</span>
-<span class="sd">    &#39;biased&#39;</span>
-
-<span class="sd">    &gt;&gt;&gt; get_task_extractor_type(&#39;_iblrig_tasks_trainingChoiceWorld3.6.0&#39;)</span>
-<span class="sd">    &#39;training&#39;</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">task_name</span><span class="p">,</span> <span class="n">Path</span><span class="p">):</span>
-        <span class="n">task_name</span> <span class="o">=</span> <span class="n">get_task_protocol</span><span class="p">(</span><span class="n">task_name</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">task_name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">return</span>
-    <span class="n">task_types</span> <span class="o">=</span> <span class="n">_get_task_types_json_config</span><span class="p">()</span>
-
-    <span class="n">task_type</span> <span class="o">=</span> <span class="n">task_types</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_name</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">task_type</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>  <span class="c1"># Try lazy matching of name</span>
-        <span class="n">task_type</span> <span class="o">=</span> <span class="nb">next</span><span class="p">((</span><span class="n">task_types</span><span class="p">[</span><span class="n">tt</span><span class="p">]</span> <span class="k">for</span> <span class="n">tt</span> <span class="ow">in</span> <span class="n">task_types</span> <span class="k">if</span> <span class="n">tt</span> <span class="ow">in</span> <span class="n">task_name</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">task_type</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;No extractor type found for </span><span class="si">{</span><span class="n">task_name</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">task_type</span></div>
-
-
-
-<div class="viewcode-block" id="get_session_extractor_type">
-<a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.base.html#ibllib.io.extractors.base.get_session_extractor_type">[docs]</a>
-<span class="k">def</span> <span class="nf">get_session_extractor_type</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Infer trials extractor type from task settings.</span>
-
-<span class="sd">    From a session path, loads the settings file, finds the task and checks if extractors exist.</span>
-<span class="sd">    Examples include &#39;biased&#39;, &#39;habituation&#39;, &#39;training&#39;, &#39;ephys&#39;, &#39;mock_ephys&#39;, and &#39;sync_ephys&#39;.</span>
-<span class="sd">    Note this should only be used for legacy sessions, i.e. those without an experiment description</span>
-<span class="sd">    file.</span>
-
-<span class="sd">    Parameters</span>
-<span class="sd">    ----------</span>
-<span class="sd">    session_path : str, pathlib.Path</span>
-<span class="sd">        The session path for which to determine the pipeline.</span>
-<span class="sd">    task_collection : str</span>
-<span class="sd">        The session path directory containing the raw task data.</span>
-
-<span class="sd">    Returns</span>
-<span class="sd">    -------</span>
-<span class="sd">    str or False</span>
-<span class="sd">        The task extractor type, e.g. &#39;biased&#39;, &#39;habituation&#39;, &#39;ephys&#39;, or False if unknown.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">task_protocol</span> <span class="o">=</span> <span class="n">get_task_protocol</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="n">task_collection</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">task_protocol</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;ABORT: No task protocol found in &quot;</span><span class="si">{</span><span class="n">task_collection</span><span class="si">}</span><span class="s1">&quot; folder </span><span class="si">{</span><span class="n">session_path</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="kc">False</span>
-    <span class="n">extractor_type</span> <span class="o">=</span> <span class="n">get_task_extractor_type</span><span class="p">(</span><span class="n">task_protocol</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">extractor_type</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">extractor_type</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="k">return</span> <span class="kc">False</span></div>
-
-
-
-<div class="viewcode-block" id="get_pipeline">
-<a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.base.html#ibllib.io.extractors.base.get_pipeline">[docs]</a>
-<span class="k">def</span> <span class="nf">get_pipeline</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Get the pre-processing pipeline name from a session path.</span>
-
-<span class="sd">    Note this is only suitable for legacy sessions, i.e. those without an experiment description</span>
-<span class="sd">    file. This function will be removed in the future.</span>
-
-<span class="sd">    Parameters</span>
-<span class="sd">    ----------</span>
-<span class="sd">    session_path : str, pathlib.Path</span>
-<span class="sd">        The session path for which to determine the pipeline.</span>
-<span class="sd">    task_collection : str</span>
-<span class="sd">        The session path directory containing the raw task data.</span>
-
-<span class="sd">    Returns</span>
-<span class="sd">    -------</span>
-<span class="sd">    str</span>
-<span class="sd">        The pipeline name inferred from the extractor type, e.g. &#39;ephys&#39;, &#39;training&#39;, &#39;widefield&#39;.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">stype</span> <span class="o">=</span> <span class="n">get_session_extractor_type</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="n">task_collection</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">_get_pipeline_from_task_type</span><span class="p">(</span><span class="n">stype</span><span class="p">)</span></div>
-
-
-
-<span class="k">def</span> <span class="nf">_get_pipeline_from_task_type</span><span class="p">(</span><span class="n">stype</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Return the pipeline from the task type.</span>
-
-<span class="sd">    Some task types directly define the pipeline. Note this is only suitable for legacy sessions,</span>
-<span class="sd">    i.e. those without an experiment description file. This function will be removed in the future.</span>
-
-<span class="sd">    Parameters</span>
-<span class="sd">    ----------</span>
-<span class="sd">    stype : str</span>
-<span class="sd">        The session type or task extractor type, e.g. &#39;habituation&#39;, &#39;ephys&#39;, etc.</span>
-
-<span class="sd">    Returns</span>
-<span class="sd">    -------</span>
-<span class="sd">    str</span>
-<span class="sd">        A task pipeline identifier.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">stype</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;ephys_biased_opto&#39;</span><span class="p">,</span> <span class="s1">&#39;ephys&#39;</span><span class="p">,</span> <span class="s1">&#39;ephys_training&#39;</span><span class="p">,</span> <span class="s1">&#39;mock_ephys&#39;</span><span class="p">,</span> <span class="s1">&#39;sync_ephys&#39;</span><span class="p">]:</span>
-        <span class="k">return</span> <span class="s1">&#39;ephys&#39;</span>
-    <span class="k">elif</span> <span class="n">stype</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;habituation&#39;</span><span class="p">,</span> <span class="s1">&#39;training&#39;</span><span class="p">,</span> <span class="s1">&#39;biased&#39;</span><span class="p">,</span> <span class="s1">&#39;biased_opto&#39;</span><span class="p">]:</span>
-        <span class="k">return</span> <span class="s1">&#39;training&#39;</span>
-    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">stype</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="s1">&#39;widefield&#39;</span> <span class="ow">in</span> <span class="n">stype</span><span class="p">:</span>
-        <span class="k">return</span> <span class="s1">&#39;widefield&#39;</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">stype</span> <span class="ow">or</span> <span class="s1">&#39;&#39;</span>
-
-
 <span class="k">def</span> <span class="nf">_get_task_extractor_map</span><span class="p">():</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Load the task protocol extractor map.</span>
@@ -545,8 +384,8 @@
         <span class="n">task_extractors</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">fp</span><span class="p">)</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="c1"># look if there are custom extractor types in the personal projects repo</span>
-        <span class="kn">import</span> <span class="nn">projects.base</span>
-        <span class="n">custom_extractors</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">projects</span><span class="o">.</span><span class="n">base</span><span class="o">.</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">FILENAME</span><span class="p">)</span>
+        <span class="kn">import</span> <span class="nn">projects</span>
+        <span class="n">custom_extractors</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">projects</span><span class="o">.</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">FILENAME</span><span class="p">)</span>
         <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">custom_extractors</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fp</span><span class="p">:</span>
             <span class="n">custom_task_types</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">fp</span><span class="p">)</span>
         <span class="n">task_extractors</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">custom_task_types</span><span class="p">)</span>

@@ -117,105 +117,14 @@
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">importlib</span>
-<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">OrderedDict</span>
-<span class="kn">import</span> <span class="nn">warnings</span>
 
-<span class="kn">from</span> <span class="nn">packaging</span> <span class="kn">import</span> <span class="n">version</span>
-<span class="kn">from</span> <span class="nn">ibllib.io.extractors</span> <span class="kn">import</span> <span class="n">habituation_trials</span><span class="p">,</span> <span class="n">training_trials</span><span class="p">,</span> <span class="n">biased_trials</span><span class="p">,</span> <span class="n">opto_trials</span>
 <span class="kn">from</span> <span class="nn">ibllib.io.extractors.base</span> <span class="kn">import</span> <span class="n">get_bpod_extractor_class</span><span class="p">,</span> <span class="n">protocol2extractor</span>
 <span class="kn">from</span> <span class="nn">ibllib.io.extractors.habituation_trials</span> <span class="kn">import</span> <span class="n">HabituationTrials</span>
 <span class="kn">from</span> <span class="nn">ibllib.io.extractors.training_trials</span> <span class="kn">import</span> <span class="n">TrainingTrials</span>
 <span class="kn">from</span> <span class="nn">ibllib.io.extractors.biased_trials</span> <span class="kn">import</span> <span class="n">BiasedTrials</span><span class="p">,</span> <span class="n">EphysTrials</span>
-<span class="kn">from</span> <span class="nn">ibllib.io.extractors.base</span> <span class="kn">import</span> <span class="n">get_session_extractor_type</span><span class="p">,</span> <span class="n">BaseBpodTrialsExtractor</span>
-<span class="kn">import</span> <span class="nn">ibllib.io.raw_data_loaders</span> <span class="k">as</span> <span class="nn">rawio</span>
+<span class="kn">from</span> <span class="nn">ibllib.io.extractors.base</span> <span class="kn">import</span> <span class="n">BaseBpodTrialsExtractor</span>
 
 <span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
-
-
-<div class="viewcode-block" id="extract_all">
-<a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.bpod_trials.html#ibllib.io.extractors.bpod_trials.extract_all">[docs]</a>
-<span class="k">def</span> <span class="nf">extract_all</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">bpod_trials</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">settings</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                <span class="n">task_collection</span><span class="o">=</span><span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">,</span> <span class="n">extractor_type</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">save_path</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Extracts a training session from its path.  NB: Wheel must be extracted first in order to</span>
-<span class="sd">    extract trials.firstMovement_times.</span>
-
-<span class="sd">    Parameters</span>
-<span class="sd">    ----------</span>
-<span class="sd">    session_path : str, pathlib.Path</span>
-<span class="sd">        The path to the session to be extracted.</span>
-<span class="sd">    task_collection : str</span>
-<span class="sd">        The subfolder containing the raw Bpod data files.</span>
-<span class="sd">    save : bool</span>
-<span class="sd">        If true, save the output files to save_path.</span>
-<span class="sd">    bpod_trials : list of dict</span>
-<span class="sd">        The loaded Bpod trial data. If None, attempts to load _iblrig_taskData.raw from</span>
-<span class="sd">        raw_task_collection.</span>
-<span class="sd">    settings : dict</span>
-<span class="sd">        The loaded Bpod settings.  If None, attempts to load _iblrig_taskSettings.raw from</span>
-<span class="sd">        raw_task_collection.</span>
-<span class="sd">    extractor_type : str</span>
-<span class="sd">        The type of extraction.  Supported types are {&#39;ephys&#39;, &#39;biased&#39;, &#39;biased_opto&#39;,</span>
-<span class="sd">        &#39;ephys_biased_opto&#39;, &#39;training&#39;, &#39;ephys_training&#39;, &#39;habituation&#39;}.  If None, extractor type</span>
-<span class="sd">        determined from settings.</span>
-<span class="sd">    save_path : str, pathlib.Path</span>
-<span class="sd">        The location of the output files if save is true.  Defaults to &lt;session_path&gt;/alf.</span>
-
-<span class="sd">    Returns</span>
-<span class="sd">    -------</span>
-<span class="sd">    dict</span>
-<span class="sd">        The extracted trials data.</span>
-<span class="sd">    dict</span>
-<span class="sd">        The extracted wheel data.</span>
-<span class="sd">    list of pathlib.Path</span>
-<span class="sd">        The output files if save is true.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;`extract_all` functions soon to be removed, use `bpod_trials.get_bpod_extractor` instead&#39;</span><span class="p">,</span> <span class="ne">FutureWarning</span><span class="p">)</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">extractor_type</span><span class="p">:</span>
-        <span class="n">extractor_type</span> <span class="o">=</span> <span class="n">get_session_extractor_type</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="n">task_collection</span><span class="p">)</span>
-    <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Extracting </span><span class="si">{</span><span class="n">session_path</span><span class="si">}</span><span class="s1"> as </span><span class="si">{</span><span class="n">extractor_type</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-    <span class="n">bpod_trials</span> <span class="o">=</span> <span class="n">bpod_trials</span> <span class="ow">or</span> <span class="n">rawio</span><span class="o">.</span><span class="n">load_data</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="n">task_collection</span><span class="p">)</span>
-    <span class="n">settings</span> <span class="o">=</span> <span class="n">settings</span> <span class="ow">or</span> <span class="n">rawio</span><span class="o">.</span><span class="n">load_settings</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">task_collection</span><span class="o">=</span><span class="n">task_collection</span><span class="p">)</span>
-    <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">extractor_type</span><span class="si">}</span><span class="s1"> session on </span><span class="si">{</span><span class="n">settings</span><span class="p">[</span><span class="s2">&quot;PYBPOD_BOARD&quot;</span><span class="p">]</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-
-    <span class="c1"># Determine which additional extractors are required</span>
-    <span class="n">extra</span> <span class="o">=</span> <span class="p">[]</span>
-    <span class="k">if</span> <span class="n">extractor_type</span> <span class="o">==</span> <span class="s1">&#39;ephys&#39;</span><span class="p">:</span>  <span class="c1"># Should exclude &#39;ephys_biased&#39;</span>
-        <span class="n">_logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Engaging biased TrialsTableEphys&#39;</span><span class="p">)</span>
-        <span class="n">extra</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">biased_trials</span><span class="o">.</span><span class="n">TrialsTableEphys</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">extractor_type</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;biased_opto&#39;</span><span class="p">,</span> <span class="s1">&#39;ephys_biased_opto&#39;</span><span class="p">]:</span>
-        <span class="n">_logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Engaging opto_trials LaserBool&#39;</span><span class="p">)</span>
-        <span class="n">extra</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">opto_trials</span><span class="o">.</span><span class="n">LaserBool</span><span class="p">)</span>
-
-    <span class="c1"># Determine base extraction</span>
-    <span class="k">if</span> <span class="n">extractor_type</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;training&#39;</span><span class="p">,</span> <span class="s1">&#39;ephys_training&#39;</span><span class="p">]:</span>
-        <span class="n">trials</span><span class="p">,</span> <span class="n">files_trials</span> <span class="o">=</span> <span class="n">training_trials</span><span class="o">.</span><span class="n">extract_all</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">bpod_trials</span><span class="o">=</span><span class="n">bpod_trials</span><span class="p">,</span> <span class="n">settings</span><span class="o">=</span><span class="n">settings</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="n">save</span><span class="p">,</span>
-                                                           <span class="n">task_collection</span><span class="o">=</span><span class="n">task_collection</span><span class="p">,</span> <span class="n">save_path</span><span class="o">=</span><span class="n">save_path</span><span class="p">)</span>
-        <span class="c1"># This is hacky but avoids extracting the wheel twice.</span>
-        <span class="c1"># files_trials should contain wheel files at the end.</span>
-        <span class="n">files_wheel</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="n">wheel</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="n">trials</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">k</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">trials</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="k">if</span> <span class="s1">&#39;wheel&#39;</span> <span class="ow">in</span> <span class="n">k</span><span class="p">})</span>
-    <span class="k">elif</span> <span class="s1">&#39;biased&#39;</span> <span class="ow">in</span> <span class="n">extractor_type</span> <span class="ow">or</span> <span class="s1">&#39;ephys&#39;</span> <span class="ow">in</span> <span class="n">extractor_type</span><span class="p">:</span>
-        <span class="n">trials</span><span class="p">,</span> <span class="n">files_trials</span> <span class="o">=</span> <span class="n">biased_trials</span><span class="o">.</span><span class="n">extract_all</span><span class="p">(</span>
-            <span class="n">session_path</span><span class="p">,</span> <span class="n">bpod_trials</span><span class="o">=</span><span class="n">bpod_trials</span><span class="p">,</span> <span class="n">settings</span><span class="o">=</span><span class="n">settings</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="n">save</span><span class="p">,</span> <span class="n">extra_classes</span><span class="o">=</span><span class="n">extra</span><span class="p">,</span>
-            <span class="n">task_collection</span><span class="o">=</span><span class="n">task_collection</span><span class="p">,</span> <span class="n">save_path</span><span class="o">=</span><span class="n">save_path</span><span class="p">)</span>
-
-        <span class="n">files_wheel</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="n">wheel</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="n">trials</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">k</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">trials</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="k">if</span> <span class="s1">&#39;wheel&#39;</span> <span class="ow">in</span> <span class="n">k</span><span class="p">})</span>
-    <span class="k">elif</span> <span class="n">extractor_type</span> <span class="o">==</span> <span class="s1">&#39;habituation&#39;</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">settings</span><span class="p">[</span><span class="s1">&#39;IBLRIG_VERSION&#39;</span><span class="p">]</span> <span class="ow">and</span> \
-                <span class="n">version</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">settings</span><span class="p">[</span><span class="s1">&#39;IBLRIG_VERSION&#39;</span><span class="p">])</span> <span class="o">&lt;=</span> <span class="n">version</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="s1">&#39;5.0.0&#39;</span><span class="p">):</span>
-            <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;No extraction of legacy habituation sessions&#39;</span><span class="p">)</span>
-            <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span>
-        <span class="n">trials</span><span class="p">,</span> <span class="n">files_trials</span> <span class="o">=</span> <span class="n">habituation_trials</span><span class="o">.</span><span class="n">extract_all</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">bpod_trials</span><span class="o">=</span><span class="n">bpod_trials</span><span class="p">,</span> <span class="n">settings</span><span class="o">=</span><span class="n">settings</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="n">save</span><span class="p">,</span>
-                                                              <span class="n">task_collection</span><span class="o">=</span><span class="n">task_collection</span><span class="p">,</span> <span class="n">save_path</span><span class="o">=</span><span class="n">save_path</span><span class="p">)</span>
-        <span class="n">wheel</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="n">files_wheel</span> <span class="o">=</span> <span class="p">[]</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;No extractor for task </span><span class="si">{</span><span class="n">extractor_type</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-    <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;session extracted </span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>  <span class="c1"># timing info in log</span>
-    <span class="k">return</span> <span class="n">trials</span><span class="p">,</span> <span class="n">wheel</span><span class="p">,</span> <span class="p">(</span><span class="n">files_trials</span> <span class="o">+</span> <span class="n">files_wheel</span><span class="p">)</span> <span class="k">if</span> <span class="n">save</span> <span class="k">else</span> <span class="kc">None</span></div>
-
 
 
 <div class="viewcode-block" id="get_bpod_extractor">

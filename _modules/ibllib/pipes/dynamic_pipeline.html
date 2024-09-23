@@ -135,6 +135,7 @@
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">from</span> <span class="nn">fnmatch</span> <span class="kn">import</span> <span class="n">fnmatch</span>
 <span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">OrderedDict</span>
 <span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
 <span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">chain</span>
@@ -142,8 +143,8 @@
 
 <span class="kn">import</span> <span class="nn">spikeglx</span>
 
+<span class="kn">import</span> <span class="nn">ibllib.io.raw_data_loaders</span> <span class="k">as</span> <span class="nn">rawio</span>
 <span class="kn">import</span> <span class="nn">ibllib.io.session_params</span> <span class="k">as</span> <span class="nn">sess_params</span>
-<span class="kn">from</span> <span class="nn">ibllib.io.extractors.base</span> <span class="kn">import</span> <span class="n">get_pipeline</span><span class="p">,</span> <span class="n">get_session_extractor_type</span>
 <span class="kn">import</span> <span class="nn">ibllib.pipes.tasks</span> <span class="k">as</span> <span class="nn">mtasks</span>
 <span class="kn">import</span> <span class="nn">ibllib.pipes.base_tasks</span> <span class="k">as</span> <span class="nn">bstasks</span>
 <span class="kn">import</span> <span class="nn">ibllib.pipes.widefield_tasks</span> <span class="k">as</span> <span class="nn">wtasks</span>
@@ -177,10 +178,9 @@
 <span class="sd">    dict</span>
 <span class="sd">        The legacy acquisition description.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">extractor_type</span> <span class="o">=</span> <span class="n">get_session_extractor_type</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
-    <span class="n">etype2protocol</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">biased</span><span class="o">=</span><span class="s1">&#39;choice_world_biased&#39;</span><span class="p">,</span> <span class="n">habituation</span><span class="o">=</span><span class="s1">&#39;choice_world_habituation&#39;</span><span class="p">,</span>
-                          <span class="n">training</span><span class="o">=</span><span class="s1">&#39;choice_world_training&#39;</span><span class="p">,</span> <span class="n">ephys</span><span class="o">=</span><span class="s1">&#39;choice_world_recording&#39;</span><span class="p">)</span>
-    <span class="n">dict_ad</span> <span class="o">=</span> <span class="n">get_acquisition_description</span><span class="p">(</span><span class="n">etype2protocol</span><span class="p">[</span><span class="n">extractor_type</span><span class="p">])</span>
+    <span class="n">settings</span> <span class="o">=</span> <span class="n">rawio</span><span class="o">.</span><span class="n">load_settings</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
+    <span class="n">protocol</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;PYBPOD_PROTOCOL&#39;</span><span class="p">,</span> <span class="s1">&#39;UNKNOWN&#39;</span><span class="p">)</span>
+    <span class="n">dict_ad</span> <span class="o">=</span> <span class="n">get_acquisition_description</span><span class="p">(</span><span class="n">protocol</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">save</span><span class="p">:</span>
         <span class="n">sess_params</span><span class="o">.</span><span class="n">write_params</span><span class="p">(</span><span class="n">session_path</span><span class="o">=</span><span class="n">session_path</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">dict_ad</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">dict_ad</span></div>
@@ -199,7 +199,7 @@
 <span class="sd">    -   choice_world_passive</span>
 <span class="sd">    That are part of the IBL pipeline</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">protocol</span> <span class="o">==</span> <span class="s1">&#39;choice_world_recording&#39;</span><span class="p">:</span>   <span class="c1"># canonical ephys</span>
+    <span class="k">if</span> <span class="s1">&#39;ephys&#39;</span> <span class="ow">in</span> <span class="n">protocol</span><span class="p">:</span>   <span class="c1"># canonical ephys</span>
         <span class="n">devices</span> <span class="o">=</span> <span class="p">{</span>
             <span class="s1">&#39;cameras&#39;</span><span class="p">:</span> <span class="p">{</span>
                 <span class="s1">&#39;right&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;collection&#39;</span><span class="p">:</span> <span class="s1">&#39;raw_video_data&#39;</span><span class="p">,</span> <span class="s1">&#39;sync_label&#39;</span><span class="p">:</span> <span class="s1">&#39;audio&#39;</span><span class="p">},</span>
@@ -241,17 +241,17 @@
             <span class="s1">&#39;procedures&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;Behavior training/tasks&#39;</span><span class="p">],</span>
             <span class="s1">&#39;projects&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;ibl_neuropixel_brainwide_01&#39;</span><span class="p">]</span>
         <span class="p">}</span>
-        <span class="k">if</span> <span class="n">protocol</span> <span class="o">==</span> <span class="s1">&#39;choice_world_biased&#39;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="s1">&#39;biased&#39;</span> <span class="ow">in</span> <span class="n">protocol</span><span class="p">:</span>
             <span class="n">key</span> <span class="o">=</span> <span class="s1">&#39;biasedChoiceWorld&#39;</span>
-        <span class="k">elif</span> <span class="n">protocol</span> <span class="o">==</span> <span class="s1">&#39;choice_world_training&#39;</span><span class="p">:</span>
+        <span class="k">elif</span> <span class="s1">&#39;training&#39;</span> <span class="ow">in</span> <span class="n">protocol</span><span class="p">:</span>
             <span class="n">key</span> <span class="o">=</span> <span class="s1">&#39;trainingChoiceWorld&#39;</span>
-        <span class="k">elif</span> <span class="n">protocol</span> <span class="o">==</span> <span class="s1">&#39;choice_world_habituation&#39;</span><span class="p">:</span>
+        <span class="k">elif</span> <span class="s1">&#39;habituation&#39;</span> <span class="ow">in</span> <span class="n">protocol</span><span class="p">:</span>
             <span class="n">key</span> <span class="o">=</span> <span class="s1">&#39;habituationChoiceWorld&#39;</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Unknown protocol &quot;</span><span class="si">{</span><span class="n">protocol</span><span class="si">}</span><span class="s1">&quot;&#39;</span><span class="p">)</span>
         <span class="n">acquisition_description</span><span class="p">[</span><span class="s1">&#39;tasks&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[{</span><span class="n">key</span><span class="p">:</span> <span class="p">{</span>
             <span class="s1">&#39;collection&#39;</span><span class="p">:</span> <span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">,</span>
-            <span class="s1">&#39;sync_label&#39;</span><span class="p">:</span> <span class="s1">&#39;bpod&#39;</span><span class="p">,</span> <span class="s1">&#39;main&#39;</span><span class="p">:</span> <span class="kc">True</span>  <span class="c1"># FIXME: What is purpose of main key?</span>
+            <span class="s1">&#39;sync_label&#39;</span><span class="p">:</span> <span class="s1">&#39;bpod&#39;</span>
         <span class="p">}}]</span>
     <span class="n">acquisition_description</span><span class="p">[</span><span class="s1">&#39;version&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;1.0.0&#39;</span>
     <span class="k">return</span> <span class="n">acquisition_description</span></div>
@@ -285,38 +285,63 @@
     <span class="k">return</span> <span class="n">acquisition_software</span> <span class="k">if</span> <span class="p">(</span><span class="n">sync</span> <span class="o">==</span> <span class="s1">&#39;nidq&#39;</span> <span class="ow">and</span> <span class="n">acquisition_software</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;spikeglx&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span> <span class="k">else</span> <span class="n">sync</span>
 
 
-<div class="viewcode-block" id="make_pipeline">
-<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.dynamic_pipeline.html#ibllib.pipes.dynamic_pipeline.make_pipeline">[docs]</a>
-<span class="k">def</span> <span class="nf">make_pipeline</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="o">**</span><span class="n">pkwargs</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">_load_acquisition_description</span><span class="p">(</span><span class="n">session_path</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Creates a pipeline of extractor tasks from a session&#39;s experiment description file.</span>
+<span class="sd">    Load a session&#39;s acquisition description.</span>
+
+<span class="sd">    Attempts to load from the session path and upon failure, attempts to generate one based on the</span>
+<span class="sd">    task protocol (this only works for legacy pipeline sessions).</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
-<span class="sd">    session_path : str, Path</span>
-<span class="sd">        The absolute session path, i.e. &#39;/path/to/subject/yyyy-mm-dd/nnn&#39;.</span>
-<span class="sd">    pkwargs</span>
-<span class="sd">        Optional arguments passed to the ibllib.pipes.tasks.Pipeline constructor.</span>
+<span class="sd">    session_path : str, pathlib.Path</span>
+<span class="sd">        A session path.</span>
 
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
-<span class="sd">    ibllib.pipes.tasks.Pipeline</span>
-<span class="sd">        A task pipeline object.</span>
+<span class="sd">    dict</span>
+<span class="sd">        The acquisition description file.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="c1"># NB: this pattern is a pattern for dynamic class creation</span>
-    <span class="c1"># tasks[&#39;SyncPulses&#39;] = type(&#39;SyncPulses&#39;, (epp.EphysPulses,), {})(session_path=session_path)</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">session_path</span> <span class="ow">or</span> <span class="ow">not</span> <span class="p">(</span><span class="n">session_path</span> <span class="o">:=</span> <span class="n">Path</span><span class="p">(</span><span class="n">session_path</span><span class="p">))</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Session path does not exist&#39;</span><span class="p">)</span>
-    <span class="n">tasks</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
     <span class="n">acquisition_description</span> <span class="o">=</span> <span class="n">sess_params</span><span class="o">.</span><span class="n">read_params</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">acquisition_description</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Experiment description file not found or is empty&#39;</span><span class="p">)</span>
-    <span class="n">devices</span> <span class="o">=</span> <span class="n">acquisition_description</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;devices&#39;</span><span class="p">,</span> <span class="p">{})</span>
-    <span class="n">kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;session_path&#39;</span><span class="p">:</span> <span class="n">session_path</span><span class="p">,</span> <span class="s1">&#39;one&#39;</span><span class="p">:</span> <span class="n">pkwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;one&#39;</span><span class="p">)}</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># v7 sessions used a different folder name for task data;</span>
+            <span class="c1"># v8 sessions should always have a description file</span>
+            <span class="k">assert</span> <span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span>
+            <span class="n">acquisition_description</span> <span class="o">=</span> <span class="n">acquisition_description_legacy_session</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="n">acquisition_description</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">AssertionError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Experiment description file not found or is empty&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">acquisition_description</span>
 
-    <span class="c1"># Registers the experiment description file</span>
-    <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;ExperimentDescriptionRegisterRaw&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="s1">&#39;ExperimentDescriptionRegisterRaw&#39;</span><span class="p">,</span>
-                                                     <span class="p">(</span><span class="n">bstasks</span><span class="o">.</span><span class="n">ExperimentDescriptionRegisterRaw</span><span class="p">,),</span> <span class="p">{})(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">_get_trials_tasks</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">acquisition_description</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">sync_tasks</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Generate behaviour tasks from acquisition description.</span>
+
+<span class="sd">    This returns all behaviour related tasks including TrialsRegisterRaw and TrainingStatus objects.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    session_path : str, pathlib.Path</span>
+<span class="sd">        A session path.</span>
+<span class="sd">    acquisition_description : dict</span>
+<span class="sd">        An acquisition description.</span>
+<span class="sd">    sync_tasks : list</span>
+<span class="sd">        A list of sync tasks to use as behaviour task parents.</span>
+<span class="sd">    one : One</span>
+<span class="sd">        An instance of ONE to pass to each task.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    dict[str, ibllib.pipes.tasks.Task]</span>
+<span class="sd">        A map of Alyx task name to behaviour task object.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">acquisition_description</span><span class="p">:</span>
+        <span class="n">acquisition_description</span> <span class="o">=</span> <span class="n">_load_acquisition_description</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
+    <span class="n">tasks</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
+    <span class="n">sync_tasks</span> <span class="o">=</span> <span class="n">sync_tasks</span> <span class="ow">or</span> <span class="p">[]</span>
+    <span class="n">kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;session_path&#39;</span><span class="p">:</span> <span class="n">session_path</span><span class="p">,</span> <span class="s1">&#39;one&#39;</span><span class="p">:</span> <span class="n">one</span><span class="p">}</span>
 
     <span class="c1"># Syncing tasks</span>
     <span class="p">(</span><span class="n">sync</span><span class="p">,</span> <span class="n">sync_args</span><span class="p">),</span> <span class="o">=</span> <span class="n">acquisition_description</span><span class="p">[</span><span class="s1">&#39;sync&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
@@ -325,23 +350,6 @@
     <span class="n">sync_args</span><span class="p">[</span><span class="s1">&#39;sync_ext&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sync_args</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;extension&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
     <span class="n">sync_args</span><span class="p">[</span><span class="s1">&#39;sync_namespace&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sync_args</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;acquisition_software&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
     <span class="n">sync_kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;sync&#39;</span><span class="p">:</span> <span class="n">sync</span><span class="p">,</span> <span class="o">**</span><span class="n">sync_args</span><span class="p">}</span>
-    <span class="n">sync_tasks</span> <span class="o">=</span> <span class="p">[]</span>
-    <span class="k">if</span> <span class="n">sync_label</span> <span class="o">==</span> <span class="s1">&#39;nidq&#39;</span> <span class="ow">and</span> <span class="n">sync_args</span><span class="p">[</span><span class="s1">&#39;sync_collection&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;raw_ephys_data&#39;</span><span class="p">:</span>
-        <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;SyncRegisterRaw&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="s1">&#39;SyncRegisterRaw&#39;</span><span class="p">,</span> <span class="p">(</span><span class="n">etasks</span><span class="o">.</span><span class="n">EphysSyncRegisterRaw</span><span class="p">,),</span> <span class="p">{})(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">**</span><span class="n">sync_kwargs</span><span class="p">)</span>
-        <span class="n">tasks</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;SyncPulses_</span><span class="si">{</span><span class="n">sync</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;SyncPulses_</span><span class="si">{</span><span class="n">sync</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="p">(</span><span class="n">etasks</span><span class="o">.</span><span class="n">EphysSyncPulses</span><span class="p">,),</span> <span class="p">{})(</span>
-            <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">**</span><span class="n">sync_kwargs</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;SyncRegisterRaw&#39;</span><span class="p">]])</span>
-        <span class="n">sync_tasks</span> <span class="o">=</span> <span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;SyncPulses_</span><span class="si">{</span><span class="n">sync</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">]]</span>
-    <span class="k">elif</span> <span class="n">sync_label</span> <span class="o">==</span> <span class="s1">&#39;timeline&#39;</span><span class="p">:</span>
-        <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;SyncRegisterRaw&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="s1">&#39;SyncRegisterRaw&#39;</span><span class="p">,</span> <span class="p">(</span><span class="n">stasks</span><span class="o">.</span><span class="n">SyncRegisterRaw</span><span class="p">,),</span> <span class="p">{})(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">**</span><span class="n">sync_kwargs</span><span class="p">)</span>
-    <span class="k">elif</span> <span class="n">sync_label</span> <span class="o">==</span> <span class="s1">&#39;nidq&#39;</span><span class="p">:</span>
-        <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;SyncRegisterRaw&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="s1">&#39;SyncRegisterRaw&#39;</span><span class="p">,</span> <span class="p">(</span><span class="n">stasks</span><span class="o">.</span><span class="n">SyncMtscomp</span><span class="p">,),</span> <span class="p">{})(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">**</span><span class="n">sync_kwargs</span><span class="p">)</span>
-        <span class="n">tasks</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;SyncPulses_</span><span class="si">{</span><span class="n">sync</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;SyncPulses_</span><span class="si">{</span><span class="n">sync</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="p">(</span><span class="n">stasks</span><span class="o">.</span><span class="n">SyncPulses</span><span class="p">,),</span> <span class="p">{})(</span>
-            <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">**</span><span class="n">sync_kwargs</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;SyncRegisterRaw&#39;</span><span class="p">]])</span>
-        <span class="n">sync_tasks</span> <span class="o">=</span> <span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;SyncPulses_</span><span class="si">{</span><span class="n">sync</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">]]</span>
-    <span class="k">elif</span> <span class="n">sync_label</span> <span class="o">==</span> <span class="s1">&#39;tdms&#39;</span><span class="p">:</span>
-        <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;SyncRegisterRaw&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="s1">&#39;SyncRegisterRaw&#39;</span><span class="p">,</span> <span class="p">(</span><span class="n">stasks</span><span class="o">.</span><span class="n">SyncRegisterRaw</span><span class="p">,),</span> <span class="p">{})(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">**</span><span class="n">sync_kwargs</span><span class="p">)</span>
-    <span class="k">elif</span> <span class="n">sync_label</span> <span class="o">==</span> <span class="s1">&#39;bpod&#39;</span><span class="p">:</span>
-        <span class="k">pass</span>  <span class="c1"># ATM we don&#39;t have anything for this; it may not be needed in the future</span>
 
     <span class="c1"># Behavior tasks</span>
     <span class="n">task_protocols</span> <span class="o">=</span> <span class="n">acquisition_description</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;tasks&#39;</span><span class="p">,</span> <span class="p">[])</span>
@@ -358,13 +366,13 @@
             <span class="n">extractors</span> <span class="o">=</span> <span class="p">(</span><span class="n">extractors</span><span class="p">,)</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">extractors</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">else</span> <span class="n">extractors</span>
             <span class="n">task_name</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># to avoid unbound variable issue in the first round</span>
             <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">extractor</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">extractors</span><span class="p">):</span>
-                <span class="c1"># Assume previous task in the list is parent</span>
+                <span class="c1"># Assume previous task in the list is a parent</span>
                 <span class="n">parents</span> <span class="o">=</span> <span class="p">[]</span> <span class="k">if</span> <span class="n">j</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="n">task_name</span><span class="p">]]</span>
                 <span class="c1"># Make sure extractor and sync task don&#39;t collide</span>
                 <span class="k">for</span> <span class="n">sync_option</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;nidq&#39;</span><span class="p">,</span> <span class="s1">&#39;bpod&#39;</span><span class="p">,</span> <span class="s1">&#39;timeline&#39;</span><span class="p">):</span>
                     <span class="k">if</span> <span class="n">sync_option</span> <span class="ow">in</span> <span class="n">extractor</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">sync_label</span> <span class="o">==</span> <span class="n">sync_option</span><span class="p">:</span>
                         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Extractor &quot;</span><span class="si">{</span><span class="n">extractor</span><span class="si">}</span><span class="s1">&quot; and sync &quot;</span><span class="si">{</span><span class="n">sync_label</span><span class="si">}</span><span class="s1">&quot; do not match&#39;</span><span class="p">)</span>
-                <span class="c1"># TODO Assert sync_label correct here (currently unused)</span>
+
                 <span class="c1"># Look for the extractor in the behavior extractors module</span>
                 <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">btasks</span><span class="p">,</span> <span class="n">extractor</span><span class="p">):</span>
                     <span class="n">task</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">btasks</span><span class="p">,</span> <span class="n">extractor</span><span class="p">)</span>
@@ -376,6 +384,8 @@
                     <span class="kn">import</span> <span class="nn">projects.extraction_tasks</span>
                     <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">projects</span><span class="o">.</span><span class="n">extraction_tasks</span><span class="p">,</span> <span class="n">extractor</span><span class="p">):</span>
                         <span class="n">task</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">projects</span><span class="o">.</span><span class="n">extraction_tasks</span><span class="p">,</span> <span class="n">extractor</span><span class="p">)</span>
+                    <span class="k">elif</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">projects</span><span class="o">.</span><span class="n">extraction_tasks</span><span class="p">,</span> <span class="n">extractor</span> <span class="o">+</span> <span class="n">sync_label</span><span class="o">.</span><span class="n">capitalize</span><span class="p">()):</span>
+                        <span class="n">task</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">btasks</span><span class="p">,</span> <span class="n">extractor</span> <span class="o">+</span> <span class="n">sync_label</span><span class="o">.</span><span class="n">capitalize</span><span class="p">())</span>
                     <span class="k">else</span><span class="p">:</span>
                         <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
                             <span class="sa">f</span><span class="s1">&#39;Extractor &quot;</span><span class="si">{</span><span class="n">extractor</span><span class="si">}</span><span class="s1">&quot; not found in main IBL pipeline nor in personal projects&#39;</span><span class="p">)</span>
@@ -383,6 +393,8 @@
                               <span class="n">protocol</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="n">task</span><span class="o">.</span><span class="vm">__module__</span><span class="p">,</span> <span class="n">task</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
                 <span class="c1"># Rename the class to something more informative</span>
                 <span class="n">task_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">task</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="n">i</span><span class="si">:</span><span class="s1">02</span><span class="si">}</span><span class="s1">&#39;</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="vm">__name__</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;TrainingStatus&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">task</span><span class="o">.</span><span class="vm">__name__</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;RegisterRaw&#39;</span><span class="p">)):</span>
+                    <span class="n">task_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;Trials_</span><span class="si">{</span><span class="n">task_name</span><span class="si">}</span><span class="s1">&#39;</span>
                 <span class="c1"># For now we assume that the second task in the list is always the trials extractor, which is dependent</span>
                 <span class="c1"># on the sync task and sync arguments</span>
                 <span class="k">if</span> <span class="n">j</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
@@ -423,6 +435,137 @@
             <span class="k">if</span> <span class="n">compute_status</span><span class="p">:</span>
                 <span class="n">tasks</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;TrainingStatus_</span><span class="si">{</span><span class="n">protocol</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="n">i</span><span class="si">:</span><span class="s1">02</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;TrainingStatus_</span><span class="si">{</span><span class="n">protocol</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="n">i</span><span class="si">:</span><span class="s1">02</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="p">(</span>
                     <span class="n">btasks</span><span class="o">.</span><span class="n">TrainingStatus</span><span class="p">,),</span> <span class="p">{})(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">**</span><span class="n">task_kwargs</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;Trials_</span><span class="si">{</span><span class="n">protocol</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="n">i</span><span class="si">:</span><span class="s1">02</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">]])</span>
+    <span class="k">return</span> <span class="n">tasks</span>
+
+
+<div class="viewcode-block" id="get_trials_tasks">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.dynamic_pipeline.html#ibllib.pipes.dynamic_pipeline.get_trials_tasks">[docs]</a>
+<span class="k">def</span> <span class="nf">get_trials_tasks</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">bpod_only</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Return a list of pipeline trials extractor task objects for a given session.</span>
+
+<span class="sd">    This function supports both legacy and dynamic pipeline sessions. Dynamic tasks are returned</span>
+<span class="sd">    for both recent and legacy sessions.  Only Trials tasks are returned, not the training status</span>
+<span class="sd">    or raw registration tasks.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    session_path : str, pathlib.Path</span>
+<span class="sd">        An absolute path to a session.</span>
+<span class="sd">    one : one.api.One</span>
+<span class="sd">        An ONE instance.</span>
+<span class="sd">    bpod_only : bool</span>
+<span class="sd">        If true, extract trials from Bpod clock instead of the main DAQ&#39;s.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    list of pipes.tasks.Task</span>
+<span class="sd">        A list of task objects for the provided session.</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    Return the tasks for active choice world extraction</span>
+
+<span class="sd">    &gt;&gt;&gt; tasks = list(filter(is_active_trials_task, get_trials_tasks(session_path)))</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Check for an experiment.description file; ensure downloaded if possible</span>
+    <span class="k">if</span> <span class="n">one</span> <span class="ow">and</span> <span class="n">one</span><span class="o">.</span><span class="n">to_eid</span><span class="p">(</span><span class="n">session_path</span><span class="p">):</span>  <span class="c1"># to_eid returns None if session not registered</span>
+        <span class="n">one</span><span class="o">.</span><span class="n">load_datasets</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;_ibl_experiment.description&#39;</span><span class="p">],</span> <span class="n">download_only</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">assert_present</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">acquisition_description</span> <span class="o">=</span> <span class="n">_load_acquisition_description</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">bpod_only</span> <span class="ow">and</span> <span class="n">acquisition_description</span><span class="p">:</span>
+        <span class="n">acquisition_description</span><span class="p">[</span><span class="s1">&#39;sync&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;bpod&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;collection&#39;</span><span class="p">:</span> <span class="s1">&#39;raw_task_data_*&#39;</span><span class="p">}}</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">trials_tasks</span> <span class="o">=</span> <span class="n">_get_trials_tasks</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">acquisition_description</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">trials_tasks</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;Trials_&#39;</span><span class="p">)]</span>
+    <span class="k">except</span> <span class="ne">NotImplementedError</span> <span class="k">as</span> <span class="n">ex</span><span class="p">:</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Failed to get trials tasks: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">ex</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">[]</span></div>
+
+
+
+<div class="viewcode-block" id="is_active_trials_task">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.dynamic_pipeline.html#ibllib.pipes.dynamic_pipeline.is_active_trials_task">[docs]</a>
+<span class="k">def</span> <span class="nf">is_active_trials_task</span><span class="p">(</span><span class="n">task</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Check if task is for active choice world extraction.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    task : ibllib.pipes.tasks.Task</span>
+<span class="sd">        A task instance to test.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    bool</span>
+<span class="sd">        True if the task name starts with &#39;Trials_&#39; and outputs a trials.table dataset.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">trials_task</span> <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;trials_&#39;</span><span class="p">)</span>
+    <span class="n">output_names</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">task</span><span class="o">.</span><span class="n">signature</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;output_files&#39;</span><span class="p">,</span> <span class="p">[])]</span>
+    <span class="k">return</span> <span class="n">trials_task</span> <span class="ow">and</span> <span class="nb">any</span><span class="p">(</span><span class="n">fnmatch</span><span class="p">(</span><span class="s1">&#39;_ibl_trials.table.pqt&#39;</span><span class="p">,</span> <span class="n">pat</span><span class="p">)</span> <span class="k">for</span> <span class="n">pat</span> <span class="ow">in</span> <span class="n">output_names</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="make_pipeline">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.dynamic_pipeline.html#ibllib.pipes.dynamic_pipeline.make_pipeline">[docs]</a>
+<span class="k">def</span> <span class="nf">make_pipeline</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="o">**</span><span class="n">pkwargs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Creates a pipeline of extractor tasks from a session&#39;s experiment description file.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    session_path : str, Path</span>
+<span class="sd">        The absolute session path, i.e. &#39;/path/to/subject/yyyy-mm-dd/nnn&#39;.</span>
+<span class="sd">    pkwargs</span>
+<span class="sd">        Optional arguments passed to the ibllib.pipes.tasks.Pipeline constructor.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    ibllib.pipes.tasks.Pipeline</span>
+<span class="sd">        A task pipeline object.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># NB: this pattern is a pattern for dynamic class creation</span>
+    <span class="c1"># tasks[&#39;SyncPulses&#39;] = type(&#39;SyncPulses&#39;, (epp.EphysPulses,), {})(session_path=session_path)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">session_path</span> <span class="ow">or</span> <span class="ow">not</span> <span class="p">(</span><span class="n">session_path</span> <span class="o">:=</span> <span class="n">Path</span><span class="p">(</span><span class="n">session_path</span><span class="p">))</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Session path does not exist&#39;</span><span class="p">)</span>
+    <span class="n">tasks</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
+    <span class="n">acquisition_description</span> <span class="o">=</span> <span class="n">_load_acquisition_description</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
+    <span class="n">devices</span> <span class="o">=</span> <span class="n">acquisition_description</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;devices&#39;</span><span class="p">,</span> <span class="p">{})</span>
+    <span class="n">kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;session_path&#39;</span><span class="p">:</span> <span class="n">session_path</span><span class="p">,</span> <span class="s1">&#39;one&#39;</span><span class="p">:</span> <span class="n">pkwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;one&#39;</span><span class="p">)}</span>
+
+    <span class="c1"># Registers the experiment description file</span>
+    <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;ExperimentDescriptionRegisterRaw&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="s1">&#39;ExperimentDescriptionRegisterRaw&#39;</span><span class="p">,</span>
+                                                     <span class="p">(</span><span class="n">bstasks</span><span class="o">.</span><span class="n">ExperimentDescriptionRegisterRaw</span><span class="p">,),</span> <span class="p">{})(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="c1"># Syncing tasks</span>
+    <span class="p">(</span><span class="n">sync</span><span class="p">,</span> <span class="n">sync_args</span><span class="p">),</span> <span class="o">=</span> <span class="n">acquisition_description</span><span class="p">[</span><span class="s1">&#39;sync&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+    <span class="n">sync_args</span> <span class="o">=</span> <span class="n">sync_args</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>  <span class="c1"># ensure acquisition_description unchanged</span>
+    <span class="n">sync_label</span> <span class="o">=</span> <span class="n">_sync_label</span><span class="p">(</span><span class="n">sync</span><span class="p">,</span> <span class="o">**</span><span class="n">sync_args</span><span class="p">)</span>  <span class="c1"># get the format of the DAQ data. This informs the extractor task</span>
+    <span class="n">sync_args</span><span class="p">[</span><span class="s1">&#39;sync_collection&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sync_args</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;collection&#39;</span><span class="p">)</span>  <span class="c1"># rename the key so it matches task run arguments</span>
+    <span class="n">sync_args</span><span class="p">[</span><span class="s1">&#39;sync_ext&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sync_args</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;extension&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="n">sync_args</span><span class="p">[</span><span class="s1">&#39;sync_namespace&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sync_args</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;acquisition_software&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="n">sync_kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;sync&#39;</span><span class="p">:</span> <span class="n">sync</span><span class="p">,</span> <span class="o">**</span><span class="n">sync_args</span><span class="p">}</span>
+    <span class="n">sync_tasks</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">if</span> <span class="n">sync_label</span> <span class="o">==</span> <span class="s1">&#39;nidq&#39;</span> <span class="ow">and</span> <span class="n">sync_args</span><span class="p">[</span><span class="s1">&#39;sync_collection&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;raw_ephys_data&#39;</span><span class="p">:</span>
+        <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;SyncRegisterRaw&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="s1">&#39;SyncRegisterRaw&#39;</span><span class="p">,</span> <span class="p">(</span><span class="n">etasks</span><span class="o">.</span><span class="n">EphysSyncRegisterRaw</span><span class="p">,),</span> <span class="p">{})(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">**</span><span class="n">sync_kwargs</span><span class="p">)</span>
+        <span class="n">tasks</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;SyncPulses_</span><span class="si">{</span><span class="n">sync</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;SyncPulses_</span><span class="si">{</span><span class="n">sync</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="p">(</span><span class="n">etasks</span><span class="o">.</span><span class="n">EphysSyncPulses</span><span class="p">,),</span> <span class="p">{})(</span>
+            <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">**</span><span class="n">sync_kwargs</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;SyncRegisterRaw&#39;</span><span class="p">]])</span>
+        <span class="n">sync_tasks</span> <span class="o">=</span> <span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;SyncPulses_</span><span class="si">{</span><span class="n">sync</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">]]</span>
+    <span class="k">elif</span> <span class="n">sync_label</span> <span class="o">==</span> <span class="s1">&#39;timeline&#39;</span><span class="p">:</span>
+        <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;SyncRegisterRaw&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="s1">&#39;SyncRegisterRaw&#39;</span><span class="p">,</span> <span class="p">(</span><span class="n">stasks</span><span class="o">.</span><span class="n">SyncRegisterRaw</span><span class="p">,),</span> <span class="p">{})(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">**</span><span class="n">sync_kwargs</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">sync_label</span> <span class="o">==</span> <span class="s1">&#39;nidq&#39;</span><span class="p">:</span>
+        <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;SyncRegisterRaw&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="s1">&#39;SyncRegisterRaw&#39;</span><span class="p">,</span> <span class="p">(</span><span class="n">stasks</span><span class="o">.</span><span class="n">SyncMtscomp</span><span class="p">,),</span> <span class="p">{})(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">**</span><span class="n">sync_kwargs</span><span class="p">)</span>
+        <span class="n">tasks</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;SyncPulses_</span><span class="si">{</span><span class="n">sync</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;SyncPulses_</span><span class="si">{</span><span class="n">sync</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="p">(</span><span class="n">stasks</span><span class="o">.</span><span class="n">SyncPulses</span><span class="p">,),</span> <span class="p">{})(</span>
+            <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">**</span><span class="n">sync_kwargs</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;SyncRegisterRaw&#39;</span><span class="p">]])</span>
+        <span class="n">sync_tasks</span> <span class="o">=</span> <span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;SyncPulses_</span><span class="si">{</span><span class="n">sync</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">]]</span>
+    <span class="k">elif</span> <span class="n">sync_label</span> <span class="o">==</span> <span class="s1">&#39;tdms&#39;</span><span class="p">:</span>
+        <span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;SyncRegisterRaw&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="s1">&#39;SyncRegisterRaw&#39;</span><span class="p">,</span> <span class="p">(</span><span class="n">stasks</span><span class="o">.</span><span class="n">SyncRegisterRaw</span><span class="p">,),</span> <span class="p">{})(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">**</span><span class="n">sync_kwargs</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">sync_label</span> <span class="o">==</span> <span class="s1">&#39;bpod&#39;</span><span class="p">:</span>
+        <span class="k">pass</span>  <span class="c1"># ATM we don&#39;t have anything for this; it may not be needed in the future</span>
+
+    <span class="c1"># Behavior tasks</span>
+    <span class="n">tasks</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+        <span class="n">_get_trials_tasks</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">acquisition_description</span><span class="p">,</span> <span class="n">sync_tasks</span><span class="o">=</span><span class="n">sync_tasks</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">pkwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;one&#39;</span><span class="p">))</span>
+    <span class="p">)</span>
 
     <span class="c1"># Ephys tasks</span>
     <span class="k">if</span> <span class="s1">&#39;neuropixel&#39;</span> <span class="ow">in</span> <span class="n">devices</span><span class="p">:</span>
@@ -516,7 +659,7 @@
             <span class="c1"># The PostDLC plots require a trials object for QC</span>
             <span class="c1"># Find the first task that outputs a trials.table dataset</span>
             <span class="n">trials_task</span> <span class="o">=</span> <span class="p">(</span>
-                <span class="n">t</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">tasks</span><span class="o">.</span><span class="n">values</span><span class="p">()</span> <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="s1">&#39;trials.table&#39;</span> <span class="ow">in</span> <span class="n">f</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">t</span><span class="o">.</span><span class="n">signature</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;output_files&#39;</span><span class="p">,</span> <span class="p">[]))</span>
+                <span class="n">t</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">tasks</span><span class="o">.</span><span class="n">values</span><span class="p">()</span> <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="s1">&#39;trials.table&#39;</span> <span class="ow">in</span> <span class="n">f</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">t</span><span class="o">.</span><span class="n">signature</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;output_files&#39;</span><span class="p">,</span> <span class="p">[]))</span>
             <span class="p">)</span>
             <span class="k">if</span> <span class="n">trials_task</span> <span class="o">:=</span> <span class="nb">next</span><span class="p">(</span><span class="n">trials_task</span><span class="p">,</span> <span class="kc">None</span><span class="p">):</span>
                 <span class="n">parents</span> <span class="o">=</span> <span class="p">[</span><span class="n">tasks</span><span class="p">[</span><span class="s1">&#39;DLC&#39;</span><span class="p">],</span> <span class="n">tasks</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;VideoSyncQC_</span><span class="si">{</span><span class="n">sync</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">],</span> <span class="n">trials_task</span><span class="p">]</span>
@@ -602,79 +745,6 @@
         <span class="n">task_list</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">full_load</span><span class="p">(</span><span class="n">file</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">task_list</span></div>
-
-
-
-<div class="viewcode-block" id="get_trials_tasks">
-<a class="viewcode-back" href="../../../_autosummary/ibllib.pipes.dynamic_pipeline.html#ibllib.pipes.dynamic_pipeline.get_trials_tasks">[docs]</a>
-<span class="k">def</span> <span class="nf">get_trials_tasks</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Return a list of pipeline trials extractor task objects for a given session.</span>
-
-<span class="sd">    This function supports both legacy and dynamic pipeline sessions.</span>
-
-<span class="sd">    Parameters</span>
-<span class="sd">    ----------</span>
-<span class="sd">    session_path : str, pathlib.Path</span>
-<span class="sd">        An absolute path to a session.</span>
-<span class="sd">    one : one.api.One</span>
-<span class="sd">        An ONE instance.</span>
-
-<span class="sd">    Returns</span>
-<span class="sd">    -------</span>
-<span class="sd">    list of pipes.tasks.Task</span>
-<span class="sd">        A list of task objects for the provided session.</span>
-
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="c1"># Check for an experiment.description file; ensure downloaded if possible</span>
-    <span class="k">if</span> <span class="n">one</span> <span class="ow">and</span> <span class="n">one</span><span class="o">.</span><span class="n">to_eid</span><span class="p">(</span><span class="n">session_path</span><span class="p">):</span>  <span class="c1"># to_eid returns None if session not registered</span>
-        <span class="n">one</span><span class="o">.</span><span class="n">load_datasets</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;_ibl_experiment.description&#39;</span><span class="p">],</span> <span class="n">download_only</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">assert_present</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-        <span class="c1"># NB: meta files only required to build neuropixel tasks in make_pipeline</span>
-        <span class="k">if</span> <span class="n">meta_files</span> <span class="o">:=</span> <span class="n">one</span><span class="o">.</span><span class="n">list_datasets</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="s1">&#39;*.ap.meta&#39;</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="s1">&#39;raw_ephys_data*&#39;</span><span class="p">):</span>
-            <span class="n">one</span><span class="o">.</span><span class="n">load_datasets</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">meta_files</span><span class="p">,</span> <span class="n">download_only</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">assert_present</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-    <span class="n">experiment_description</span> <span class="o">=</span> <span class="n">sess_params</span><span class="o">.</span><span class="n">read_params</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
-
-    <span class="c1"># If experiment description file then use this to make the pipeline</span>
-    <span class="k">if</span> <span class="n">experiment_description</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">tasks</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">pipeline</span> <span class="o">=</span> <span class="n">make_pipeline</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">)</span>
-            <span class="n">trials_tasks</span> <span class="o">=</span> <span class="p">[</span><span class="n">t</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">tasks</span> <span class="k">if</span> <span class="s1">&#39;Trials&#39;</span> <span class="ow">in</span> <span class="n">t</span><span class="p">]</span>
-            <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="n">trials_tasks</span><span class="p">:</span>
-                <span class="n">t</span> <span class="o">=</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
-                <span class="n">t</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="o">**</span><span class="n">t</span><span class="o">.</span><span class="n">kwargs</span><span class="p">)</span>
-                <span class="n">tasks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
-        <span class="k">except</span> <span class="ne">NotImplementedError</span> <span class="k">as</span> <span class="n">ex</span><span class="p">:</span>
-            <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Failed to get trials tasks: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">ex</span><span class="p">)</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="c1"># Otherwise default to old way of doing things</span>
-        <span class="k">if</span> <span class="n">one</span> <span class="ow">and</span> <span class="n">one</span><span class="o">.</span><span class="n">to_eid</span><span class="p">(</span><span class="n">session_path</span><span class="p">):</span>
-            <span class="n">one</span><span class="o">.</span><span class="n">load_dataset</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="s1">&#39;_iblrig_taskSettings.raw&#39;</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="s1">&#39;raw_behavior_data&#39;</span><span class="p">,</span> <span class="n">download_only</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-        <span class="n">pipeline</span> <span class="o">=</span> <span class="n">get_pipeline</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">pipeline</span> <span class="o">==</span> <span class="s1">&#39;training&#39;</span><span class="p">:</span>
-            <span class="kn">from</span> <span class="nn">ibllib.pipes.training_preprocessing</span> <span class="kn">import</span> <span class="n">TrainingTrials</span>
-            <span class="n">tasks</span> <span class="o">=</span> <span class="p">[</span><span class="n">TrainingTrials</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">)]</span>
-        <span class="k">elif</span> <span class="n">pipeline</span> <span class="o">==</span> <span class="s1">&#39;ephys&#39;</span><span class="p">:</span>
-            <span class="kn">from</span> <span class="nn">ibllib.pipes.ephys_preprocessing</span> <span class="kn">import</span> <span class="n">EphysTrials</span>
-            <span class="n">tasks</span> <span class="o">=</span> <span class="p">[</span><span class="n">EphysTrials</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">)]</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">try</span><span class="p">:</span>
-                <span class="c1"># try to find a custom extractor in the personal projects extraction class</span>
-                <span class="kn">import</span> <span class="nn">projects.base</span>
-                <span class="n">task_type</span> <span class="o">=</span> <span class="n">get_session_extractor_type</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
-                <span class="k">assert</span> <span class="p">(</span><span class="n">PipelineClass</span> <span class="o">:=</span> <span class="n">projects</span><span class="o">.</span><span class="n">base</span><span class="o">.</span><span class="n">get_pipeline</span><span class="p">(</span><span class="n">task_type</span><span class="p">))</span>
-                <span class="n">pipeline</span> <span class="o">=</span> <span class="n">PipelineClass</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">)</span>
-                <span class="n">trials_task_name</span> <span class="o">=</span> <span class="nb">next</span><span class="p">((</span><span class="n">task</span> <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">tasks</span> <span class="k">if</span> <span class="s1">&#39;Trials&#39;</span> <span class="ow">in</span> <span class="n">task</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
-                <span class="k">assert</span> <span class="n">trials_task_name</span><span class="p">,</span> <span class="p">(</span><span class="sa">f</span><span class="s1">&#39;No &quot;Trials&quot; tasks for custom pipeline &#39;</span>
-                                          <span class="sa">f</span><span class="s1">&#39;&quot;</span><span class="si">{</span><span class="n">pipeline</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1">&quot; with extractor type &quot;</span><span class="si">{</span><span class="n">task_type</span><span class="si">}</span><span class="s1">&quot;&#39;</span><span class="p">)</span>
-                <span class="n">task</span> <span class="o">=</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">trials_task_name</span><span class="p">)</span>
-                <span class="n">task</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
-                <span class="n">tasks</span> <span class="o">=</span> <span class="p">[</span><span class="n">task</span><span class="p">]</span>
-            <span class="k">except</span> <span class="p">(</span><span class="ne">ModuleNotFoundError</span><span class="p">,</span> <span class="ne">AssertionError</span><span class="p">)</span> <span class="k">as</span> <span class="n">ex</span><span class="p">:</span>
-                <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Failed to get trials tasks: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">ex</span><span class="p">)</span>
-                <span class="n">tasks</span> <span class="o">=</span> <span class="p">[]</span>
-
-    <span class="k">return</span> <span class="n">tasks</span></div>
 
 </pre></div>
 
