@@ -9,7 +9,7 @@ Below is a list of examples showing how to load different types of IBL data
    notebooks_external/loading_trials_data
    notebooks_external/loading_wheel_data
    notebooks_external/loading_spikesorting_data
-   notebooks_external/loading_spike_waveforms
+   loading_examples/loading_spike_waveforms
    notebooks_external/loading_passive_data
    notebooks_external/loading_ephys_data
    notebooks_external/loading_raw_ephys_data
