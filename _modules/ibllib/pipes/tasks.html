@@ -225,9 +225,10 @@
     <span class="n">force</span> <span class="o">=</span> <span class="kc">False</span>  <span class="c1"># whether to re-download missing input files on local server if not present</span>
     <span class="n">job_size</span> <span class="o">=</span> <span class="s1">&#39;small&#39;</span>  <span class="c1"># either &#39;small&#39; or &#39;large&#39;, defines whether task should be run as part of the large or small job services</span>
     <span class="n">env</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># the environment name within which to run the task (NB: the env is not activated automatically!)</span>
+    <span class="n">on_error</span> <span class="o">=</span> <span class="s1">&#39;continue&#39;</span>  <span class="c1"># whether to raise an exception on error (&#39;raise&#39;) or report the error and continue (&#39;continue&#39;)</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_path</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">taskid</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                 <span class="n">machine</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">clobber</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="s1">&#39;server&#39;</span><span class="p">,</span> <span class="n">scratch_folder</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+                 <span class="n">machine</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">clobber</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="s1">&#39;server&#39;</span><span class="p">,</span> <span class="n">scratch_folder</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">on_error</span><span class="o">=</span><span class="s1">&#39;continue&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Base task class</span>
 <span class="sd">        :param session_path: session path</span>
@@ -242,6 +243,7 @@
 <span class="sd">        :param scratch_folder: optional: Path where to write intermediate temporary data</span>
 <span class="sd">        :param args: running arguments</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">on_error</span> <span class="o">=</span> <span class="n">on_error</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">taskid</span> <span class="o">=</span> <span class="n">taskid</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">one</span> <span class="o">=</span> <span class="n">one</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span> <span class="o">=</span> <span class="n">session_path</span>
@@ -381,10 +383,12 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">outputs</span> <span class="o">=</span> <span class="n">outputs</span> <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">outputs</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">outputs</span>  <span class="c1"># ensure None if no inputs registered</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">outputs</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">ensure_list</span><span class="p">(</span><span class="n">outputs</span><span class="p">))</span>  <span class="c1"># Add output files to list of inputs to register</span>
-        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
             <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">())</span>
             <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Job </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="si">}</span><span class="s1"> errored&#39;</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">on_error</span> <span class="o">==</span> <span class="s1">&#39;raise&#39;</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">e</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">time_elapsed_secs</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span>
         <span class="c1"># log the outputs</span>
