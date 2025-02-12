@@ -6,7 +6,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ibllib.io.extractors.mesoscope &mdash; IBL Library  documentation</title>
-      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=03e43079" />
       <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="../../../../_static/copybutton.css?v=76b2166b" />
       <link rel="stylesheet" type="text/css" href="../../../../_static/css/style.css?v=17142d56" />
@@ -109,31 +109,31 @@
              
   <h1>Source code for ibllib.io.extractors.mesoscope</h1><div class="highlight"><pre>
 <span></span><span class="sd">&quot;&quot;&quot;Mesoscope (timeline) data extraction.&quot;&quot;&quot;</span>
-<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
 
-<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
-<span class="kn">from</span> <span class="nn">scipy.signal</span> <span class="kn">import</span> <span class="n">find_peaks</span>
-<span class="kn">import</span> <span class="nn">one.alf.io</span> <span class="k">as</span> <span class="nn">alfio</span>
-<span class="kn">from</span> <span class="nn">one.alf.path</span> <span class="kn">import</span> <span class="n">session_path_parts</span>
-<span class="kn">from</span> <span class="nn">iblutil.util</span> <span class="kn">import</span> <span class="n">ensure_list</span>
-<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
-<span class="kn">from</span> <span class="nn">packaging</span> <span class="kn">import</span> <span class="n">version</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.signal</span><span class="w"> </span><span class="kn">import</span> <span class="n">find_peaks</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">one.alf.io</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">alfio</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">one.alf.path</span><span class="w"> </span><span class="kn">import</span> <span class="n">session_path_parts</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">iblutil.util</span><span class="w"> </span><span class="kn">import</span> <span class="n">ensure_list</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">packaging</span><span class="w"> </span><span class="kn">import</span> <span class="n">version</span>
 
-<span class="kn">from</span> <span class="nn">ibllib.plots.misc</span> <span class="kn">import</span> <span class="n">squares</span><span class="p">,</span> <span class="n">vertical_lines</span>
-<span class="kn">from</span> <span class="nn">ibllib.io.raw_daq_loaders</span> <span class="kn">import</span> <span class="p">(</span><span class="n">extract_sync_timeline</span><span class="p">,</span> <span class="n">timeline_get_channel</span><span class="p">,</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ibllib.plots.misc</span><span class="w"> </span><span class="kn">import</span> <span class="n">squares</span><span class="p">,</span> <span class="n">vertical_lines</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ibllib.io.raw_daq_loaders</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span><span class="n">extract_sync_timeline</span><span class="p">,</span> <span class="n">timeline_get_channel</span><span class="p">,</span>
                                        <span class="n">correct_counter_discontinuities</span><span class="p">,</span> <span class="n">load_timeline_sync_and_chmap</span><span class="p">)</span>
-<span class="kn">import</span> <span class="nn">ibllib.io.extractors.base</span> <span class="k">as</span> <span class="nn">extractors_base</span>
-<span class="kn">from</span> <span class="nn">ibllib.io.extractors.ephys_fpga</span> <span class="kn">import</span> <span class="n">FpgaTrials</span><span class="p">,</span> <span class="n">WHEEL_TICKS</span><span class="p">,</span> <span class="n">WHEEL_RADIUS_CM</span><span class="p">,</span> <span class="n">_assign_events_to_trial</span>
-<span class="kn">from</span> <span class="nn">ibllib.io.extractors.training_wheel</span> <span class="kn">import</span> <span class="n">extract_wheel_moves</span>
-<span class="kn">from</span> <span class="nn">ibllib.io.extractors.camera</span> <span class="kn">import</span> <span class="n">attribute_times</span>
-<span class="kn">from</span> <span class="nn">brainbox.behavior.wheel</span> <span class="kn">import</span> <span class="n">velocity_filtered</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">ibllib.io.extractors.base</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">extractors_base</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ibllib.io.extractors.ephys_fpga</span><span class="w"> </span><span class="kn">import</span> <span class="n">FpgaTrials</span><span class="p">,</span> <span class="n">WHEEL_TICKS</span><span class="p">,</span> <span class="n">WHEEL_RADIUS_CM</span><span class="p">,</span> <span class="n">_assign_events_to_trial</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ibllib.io.extractors.training_wheel</span><span class="w"> </span><span class="kn">import</span> <span class="n">extract_wheel_moves</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ibllib.io.extractors.camera</span><span class="w"> </span><span class="kn">import</span> <span class="n">attribute_times</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">brainbox.behavior.wheel</span><span class="w"> </span><span class="kn">import</span> <span class="n">velocity_filtered</span>
 
 <span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="patch_imaging_meta">
 <a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.mesoscope.html#ibllib.io.extractors.mesoscope.patch_imaging_meta">[docs]</a>
-<span class="k">def</span> <span class="nf">patch_imaging_meta</span><span class="p">(</span><span class="n">meta</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">patch_imaging_meta</span><span class="p">(</span><span class="n">meta</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Patch imaging metadata for compatibility across versions.</span>
 
@@ -186,7 +186,7 @@
 
 <div class="viewcode-block" id="plot_timeline">
 <a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.mesoscope.html#ibllib.io.extractors.mesoscope.plot_timeline">[docs]</a>
-<span class="k">def</span> <span class="nf">plot_timeline</span><span class="p">(</span><span class="n">timeline</span><span class="p">,</span> <span class="n">channels</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">raw</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">plot_timeline</span><span class="p">(</span><span class="n">timeline</span><span class="p">,</span> <span class="n">channels</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">raw</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Plot the timeline data.</span>
 
@@ -234,7 +234,7 @@
 
 <div class="viewcode-block" id="TimelineTrials">
 <a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.mesoscope.html#ibllib.io.extractors.mesoscope.TimelineTrials">[docs]</a>
-<span class="k">class</span> <span class="nc">TimelineTrials</span><span class="p">(</span><span class="n">FpgaTrials</span><span class="p">):</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">TimelineTrials</span><span class="p">(</span><span class="n">FpgaTrials</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Similar extraction to the FPGA, however counter and position channels are treated differently.&quot;&quot;&quot;</span>
 
     <span class="n">timeline</span> <span class="o">=</span> <span class="kc">None</span>
@@ -243,14 +243,14 @@
     <span class="n">sync_field</span> <span class="o">=</span> <span class="s1">&#39;itiIn_times&#39;</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;str: The trial event to synchronize (must be present in extracted trials).&quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">sync_collection</span><span class="o">=</span><span class="s1">&#39;raw_sync_data&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">sync_collection</span><span class="o">=</span><span class="s1">&#39;raw_sync_data&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;An extractor for all ephys trial data, in Timeline time&quot;&quot;&quot;</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">timeline</span> <span class="o">=</span> <span class="n">alfio</span><span class="o">.</span><span class="n">load_object</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span> <span class="o">/</span> <span class="n">sync_collection</span><span class="p">,</span> <span class="s1">&#39;DAQdata&#39;</span><span class="p">,</span> <span class="n">namespace</span><span class="o">=</span><span class="s1">&#39;timeline&#39;</span><span class="p">)</span>
 
 <div class="viewcode-block" id="TimelineTrials.load_sync">
 <a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.mesoscope.html#ibllib.io.extractors.mesoscope.TimelineTrials.load_sync">[docs]</a>
-    <span class="k">def</span> <span class="nf">load_sync</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sync_collection</span><span class="o">=</span><span class="s1">&#39;raw_sync_data&#39;</span><span class="p">,</span> <span class="n">chmap</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">_</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_sync</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sync_collection</span><span class="o">=</span><span class="s1">&#39;raw_sync_data&#39;</span><span class="p">,</span> <span class="n">chmap</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">_</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Load the DAQ sync and channel map data.</span>
 
 <span class="sd">        Parameters</span>
@@ -276,7 +276,7 @@
         <span class="k">return</span> <span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span></div>
 
 
-    <span class="k">def</span> <span class="nf">_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sync</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">chmap</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">sync_collection</span><span class="o">=</span><span class="s1">&#39;raw_sync_data&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sync</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">chmap</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">sync_collection</span><span class="o">=</span><span class="s1">&#39;raw_sync_data&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
         <span class="n">trials</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_extract</span><span class="p">(</span><span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span><span class="p">,</span> <span class="n">sync_collection</span><span class="o">=</span><span class="s1">&#39;raw_sync_data&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;display&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
             <span class="n">plot_timeline</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">timeline</span><span class="p">,</span> <span class="n">channels</span><span class="o">=</span><span class="n">chmap</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span> <span class="n">raw</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
@@ -284,7 +284,7 @@
 
 <div class="viewcode-block" id="TimelineTrials.get_bpod_event_times">
 <a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.mesoscope.html#ibllib.io.extractors.mesoscope.TimelineTrials.get_bpod_event_times">[docs]</a>
-    <span class="k">def</span> <span class="nf">get_bpod_event_times</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span><span class="p">,</span> <span class="n">bpod_event_ttls</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">display</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_bpod_event_times</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sync</span><span class="p">,</span> <span class="n">chmap</span><span class="p">,</span> <span class="n">bpod_event_ttls</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">display</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Extract Bpod times from sync.</span>
 
@@ -322,7 +322,7 @@
 
 <div class="viewcode-block" id="TimelineTrials.build_trials">
 <a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.mesoscope.html#ibllib.io.extractors.mesoscope.TimelineTrials.build_trials">[docs]</a>
-    <span class="k">def</span> <span class="nf">build_trials</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sync</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">chmap</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">build_trials</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sync</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">chmap</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Extract task related event times from the sync.</span>
 
@@ -378,7 +378,7 @@
         <span class="n">start_times</span> <span class="o">=</span> <span class="n">out</span><span class="p">[</span><span class="s1">&#39;intervals&#39;</span><span class="p">][:,</span> <span class="mi">0</span><span class="p">]</span>
         <span class="n">last_trial_end</span> <span class="o">=</span> <span class="n">out</span><span class="p">[</span><span class="s1">&#39;intervals&#39;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
 
-        <span class="k">def</span> <span class="nf">assign_to_trial</span><span class="p">(</span><span class="n">events</span><span class="p">,</span> <span class="n">take</span><span class="o">=</span><span class="s1">&#39;last&#39;</span><span class="p">,</span> <span class="n">starts</span><span class="o">=</span><span class="n">start_times</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">def</span><span class="w"> </span><span class="nf">assign_to_trial</span><span class="p">(</span><span class="n">events</span><span class="p">,</span> <span class="n">take</span><span class="o">=</span><span class="s1">&#39;last&#39;</span><span class="p">,</span> <span class="n">starts</span><span class="o">=</span><span class="n">start_times</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">            </span><span class="sd">&quot;&quot;&quot;Assign DAQ events to trials.</span>
 
 <span class="sd">            Because we may not have trial start TTLs on the DAQ (because of the low sampling rate),</span>
@@ -506,7 +506,7 @@
 
 <div class="viewcode-block" id="TimelineTrials.extract_wheel_sync">
 <a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.mesoscope.html#ibllib.io.extractors.mesoscope.TimelineTrials.extract_wheel_sync">[docs]</a>
-    <span class="k">def</span> <span class="nf">extract_wheel_sync</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ticks</span><span class="o">=</span><span class="n">WHEEL_TICKS</span><span class="p">,</span> <span class="n">radius</span><span class="o">=</span><span class="n">WHEEL_RADIUS_CM</span><span class="p">,</span> <span class="n">coding</span><span class="o">=</span><span class="s1">&#39;x4&#39;</span><span class="p">,</span> <span class="n">tmin</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">tmax</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">extract_wheel_sync</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ticks</span><span class="o">=</span><span class="n">WHEEL_TICKS</span><span class="p">,</span> <span class="n">radius</span><span class="o">=</span><span class="n">WHEEL_RADIUS_CM</span><span class="p">,</span> <span class="n">coding</span><span class="o">=</span><span class="s1">&#39;x4&#39;</span><span class="p">,</span> <span class="n">tmin</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">tmax</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Gets the wheel position from Timeline counter channel.</span>
 
@@ -555,7 +555,7 @@
 
 <div class="viewcode-block" id="TimelineTrials.get_wheel_positions">
 <a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.mesoscope.html#ibllib.io.extractors.mesoscope.TimelineTrials.get_wheel_positions">[docs]</a>
-    <span class="k">def</span> <span class="nf">get_wheel_positions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ticks</span><span class="o">=</span><span class="n">WHEEL_TICKS</span><span class="p">,</span> <span class="n">radius</span><span class="o">=</span><span class="n">WHEEL_RADIUS_CM</span><span class="p">,</span> <span class="n">coding</span><span class="o">=</span><span class="s1">&#39;x4&#39;</span><span class="p">,</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_wheel_positions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ticks</span><span class="o">=</span><span class="n">WHEEL_TICKS</span><span class="p">,</span> <span class="n">radius</span><span class="o">=</span><span class="n">WHEEL_RADIUS_CM</span><span class="p">,</span> <span class="n">coding</span><span class="o">=</span><span class="s1">&#39;x4&#39;</span><span class="p">,</span>
                             <span class="n">tmin</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">tmax</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">display</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Gets the wheel position and detected movements from Timeline counter channel.</span>
@@ -602,7 +602,7 @@
 
 <div class="viewcode-block" id="TimelineTrials.get_valve_open_times">
 <a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.mesoscope.html#ibllib.io.extractors.mesoscope.TimelineTrials.get_valve_open_times">[docs]</a>
-    <span class="k">def</span> <span class="nf">get_valve_open_times</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">display</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">driver_ttls</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_valve_open_times</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">display</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">driver_ttls</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get the valve open times from the raw timeline voltage trace.</span>
 
@@ -689,7 +689,7 @@
         <span class="k">return</span> <span class="n">intervals</span> <span class="k">if</span> <span class="n">driver_ttls</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">(</span><span class="n">intervals</span><span class="p">,</span> <span class="n">open_times</span><span class="p">)</span></div>
 
 
-    <span class="k">def</span> <span class="nf">_assign_events_audio</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">audio_times</span><span class="p">,</span> <span class="n">audio_polarities</span><span class="p">,</span> <span class="n">display</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_assign_events_audio</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">audio_times</span><span class="p">,</span> <span class="n">audio_polarities</span><span class="p">,</span> <span class="n">display</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        This is identical to ephys_fpga._assign_events_audio, except for the ready tone threshold.</span>
 
@@ -738,7 +738,7 @@
 
 <div class="viewcode-block" id="MesoscopeSyncTimeline">
 <a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.mesoscope.html#ibllib.io.extractors.mesoscope.MesoscopeSyncTimeline">[docs]</a>
-<span class="k">class</span> <span class="nc">MesoscopeSyncTimeline</span><span class="p">(</span><span class="n">extractors_base</span><span class="o">.</span><span class="n">BaseExtractor</span><span class="p">):</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">MesoscopeSyncTimeline</span><span class="p">(</span><span class="n">extractors_base</span><span class="o">.</span><span class="n">BaseExtractor</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Extraction of mesoscope imaging times.&quot;&quot;&quot;</span>
 
     <span class="n">var_names</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;mpci_times&#39;</span><span class="p">,</span> <span class="s1">&#39;mpciStack_timeshift&#39;</span><span class="p">)</span>
@@ -747,7 +747,7 @@
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;one.alf.io.AlfBunch: The raw imaging meta data and frame times&quot;&quot;&quot;</span>
     <span class="n">rawImagingData</span> <span class="o">=</span> <span class="kc">None</span>
 
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_path</span><span class="p">,</span> <span class="n">n_FOVs</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_path</span><span class="p">,</span> <span class="n">n_FOVs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Extract the mesoscope frame times from DAQ data acquired through Timeline.</span>
 
@@ -764,7 +764,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">var_names</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">x</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="n">y</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="si">}</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">var_names</span> <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="n">fov</span><span class="p">]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">save_names</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">y</span><span class="si">}</span><span class="s1">/</span><span class="si">{</span><span class="n">x</span><span class="si">}</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">save_names</span> <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="n">fov</span><span class="p">]</span>
 
-    <span class="k">def</span> <span class="nf">_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sync</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">chmap</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">device_collection</span><span class="o">=</span><span class="s1">&#39;raw_imaging_data&#39;</span><span class="p">,</span> <span class="n">events</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sync</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">chmap</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">device_collection</span><span class="o">=</span><span class="s1">&#39;raw_imaging_data&#39;</span><span class="p">,</span> <span class="n">events</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Extract the frame timestamps for each individual field of view (FOV) and the time offsets</span>
 <span class="sd">        for each line scan.</span>
@@ -837,7 +837,7 @@
 
 <div class="viewcode-block" id="MesoscopeSyncTimeline.get_bout_edges">
 <a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.mesoscope.html#ibllib.io.extractors.mesoscope.MesoscopeSyncTimeline.get_bout_edges">[docs]</a>
-    <span class="k">def</span> <span class="nf">get_bout_edges</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">frame_times</span><span class="p">,</span> <span class="n">collections</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">events</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">min_gap</span><span class="o">=</span><span class="mf">1.</span><span class="p">,</span> <span class="n">display</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_bout_edges</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">frame_times</span><span class="p">,</span> <span class="n">collections</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">events</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">min_gap</span><span class="o">=</span><span class="mf">1.</span><span class="p">,</span> <span class="n">display</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Return an array of edge times for each imaging bout corresponding to a raw_imaging_data</span>
 <span class="sd">        collection.</span>
@@ -919,7 +919,7 @@
 <div class="viewcode-block" id="MesoscopeSyncTimeline.get_timeshifts">
 <a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.mesoscope.html#ibllib.io.extractors.mesoscope.MesoscopeSyncTimeline.get_timeshifts">[docs]</a>
     <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">get_timeshifts</span><span class="p">(</span><span class="n">raw_imaging_meta</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_timeshifts</span><span class="p">(</span><span class="n">raw_imaging_meta</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Calculate the time shifts for each field of view (FOV) and the relative offsets for each</span>
 <span class="sd">        scan line.</span>

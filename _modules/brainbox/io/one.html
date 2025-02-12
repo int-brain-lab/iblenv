@@ -6,7 +6,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>brainbox.io.one &mdash; IBL Library  documentation</title>
-      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=03e43079" />
       <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="../../../_static/copybutton.css?v=76b2166b" />
       <link rel="stylesheet" type="text/css" href="../../../_static/css/style.css?v=17142d56" />
@@ -109,42 +109,42 @@
              
   <h1>Source code for brainbox.io.one</h1><div class="highlight"><pre>
 <span></span><span class="sd">&quot;&quot;&quot;Functions for loading IBL ephys and trial data using the Open Neurophysiology Environment.&quot;&quot;&quot;</span>
-<span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
-<span class="kn">import</span> <span class="nn">gc</span>
-<span class="kn">import</span> <span class="nn">logging</span>
-<span class="kn">import</span> <span class="nn">re</span>
-<span class="kn">import</span> <span class="nn">os</span>
-<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">gc</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 
-<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
-<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
-<span class="kn">from</span> <span class="nn">scipy.interpolate</span> <span class="kn">import</span> <span class="n">interp1d</span>
-<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.interpolate</span><span class="w"> </span><span class="kn">import</span> <span class="n">interp1d</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
 
-<span class="kn">from</span> <span class="nn">one.api</span> <span class="kn">import</span> <span class="n">ONE</span><span class="p">,</span> <span class="n">One</span>
-<span class="kn">from</span> <span class="nn">one.alf.path</span> <span class="kn">import</span> <span class="n">get_alf_path</span><span class="p">,</span> <span class="n">full_path_parts</span>
-<span class="kn">from</span> <span class="nn">one.alf.exceptions</span> <span class="kn">import</span> <span class="n">ALFObjectNotFound</span><span class="p">,</span> <span class="n">ALFMultipleCollectionsFound</span>
-<span class="kn">from</span> <span class="nn">one.alf</span> <span class="kn">import</span> <span class="n">cache</span>
-<span class="kn">import</span> <span class="nn">one.alf.io</span> <span class="k">as</span> <span class="nn">alfio</span>
-<span class="kn">from</span> <span class="nn">neuropixel</span> <span class="kn">import</span> <span class="n">TIP_SIZE_UM</span><span class="p">,</span> <span class="n">trace_header</span>
-<span class="kn">import</span> <span class="nn">spikeglx</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">one.api</span><span class="w"> </span><span class="kn">import</span> <span class="n">ONE</span><span class="p">,</span> <span class="n">One</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">one.alf.path</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_alf_path</span><span class="p">,</span> <span class="n">full_path_parts</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">one.alf.exceptions</span><span class="w"> </span><span class="kn">import</span> <span class="n">ALFObjectNotFound</span><span class="p">,</span> <span class="n">ALFMultipleCollectionsFound</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">one.alf</span><span class="w"> </span><span class="kn">import</span> <span class="n">cache</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">one.alf.io</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">alfio</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">neuropixel</span><span class="w"> </span><span class="kn">import</span> <span class="n">TIP_SIZE_UM</span><span class="p">,</span> <span class="n">trace_header</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">spikeglx</span>
 
-<span class="kn">import</span> <span class="nn">ibldsp.voltage</span>
-<span class="kn">from</span> <span class="nn">ibldsp.waveform_extraction</span> <span class="kn">import</span> <span class="n">WaveformsLoader</span>
-<span class="kn">from</span> <span class="nn">iblutil.util</span> <span class="kn">import</span> <span class="n">Bunch</span>
-<span class="kn">from</span> <span class="nn">iblatlas.atlas</span> <span class="kn">import</span> <span class="n">AllenAtlas</span><span class="p">,</span> <span class="n">BrainRegions</span>
-<span class="kn">from</span> <span class="nn">iblatlas</span> <span class="kn">import</span> <span class="n">atlas</span>
-<span class="kn">from</span> <span class="nn">ibllib.io.extractors.training_wheel</span> <span class="kn">import</span> <span class="n">extract_wheel_moves</span><span class="p">,</span> <span class="n">extract_first_movement_times</span>
-<span class="kn">from</span> <span class="nn">ibllib.pipes</span> <span class="kn">import</span> <span class="n">histology</span>
-<span class="kn">from</span> <span class="nn">ibllib.pipes.ephys_alignment</span> <span class="kn">import</span> <span class="n">EphysAlignment</span>
-<span class="kn">from</span> <span class="nn">ibllib.plots</span> <span class="kn">import</span> <span class="n">vertical_lines</span><span class="p">,</span> <span class="n">Density</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">ibldsp.voltage</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ibldsp.waveform_extraction</span><span class="w"> </span><span class="kn">import</span> <span class="n">WaveformsLoader</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">iblutil.util</span><span class="w"> </span><span class="kn">import</span> <span class="n">Bunch</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">iblatlas.atlas</span><span class="w"> </span><span class="kn">import</span> <span class="n">AllenAtlas</span><span class="p">,</span> <span class="n">BrainRegions</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">iblatlas</span><span class="w"> </span><span class="kn">import</span> <span class="n">atlas</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ibllib.io.extractors.training_wheel</span><span class="w"> </span><span class="kn">import</span> <span class="n">extract_wheel_moves</span><span class="p">,</span> <span class="n">extract_first_movement_times</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ibllib.pipes</span><span class="w"> </span><span class="kn">import</span> <span class="n">histology</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ibllib.pipes.ephys_alignment</span><span class="w"> </span><span class="kn">import</span> <span class="n">EphysAlignment</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ibllib.plots</span><span class="w"> </span><span class="kn">import</span> <span class="n">vertical_lines</span><span class="p">,</span> <span class="n">Density</span>
 
-<span class="kn">import</span> <span class="nn">brainbox.plot</span>
-<span class="kn">from</span> <span class="nn">brainbox.io.spikeglx</span> <span class="kn">import</span> <span class="n">Streamer</span>
-<span class="kn">from</span> <span class="nn">brainbox.ephys_plots</span> <span class="kn">import</span> <span class="n">plot_brain_regions</span>
-<span class="kn">from</span> <span class="nn">brainbox.metrics.single_units</span> <span class="kn">import</span> <span class="n">quick_unit_metrics</span>
-<span class="kn">from</span> <span class="nn">brainbox.behavior.wheel</span> <span class="kn">import</span> <span class="n">interpolate_position</span><span class="p">,</span> <span class="n">velocity_filtered</span>
-<span class="kn">from</span> <span class="nn">brainbox.behavior.dlc</span> <span class="kn">import</span> <span class="n">likelihood_threshold</span><span class="p">,</span> <span class="n">get_pupil_diameter</span><span class="p">,</span> <span class="n">get_smooth_pupil_diameter</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">brainbox.plot</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">brainbox.io.spikeglx</span><span class="w"> </span><span class="kn">import</span> <span class="n">Streamer</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">brainbox.ephys_plots</span><span class="w"> </span><span class="kn">import</span> <span class="n">plot_brain_regions</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">brainbox.metrics.single_units</span><span class="w"> </span><span class="kn">import</span> <span class="n">quick_unit_metrics</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">brainbox.behavior.wheel</span><span class="w"> </span><span class="kn">import</span> <span class="n">interpolate_position</span><span class="p">,</span> <span class="n">velocity_filtered</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">brainbox.behavior.dlc</span><span class="w"> </span><span class="kn">import</span> <span class="n">likelihood_threshold</span><span class="p">,</span> <span class="n">get_pupil_diameter</span><span class="p">,</span> <span class="n">get_smooth_pupil_diameter</span>
 
 <span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;ibllib&#39;</span><span class="p">)</span>
 
@@ -156,7 +156,7 @@
 
 <div class="viewcode-block" id="load_lfp">
 <a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.load_lfp">[docs]</a>
-<span class="k">def</span> <span class="nf">load_lfp</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dataset_types</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">load_lfp</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dataset_types</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    TODO Verify works</span>
 <span class="sd">    From an eid, hits the Alyx database and downloads the standard set of datasets</span>
@@ -178,7 +178,7 @@
 
 
 
-<span class="k">def</span> <span class="nf">_collection_filter_from_args</span><span class="p">(</span><span class="n">probe</span><span class="p">,</span> <span class="n">spike_sorter</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_collection_filter_from_args</span><span class="p">(</span><span class="n">probe</span><span class="p">,</span> <span class="n">spike_sorter</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
     <span class="n">collection</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;alf/</span><span class="si">{</span><span class="n">probe</span><span class="si">}</span><span class="s1">/</span><span class="si">{</span><span class="n">spike_sorter</span><span class="si">}</span><span class="s1">&#39;</span>
     <span class="n">collection</span> <span class="o">=</span> <span class="n">collection</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;None&#39;</span><span class="p">,</span> <span class="s1">&#39;*&#39;</span><span class="p">)</span>
     <span class="n">collection</span> <span class="o">=</span> <span class="n">collection</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;/*&#39;</span><span class="p">,</span> <span class="s1">&#39;*&#39;</span><span class="p">)</span>
@@ -186,7 +186,7 @@
     <span class="k">return</span> <span class="n">collection</span>
 
 
-<span class="k">def</span> <span class="nf">_get_spike_sorting_collection</span><span class="p">(</span><span class="n">collections</span><span class="p">,</span> <span class="n">pname</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_get_spike_sorting_collection</span><span class="p">(</span><span class="n">collections</span><span class="p">,</span> <span class="n">pname</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Filters a list or array of collections to get the relevant spike sorting dataset</span>
 <span class="sd">    if there is a pykilosort, load it</span>
@@ -199,7 +199,7 @@
     <span class="k">return</span> <span class="n">collection</span>
 
 
-<span class="k">def</span> <span class="nf">_channels_alyx2bunch</span><span class="p">(</span><span class="n">chans</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_channels_alyx2bunch</span><span class="p">(</span><span class="n">chans</span><span class="p">):</span>
     <span class="n">channels</span> <span class="o">=</span> <span class="n">Bunch</span><span class="p">({</span>
         <span class="s1">&#39;atlas_id&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">ch</span><span class="p">[</span><span class="s1">&#39;brain_region&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">ch</span> <span class="ow">in</span> <span class="n">chans</span><span class="p">]),</span>
         <span class="s1">&#39;x&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">ch</span><span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">ch</span> <span class="ow">in</span> <span class="n">chans</span><span class="p">])</span> <span class="o">/</span> <span class="mf">1e6</span><span class="p">,</span>
@@ -211,7 +211,7 @@
     <span class="k">return</span> <span class="n">channels</span>
 
 
-<span class="k">def</span> <span class="nf">_channels_traj2bunch</span><span class="p">(</span><span class="n">xyz_chans</span><span class="p">,</span> <span class="n">brain_atlas</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_channels_traj2bunch</span><span class="p">(</span><span class="n">xyz_chans</span><span class="p">,</span> <span class="n">brain_atlas</span><span class="p">):</span>
     <span class="n">brain_regions</span> <span class="o">=</span> <span class="n">brain_atlas</span><span class="o">.</span><span class="n">regions</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">brain_atlas</span><span class="o">.</span><span class="n">get_labels</span><span class="p">(</span><span class="n">xyz_chans</span><span class="p">))</span>
     <span class="n">channels</span> <span class="o">=</span> <span class="p">{</span>
         <span class="s1">&#39;x&#39;</span><span class="p">:</span> <span class="n">xyz_chans</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span>
@@ -224,7 +224,7 @@
     <span class="k">return</span> <span class="n">channels</span>
 
 
-<span class="k">def</span> <span class="nf">_channels_bunch2alf</span><span class="p">(</span><span class="n">channels</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_channels_bunch2alf</span><span class="p">(</span><span class="n">channels</span><span class="p">):</span>
     <span class="n">channels_</span> <span class="o">=</span> <span class="p">{</span>
         <span class="s1">&#39;mlapdv&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">c_</span><span class="p">[</span><span class="n">channels</span><span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">],</span> <span class="n">channels</span><span class="p">[</span><span class="s1">&#39;y&#39;</span><span class="p">],</span> <span class="n">channels</span><span class="p">[</span><span class="s1">&#39;z&#39;</span><span class="p">]]</span> <span class="o">*</span> <span class="mf">1e6</span><span class="p">,</span>
         <span class="s1">&#39;brainLocationIds_ccf_2017&#39;</span><span class="p">:</span> <span class="n">channels</span><span class="p">[</span><span class="s1">&#39;atlas_id&#39;</span><span class="p">],</span>
@@ -232,7 +232,7 @@
     <span class="k">return</span> <span class="n">channels_</span>
 
 
-<span class="k">def</span> <span class="nf">_channels_alf2bunch</span><span class="p">(</span><span class="n">channels</span><span class="p">,</span> <span class="n">brain_regions</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_channels_alf2bunch</span><span class="p">(</span><span class="n">channels</span><span class="p">,</span> <span class="n">brain_regions</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
     <span class="c1"># reformat the dictionary according to the standard that comes out of Alyx</span>
     <span class="n">channels_</span> <span class="o">=</span> <span class="p">{</span>
         <span class="s1">&#39;x&#39;</span><span class="p">:</span> <span class="n">channels</span><span class="p">[</span><span class="s1">&#39;mlapdv&#39;</span><span class="p">][:,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span> <span class="o">/</span> <span class="mf">1e6</span><span class="p">,</span>
@@ -252,7 +252,7 @@
     <span class="k">return</span> <span class="n">channels_</span>
 
 
-<span class="k">def</span> <span class="nf">_load_spike_sorting</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">revision</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">return_channels</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">dataset_types</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_load_spike_sorting</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">revision</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">return_channels</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">dataset_types</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                         <span class="n">brain_regions</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Generic function to load spike sorting according data using ONE.</span>
@@ -317,7 +317,7 @@
         <span class="k">return</span> <span class="n">spikes</span><span class="p">,</span> <span class="n">clusters</span>
 
 
-<span class="k">def</span> <span class="nf">_get_attributes</span><span class="p">(</span><span class="n">dataset_types</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_get_attributes</span><span class="p">(</span><span class="n">dataset_types</span><span class="p">):</span>
     <span class="k">if</span> <span class="n">dataset_types</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">SPIKES_ATTRIBUTES</span><span class="p">,</span> <span class="n">CLUSTERS_ATTRIBUTES</span>
     <span class="k">else</span><span class="p">:</span>
@@ -328,7 +328,7 @@
         <span class="k">return</span> <span class="n">spike_attributes</span><span class="p">,</span> <span class="n">cluster_attributes</span>
 
 
-<span class="k">def</span> <span class="nf">_load_channels_locations_from_disk</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">revision</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">brain_regions</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_load_channels_locations_from_disk</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">revision</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">brain_regions</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
     <span class="n">_logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;loading spike sorting from disk&#39;</span><span class="p">)</span>
     <span class="n">channels</span> <span class="o">=</span> <span class="n">Bunch</span><span class="p">({})</span>
     <span class="n">collections</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">list_collections</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="s1">&#39;channels*&#39;</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="n">collection</span><span class="p">,</span> <span class="n">revision</span><span class="o">=</span><span class="n">revision</span><span class="p">)</span>
@@ -356,7 +356,7 @@
 
 <div class="viewcode-block" id="channel_locations_interpolation">
 <a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.channel_locations_interpolation">[docs]</a>
-<span class="k">def</span> <span class="nf">channel_locations_interpolation</span><span class="p">(</span><span class="n">channels_aligned</span><span class="p">,</span> <span class="n">channels</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">brain_regions</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">channel_locations_interpolation</span><span class="p">(</span><span class="n">channels_aligned</span><span class="p">,</span> <span class="n">channels</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">brain_regions</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    oftentimes the channel map for different spike sorters may be different so interpolate the alignment onto</span>
 <span class="sd">    if there is no spike sorting in the base folder, the alignment doesn&#39;t have the localCoordinates field</span>
@@ -401,7 +401,7 @@
 
 
 
-<span class="k">def</span> <span class="nf">_load_channel_locations_traj</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">probe</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">revision</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">aligned</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_load_channel_locations_traj</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">probe</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">revision</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">aligned</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
                                  <span class="n">brain_atlas</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">return_source</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">one</span><span class="p">,</span> <span class="s1">&#39;alyx&#39;</span><span class="p">):</span>
         <span class="k">return</span> <span class="p">{},</span> <span class="kc">None</span>
@@ -484,7 +484,7 @@
 
 <div class="viewcode-block" id="load_channel_locations">
 <a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.load_channel_locations">[docs]</a>
-<span class="k">def</span> <span class="nf">load_channel_locations</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">probe</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">aligned</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">brain_atlas</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">load_channel_locations</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">probe</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">aligned</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">brain_atlas</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Load the brain locations of each channel for a given session/probe</span>
 
@@ -530,7 +530,7 @@
 
 <div class="viewcode-block" id="load_spike_sorting_fast">
 <a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.load_spike_sorting_fast">[docs]</a>
-<span class="k">def</span> <span class="nf">load_spike_sorting_fast</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">probe</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dataset_types</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">spike_sorter</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">revision</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">load_spike_sorting_fast</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">probe</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dataset_types</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">spike_sorter</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">revision</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                             <span class="n">brain_regions</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">nested</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">return_collection</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    From an eid, loads spikes and clusters for all probes</span>
@@ -575,7 +575,7 @@
 
 <div class="viewcode-block" id="load_spike_sorting">
 <a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.load_spike_sorting">[docs]</a>
-<span class="k">def</span> <span class="nf">load_spike_sorting</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">probe</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dataset_types</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">spike_sorter</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">revision</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">load_spike_sorting</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">probe</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dataset_types</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">spike_sorter</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">revision</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                        <span class="n">brain_regions</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">return_collection</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    From an eid, loads spikes and clusters for all probes</span>
@@ -611,7 +611,7 @@
 
 <div class="viewcode-block" id="load_spike_sorting_with_channel">
 <a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.load_spike_sorting_with_channel">[docs]</a>
-<span class="k">def</span> <span class="nf">load_spike_sorting_with_channel</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">probe</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">aligned</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">dataset_types</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">load_spike_sorting_with_channel</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">probe</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">aligned</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">dataset_types</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                                     <span class="n">spike_sorter</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">brain_atlas</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">nested</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">return_collection</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    For a given eid, get spikes, clusters and channels information, and merges clusters</span>
@@ -675,7 +675,7 @@
 
 <div class="viewcode-block" id="load_ephys_session">
 <a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.load_ephys_session">[docs]</a>
-<span class="k">def</span> <span class="nf">load_ephys_session</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">load_ephys_session</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    From an eid, hits the Alyx database and downloads a standard default set of dataset types</span>
 <span class="sd">    From a local session Path (pathlib.Path), loads a standard default set of dataset types</span>
@@ -713,7 +713,7 @@
 
 
 
-<span class="k">def</span> <span class="nf">_remove_old_clusters</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">probe</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_remove_old_clusters</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">probe</span><span class="p">):</span>
     <span class="c1"># gets clusters and spikes from a local session folder</span>
     <span class="n">probe_path</span> <span class="o">=</span> <span class="n">session_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;alf&#39;</span><span class="p">,</span> <span class="n">probe</span><span class="p">)</span>
 
@@ -727,7 +727,7 @@
 
 <div class="viewcode-block" id="merge_clusters_channels">
 <a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.merge_clusters_channels">[docs]</a>
-<span class="k">def</span> <span class="nf">merge_clusters_channels</span><span class="p">(</span><span class="n">dic_clus</span><span class="p">,</span> <span class="n">channels</span><span class="p">,</span> <span class="n">keys_to_add_extra</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">merge_clusters_channels</span><span class="p">(</span><span class="n">dic_clus</span><span class="p">,</span> <span class="n">channels</span><span class="p">,</span> <span class="n">keys_to_add_extra</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Takes (default and any extra) values in given keys from channels and assign them to clusters.</span>
 <span class="sd">    If channels does not contain any data, the new keys are added to clusters but left empty.</span>
@@ -779,7 +779,7 @@
 
 <div class="viewcode-block" id="load_passive_rfmap">
 <a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.load_passive_rfmap">[docs]</a>
-<span class="k">def</span> <span class="nf">load_passive_rfmap</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">load_passive_rfmap</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    For a given eid load in the passive receptive field mapping protocol data</span>
 
@@ -812,7 +812,7 @@
 
 <div class="viewcode-block" id="load_wheel_reaction_times">
 <a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.load_wheel_reaction_times">[docs]</a>
-<span class="k">def</span> <span class="nf">load_wheel_reaction_times</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">load_wheel_reaction_times</span><span class="p">(</span><span class="n">eid</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Return the calculated reaction times for session.  Reaction times are defined as the time</span>
 <span class="sd">    between the go cue (onset tone) and the onset of the first substantial wheel movement.   A</span>
@@ -857,7 +857,7 @@
 
 <div class="viewcode-block" id="load_iti">
 <a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.load_iti">[docs]</a>
-<span class="k">def</span> <span class="nf">load_iti</span><span class="p">(</span><span class="n">trials</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">load_iti</span><span class="p">(</span><span class="n">trials</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    The inter-trial interval (ITI) time for each trial, defined as the period of open-loop grey</span>
 <span class="sd">    screen commencing at stimulus off and lasting until the quiescent period at the start of the</span>
@@ -882,7 +882,7 @@
 
 <div class="viewcode-block" id="load_channels_from_insertion">
 <a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.load_channels_from_insertion">[docs]</a>
-<span class="k">def</span> <span class="nf">load_channels_from_insertion</span><span class="p">(</span><span class="n">ins</span><span class="p">,</span> <span class="n">depths</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ba</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">load_channels_from_insertion</span><span class="p">(</span><span class="n">ins</span><span class="p">,</span> <span class="n">depths</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ba</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 
     <span class="n">PROV_2_VAL</span> <span class="o">=</span> <span class="p">{</span>
         <span class="s1">&#39;Resolved&#39;</span><span class="p">:</span> <span class="mi">90</span><span class="p">,</span>
@@ -926,7 +926,7 @@
 <div class="viewcode-block" id="SpikeSortingLoader">
 <a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.SpikeSortingLoader">[docs]</a>
 <span class="nd">@dataclass</span>
-<span class="k">class</span> <span class="nc">SpikeSortingLoader</span><span class="p">:</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">SpikeSortingLoader</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Object that will load spike sorting data for a given probe insertion.</span>
 <span class="sd">    This class can be instantiated in several manners</span>
@@ -956,7 +956,7 @@
     <span class="n">spike_sorting_path</span><span class="p">:</span> <span class="n">Path</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">_sync</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="kc">None</span>
 
-    <span class="k">def</span> <span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="c1"># pid gets precedence</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">pid</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">try</span><span class="p">:</span>
@@ -988,7 +988,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">files</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">raw_data_files</span> <span class="o">=</span> <span class="p">[]</span>
 
-    <span class="k">def</span> <span class="nf">_load_object</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_load_object</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        This function is a wrapper around alfio.load_object that will remove the UUID in the</span>
 <span class="sd">        filename if the object is on SDSC.</span>
@@ -1003,7 +1003,7 @@
         <span class="k">return</span> <span class="n">d</span>
 
     <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">_get_attributes</span><span class="p">(</span><span class="n">dataset_types</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_attributes</span><span class="p">(</span><span class="n">dataset_types</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;returns attributes to load for spikes and clusters objects&quot;&quot;&quot;</span>
         <span class="n">dataset_types</span> <span class="o">=</span> <span class="p">[]</span> <span class="k">if</span> <span class="n">dataset_types</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">dataset_types</span>
         <span class="n">spike_attributes</span> <span class="o">=</span> <span class="p">[</span><span class="n">sp</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">sp</span> <span class="ow">in</span> <span class="n">dataset_types</span> <span class="k">if</span> <span class="s1">&#39;spikes.&#39;</span> <span class="ow">in</span> <span class="n">sp</span><span class="p">]</span>
@@ -1014,7 +1014,7 @@
         <span class="n">waveform_attributes</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">WAVEFORMS_ATTRIBUTES</span> <span class="o">+</span> <span class="n">waveform_attributes</span><span class="p">))</span>
         <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;spikes&#39;</span><span class="p">:</span> <span class="n">spike_attributes</span><span class="p">,</span> <span class="s1">&#39;clusters&#39;</span><span class="p">:</span> <span class="n">cluster_attributes</span><span class="p">,</span> <span class="s1">&#39;waveforms&#39;</span><span class="p">:</span> <span class="n">waveform_attributes</span><span class="p">}</span>
 
-    <span class="k">def</span> <span class="nf">_get_spike_sorting_collection</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">spike_sorter</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_spike_sorting_collection</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">spike_sorter</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Filters a list or array of collections to get the relevant spike sorting dataset</span>
 <span class="sd">        if there is a pykilosort, load it</span>
@@ -1035,7 +1035,7 @@
 
 <div class="viewcode-block" id="SpikeSortingLoader.load_spike_sorting_object">
 <a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.SpikeSortingLoader.load_spike_sorting_object">[docs]</a>
-    <span class="k">def</span> <span class="nf">load_spike_sorting_object</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_spike_sorting_object</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Loads an ALF object</span>
 <span class="sd">        :param obj: object name, str between &#39;spikes&#39;, &#39;clusters&#39; or &#39;channels&#39;</span>
@@ -1052,7 +1052,7 @@
 
 <div class="viewcode-block" id="SpikeSortingLoader.get_version">
 <a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.SpikeSortingLoader.get_version">[docs]</a>
-    <span class="k">def</span> <span class="nf">get_version</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">spike_sorter</span><span class="o">=</span><span class="s1">&#39;pykilosort&#39;</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_version</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">spike_sorter</span><span class="o">=</span><span class="s1">&#39;pykilosort&#39;</span><span class="p">):</span>
         <span class="n">collection</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_spike_sorting_collection</span><span class="p">(</span><span class="n">spike_sorter</span><span class="o">=</span><span class="n">spike_sorter</span><span class="p">)</span>
         <span class="n">dset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;datasets&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span> <span class="n">session</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">eid</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="n">collection</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;spikes.times.npy&#39;</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">dset</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;version&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">dset</span><span class="p">)</span> <span class="k">else</span> <span class="s1">&#39;unknown&#39;</span></div>
@@ -1060,7 +1060,7 @@
 
 <div class="viewcode-block" id="SpikeSortingLoader.download_spike_sorting_object">
 <a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.SpikeSortingLoader.download_spike_sorting_object">[docs]</a>
-    <span class="k">def</span> <span class="nf">download_spike_sorting_object</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="n">spike_sorter</span><span class="o">=</span><span class="s1">&#39;pykilosort&#39;</span><span class="p">,</span> <span class="n">dataset_types</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">download_spike_sorting_object</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="n">spike_sorter</span><span class="o">=</span><span class="s1">&#39;pykilosort&#39;</span><span class="p">,</span> <span class="n">dataset_types</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                                       <span class="n">attribute</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">missing</span><span class="o">=</span><span class="s1">&#39;raise&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Downloads an ALF object</span>
@@ -1090,7 +1090,7 @@
 
 <div class="viewcode-block" id="SpikeSortingLoader.download_spike_sorting">
 <a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.SpikeSortingLoader.download_spike_sorting">[docs]</a>
-    <span class="k">def</span> <span class="nf">download_spike_sorting</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">objects</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">download_spike_sorting</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">objects</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Downloads spikes, clusters and channels</span>
 <span class="sd">        :param spike_sorter: (defaults to &#39;pykilosort&#39;)</span>
@@ -1106,7 +1106,7 @@
 
 <div class="viewcode-block" id="SpikeSortingLoader.download_raw_electrophysiology">
 <a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.SpikeSortingLoader.download_raw_electrophysiology">[docs]</a>
-    <span class="k">def</span> <span class="nf">download_raw_electrophysiology</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">band</span><span class="o">=</span><span class="s1">&#39;ap&#39;</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">download_raw_electrophysiology</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">band</span><span class="o">=</span><span class="s1">&#39;ap&#39;</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Downloads raw electrophysiology data files on local disk.</span>
 <span class="sd">        :param band: &quot;ap&quot; (default) or &quot;lf&quot; for LFP band</span>
@@ -1131,7 +1131,7 @@
 
 <div class="viewcode-block" id="SpikeSortingLoader.raw_electrophysiology">
 <a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.SpikeSortingLoader.raw_electrophysiology">[docs]</a>
-    <span class="k">def</span> <span class="nf">raw_electrophysiology</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">band</span><span class="o">=</span><span class="s1">&#39;ap&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">raw_electrophysiology</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">band</span><span class="o">=</span><span class="s1">&#39;ap&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns a reader for the raw electrophysiology data</span>
 <span class="sd">        By default it is a streamer object, but if stream is False, it will return a spikeglx.Reader after having</span>
@@ -1152,7 +1152,7 @@
 
 <div class="viewcode-block" id="SpikeSortingLoader.download_raw_waveforms">
 <a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.SpikeSortingLoader.download_raw_waveforms">[docs]</a>
-    <span class="k">def</span> <span class="nf">download_raw_waveforms</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">download_raw_waveforms</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Downloads raw waveforms extracted from sorting to local disk.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -1165,14 +1165,14 @@
 
 <div class="viewcode-block" id="SpikeSortingLoader.raw_waveforms">
 <a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.SpikeSortingLoader.raw_waveforms">[docs]</a>
-    <span class="k">def</span> <span class="nf">raw_waveforms</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">raw_waveforms</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="n">wf_paths</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">download_raw_waveforms</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">WaveformsLoader</span><span class="p">(</span><span class="n">wf_paths</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">parent</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="SpikeSortingLoader.load_channels">
 <a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.SpikeSortingLoader.load_channels">[docs]</a>
-    <span class="k">def</span> <span class="nf">load_channels</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_channels</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Loads channels</span>
 <span class="sd">        The channel locations can come from several sources, it will load the most advanced version of the histology available,</span>
@@ -1209,7 +1209,7 @@
 
 <div class="viewcode-block" id="SpikeSortingLoader.load_spike_sorting">
 <a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.SpikeSortingLoader.load_spike_sorting">[docs]</a>
-    <span class="k">def</span> <span class="nf">load_spike_sorting</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">spike_sorter</span><span class="o">=</span><span class="s1">&#39;iblsorter&#39;</span><span class="p">,</span> <span class="n">revision</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">enforce_version</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">good_units</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_spike_sorting</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">spike_sorter</span><span class="o">=</span><span class="s1">&#39;iblsorter&#39;</span><span class="p">,</span> <span class="n">revision</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">enforce_version</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">good_units</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Loads spikes, clusters and channels</span>
 
@@ -1248,7 +1248,7 @@
         <span class="k">return</span> <span class="n">spikes</span><span class="p">,</span> <span class="n">clusters</span><span class="p">,</span> <span class="n">channels</span></div>
 
 
-    <span class="k">def</span> <span class="nf">_assert_version_consistency</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_assert_version_consistency</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Makes sure the state of the spike sorting object matches the files downloaded</span>
 <span class="sd">        :return: None</span>
@@ -1265,7 +1265,7 @@
 <div class="viewcode-block" id="SpikeSortingLoader.compute_metrics">
 <a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.SpikeSortingLoader.compute_metrics">[docs]</a>
     <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">compute_metrics</span><span class="p">(</span><span class="n">spikes</span><span class="p">,</span> <span class="n">clusters</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">compute_metrics</span><span class="p">(</span><span class="n">spikes</span><span class="p">,</span> <span class="n">clusters</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="n">nc</span> <span class="o">=</span> <span class="n">clusters</span><span class="p">[</span><span class="s1">&#39;channels&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">size</span> <span class="k">if</span> <span class="n">clusters</span> <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">spikes</span><span class="p">[</span><span class="s1">&#39;clusters&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">size</span>
         <span class="n">metrics</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">quick_unit_metrics</span><span class="p">(</span>
             <span class="n">spikes</span><span class="p">[</span><span class="s1">&#39;clusters&#39;</span><span class="p">],</span> <span class="n">spikes</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">],</span> <span class="n">spikes</span><span class="p">[</span><span class="s1">&#39;amps&#39;</span><span class="p">],</span> <span class="n">spikes</span><span class="p">[</span><span class="s1">&#39;depths&#39;</span><span class="p">],</span> <span class="n">cluster_ids</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">nc</span><span class="p">)))</span>
@@ -1275,7 +1275,7 @@
 <div class="viewcode-block" id="SpikeSortingLoader.merge_clusters">
 <a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.SpikeSortingLoader.merge_clusters">[docs]</a>
     <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">merge_clusters</span><span class="p">(</span><span class="n">spikes</span><span class="p">,</span> <span class="n">clusters</span><span class="p">,</span> <span class="n">channels</span><span class="p">,</span> <span class="n">cache_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">compute_metrics</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">merge_clusters</span><span class="p">(</span><span class="n">spikes</span><span class="p">,</span> <span class="n">clusters</span><span class="p">,</span> <span class="n">channels</span><span class="p">,</span> <span class="n">cache_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">compute_metrics</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Merge the metrics and the channel information into the clusters dictionary</span>
 <span class="sd">        :param spikes:</span>
@@ -1311,12 +1311,12 @@
 
 
     <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">url</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">url</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Gets flatiron URL for the session&quot;&quot;&quot;</span>
         <span class="n">webclient</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="p">,</span> <span class="s1">&#39;_web_client&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">webclient</span><span class="o">.</span><span class="n">rel_path2url</span><span class="p">(</span><span class="n">get_alf_path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">))</span> <span class="k">if</span> <span class="n">webclient</span> <span class="k">else</span> <span class="kc">None</span>
 
-    <span class="k">def</span> <span class="nf">_get_probe_info</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_probe_info</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sync</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">timestamps</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">load_dataset</span><span class="p">(</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">eid</span><span class="p">,</span> <span class="n">dataset</span><span class="o">=</span><span class="s1">&#39;_spikeglx_*.timestamps.npy&#39;</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;raw_ephys_data/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">pname</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
@@ -1339,7 +1339,7 @@
 
 <div class="viewcode-block" id="SpikeSortingLoader.timesprobe2times">
 <a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.SpikeSortingLoader.timesprobe2times">[docs]</a>
-    <span class="k">def</span> <span class="nf">timesprobe2times</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">direction</span><span class="o">=</span><span class="s1">&#39;forward&#39;</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">timesprobe2times</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">direction</span><span class="o">=</span><span class="s1">&#39;forward&#39;</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_get_probe_info</span><span class="p">()</span>
         <span class="k">if</span> <span class="n">direction</span> <span class="o">==</span> <span class="s1">&#39;forward&#39;</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sync</span><span class="p">[</span><span class="s1">&#39;forward&#39;</span><span class="p">](</span><span class="n">values</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sync</span><span class="p">[</span><span class="s1">&#39;fs&#39;</span><span class="p">])</span>
@@ -1349,7 +1349,7 @@
 
 <div class="viewcode-block" id="SpikeSortingLoader.samples2times">
 <a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.SpikeSortingLoader.samples2times">[docs]</a>
-    <span class="k">def</span> <span class="nf">samples2times</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">direction</span><span class="o">=</span><span class="s1">&#39;forward&#39;</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">samples2times</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">direction</span><span class="o">=</span><span class="s1">&#39;forward&#39;</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Converts ephys sample values to session main clock seconds</span>
 <span class="sd">        :param values: numpy array of times in seconds or samples to resync</span>
@@ -1362,17 +1362,17 @@
 
 
     <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">pid2ref</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">pid2ref</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">eid2ref</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">eid</span><span class="p">,</span><span class="w"> </span><span class="n">as_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">pname</span><span class="si">}</span><span class="s2">&quot;</span>
 
-    <span class="k">def</span> <span class="nf">_default_plot_title</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">spikes</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_default_plot_title</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">spikes</span><span class="p">):</span>
         <span class="n">title</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">pid2ref</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">pid</span><span class="si">}</span><span class="s2"> </span><span class="se">\n</span><span class="s2">&quot;</span> \
                 <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">spikes</span><span class="p">[</span><span class="s1">&#39;clusters&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">size</span><span class="si">:</span><span class="s2">_</span><span class="si">}</span><span class="s2"> spikes, </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">spikes</span><span class="p">[</span><span class="s1">&#39;clusters&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">size</span><span class="si">:</span><span class="s2">_</span><span class="si">}</span><span class="s2"> clusters&quot;</span>
         <span class="k">return</span> <span class="n">title</span>
 
 <div class="viewcode-block" id="SpikeSortingLoader.raster">
 <a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.SpikeSortingLoader.raster">[docs]</a>
-    <span class="k">def</span> <span class="nf">raster</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">spikes</span><span class="p">,</span> <span class="n">channels</span><span class="p">,</span> <span class="n">save_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">br</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;raster&#39;</span><span class="p">,</span> <span class="n">time_series</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">raster</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">spikes</span><span class="p">,</span> <span class="n">channels</span><span class="p">,</span> <span class="n">save_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">br</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;raster&#39;</span><span class="p">,</span> <span class="n">time_series</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                <span class="n">drift</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        :param spikes: spikes dictionary or Bunch</span>
@@ -1426,7 +1426,7 @@
 
 <div class="viewcode-block" id="SpikeSortingLoader.plot_rawdata_snippet">
 <a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.SpikeSortingLoader.plot_rawdata_snippet">[docs]</a>
-    <span class="k">def</span> <span class="nf">plot_rawdata_snippet</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sr</span><span class="p">,</span> <span class="n">spikes</span><span class="p">,</span> <span class="n">clusters</span><span class="p">,</span> <span class="n">t0</span><span class="p">,</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">plot_rawdata_snippet</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sr</span><span class="p">,</span> <span class="n">spikes</span><span class="p">,</span> <span class="n">clusters</span><span class="p">,</span> <span class="n">t0</span><span class="p">,</span>
                              <span class="n">channels</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                              <span class="n">br</span><span class="p">:</span> <span class="n">BrainRegions</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                              <span class="n">save_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
@@ -1474,7 +1474,7 @@
 <div class="viewcode-block" id="SessionLoader">
 <a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.SessionLoader">[docs]</a>
 <span class="nd">@dataclass</span>
-<span class="k">class</span> <span class="nc">SessionLoader</span><span class="p">:</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">SessionLoader</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Object to load session data for a give session in the recommended way.</span>
 
@@ -1551,7 +1551,7 @@
     <span class="n">motion_energy</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">,</span> <span class="nb">repr</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
     <span class="n">pupil</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="nb">repr</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Function that runs automatically after initiation of the dataclass attributes.</span>
 <span class="sd">        Checks for required inputs, sets session_path and eid, creates data_info table.</span>
@@ -1581,7 +1581,7 @@
 
 <div class="viewcode-block" id="SessionLoader.load_session_data">
 <a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.SessionLoader.load_session_data">[docs]</a>
-    <span class="k">def</span> <span class="nf">load_session_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">trials</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">wheel</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">pose</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">motion_energy</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">pupil</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">reload</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_session_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">trials</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">wheel</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">pose</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">motion_energy</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">pupil</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">reload</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Function to load available session data into the SessionLoader object. Input parameters allow to control which</span>
 <span class="sd">        data is loaded. Data is loaded into an attribute of the SessionLoader object with the same name as the input</span>
@@ -1637,7 +1637,7 @@
                     <span class="n">_logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">e</span><span class="p">)</span></div>
 
 
-    <span class="k">def</span> <span class="nf">_find_behaviour_collection</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_find_behaviour_collection</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Function to find the trial or wheel collection</span>
 
@@ -1661,7 +1661,7 @@
 
 <div class="viewcode-block" id="SessionLoader.load_trials">
 <a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.SessionLoader.load_trials">[docs]</a>
-    <span class="k">def</span> <span class="nf">load_trials</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_trials</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Function to load trials data into SessionLoader.trials</span>
 
@@ -1683,7 +1683,7 @@
 
 <div class="viewcode-block" id="SessionLoader.load_wheel">
 <a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.SessionLoader.load_wheel">[docs]</a>
-    <span class="k">def</span> <span class="nf">load_wheel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fs</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">corner_frequency</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_wheel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fs</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">corner_frequency</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Function to load wheel data (position, velocity, acceleration) into SessionLoader.wheel. The wheel position</span>
 <span class="sd">        is first interpolated to a uniform sampling rate. Then velocity and acceleration are computed, during which</span>
@@ -1717,7 +1717,7 @@
 
 <div class="viewcode-block" id="SessionLoader.load_pose">
 <a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.SessionLoader.load_pose">[docs]</a>
-    <span class="k">def</span> <span class="nf">load_pose</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">likelihood_thr</span><span class="o">=</span><span class="mf">0.9</span><span class="p">,</span> <span class="n">views</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;left&#39;</span><span class="p">,</span> <span class="s1">&#39;right&#39;</span><span class="p">,</span> <span class="s1">&#39;body&#39;</span><span class="p">]):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_pose</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">likelihood_thr</span><span class="o">=</span><span class="mf">0.9</span><span class="p">,</span> <span class="n">views</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;left&#39;</span><span class="p">,</span> <span class="s1">&#39;right&#39;</span><span class="p">,</span> <span class="s1">&#39;body&#39;</span><span class="p">]):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Function to load the pose estimation results (DLC) into SessionLoader.pose. SessionLoader.pose is a</span>
 <span class="sd">        dictionary where keys are the names of the cameras for which pose data is loaded, and values are pandas</span>
@@ -1745,7 +1745,7 @@
 
 <div class="viewcode-block" id="SessionLoader.load_motion_energy">
 <a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.SessionLoader.load_motion_energy">[docs]</a>
-    <span class="k">def</span> <span class="nf">load_motion_energy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">views</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;left&#39;</span><span class="p">,</span> <span class="s1">&#39;right&#39;</span><span class="p">,</span> <span class="s1">&#39;body&#39;</span><span class="p">]):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_motion_energy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">views</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;left&#39;</span><span class="p">,</span> <span class="s1">&#39;right&#39;</span><span class="p">,</span> <span class="s1">&#39;body&#39;</span><span class="p">]):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Function to load the motion energy data into SessionLoader.motion_energy. SessionLoader.motion_energy is a</span>
 <span class="sd">        dictionary where keys are the names of the cameras for which motion energy data is loaded, and values are</span>
@@ -1777,7 +1777,7 @@
 
 <div class="viewcode-block" id="SessionLoader.load_licks">
 <a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.SessionLoader.load_licks">[docs]</a>
-    <span class="k">def</span> <span class="nf">load_licks</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_licks</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Not yet implemented</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -1786,7 +1786,7 @@
 
 <div class="viewcode-block" id="SessionLoader.load_pupil">
 <a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.SessionLoader.load_pupil">[docs]</a>
-    <span class="k">def</span> <span class="nf">load_pupil</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">snr_thresh</span><span class="o">=</span><span class="mf">5.</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_pupil</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">snr_thresh</span><span class="o">=</span><span class="mf">5.</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Function to load raw and smoothed pupil diameter data from the left camera into SessionLoader.pupil.</span>
 
@@ -1836,7 +1836,7 @@
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Pupil diameter SNR (</span><span class="si">{</span><span class="n">snr</span><span class="si">:</span><span class="s1">.2f</span><span class="si">}</span><span class="s1">) below threshold SNR (</span><span class="si">{</span><span class="n">snr_thresh</span><span class="si">}</span><span class="s1">), removing data.&#39;</span><span class="p">)</span></div>
 
 
-    <span class="k">def</span> <span class="nf">_check_video_timestamps</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">view</span><span class="p">,</span> <span class="n">video_timestamps</span><span class="p">,</span> <span class="n">video_data</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_check_video_timestamps</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">view</span><span class="p">,</span> <span class="n">video_timestamps</span><span class="p">,</span> <span class="n">video_data</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Helper function to check for the length of the video frames vs video timestamps and fix in case</span>
 <span class="sd">        timestamps are longer than video frames.</span>
@@ -1862,7 +1862,7 @@
 
 <div class="viewcode-block" id="EphysSessionLoader">
 <a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.EphysSessionLoader">[docs]</a>
-<span class="k">class</span> <span class="nc">EphysSessionLoader</span><span class="p">(</span><span class="n">SessionLoader</span><span class="p">):</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">EphysSessionLoader</span><span class="p">(</span><span class="n">SessionLoader</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Spike sorting enhanced version of SessionLoader</span>
 <span class="sd">    Loads spike sorting data for all probes in the session, in the self.ephys dict</span>
@@ -1870,7 +1870,7 @@
 <span class="sd">    To select for a specific probe</span>
 <span class="sd">    &gt;&gt;&gt; EphysSessionLoader(eid=eid, one=one, pid=pid)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">pname</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pid</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">pname</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pid</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Needs an active connection in order to get the list of insertions in the session</span>
 <span class="sd">        :param args:</span>
@@ -1888,14 +1888,14 @@
 
 <div class="viewcode-block" id="EphysSessionLoader.load_session_data">
 <a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.EphysSessionLoader.load_session_data">[docs]</a>
-    <span class="k">def</span> <span class="nf">load_session_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_session_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">load_session_data</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">load_spike_sorting</span><span class="p">()</span></div>
 
 
 <div class="viewcode-block" id="EphysSessionLoader.load_spike_sorting">
 <a class="viewcode-back" href="../../../_autosummary/brainbox.io.one.html#brainbox.io.one.EphysSessionLoader.load_spike_sorting">[docs]</a>
-    <span class="k">def</span> <span class="nf">load_spike_sorting</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pnames</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_spike_sorting</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pnames</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="n">pnames</span> <span class="o">=</span> <span class="n">pnames</span> <span class="ow">or</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ephys</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
         <span class="k">for</span> <span class="n">pname</span> <span class="ow">in</span> <span class="n">pnames</span><span class="p">:</span>
             <span class="n">spikes</span><span class="p">,</span> <span class="n">clusters</span><span class="p">,</span> <span class="n">channels</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ephys</span><span class="p">[</span><span class="n">pname</span><span class="p">][</span><span class="s1">&#39;ssl&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">load_spike_sorting</span><span class="p">()</span>
@@ -1905,7 +1905,7 @@
 
 
     <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">probes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">probes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">ephys</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="s1">&#39;ssl&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">pid</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">ephys</span><span class="p">}</span></div>
 
 </pre></div>

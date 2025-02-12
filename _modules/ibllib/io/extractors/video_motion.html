@@ -6,7 +6,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ibllib.io.extractors.video_motion &mdash; IBL Library  documentation</title>
-      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=03e43079" />
       <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="../../../../_static/copybutton.css?v=76b2166b" />
       <link rel="stylesheet" type="text/css" href="../../../../_static/css/style.css?v=17142d56" />
@@ -112,40 +112,40 @@
 <span class="sd">A module for aligning the wheel motion with the rotary encoder.  Currently used by the camera QC</span>
 <span class="sd">in order to check timestamp alignment.</span>
 <span class="sd">&quot;&quot;&quot;</span>
-<span class="kn">import</span> <span class="nn">matplotlib</span>
-<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
-<span class="kn">import</span> <span class="nn">matplotlib.gridspec</span> <span class="k">as</span> <span class="nn">gridspec</span>
-<span class="kn">from</span> <span class="nn">matplotlib.widgets</span> <span class="kn">import</span> <span class="n">RectangleSelector</span>
-<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
-<span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">signal</span><span class="p">,</span> <span class="n">ndimage</span><span class="p">,</span> <span class="n">interpolate</span>
-<span class="kn">import</span> <span class="nn">cv2</span>
-<span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">cycle</span>
-<span class="kn">import</span> <span class="nn">matplotlib.animation</span> <span class="k">as</span> <span class="nn">animation</span>
-<span class="kn">import</span> <span class="nn">logging</span>
-<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
-<span class="kn">from</span> <span class="nn">joblib</span> <span class="kn">import</span> <span class="n">Parallel</span><span class="p">,</span> <span class="n">delayed</span><span class="p">,</span> <span class="n">cpu_count</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.gridspec</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">gridspec</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matplotlib.widgets</span><span class="w"> </span><span class="kn">import</span> <span class="n">RectangleSelector</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy</span><span class="w"> </span><span class="kn">import</span> <span class="n">signal</span><span class="p">,</span> <span class="n">ndimage</span><span class="p">,</span> <span class="n">interpolate</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">cv2</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">itertools</span><span class="w"> </span><span class="kn">import</span> <span class="n">cycle</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.animation</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">animation</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">joblib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Parallel</span><span class="p">,</span> <span class="n">delayed</span><span class="p">,</span> <span class="n">cpu_count</span>
 
-<span class="kn">from</span> <span class="nn">ibldsp.utils</span> <span class="kn">import</span> <span class="n">WindowGenerator</span>
-<span class="kn">from</span> <span class="nn">one.api</span> <span class="kn">import</span> <span class="n">ONE</span>
-<span class="kn">import</span> <span class="nn">ibllib.io.video</span> <span class="k">as</span> <span class="nn">vidio</span>
-<span class="kn">from</span> <span class="nn">iblutil.util</span> <span class="kn">import</span> <span class="n">Bunch</span>
-<span class="kn">from</span> <span class="nn">ibllib.io.extractors.ephys_fpga</span> <span class="kn">import</span> <span class="n">get_sync_fronts</span><span class="p">,</span> <span class="n">get_sync_and_chn_map</span>
-<span class="kn">import</span> <span class="nn">ibllib.io.raw_data_loaders</span> <span class="k">as</span> <span class="nn">raw</span>
-<span class="kn">import</span> <span class="nn">ibllib.io.extractors.camera</span> <span class="k">as</span> <span class="nn">cam</span>
-<span class="kn">from</span> <span class="nn">ibllib.plots.snapshot</span> <span class="kn">import</span> <span class="n">ReportSnapshot</span>
-<span class="kn">import</span> <span class="nn">brainbox.video</span> <span class="k">as</span> <span class="nn">video</span>
-<span class="kn">import</span> <span class="nn">brainbox.behavior.wheel</span> <span class="k">as</span> <span class="nn">wh</span>
-<span class="kn">from</span> <span class="nn">brainbox.singlecell</span> <span class="kn">import</span> <span class="n">bin_spikes</span>
-<span class="kn">from</span> <span class="nn">brainbox.behavior.dlc</span> <span class="kn">import</span> <span class="n">likelihood_threshold</span><span class="p">,</span> <span class="n">get_speed</span>
-<span class="kn">from</span> <span class="nn">brainbox.task.trials</span> <span class="kn">import</span> <span class="n">find_trial_ids</span>
-<span class="kn">import</span> <span class="nn">one.alf.io</span> <span class="k">as</span> <span class="nn">alfio</span>
-<span class="kn">from</span> <span class="nn">one.alf.exceptions</span> <span class="kn">import</span> <span class="n">ALFObjectNotFound</span>
-<span class="kn">from</span> <span class="nn">one.alf.spec</span> <span class="kn">import</span> <span class="n">is_session_path</span><span class="p">,</span> <span class="n">is_uuid_string</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ibldsp.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">WindowGenerator</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">one.api</span><span class="w"> </span><span class="kn">import</span> <span class="n">ONE</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">ibllib.io.video</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">vidio</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">iblutil.util</span><span class="w"> </span><span class="kn">import</span> <span class="n">Bunch</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ibllib.io.extractors.ephys_fpga</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_sync_fronts</span><span class="p">,</span> <span class="n">get_sync_and_chn_map</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">ibllib.io.raw_data_loaders</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">raw</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">ibllib.io.extractors.camera</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">cam</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ibllib.plots.snapshot</span><span class="w"> </span><span class="kn">import</span> <span class="n">ReportSnapshot</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">brainbox.video</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">video</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">brainbox.behavior.wheel</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">wh</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">brainbox.singlecell</span><span class="w"> </span><span class="kn">import</span> <span class="n">bin_spikes</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">brainbox.behavior.dlc</span><span class="w"> </span><span class="kn">import</span> <span class="n">likelihood_threshold</span><span class="p">,</span> <span class="n">get_speed</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">brainbox.task.trials</span><span class="w"> </span><span class="kn">import</span> <span class="n">find_trial_ids</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">one.alf.io</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">alfio</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">one.alf.exceptions</span><span class="w"> </span><span class="kn">import</span> <span class="n">ALFObjectNotFound</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">one.alf.spec</span><span class="w"> </span><span class="kn">import</span> <span class="n">is_session_path</span><span class="p">,</span> <span class="n">is_uuid_string</span>
 
 
 <div class="viewcode-block" id="find_nearest">
 <a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.video_motion.html#ibllib.io.extractors.video_motion.find_nearest">[docs]</a>
-<span class="k">def</span> <span class="nf">find_nearest</span><span class="p">(</span><span class="n">array</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">find_nearest</span><span class="p">(</span><span class="n">array</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
     <span class="n">array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">array</span><span class="p">)</span>
     <span class="n">idx</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">array</span> <span class="o">-</span> <span class="n">value</span><span class="p">))</span><span class="o">.</span><span class="n">argmin</span><span class="p">()</span>
     <span class="k">return</span> <span class="n">idx</span></div>
@@ -154,10 +154,10 @@
 
 <div class="viewcode-block" id="MotionAlignment">
 <a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.video_motion.html#ibllib.io.extractors.video_motion.MotionAlignment">[docs]</a>
-<span class="k">class</span> <span class="nc">MotionAlignment</span><span class="p">:</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">MotionAlignment</span><span class="p">:</span>
     <span class="n">roi</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;left&#39;</span><span class="p">:</span> <span class="p">((</span><span class="mi">800</span><span class="p">,</span> <span class="mi">1020</span><span class="p">),</span> <span class="p">(</span><span class="mi">233</span><span class="p">,</span> <span class="mi">1096</span><span class="p">)),</span> <span class="s1">&#39;right&#39;</span><span class="p">:</span> <span class="p">((</span><span class="mi">426</span><span class="p">,</span> <span class="mi">510</span><span class="p">),</span> <span class="p">(</span><span class="mi">104</span><span class="p">,</span> <span class="mi">545</span><span class="p">)),</span> <span class="s1">&#39;body&#39;</span><span class="p">:</span> <span class="p">((</span><span class="mi">402</span><span class="p">,</span> <span class="mi">481</span><span class="p">),</span> <span class="p">(</span><span class="mi">31</span><span class="p">,</span> <span class="mi">103</span><span class="p">))}</span>
 
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">eid</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">log</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">),</span> <span class="n">stream</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">eid</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">log</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">),</span> <span class="n">stream</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">one</span> <span class="o">=</span> <span class="n">one</span> <span class="ow">or</span> <span class="n">ONE</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">eid</span> <span class="o">=</span> <span class="n">eid</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;session_path&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">eid2path</span><span class="p">(</span><span class="n">eid</span><span class="p">)</span>
@@ -175,7 +175,7 @@
 
 <div class="viewcode-block" id="MotionAlignment.align_all_trials">
 <a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.video_motion.html#ibllib.io.extractors.video_motion.MotionAlignment.align_all_trials">[docs]</a>
-    <span class="k">def</span> <span class="nf">align_all_trials</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">side</span><span class="o">=</span><span class="s1">&#39;all&#39;</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">align_all_trials</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">side</span><span class="o">=</span><span class="s1">&#39;all&#39;</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Align all wheel motion for all trials&quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">trials</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">load_data</span><span class="p">()</span>
@@ -194,14 +194,14 @@
 <div class="viewcode-block" id="MotionAlignment.set_roi">
 <a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.video_motion.html#ibllib.io.extractors.video_motion.MotionAlignment.set_roi">[docs]</a>
     <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">set_roi</span><span class="p">(</span><span class="n">video_path</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">set_roi</span><span class="p">(</span><span class="n">video_path</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Manually set the ROIs for a given set of videos</span>
 <span class="sd">        TODO Improve docstring</span>
 <span class="sd">        TODO A method for setting ROIs by label</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">frame</span> <span class="o">=</span> <span class="n">vidio</span><span class="o">.</span><span class="n">get_video_frame</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">video_path</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span>
 
-        <span class="k">def</span> <span class="nf">line_select_callback</span><span class="p">(</span><span class="n">eclick</span><span class="p">,</span> <span class="n">erelease</span><span class="p">):</span>
+        <span class="k">def</span><span class="w"> </span><span class="nf">line_select_callback</span><span class="p">(</span><span class="n">eclick</span><span class="p">,</span> <span class="n">erelease</span><span class="p">):</span>
 <span class="w">            </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">            Callback for line selection.</span>
 
@@ -225,7 +225,7 @@
 
 <div class="viewcode-block" id="MotionAlignment.load_data">
 <a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.video_motion.html#ibllib.io.extractors.video_motion.MotionAlignment.load_data">[docs]</a>
-    <span class="k">def</span> <span class="nf">load_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">download</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">download</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Load wheel, trial and camera timestamp data</span>
 <span class="sd">        :return: wheel, trials</span>
@@ -246,7 +246,7 @@
         <span class="k">assert</span> <span class="nb">all</span><span class="p">(</span><span class="n">x</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">values</span><span class="p">())</span></div>
 
 
-    <span class="k">def</span> <span class="nf">_set_eid_or_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_path_or_eid</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_set_eid_or_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_path_or_eid</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Parse a given eID or session path</span>
 <span class="sd">        If a session UUID is given, resolves and stores the local path and vice versa</span>
 <span class="sd">        :param session_path_or_eid: A session eid or path</span>
@@ -269,7 +269,7 @@
 
 <div class="viewcode-block" id="MotionAlignment.align_motion">
 <a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.video_motion.html#ibllib.io.extractors.video_motion.MotionAlignment.align_motion">[docs]</a>
-    <span class="k">def</span> <span class="nf">align_motion</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">period</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">),</span> <span class="n">side</span><span class="o">=</span><span class="s1">&#39;left&#39;</span><span class="p">,</span> <span class="n">sd_thresh</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">display</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">align_motion</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">period</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">),</span> <span class="n">side</span><span class="o">=</span><span class="s1">&#39;left&#39;</span><span class="p">,</span> <span class="n">sd_thresh</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">display</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Align video to the wheel using cross-correlation of the video motion signal and the rotary</span>
 <span class="sd">        encoder.</span>
@@ -384,7 +384,7 @@
 
 <div class="viewcode-block" id="MotionAlignment.plot_alignment">
 <a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.video_motion.html#ibllib.io.extractors.video_motion.MotionAlignment.plot_alignment">[docs]</a>
-    <span class="k">def</span> <span class="nf">plot_alignment</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">energy</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">plot_alignment</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">energy</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">save</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">alignment</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;No alignment data, run `align_motion` first&#39;</span><span class="p">)</span>
             <span class="k">return</span>
@@ -394,7 +394,7 @@
             <span class="n">new_backend</span> <span class="o">=</span> <span class="s1">&#39;Agg&#39;</span> <span class="k">if</span> <span class="n">save</span> <span class="k">else</span> <span class="s1">&#39;Qt5Agg&#39;</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Switching backend from </span><span class="si">%s</span><span class="s1"> to </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">backend</span><span class="p">,</span> <span class="n">new_backend</span><span class="p">)</span>
             <span class="n">matplotlib</span><span class="o">.</span><span class="n">use</span><span class="p">(</span><span class="n">new_backend</span><span class="p">)</span>
-        <span class="kn">from</span> <span class="nn">matplotlib</span> <span class="kn">import</span> <span class="n">pyplot</span> <span class="k">as</span> <span class="n">plt</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">matplotlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">pyplot</span> <span class="k">as</span> <span class="n">plt</span>
 
         <span class="c1"># Main animated plots</span>
         <span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">nrows</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
@@ -410,7 +410,7 @@
             <span class="n">frame_numbers</span> <span class="o">=</span> <span class="n">frame_numbers</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
         <span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;frame_ids&#39;</span><span class="p">:</span> <span class="n">frame_numbers</span><span class="p">}</span>
 
-        <span class="k">def</span> <span class="nf">init_plot</span><span class="p">():</span>
+        <span class="k">def</span><span class="w"> </span><span class="nf">init_plot</span><span class="p">():</span>
 <span class="w">            </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">            Plot the wheel data for the current trial</span>
 <span class="sd">            :return: None</span>
@@ -437,7 +437,7 @@
             <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Time (s))&#39;</span><span class="p">)</span>
             <span class="k">return</span>
 
-        <span class="k">def</span> <span class="nf">animate</span><span class="p">(</span><span class="n">i</span><span class="p">):</span>
+        <span class="k">def</span><span class="w"> </span><span class="nf">animate</span><span class="p">(</span><span class="n">i</span><span class="p">):</span>
 <span class="w">            </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">            Callback for figure animation.  Sets image data for current frame and moves pointer</span>
 <span class="sd">            along axis</span>
@@ -470,7 +470,7 @@
                                        <span class="n">blit</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">repeat</span><span class="o">=</span><span class="ow">not</span> <span class="n">save</span><span class="p">,</span> <span class="n">cache_frame_data</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
         <span class="n">anim</span><span class="o">.</span><span class="n">running</span> <span class="o">=</span> <span class="kc">False</span>
 
-        <span class="k">def</span> <span class="nf">process_key</span><span class="p">(</span><span class="n">event</span><span class="p">):</span>
+        <span class="k">def</span><span class="w"> </span><span class="nf">process_key</span><span class="p">(</span><span class="n">event</span><span class="p">):</span>
 <span class="w">            </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">            Callback for key presses.</span>
 <span class="sd">            :param event: a figure key_press_event</span>
@@ -517,8 +517,8 @@
 
 <div class="viewcode-block" id="MotionAlignmentFullSession">
 <a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.video_motion.html#ibllib.io.extractors.video_motion.MotionAlignmentFullSession">[docs]</a>
-<span class="k">class</span> <span class="nc">MotionAlignmentFullSession</span><span class="p">:</span>
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_path</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">MotionAlignmentFullSession</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_path</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Class to extract camera times using video motion energy wheel alignment</span>
 <span class="sd">        :param session_path: path of the session</span>
@@ -547,7 +547,7 @@
 
 <div class="viewcode-block" id="MotionAlignmentFullSession.load_data">
 <a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.video_motion.html#ibllib.io.extractors.video_motion.MotionAlignmentFullSession.load_data">[docs]</a>
-    <span class="k">def</span> <span class="nf">load_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sync</span><span class="o">=</span><span class="s1">&#39;nidq&#39;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sync</span><span class="o">=</span><span class="s1">&#39;nidq&#39;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Loads relevant data from disk to perform motion alignment</span>
 <span class="sd">        :param sync: type of sync used, &#39;nidq&#39; or &#39;bpod&#39;</span>
@@ -555,7 +555,7 @@
 <span class="sd">                        when loading the data</span>
 <span class="sd">        :return:</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">def</span> <span class="nf">fix_keys</span><span class="p">(</span><span class="n">alf_object</span><span class="p">):</span>
+        <span class="k">def</span><span class="w"> </span><span class="nf">fix_keys</span><span class="p">(</span><span class="n">alf_object</span><span class="p">):</span>
 <span class="w">            </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">            Given an alf object removes the dataset uuid from the keys</span>
 <span class="sd">            :param alf_object:</span>
@@ -635,7 +635,7 @@
 
 <div class="viewcode-block" id="MotionAlignmentFullSession.get_roi_mask">
 <a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.video_motion.html#ibllib.io.extractors.video_motion.MotionAlignmentFullSession.get_roi_mask">[docs]</a>
-    <span class="k">def</span> <span class="nf">get_roi_mask</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_roi_mask</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Compute the region of interest mask for a given camera. This corresponds to a box in the video that we will</span>
 <span class="sd">        use to compute the wheel motion energy</span>
@@ -653,7 +653,7 @@
 
 <div class="viewcode-block" id="MotionAlignmentFullSession.find_contaminated_frames">
 <a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.video_motion.html#ibllib.io.extractors.video_motion.MotionAlignmentFullSession.find_contaminated_frames">[docs]</a>
-    <span class="k">def</span> <span class="nf">find_contaminated_frames</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">video_frames</span><span class="p">,</span> <span class="n">thresold</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">normalise</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">find_contaminated_frames</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">video_frames</span><span class="p">,</span> <span class="n">thresold</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">normalise</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Finds frames in the video that have artefacts such as the mouse&#39;s paw or a human hand. In order to determine</span>
 <span class="sd">        frames with contamination an Otsu thresholding is applied to each frame to detect the artefact from the</span>
@@ -681,7 +681,7 @@
 
 <div class="viewcode-block" id="MotionAlignmentFullSession.compute_motion_energy">
 <a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.video_motion.html#ibllib.io.extractors.video_motion.MotionAlignmentFullSession.compute_motion_energy">[docs]</a>
-    <span class="k">def</span> <span class="nf">compute_motion_energy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">first</span><span class="p">,</span> <span class="n">last</span><span class="p">,</span> <span class="n">wg</span><span class="p">,</span> <span class="n">iw</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">compute_motion_energy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">first</span><span class="p">,</span> <span class="n">last</span><span class="p">,</span> <span class="n">wg</span><span class="p">,</span> <span class="n">iw</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Computes the video motion energy for frame indexes between first and last. This function is written to be run</span>
 <span class="sd">        in a parallel fashion jusing joblib.parallel</span>
@@ -783,7 +783,7 @@
 
 <div class="viewcode-block" id="MotionAlignmentFullSession.compute_shifts">
 <a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.video_motion.html#ibllib.io.extractors.video_motion.MotionAlignmentFullSession.compute_shifts">[docs]</a>
-    <span class="k">def</span> <span class="nf">compute_shifts</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">times</span><span class="p">,</span> <span class="n">me</span><span class="p">,</span> <span class="n">first</span><span class="p">,</span> <span class="n">last</span><span class="p">,</span> <span class="n">iw</span><span class="p">,</span> <span class="n">wg</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">compute_shifts</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">times</span><span class="p">,</span> <span class="n">me</span><span class="p">,</span> <span class="n">first</span><span class="p">,</span> <span class="n">last</span><span class="p">,</span> <span class="n">iw</span><span class="p">,</span> <span class="n">wg</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Compute the cross-correlation between the video motion energy and the wheel velocity to find the mismatch</span>
 <span class="sd">        between the camera ttls and the video frames. This function is written to run in a parallel manner using</span>
@@ -851,7 +851,7 @@
 
 <div class="viewcode-block" id="MotionAlignmentFullSession.clean_shifts">
 <a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.video_motion.html#ibllib.io.extractors.video_motion.MotionAlignmentFullSession.clean_shifts">[docs]</a>
-    <span class="k">def</span> <span class="nf">clean_shifts</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">clean_shifts</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Removes artefacts from the computed shifts across time. We assume that the shifts should never increase</span>
 <span class="sd">        over time and that the jump between consecutive shifts shouldn&#39;t be greater than 1</span>
@@ -885,7 +885,7 @@
 
 <div class="viewcode-block" id="MotionAlignmentFullSession.qc_shifts">
 <a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.video_motion.html#ibllib.io.extractors.video_motion.MotionAlignmentFullSession.qc_shifts">[docs]</a>
-    <span class="k">def</span> <span class="nf">qc_shifts</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">shifts</span><span class="p">,</span> <span class="n">shifts_filt</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">qc_shifts</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">shifts</span><span class="p">,</span> <span class="n">shifts_filt</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Compute qc values for the wheel alignment. We consider 4 things</span>
 <span class="sd">        1. The number of camera ttl values that are missing (when we have less ttls than video frames)</span>
@@ -928,7 +928,7 @@
 
 <div class="viewcode-block" id="MotionAlignmentFullSession.extract_times">
 <a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.video_motion.html#ibllib.io.extractors.video_motion.MotionAlignmentFullSession.extract_times">[docs]</a>
-    <span class="k">def</span> <span class="nf">extract_times</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">shifts_filt</span><span class="p">,</span> <span class="n">t_shifts</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">extract_times</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">shifts_filt</span><span class="p">,</span> <span class="n">t_shifts</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Extracts new camera times after applying the computed shifts across the session</span>
 
@@ -954,7 +954,7 @@
 <div class="viewcode-block" id="MotionAlignmentFullSession.single_cluster_raster">
 <a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.video_motion.html#ibllib.io.extractors.video_motion.MotionAlignmentFullSession.single_cluster_raster">[docs]</a>
     <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">single_cluster_raster</span><span class="p">(</span><span class="n">spike_times</span><span class="p">,</span> <span class="n">events</span><span class="p">,</span> <span class="n">trial_idx</span><span class="p">,</span> <span class="n">dividers</span><span class="p">,</span> <span class="n">colors</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">weights</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fr</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">single_cluster_raster</span><span class="p">(</span><span class="n">spike_times</span><span class="p">,</span> <span class="n">events</span><span class="p">,</span> <span class="n">trial_idx</span><span class="p">,</span> <span class="n">dividers</span><span class="p">,</span> <span class="n">colors</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">weights</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fr</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                               <span class="n">norm</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">axs</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Compute and plot trial aligned spike rasters and psth</span>
@@ -1037,7 +1037,7 @@
 
 <div class="viewcode-block" id="MotionAlignmentFullSession.plot_with_behavior">
 <a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.video_motion.html#ibllib.io.extractors.video_motion.MotionAlignmentFullSession.plot_with_behavior">[docs]</a>
-    <span class="k">def</span> <span class="nf">plot_with_behavior</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">plot_with_behavior</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Makes a summary figure of the alignment when behaviour data is available</span>
 <span class="sd">        :return:</span>
@@ -1122,7 +1122,7 @@
 
 <div class="viewcode-block" id="MotionAlignmentFullSession.plot_without_behavior">
 <a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.video_motion.html#ibllib.io.extractors.video_motion.MotionAlignmentFullSession.plot_without_behavior">[docs]</a>
-    <span class="k">def</span> <span class="nf">plot_without_behavior</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">plot_without_behavior</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Makes a summary figure of the alignment when behaviour data is not available</span>
 <span class="sd">        :return:</span>
@@ -1173,7 +1173,7 @@
 
 <div class="viewcode-block" id="MotionAlignmentFullSession.process">
 <a class="viewcode-back" href="../../../../_autosummary/ibllib.io.extractors.video_motion.html#ibllib.io.extractors.video_motion.MotionAlignmentFullSession.process">[docs]</a>
-    <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Main function used to apply the video motion wheel alignment to the camera times. This function does the</span>
 <span class="sd">        following</span>

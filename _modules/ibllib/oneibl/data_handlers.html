@@ -6,7 +6,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ibllib.oneibl.data_handlers &mdash; IBL Library  documentation</title>
-      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=03e43079" />
       <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="../../../_static/copybutton.css?v=76b2166b" />
       <link rel="stylesheet" type="text/css" href="../../../_static/css/style.css?v=17142d56" />
@@ -114,24 +114,24 @@
 <span class="sd">present and to register and upload the output datasets.  For examples on how to run a task using</span>
 <span class="sd">specific data handlers, see :func:`ibllib.pipes.tasks`.</span>
 <span class="sd">&quot;&quot;&quot;</span>
-<span class="kn">import</span> <span class="nn">logging</span>
-<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
-<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span><span class="p">,</span> <span class="n">PurePosixPath</span>
-<span class="kn">import</span> <span class="nn">shutil</span>
-<span class="kn">import</span> <span class="nn">os</span>
-<span class="kn">import</span> <span class="nn">abc</span>
-<span class="kn">from</span> <span class="nn">time</span> <span class="kn">import</span> <span class="n">time</span>
-<span class="kn">from</span> <span class="nn">copy</span> <span class="kn">import</span> <span class="n">copy</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span><span class="p">,</span> <span class="n">PurePosixPath</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">shutil</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">abc</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">time</span><span class="w"> </span><span class="kn">import</span> <span class="n">time</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">copy</span><span class="w"> </span><span class="kn">import</span> <span class="n">copy</span>
 
-<span class="kn">from</span> <span class="nn">one.api</span> <span class="kn">import</span> <span class="n">ONE</span>
-<span class="kn">from</span> <span class="nn">one.webclient</span> <span class="kn">import</span> <span class="n">AlyxClient</span>
-<span class="kn">from</span> <span class="nn">one.util</span> <span class="kn">import</span> <span class="n">filter_datasets</span>
-<span class="kn">from</span> <span class="nn">one.alf.path</span> <span class="kn">import</span> <span class="n">add_uuid_string</span><span class="p">,</span> <span class="n">session_path_parts</span><span class="p">,</span> <span class="n">get_alf_path</span>
-<span class="kn">from</span> <span class="nn">one.alf.cache</span> <span class="kn">import</span> <span class="n">_make_datasets_df</span>
-<span class="kn">from</span> <span class="nn">iblutil.util</span> <span class="kn">import</span> <span class="n">flatten</span><span class="p">,</span> <span class="n">ensure_list</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">one.api</span><span class="w"> </span><span class="kn">import</span> <span class="n">ONE</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">one.webclient</span><span class="w"> </span><span class="kn">import</span> <span class="n">AlyxClient</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">one.util</span><span class="w"> </span><span class="kn">import</span> <span class="n">filter_datasets</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">one.alf.path</span><span class="w"> </span><span class="kn">import</span> <span class="n">add_uuid_string</span><span class="p">,</span> <span class="n">session_path_parts</span><span class="p">,</span> <span class="n">get_alf_path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">one.alf.cache</span><span class="w"> </span><span class="kn">import</span> <span class="n">_make_datasets_df</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">iblutil.util</span><span class="w"> </span><span class="kn">import</span> <span class="n">flatten</span><span class="p">,</span> <span class="n">ensure_list</span>
 
-<span class="kn">from</span> <span class="nn">ibllib.oneibl.registration</span> <span class="kn">import</span> <span class="n">register_dataset</span><span class="p">,</span> <span class="n">get_lab</span><span class="p">,</span> <span class="n">get_local_data_repository</span>
-<span class="kn">from</span> <span class="nn">ibllib.oneibl.patcher</span> <span class="kn">import</span> <span class="n">FTPPatcher</span><span class="p">,</span> <span class="n">SDSCPatcher</span><span class="p">,</span> <span class="n">SDSC_ROOT_PATH</span><span class="p">,</span> <span class="n">SDSC_PATCH_PATH</span><span class="p">,</span> <span class="n">S3Patcher</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ibllib.oneibl.registration</span><span class="w"> </span><span class="kn">import</span> <span class="n">register_dataset</span><span class="p">,</span> <span class="n">get_lab</span><span class="p">,</span> <span class="n">get_local_data_repository</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ibllib.oneibl.patcher</span><span class="w"> </span><span class="kn">import</span> <span class="n">FTPPatcher</span><span class="p">,</span> <span class="n">SDSCPatcher</span><span class="p">,</span> <span class="n">SDSC_ROOT_PATH</span><span class="p">,</span> <span class="n">SDSC_PATCH_PATH</span><span class="p">,</span> <span class="n">S3Patcher</span>
 
 
 <span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
@@ -139,11 +139,11 @@
 
 <div class="viewcode-block" id="ExpectedDataset">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.ExpectedDataset">[docs]</a>
-<span class="k">class</span> <span class="nc">ExpectedDataset</span><span class="p">:</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">ExpectedDataset</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;An expected input or output dataset.&quot;&quot;&quot;</span>
     <span class="n">inverted</span> <span class="o">=</span> <span class="kc">False</span>
 
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">collection</span><span class="p">,</span> <span class="n">register</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">revision</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">unique</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">collection</span><span class="p">,</span> <span class="n">register</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">revision</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">unique</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        An expected input or output dataset.</span>
 
@@ -175,19 +175,19 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">unique</span> <span class="o">=</span> <span class="n">unique</span>
 
     <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">register</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">register</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;bool: whether to register the output file.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_register</span>
 
     <span class="nd">@register</span><span class="o">.</span><span class="n">setter</span>
-    <span class="k">def</span> <span class="nf">register</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">register</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;bool: whether to register the output file.&quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">operator</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s1">&#39;cannot set register attribute for operator datasets&#39;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_register</span> <span class="o">=</span> <span class="n">value</span>
 
     <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">identifiers</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">identifiers</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;tuple: the identifying parts of the dataset.</span>
 
 <span class="sd">        If no operator is applied, the identifiers are (collection, revision, name).</span>
@@ -203,14 +203,14 @@
         <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">identifiers</span><span class="p">)</span>
 
     <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">glob_pattern</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">glob_pattern</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;str, tuple of str: one or more glob patterns.&quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">operator</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">PurePosixPath</span><span class="p">(</span><span class="o">*</span><span class="nb">filter</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_identifiers</span><span class="p">)))</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">flatten</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">glob_pattern</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_identifiers</span><span class="p">))</span>
 
-    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Represent the dataset object as a string.</span>
 
 <span class="sd">        If the `name` property is not None, it is returned, otherwise the identifies are used to</span>
@@ -231,7 +231,7 @@
 
 <div class="viewcode-block" id="ExpectedDataset.find_files">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.ExpectedDataset.find_files">[docs]</a>
-    <span class="k">def</span> <span class="nf">find_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_path</span><span class="p">,</span> <span class="n">register</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">find_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_path</span><span class="p">,</span> <span class="n">register</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Find files on disk.</span>
 
 <span class="sd">        Uses glob patterns to find dataset(s) on disk.</span>
@@ -312,7 +312,7 @@
 
 <div class="viewcode-block" id="ExpectedDataset.filter">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.ExpectedDataset.filter">[docs]</a>
-    <span class="k">def</span> <span class="nf">filter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_datasets</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">filter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_datasets</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Filter dataset frame by expected datasets.</span>
 
 <span class="sd">        Parameters</span>
@@ -364,7 +364,7 @@
         <span class="k">return</span> <span class="n">ok</span><span class="p">,</span> <span class="n">datasets</span></div>
 
 
-    <span class="k">def</span> <span class="nf">_apply_op</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">op</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_apply_op</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">op</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Apply an operation between two datasets.&quot;&quot;&quot;</span>
         <span class="c1"># Assert both instances of Input or both instances of Output</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
@@ -389,28 +389,28 @@
         <span class="n">d</span><span class="o">.</span><span class="n">operator</span> <span class="o">=</span> <span class="n">op</span>
         <span class="k">return</span> <span class="n">d</span>
 
-    <span class="k">def</span> <span class="fm">__invert__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__invert__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Assert dataset doesn&#39;t exist on disk.&quot;&quot;&quot;</span>
         <span class="n">obj</span> <span class="o">=</span> <span class="n">copy</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
         <span class="n">obj</span><span class="o">.</span><span class="n">inverted</span> <span class="o">=</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">inverted</span>
         <span class="k">return</span> <span class="n">obj</span>
 
-    <span class="k">def</span> <span class="fm">__or__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__or__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Assert either dataset exists or another does, or both exist.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_apply_op</span><span class="p">(</span><span class="s1">&#39;or&#39;</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="fm">__xor__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__xor__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Assert either dataset exists or another does, not both.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_apply_op</span><span class="p">(</span><span class="s1">&#39;xor&#39;</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="fm">__and__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__and__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Assert that a second dataset exists together with the first.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_apply_op</span><span class="p">(</span><span class="s1">&#39;and&#39;</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span>
 
 <div class="viewcode-block" id="ExpectedDataset.input">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.ExpectedDataset.input">[docs]</a>
     <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">input</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">collection</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">register</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">input</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">collection</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">register</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Create an expected input dataset.</span>
 
@@ -445,7 +445,7 @@
 <div class="viewcode-block" id="ExpectedDataset.output">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.ExpectedDataset.output">[docs]</a>
     <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">output</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">collection</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">register</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">output</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">collection</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">register</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Create an expected output dataset.</span>
 
@@ -481,12 +481,12 @@
 
 <div class="viewcode-block" id="OptionalDataset">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.OptionalDataset">[docs]</a>
-<span class="k">class</span> <span class="nc">OptionalDataset</span><span class="p">(</span><span class="n">ExpectedDataset</span><span class="p">):</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">OptionalDataset</span><span class="p">(</span><span class="n">ExpectedDataset</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;An expected dataset that is not strictly required.&quot;&quot;&quot;</span>
 
 <div class="viewcode-block" id="OptionalDataset.find_files">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.OptionalDataset.find_files">[docs]</a>
-    <span class="k">def</span> <span class="nf">find_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_path</span><span class="p">,</span> <span class="n">register</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">find_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_path</span><span class="p">,</span> <span class="n">register</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Find files on disk.</span>
 
 <span class="sd">        Uses glob patterns to find dataset(s) on disk.</span>
@@ -523,7 +523,7 @@
 
 <div class="viewcode-block" id="OptionalDataset.filter">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.OptionalDataset.filter">[docs]</a>
-    <span class="k">def</span> <span class="nf">filter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_datasets</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">filter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_datasets</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Filter dataset frame by expected datasets.</span>
 
 <span class="sd">        Parameters</span>
@@ -549,7 +549,7 @@
 
 <div class="viewcode-block" id="Input">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.Input">[docs]</a>
-<span class="k">class</span> <span class="nc">Input</span><span class="p">(</span><span class="n">ExpectedDataset</span><span class="p">):</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Input</span><span class="p">(</span><span class="n">ExpectedDataset</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;An expected input dataset.&quot;&quot;&quot;</span>
     <span class="k">pass</span></div>
 
@@ -557,7 +557,7 @@
 
 <div class="viewcode-block" id="OptionalInput">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.OptionalInput">[docs]</a>
-<span class="k">class</span> <span class="nc">OptionalInput</span><span class="p">(</span><span class="n">Input</span><span class="p">,</span> <span class="n">OptionalDataset</span><span class="p">):</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">OptionalInput</span><span class="p">(</span><span class="n">Input</span><span class="p">,</span> <span class="n">OptionalDataset</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;An optional expected input dataset.&quot;&quot;&quot;</span>
     <span class="k">pass</span></div>
 
@@ -565,7 +565,7 @@
 
 <div class="viewcode-block" id="Output">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.Output">[docs]</a>
-<span class="k">class</span> <span class="nc">Output</span><span class="p">(</span><span class="n">ExpectedDataset</span><span class="p">):</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Output</span><span class="p">(</span><span class="n">ExpectedDataset</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;An expected output dataset.&quot;&quot;&quot;</span>
     <span class="k">pass</span></div>
 
@@ -573,13 +573,13 @@
 
 <div class="viewcode-block" id="OptionalOutput">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.OptionalOutput">[docs]</a>
-<span class="k">class</span> <span class="nc">OptionalOutput</span><span class="p">(</span><span class="n">Output</span><span class="p">,</span> <span class="n">OptionalDataset</span><span class="p">):</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">OptionalOutput</span><span class="p">(</span><span class="n">Output</span><span class="p">,</span> <span class="n">OptionalDataset</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;An optional expected output dataset.&quot;&quot;&quot;</span>
     <span class="k">pass</span></div>
 
 
 
-<span class="k">def</span> <span class="nf">_parse_signature</span><span class="p">(</span><span class="n">signature</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_parse_signature</span><span class="p">(</span><span class="n">signature</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Ensure all a signature&#39;s expected datasets are instances of ExpectedDataset.</span>
 
@@ -602,7 +602,7 @@
 
 <div class="viewcode-block" id="dataset_from_name">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.dataset_from_name">[docs]</a>
-<span class="k">def</span> <span class="nf">dataset_from_name</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">datasets</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">dataset_from_name</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">datasets</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    From a list of ExpectedDataset instances, return those that match a given name.</span>
 
@@ -632,7 +632,7 @@
 
 <div class="viewcode-block" id="update_collections">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.update_collections">[docs]</a>
-<span class="k">def</span> <span class="nf">update_collections</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span> <span class="n">new_collection</span><span class="p">,</span> <span class="n">substring</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">unique</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">update_collections</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span> <span class="n">new_collection</span><span class="p">,</span> <span class="n">substring</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">unique</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Update the collection of a dataset.</span>
 
@@ -681,8 +681,8 @@
 
 <div class="viewcode-block" id="DataHandler">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.DataHandler">[docs]</a>
-<span class="k">class</span> <span class="nc">DataHandler</span><span class="p">(</span><span class="n">abc</span><span class="o">.</span><span class="n">ABC</span><span class="p">):</span>
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_path</span><span class="p">,</span> <span class="n">signature</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">DataHandler</span><span class="p">(</span><span class="n">abc</span><span class="o">.</span><span class="n">ABC</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_path</span><span class="p">,</span> <span class="n">signature</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Base data handler class</span>
 <span class="sd">        :param session_path: path to session</span>
@@ -696,14 +696,14 @@
 
 <div class="viewcode-block" id="DataHandler.setUp">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.DataHandler.setUp">[docs]</a>
-    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Function to optionally overload to download required data to run task.&quot;&quot;&quot;</span>
         <span class="k">pass</span></div>
 
 
 <div class="viewcode-block" id="DataHandler.getData">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.DataHandler.getData">[docs]</a>
-    <span class="k">def</span> <span class="nf">getData</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">getData</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Finds the datasets required for task based on input signatures.</span>
 
 <span class="sd">        Parameters</span>
@@ -727,7 +727,7 @@
 
 <div class="viewcode-block" id="DataHandler.getOutputFiles">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.DataHandler.getOutputFiles">[docs]</a>
-    <span class="k">def</span> <span class="nf">getOutputFiles</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">getOutputFiles</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Return a data frame of output datasets found on disk.</span>
 
@@ -749,7 +749,7 @@
 
 <div class="viewcode-block" id="DataHandler.uploadData">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.DataHandler.uploadData">[docs]</a>
-    <span class="k">def</span> <span class="nf">uploadData</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">outputs</span><span class="p">,</span> <span class="n">version</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">uploadData</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">outputs</span><span class="p">,</span> <span class="n">version</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Function to optionally overload to upload and register data</span>
 <span class="sd">        :param outputs: output files from task to register</span>
@@ -766,7 +766,7 @@
 
 <div class="viewcode-block" id="DataHandler.cleanUp">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.DataHandler.cleanUp">[docs]</a>
-    <span class="k">def</span> <span class="nf">cleanUp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">cleanUp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Function to optionally overload to clean up files after running task.&quot;&quot;&quot;</span>
         <span class="k">pass</span></div>
 </div>
@@ -775,8 +775,8 @@
 
 <div class="viewcode-block" id="LocalDataHandler">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.LocalDataHandler">[docs]</a>
-<span class="k">class</span> <span class="nc">LocalDataHandler</span><span class="p">(</span><span class="n">DataHandler</span><span class="p">):</span>
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_path</span><span class="p">,</span> <span class="n">signatures</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">LocalDataHandler</span><span class="p">(</span><span class="n">DataHandler</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_path</span><span class="p">,</span> <span class="n">signatures</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Data handler for running tasks locally, with no architecture or db connection</span>
 <span class="sd">        :param session_path: path to session</span>
@@ -789,8 +789,8 @@
 
 <div class="viewcode-block" id="ServerDataHandler">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.ServerDataHandler">[docs]</a>
-<span class="k">class</span> <span class="nc">ServerDataHandler</span><span class="p">(</span><span class="n">DataHandler</span><span class="p">):</span>
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_path</span><span class="p">,</span> <span class="n">signatures</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">ServerDataHandler</span><span class="p">(</span><span class="n">DataHandler</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_path</span><span class="p">,</span> <span class="n">signatures</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Data handler for running tasks on lab local servers when all data is available locally</span>
 
@@ -802,7 +802,7 @@
 
 <div class="viewcode-block" id="ServerDataHandler.uploadData">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.ServerDataHandler.uploadData">[docs]</a>
-    <span class="k">def</span> <span class="nf">uploadData</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">outputs</span><span class="p">,</span> <span class="n">version</span><span class="p">,</span> <span class="n">clobber</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">uploadData</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">outputs</span><span class="p">,</span> <span class="n">version</span><span class="p">,</span> <span class="n">clobber</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Upload and/or register output data.</span>
 
@@ -839,7 +839,7 @@
 
 <div class="viewcode-block" id="ServerDataHandler.cleanUp">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.ServerDataHandler.cleanUp">[docs]</a>
-    <span class="k">def</span> <span class="nf">cleanUp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">_</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">cleanUp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">_</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Empties and returns the processed dataset mep.&quot;&quot;&quot;</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">cleanUp</span><span class="p">()</span>
         <span class="n">processed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">processed</span>
@@ -851,8 +851,8 @@
 
 <div class="viewcode-block" id="ServerGlobusDataHandler">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.ServerGlobusDataHandler">[docs]</a>
-<span class="k">class</span> <span class="nc">ServerGlobusDataHandler</span><span class="p">(</span><span class="n">DataHandler</span><span class="p">):</span>
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_path</span><span class="p">,</span> <span class="n">signatures</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">ServerGlobusDataHandler</span><span class="p">(</span><span class="n">DataHandler</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_path</span><span class="p">,</span> <span class="n">signatures</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Data handler for running tasks on lab local servers. Will download missing data from SDSC using Globus</span>
 
@@ -860,7 +860,7 @@
 <span class="sd">        :param signatures: input and output file signatures</span>
 <span class="sd">        :param one: ONE instance</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="kn">from</span> <span class="nn">one.remote.globus</span> <span class="kn">import</span> <span class="n">Globus</span><span class="p">,</span> <span class="n">get_lab_from_endpoint_id</span>  <span class="c1"># noqa</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">one.remote.globus</span><span class="w"> </span><span class="kn">import</span> <span class="n">Globus</span><span class="p">,</span> <span class="n">get_lab_from_endpoint_id</span>  <span class="c1"># noqa</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">signatures</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">globus</span> <span class="o">=</span> <span class="n">Globus</span><span class="p">(</span><span class="n">client_name</span><span class="o">=</span><span class="s1">&#39;server&#39;</span><span class="p">,</span> <span class="n">headless</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
@@ -881,7 +881,7 @@
 
 <div class="viewcode-block" id="ServerGlobusDataHandler.setUp">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.ServerGlobusDataHandler.setUp">[docs]</a>
-    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">_</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">_</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Function to download necessary data to run tasks using globus-sdk.&quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">lab</span> <span class="o">==</span> <span class="s1">&#39;cortexlab&#39;</span> <span class="ow">and</span> <span class="s1">&#39;cortexlab&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">base_url</span><span class="p">:</span>
             <span class="n">df</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">getData</span><span class="p">(</span><span class="n">one</span><span class="o">=</span><span class="n">ONE</span><span class="p">(</span><span class="n">base_url</span><span class="o">=</span><span class="s1">&#39;https://alyx.internationalbrainlab.org&#39;</span><span class="p">,</span> <span class="n">cache_rest</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">cache_mode</span><span class="p">))</span>
@@ -921,7 +921,7 @@
 
 <div class="viewcode-block" id="ServerGlobusDataHandler.uploadData">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.ServerGlobusDataHandler.uploadData">[docs]</a>
-    <span class="k">def</span> <span class="nf">uploadData</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">outputs</span><span class="p">,</span> <span class="n">version</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">uploadData</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">outputs</span><span class="p">,</span> <span class="n">version</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Function to upload and register data of completed task</span>
 <span class="sd">        :param outputs: output files from task to register</span>
@@ -935,7 +935,7 @@
 
 <div class="viewcode-block" id="ServerGlobusDataHandler.cleanUp">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.ServerGlobusDataHandler.cleanUp">[docs]</a>
-    <span class="k">def</span> <span class="nf">cleanUp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">_</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">cleanUp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">_</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Clean up, remove the files that were downloaded from Globus once task has completed.&quot;&quot;&quot;</span>
         <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">local_paths</span><span class="p">:</span>
             <span class="n">os</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">file</span><span class="p">)</span></div>
@@ -945,8 +945,8 @@
 
 <div class="viewcode-block" id="RemoteEC2DataHandler">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.RemoteEC2DataHandler">[docs]</a>
-<span class="k">class</span> <span class="nc">RemoteEC2DataHandler</span><span class="p">(</span><span class="n">DataHandler</span><span class="p">):</span>
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_path</span><span class="p">,</span> <span class="n">signature</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">RemoteEC2DataHandler</span><span class="p">(</span><span class="n">DataHandler</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_path</span><span class="p">,</span> <span class="n">signature</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Data handler for running tasks on remote compute node. Will download missing data via http using ONE</span>
 
@@ -958,7 +958,7 @@
 
 <div class="viewcode-block" id="RemoteEC2DataHandler.setUp">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.RemoteEC2DataHandler.setUp">[docs]</a>
-    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">_</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">_</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Function to download necessary data to run tasks using ONE</span>
 <span class="sd">        :return:</span>
@@ -969,7 +969,7 @@
 
 <div class="viewcode-block" id="RemoteEC2DataHandler.uploadData">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.RemoteEC2DataHandler.uploadData">[docs]</a>
-    <span class="k">def</span> <span class="nf">uploadData</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">outputs</span><span class="p">,</span> <span class="n">version</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">uploadData</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">outputs</span><span class="p">,</span> <span class="n">version</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Function to upload and register data of completed task via S3 patcher</span>
 <span class="sd">        :param outputs: output files from task to register</span>
@@ -986,8 +986,8 @@
 
 <div class="viewcode-block" id="RemoteHttpDataHandler">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.RemoteHttpDataHandler">[docs]</a>
-<span class="k">class</span> <span class="nc">RemoteHttpDataHandler</span><span class="p">(</span><span class="n">DataHandler</span><span class="p">):</span>
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_path</span><span class="p">,</span> <span class="n">signature</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">RemoteHttpDataHandler</span><span class="p">(</span><span class="n">DataHandler</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_path</span><span class="p">,</span> <span class="n">signature</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Data handler for running tasks on remote compute node. Will download missing data via http using ONE</span>
 
@@ -999,7 +999,7 @@
 
 <div class="viewcode-block" id="RemoteHttpDataHandler.setUp">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.RemoteHttpDataHandler.setUp">[docs]</a>
-    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">_</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">_</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Function to download necessary data to run tasks using ONE</span>
 <span class="sd">        :return:</span>
@@ -1010,7 +1010,7 @@
 
 <div class="viewcode-block" id="RemoteHttpDataHandler.uploadData">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.RemoteHttpDataHandler.uploadData">[docs]</a>
-    <span class="k">def</span> <span class="nf">uploadData</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">outputs</span><span class="p">,</span> <span class="n">version</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">uploadData</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">outputs</span><span class="p">,</span> <span class="n">version</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Function to upload and register data of completed task via FTP patcher</span>
 <span class="sd">        :param outputs: output files from task to register</span>
@@ -1027,8 +1027,8 @@
 
 <div class="viewcode-block" id="RemoteAwsDataHandler">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.RemoteAwsDataHandler">[docs]</a>
-<span class="k">class</span> <span class="nc">RemoteAwsDataHandler</span><span class="p">(</span><span class="n">DataHandler</span><span class="p">):</span>
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_path</span><span class="p">,</span> <span class="n">signature</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">RemoteAwsDataHandler</span><span class="p">(</span><span class="n">DataHandler</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_path</span><span class="p">,</span> <span class="n">signature</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Data handler for running tasks on remote compute node.</span>
 
@@ -1044,7 +1044,7 @@
 
 <div class="viewcode-block" id="RemoteAwsDataHandler.setUp">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.RemoteAwsDataHandler.setUp">[docs]</a>
-    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">_</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">_</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Function to download necessary data to run tasks using AWS boto3.&quot;&quot;&quot;</span>
         <span class="n">df</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">getData</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">local_paths</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">_download_aws</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">df</span><span class="o">.</span><span class="n">iterrows</span><span class="p">()))</span></div>
@@ -1052,7 +1052,7 @@
 
 <div class="viewcode-block" id="RemoteAwsDataHandler.uploadData">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.RemoteAwsDataHandler.uploadData">[docs]</a>
-    <span class="k">def</span> <span class="nf">uploadData</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">outputs</span><span class="p">,</span> <span class="n">version</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">uploadData</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">outputs</span><span class="p">,</span> <span class="n">version</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Function to upload and register data of completed task via FTP patcher</span>
 <span class="sd">        :param outputs: output files from task to register</span>
@@ -1060,7 +1060,7 @@
 <span class="sd">        :return: output info of registered datasets</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># Set up Globus</span>
-        <span class="kn">from</span> <span class="nn">one.remote.globus</span> <span class="kn">import</span> <span class="n">Globus</span> <span class="c1"># noqa</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">one.remote.globus</span><span class="w"> </span><span class="kn">import</span> <span class="n">Globus</span> <span class="c1"># noqa</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">globus</span> <span class="o">=</span> <span class="n">Globus</span><span class="p">(</span><span class="n">client_name</span><span class="o">=</span><span class="s1">&#39;server&#39;</span><span class="p">,</span> <span class="n">headless</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">lab</span> <span class="o">=</span> <span class="n">session_path_parts</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">as_dict</span><span class="o">=</span><span class="kc">True</span><span class="p">)[</span><span class="s1">&#39;lab&#39;</span><span class="p">]</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">lab</span> <span class="o">==</span> <span class="s1">&#39;cortexlab&#39;</span> <span class="ow">and</span> <span class="s1">&#39;cortexlab&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">base_url</span><span class="p">:</span>
@@ -1129,7 +1129,7 @@
 
 <div class="viewcode-block" id="RemoteAwsDataHandler.cleanUp">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.RemoteAwsDataHandler.cleanUp">[docs]</a>
-    <span class="k">def</span> <span class="nf">cleanUp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">cleanUp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Clean up, remove the files that were downloaded from globus once task has completed.&quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">task</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
             <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">local_paths</span><span class="p">:</span>
@@ -1140,7 +1140,7 @@
 
 <div class="viewcode-block" id="RemoteGlobusDataHandler">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.RemoteGlobusDataHandler">[docs]</a>
-<span class="k">class</span> <span class="nc">RemoteGlobusDataHandler</span><span class="p">(</span><span class="n">DataHandler</span><span class="p">):</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">RemoteGlobusDataHandler</span><span class="p">(</span><span class="n">DataHandler</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Data handler for running tasks on remote compute node. Will download missing data using Globus.</span>
 
@@ -1148,12 +1148,12 @@
 <span class="sd">    :param signature: input and output file signatures</span>
 <span class="sd">    :param one: ONE instance</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_path</span><span class="p">,</span> <span class="n">signature</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_path</span><span class="p">,</span> <span class="n">signature</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">signature</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">)</span>
 
 <div class="viewcode-block" id="RemoteGlobusDataHandler.setUp">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.RemoteGlobusDataHandler.setUp">[docs]</a>
-    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">_</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">_</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Function to download necessary data to run tasks using globus.&quot;&quot;&quot;</span>
         <span class="c1"># TODO</span>
         <span class="k">pass</span></div>
@@ -1161,7 +1161,7 @@
 
 <div class="viewcode-block" id="RemoteGlobusDataHandler.uploadData">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.RemoteGlobusDataHandler.uploadData">[docs]</a>
-    <span class="k">def</span> <span class="nf">uploadData</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">outputs</span><span class="p">,</span> <span class="n">version</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">uploadData</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">outputs</span><span class="p">,</span> <span class="n">version</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Function to upload and register data of completed task via FTP patcher</span>
 <span class="sd">        :param outputs: output files from task to register</span>
@@ -1178,7 +1178,7 @@
 
 <div class="viewcode-block" id="SDSCDataHandler">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.SDSCDataHandler">[docs]</a>
-<span class="k">class</span> <span class="nc">SDSCDataHandler</span><span class="p">(</span><span class="n">DataHandler</span><span class="p">):</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">SDSCDataHandler</span><span class="p">(</span><span class="n">DataHandler</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Data handler for running tasks on SDSC compute node</span>
 
@@ -1187,14 +1187,14 @@
 <span class="sd">    :param one: ONE instance</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_path</span><span class="p">,</span> <span class="n">signatures</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_path</span><span class="p">,</span> <span class="n">signatures</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">signatures</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">patch_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s1">&#39;SDSC_PATCH_PATH&#39;</span><span class="p">,</span> <span class="n">SDSC_PATCH_PATH</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">root_path</span> <span class="o">=</span> <span class="n">SDSC_ROOT_PATH</span>
 
 <div class="viewcode-block" id="SDSCDataHandler.setUp">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.SDSCDataHandler.setUp">[docs]</a>
-    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Function to create symlinks to necessary data to run tasks.&quot;&quot;&quot;</span>
         <span class="n">df</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">getData</span><span class="p">()</span>
 
@@ -1216,7 +1216,7 @@
 
 <div class="viewcode-block" id="SDSCDataHandler.uploadData">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.SDSCDataHandler.uploadData">[docs]</a>
-    <span class="k">def</span> <span class="nf">uploadData</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">outputs</span><span class="p">,</span> <span class="n">version</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">uploadData</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">outputs</span><span class="p">,</span> <span class="n">version</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Function to upload and register data of completed task via SDSC patcher</span>
 <span class="sd">        :param outputs: output files from task to register</span>
@@ -1230,7 +1230,7 @@
 
 <div class="viewcode-block" id="SDSCDataHandler.cleanUp">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.SDSCDataHandler.cleanUp">[docs]</a>
-    <span class="k">def</span> <span class="nf">cleanUp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">cleanUp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Function to clean up symlinks created to run task.&quot;&quot;&quot;</span>
         <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">patch_path</span><span class="o">.</span><span class="n">parts</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">4</span><span class="p">]</span> <span class="o">==</span> <span class="n">task</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">parts</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">4</span><span class="p">]</span>
         <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span></div>
@@ -1240,16 +1240,16 @@
 
 <div class="viewcode-block" id="PopeyeDataHandler">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.PopeyeDataHandler">[docs]</a>
-<span class="k">class</span> <span class="nc">PopeyeDataHandler</span><span class="p">(</span><span class="n">SDSCDataHandler</span><span class="p">):</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">PopeyeDataHandler</span><span class="p">(</span><span class="n">SDSCDataHandler</span><span class="p">):</span>
 
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_path</span><span class="p">,</span> <span class="n">signatures</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_path</span><span class="p">,</span> <span class="n">signatures</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">signatures</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">patch_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s1">&#39;SDSC_PATCH_PATH&#39;</span><span class="p">,</span> <span class="s2">&quot;/mnt/sdceph/users/ibl/data/quarantine/tasks/&quot;</span><span class="p">))</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">root_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;/mnt/sdceph/users/ibl/data&quot;</span><span class="p">)</span>
 
 <div class="viewcode-block" id="PopeyeDataHandler.uploadData">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.PopeyeDataHandler.uploadData">[docs]</a>
-    <span class="k">def</span> <span class="nf">uploadData</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">outputs</span><span class="p">,</span> <span class="n">version</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">uploadData</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">outputs</span><span class="p">,</span> <span class="n">version</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
             <span class="s2">&quot;Cannot register data from Popeye. Login as Datauser and use the RegisterSpikeSortingSDSC task.&quot;</span>
         <span class="p">)</span></div>
@@ -1257,7 +1257,7 @@
 
 <div class="viewcode-block" id="PopeyeDataHandler.cleanUp">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.PopeyeDataHandler.cleanUp">[docs]</a>
-    <span class="k">def</span> <span class="nf">cleanUp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">_</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">cleanUp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">_</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Symlinks are preserved until registration.&quot;&quot;&quot;</span>
         <span class="k">pass</span></div>
 </div>
