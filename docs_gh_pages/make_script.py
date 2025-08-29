@@ -1,4 +1,6 @@
 import os
+os.environ["TQDM_DISABLE"] = "1"  # noqa
+
 import sys
 import shutil
 import argparse
@@ -8,7 +10,6 @@ from pathlib import Path
 from iblutil.util import setup_logger
 from scripts.execute_notebooks import process_notebooks
 
-os.environ["TQDM_DISABLE"] = "1"
 _logger = setup_logger(name='íbllib', level=20)
 
 root = Path.cwd()

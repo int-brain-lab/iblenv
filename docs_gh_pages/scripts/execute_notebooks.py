@@ -17,7 +17,7 @@ import sphinx_gallery.gen_gallery as gg
 _logger = logging.getLogger('íbllib')
 IPYTHON_VERSION = 4
 TIMEOUT_CELLS = 1200
-
+PATH_EXTERNAL_NOTEBOOKS = Path(__file__).parent.parent.joinpath('notebooks_external')
 
 class NotebookConverter(object):
 
@@ -37,7 +37,7 @@ class NotebookConverter(object):
             Kernel to use to run notebooks. If not specified defaults to 'python3'
         """
         self.nb_path = Path(nb_path).absolute()
-        self.nb_link_path = Path(__file__).parent.parent.joinpath('notebooks_external')
+        self.nb_link_path = PATH_EXTERNAL_NOTEBOOKS
         os.makedirs(self.nb_link_path, exist_ok=True)
         self.nb = self.nb_path.parts[-1]
         self.nb_dir = self.nb_path.parent
@@ -296,7 +296,12 @@ def process_notebooks(nbfile_or_path, execute=True, force=False, link=False, cle
                             # If cleanup then we want to delete this file
                             if cleanup:
                                 os.remove(full_path)
-
+                elif ext in ['.md', '.rst']:
+                    # the rst or md files are just copied over
+                    if link:
+                        shutil.copy(full_path, PATH_EXTERNAL_NOTEBOOKS.joinpath(Path(full_path).name))
+                    # if cleanup:
+                    #     PATH_EXTERNAL_NOTEBOOKS.joinpath(Path(full_path).name).unlink()
     else:
         full_path = Path(nbfile_or_path)
         ext = full_path.suffix

@@ -62,13 +62,12 @@ To have a clean output in the documentation, it is recommended to disable the lo
 
 ```python
 # Turn off logging and disable tqdm this is a hidden cell on docs page
-import logging
 import os
+os.environ["TQDM_DISABLE"] = "1"
+import logging
 
 logger = logging.getLogger('ibllib')
 logger.setLevel(logging.CRITICAL)
-
-os.environ["TQDM_DISABLE"] = "1"
 ```
 
 ## Making documentation using github actions
@@ -99,6 +98,7 @@ The new docs will then be deployed to the main documnetation website https://int
 ### Install dependencies to build the website locally
 Activate your iblenv environment first and install the dependencies on top using pip
 ```shell
+sudo apt-get install pandoc
 pip install -r ./docs_gh_pages/requirements-docs.txt
 ```
 
