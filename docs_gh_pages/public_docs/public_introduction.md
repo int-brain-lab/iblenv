@@ -1,4 +1,4 @@
-# Publicly available IBL data
+# Publicly Available IBL Data
 
 ## Introduction to the IBL experiments
 The aim of the International Brain Laboratory (IBL) is to understand the brain functions 
