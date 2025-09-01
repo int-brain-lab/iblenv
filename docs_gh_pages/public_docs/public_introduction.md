@@ -25,6 +25,7 @@ Neuropixels, Mesoscope, Fiberfluorophotometry, Widefield Imaging techniques all 
 Our most advanced project as of now is the one involving Neuropixels recordings.
 
 ### Neuropixels datasets
+
 The data consists of neurophysiological and behavior measurements acquired in mice, using Neuropixels probes.
 In a single recording session, up to two Neuropixels probes (labelled typically `probe00` or `probe01`)
 are inserted in the mouse's brain. The location of these probes in the brain will vary from mouse to mouse, as the
@@ -38,28 +39,3 @@ At the end of a Neuropixels recording session, some stimuli are replayed whilst 
 Once acquired, the data are centralised onto a single computer, and processed (using heavy algorithms, such as
 Deep Lab Cut for tracking points on video data, or pyKilosort for detecting and sorting the spikes of cells on the ephys traces),
 before being sent and stored onto our centralised database (see our [article on data architecture ](https://www.biorxiv.org/content/10.1101/827873v3) for details).
-
-
-## What is available for download
-
-### Behavioral data associated to our 2020 publication
-The IBL has released all of the behavior sessions associated with the publication 
-[Standardized and reproducible measurement of decision-making in mice](https://elifesciences.org/articles/63711)
-via ONE and Datajoint. 
-* Please follow this [link](../notebooks_external/data_release_behavior) for instructions on how to access this data
-
-### Pilot neuropixels datasets
-The IBL has released a handful of pilot datasets that are available for download through ONE. 
-* Please follow this [link](data_release_pilot) to explore these datasets 
-
-### Reproducible ephys data associated with our 2022 preprint
-The IBL has released all data associated with the preprint [Reproducibility of in vivo electrophysiological measurements in mice](https://www.biorxiv.org/content/10.1101/2022.05.09.491042v3). 
-* Please follow this [link](../notebooks_external/data_release_repro_ephys) to access this data
-
-
-### Brain wide map data release - Q4 2022
-The IBL has released all data described in our [technical paper](https://doi.org/10.6084/m9.figshare.21400815). 
-* Please follow this [link](../notebooks_external/data_release_brainwidemap) to access this data
-
-### Coming soon: benchmark dataset for spike sorting
-A list of insertion for which we will provide benchmarks is available [here](../notebooks_external/data_release_spikesorting_benchmarks).

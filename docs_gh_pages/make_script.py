@@ -27,7 +27,7 @@ nb_path_external = [# Path(root.parent.parent).joinpath('ibllib-repo', 'examples
 external_file_patterns = ['loading', 'atlas', 'data', 'data', 'docs_wheel', 'quickstart']
 
 
-def make_documentation(execute, force, documentation, clean, specific, github, message, pre_clean):
+def make_documentation(execute, force, documentation, clean, specific, github, message, pre_clean, serve=False):
 
     # Clean up any nblink files
     nb_external_files = root.joinpath('notebooks_external').glob('*')
@@ -91,6 +91,8 @@ def make_documentation(execute, force, documentation, clean, specific, github, m
         os.system("make clean")
         _logger.info("Making documentation")
         os.system("make html")
+        print("Documentation built successfully, to serve the site locally, run the following command:")
+        print("python -m http.server -d ./_build/html")
         sys.exit(0)
 
     if pre_clean:
