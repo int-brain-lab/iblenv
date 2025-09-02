@@ -46,25 +46,33 @@ IBL has released a suite of tools to process and visualize our data.
 
    notebooks_external/one_quickstart
    Full documentation Website for ONE <https://int-brain-lab.github.io/ONE/>
+   public_docs/public_introduction
+   public_docs/dataset_overview
 
 .. toctree::
    :hidden:
-   :caption: Public
+   :caption: Datasets - Collaboration
    :maxdepth: 1
 
-   public_docs/public_introduction
-   notebooks_external/data_release_behavior
+   notebooks_external/2025_data_release_brainwidemap
+   notebooks_external/2024_data_release_repro_ephys
+   notebooks_external/2021_data_release_behavior
+
+.. toctree::
+   :hidden:
+   :caption: Datasets - Projects
+   :maxdepth: 1
+
+   notebooks_external/2025_data_release_autism_noel
+   notebooks_external/2022_data_release_spikesorting_benchmarks
    public_docs/data_release_pilot
-   notebooks_external/data_release_repro_ephys
-   notebooks_external/data_release_brainwidemap
-   notebooks_external/data_release_spikesorting_benchmarks
-   public_docs/information_contact
 
 .. toctree::
    :hidden:
    :caption: Exploring IBL Data
    :maxdepth: 1
 
+   02_installation
    notebooks_external/data_structure
    notebooks_external/data_download
    loading_examples
@@ -75,8 +83,8 @@ IBL has released a suite of tools to process and visualize our data.
    :caption: Miscellaneous
    :maxdepth: 1
 
-   02_installation
    09_contribution
+   public_docs/information_contact
 
 .. toctree::
    :hidden:

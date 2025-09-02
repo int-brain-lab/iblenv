@@ -32,7 +32,15 @@ The link should be made by adding in the following line `notebooks_external\name
 An example implementation can be seen in the `06_examples.rst` file
 
 ## Making documentation
-### Install dependencies to build the website locally
+### Prepare build environment
+At the same level of the `iblenv` repository, clone and install in editable mode the repositories containing external documentation notebooks:
+
+```shell
+git clone git@github.com:int-brain-lab/ibllib.git ./ibllib-repo  # it expects the repository in this folder
+git clone git@github.com:int-brain-lab/ONE
+git clone git@github.com:int-brain-lab/iblatlas
+```
+
 ```shell
 pip install -r ./docs_gh_pages/requirements-docs.txt
 ```
