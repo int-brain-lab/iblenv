@@ -126,7 +126,7 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">one.api</span><span class="w"> </span><span class="kn">import</span> <span class="n">ONE</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">one.webclient</span><span class="w"> </span><span class="kn">import</span> <span class="n">AlyxClient</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">one.util</span><span class="w"> </span><span class="kn">import</span> <span class="n">filter_datasets</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">one.alf.path</span><span class="w"> </span><span class="kn">import</span> <span class="n">add_uuid_string</span><span class="p">,</span> <span class="n">session_path_parts</span><span class="p">,</span> <span class="n">get_alf_path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">one.alf.path</span><span class="w"> </span><span class="kn">import</span> <span class="n">add_uuid_string</span><span class="p">,</span> <span class="n">get_alf_path</span><span class="p">,</span> <span class="n">ensure_alf_path</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">one.alf.cache</span><span class="w"> </span><span class="kn">import</span> <span class="n">_make_datasets_df</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">iblutil.util</span><span class="w"> </span><span class="kn">import</span> <span class="n">flatten</span><span class="p">,</span> <span class="n">ensure_list</span>
 
@@ -257,6 +257,7 @@
 <span class="sd">        - Currently if `unique` is true and multiple files are found, all files are returned without an exception raised</span>
 <span class="sd">          although this may change in the future.</span>
 <span class="sd">        - If `register` is false, all files are returned regardless of whether they are intended to be registered.</span>
+<span class="sd">        - If `register` is true, an input with register=True may not be returned if part of an OR operation.</span>
 <span class="sd">        - If `inverted` is true, and files are found, the glob pattern is returned as missing.</span>
 <span class="sd">        - If XOR, returns all patterns if all are present when only one should be, otherwise returns all missing</span>
 <span class="sd">          patterns.</span>
@@ -277,7 +278,7 @@
                 <span class="n">missing</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">glob_pattern</span>
         <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">operator</span> <span class="o">==</span> <span class="s1">&#39;and&#39;</span><span class="p">:</span>
             <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_identifiers</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span>
-            <span class="n">_ok</span><span class="p">,</span> <span class="n">_actual_files</span><span class="p">,</span> <span class="n">_missing</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">find_files</span><span class="p">(</span><span class="n">session_path</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_identifiers</span><span class="p">))</span>
+            <span class="n">_ok</span><span class="p">,</span> <span class="n">_actual_files</span><span class="p">,</span> <span class="n">_missing</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">find_files</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">register</span><span class="o">=</span><span class="n">register</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_identifiers</span><span class="p">))</span>
             <span class="n">ok</span> <span class="o">=</span> <span class="nb">all</span><span class="p">(</span><span class="n">_ok</span><span class="p">)</span>
             <span class="n">actual_files</span> <span class="o">=</span> <span class="n">flatten</span><span class="p">(</span><span class="n">_actual_files</span><span class="p">)</span>
             <span class="n">missing</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">flatten</span><span class="p">(</span><span class="n">_missing</span><span class="p">)))</span>
@@ -285,14 +286,14 @@
             <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_identifiers</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span>
             <span class="n">missing</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
             <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_identifiers</span><span class="p">:</span>
-                <span class="n">ok</span><span class="p">,</span> <span class="n">actual_files</span><span class="p">,</span> <span class="n">_missing</span> <span class="o">=</span> <span class="n">d</span><span class="o">.</span><span class="n">find_files</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
+                <span class="n">ok</span><span class="p">,</span> <span class="n">actual_files</span><span class="p">,</span> <span class="n">_missing</span> <span class="o">=</span> <span class="n">d</span><span class="o">.</span><span class="n">find_files</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">register</span><span class="o">=</span><span class="n">register</span><span class="p">)</span>
                 <span class="k">if</span> <span class="n">ok</span><span class="p">:</span>
                     <span class="k">break</span>
                 <span class="k">if</span> <span class="n">missing</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                     <span class="n">missing</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">_missing</span><span class="p">)</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">_missing</span><span class="p">,</span> <span class="nb">set</span><span class="p">)</span> <span class="k">else</span> <span class="n">missing</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">_missing</span><span class="p">)</span>
         <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">operator</span> <span class="o">==</span> <span class="s1">&#39;xor&#39;</span><span class="p">:</span>
             <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_identifiers</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span>
-            <span class="n">_ok</span><span class="p">,</span> <span class="n">_actual_files</span><span class="p">,</span> <span class="n">_missing</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">find_files</span><span class="p">(</span><span class="n">session_path</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_identifiers</span><span class="p">))</span>
+            <span class="n">_ok</span><span class="p">,</span> <span class="n">_actual_files</span><span class="p">,</span> <span class="n">_missing</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">find_files</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">register</span><span class="o">=</span><span class="n">register</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_identifiers</span><span class="p">))</span>
             <span class="n">ok</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">_ok</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>  <span class="c1"># and sum(map(bool, map(len, _actual_files))) == 1</span>
             <span class="c1"># Return only those datasets that are complete if OK</span>
             <span class="n">actual_files</span> <span class="o">=</span> <span class="n">_actual_files</span><span class="p">[</span><span class="n">_ok</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="kc">True</span><span class="p">)]</span> <span class="k">if</span> <span class="n">ok</span> <span class="k">else</span> <span class="n">flatten</span><span class="p">(</span><span class="n">_actual_files</span><span class="p">)</span>
@@ -608,8 +609,8 @@
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
-<span class="sd">    name : str</span>
-<span class="sd">        The name of the dataset.</span>
+<span class="sd">    name : str, function</span>
+<span class="sd">        The name of the dataset or a function to match the dataset name.</span>
 <span class="sd">    datasets : list of ExpectedDataset</span>
 <span class="sd">        A list of ExpectedDataset instances.</span>
 
@@ -622,8 +623,12 @@
     <span class="n">matches</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="k">for</span> <span class="n">dataset</span> <span class="ow">in</span> <span class="n">datasets</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">dataset</span><span class="o">.</span><span class="n">operator</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">dataset</span><span class="o">.</span><span class="n">_identifiers</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">==</span> <span class="n">name</span><span class="p">:</span>
-                <span class="n">matches</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">dataset</span><span class="o">.</span><span class="n">_identifiers</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">==</span> <span class="n">name</span><span class="p">:</span>
+                    <span class="n">matches</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">name</span><span class="p">(</span><span class="n">dataset</span><span class="o">.</span><span class="n">_identifiers</span><span class="p">[</span><span class="mi">2</span><span class="p">]):</span>
+                    <span class="n">matches</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">matches</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">dataset_from_name</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">dataset</span><span class="o">.</span><span class="n">_identifiers</span><span class="p">))</span>
     <span class="k">return</span> <span class="n">matches</span></div>
@@ -632,7 +637,7 @@
 
 <div class="viewcode-block" id="update_collections">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.update_collections">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">update_collections</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span> <span class="n">new_collection</span><span class="p">,</span> <span class="n">substring</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">unique</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">update_collections</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span> <span class="n">new_collection</span><span class="p">,</span> <span class="n">substring</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">unique</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">exact_match</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Update the collection of a dataset.</span>
 
@@ -647,6 +652,12 @@
 <span class="sd">    substring : str, optional</span>
 <span class="sd">        An optional substring in the collection to replace with new collection(s). If None, the</span>
 <span class="sd">        entire collection will be replaced.</span>
+<span class="sd">    unique : bool, optional</span>
+<span class="sd">        When provided, this will be used to set the `unique` attribute of the new dataset(s). If</span>
+<span class="sd">        None, the `unique` attribute will be set to True if the collection does not contain</span>
+<span class="sd">        wildcards.</span>
+<span class="sd">    exact_match : bool</span>
+<span class="sd">        If True, the collection will be replaced only if it contains `substring`.</span>
 
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
@@ -661,7 +672,10 @@
         <span class="k">if</span> <span class="n">revision</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">NotImplementedError</span>
         <span class="k">if</span> <span class="n">substring</span><span class="p">:</span>
-            <span class="n">after</span> <span class="o">=</span> <span class="p">[(</span><span class="n">collection</span> <span class="ow">or</span> <span class="s1">&#39;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">substring</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="ow">or</span> <span class="kc">None</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">after</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">exact_match</span> <span class="ow">and</span> <span class="n">substring</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">collection</span><span class="p">:</span>
+                <span class="n">after</span> <span class="o">=</span> <span class="p">[</span><span class="n">collection</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">after</span> <span class="o">=</span> <span class="p">[(</span><span class="n">collection</span> <span class="ow">or</span> <span class="s1">&#39;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">substring</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="ow">or</span> <span class="kc">None</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">after</span><span class="p">]</span>
         <span class="k">if</span> <span class="n">unique</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">unique</span> <span class="o">=</span> <span class="p">[</span><span class="ow">not</span> <span class="nb">set</span><span class="p">(</span><span class="n">name</span> <span class="o">+</span> <span class="p">(</span><span class="n">x</span> <span class="ow">or</span> <span class="s1">&#39;&#39;</span><span class="p">))</span><span class="o">.</span><span class="n">intersection</span><span class="p">(</span><span class="s1">&#39;*[?&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">after</span><span class="p">]</span>
         <span class="k">else</span><span class="p">:</span>
@@ -673,7 +687,7 @@
                 <span class="n">updated</span> <span class="o">&amp;=</span> <span class="n">D</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">folder</span><span class="p">,</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span> <span class="n">OptionalDataset</span><span class="p">),</span> <span class="n">register</span><span class="p">,</span> <span class="n">unique</span><span class="o">=</span><span class="n">unq</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">updated</span> <span class="o">=</span> <span class="n">copy</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
-        <span class="n">updated</span><span class="o">.</span><span class="n">_identifiers</span> <span class="o">=</span> <span class="p">[</span><span class="n">update_collections</span><span class="p">(</span><span class="n">dd</span><span class="p">,</span> <span class="n">new_collection</span><span class="p">,</span> <span class="n">substring</span><span class="p">,</span> <span class="n">unique</span><span class="p">)</span>
+        <span class="n">updated</span><span class="o">.</span><span class="n">_identifiers</span> <span class="o">=</span> <span class="p">[</span><span class="n">update_collections</span><span class="p">(</span><span class="n">dd</span><span class="p">,</span> <span class="n">new_collection</span><span class="p">,</span> <span class="n">substring</span><span class="p">,</span> <span class="n">unique</span><span class="p">,</span> <span class="n">exact_match</span><span class="p">)</span>
                                 <span class="k">for</span> <span class="n">dd</span> <span class="ow">in</span> <span class="n">updated</span><span class="o">.</span><span class="n">_identifiers</span><span class="p">]</span>
     <span class="k">return</span> <span class="n">updated</span></div>
 
@@ -689,7 +703,7 @@
 <span class="sd">        :param signature: input and output file signatures</span>
 <span class="sd">        :param one: ONE instance</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span> <span class="o">=</span> <span class="n">session_path</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span> <span class="o">=</span> <span class="n">ensure_alf_path</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">signature</span> <span class="o">=</span> <span class="n">_parse_signature</span><span class="p">(</span><span class="n">signature</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">one</span> <span class="o">=</span> <span class="n">one</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">processed</span> <span class="o">=</span> <span class="p">{}</span>  <span class="c1"># Map of filepaths and their processed records (e.g. upload receipts or Alyx records)</span>
@@ -727,7 +741,7 @@
 
 <div class="viewcode-block" id="DataHandler.getOutputFiles">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.DataHandler.getOutputFiles">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">getOutputFiles</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">getOutputFiles</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_path</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Return a data frame of output datasets found on disk.</span>
 
@@ -736,10 +750,11 @@
 <span class="sd">        pandas.DataFrame</span>
 <span class="sd">            A dataset data frame of datasets on disk that were specified in signature[&#39;output_files&#39;].</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span>
+        <span class="n">session_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span> <span class="k">if</span> <span class="n">session_path</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">session_path</span>
+        <span class="k">assert</span> <span class="n">session_path</span>
         <span class="c1"># Next convert datasets to frame</span>
         <span class="c1"># Create dataframe of all ALF datasets</span>
-        <span class="n">df</span> <span class="o">=</span> <span class="n">_make_datasets_df</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">hash_files</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">set_index</span><span class="p">([</span><span class="s1">&#39;eid&#39;</span><span class="p">,</span> <span class="s1">&#39;id&#39;</span><span class="p">])</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">_make_datasets_df</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">hash_files</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">set_index</span><span class="p">([</span><span class="s1">&#39;eid&#39;</span><span class="p">,</span> <span class="s1">&#39;id&#39;</span><span class="p">])</span>
         <span class="c1"># Filter outputs</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="p">[</span><span class="s1">&#39;output_files&#39;</span><span class="p">])</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">()</span>
@@ -899,7 +914,7 @@
             <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Space left on server is &lt; 500GB, won</span><span class="se">\&#39;</span><span class="s1">t re-download new data&#39;</span><span class="p">)</span>
             <span class="k">return</span>
 
-        <span class="n">rel_sess_path</span> <span class="o">=</span> <span class="s1">&#39;/&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">parts</span><span class="p">[</span><span class="o">-</span><span class="mi">3</span><span class="p">:])</span>
+        <span class="n">rel_sess_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">session_path_short</span><span class="p">()</span>
         <span class="n">target_paths</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">source_paths</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">iterrows</span><span class="p">():</span>
@@ -958,13 +973,13 @@
 
 <div class="viewcode-block" id="RemoteEC2DataHandler.setUp">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.RemoteEC2DataHandler.setUp">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">_</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">check_hash</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">_</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Function to download necessary data to run tasks using ONE</span>
 <span class="sd">        :return:</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">df</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">getData</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">_check_filesystem</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">check_hash</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">_check_filesystem</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">check_hash</span><span class="o">=</span><span class="n">check_hash</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="RemoteEC2DataHandler.uploadData">
@@ -1061,8 +1076,8 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># Set up Globus</span>
         <span class="kn">from</span><span class="w"> </span><span class="nn">one.remote.globus</span><span class="w"> </span><span class="kn">import</span> <span class="n">Globus</span> <span class="c1"># noqa</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">globus</span> <span class="o">=</span> <span class="n">Globus</span><span class="p">(</span><span class="n">client_name</span><span class="o">=</span><span class="s1">&#39;server&#39;</span><span class="p">,</span> <span class="n">headless</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">lab</span> <span class="o">=</span> <span class="n">session_path_parts</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">,</span> <span class="n">as_dict</span><span class="o">=</span><span class="kc">True</span><span class="p">)[</span><span class="s1">&#39;lab&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">globus</span> <span class="o">=</span> <span class="n">Globus</span><span class="p">(</span><span class="n">client_name</span><span class="o">=</span><span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;client_name&#39;</span><span class="p">,</span> <span class="s1">&#39;server&#39;</span><span class="p">),</span> <span class="n">headless</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lab</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="o">.</span><span class="n">lab</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">lab</span> <span class="o">==</span> <span class="s1">&#39;cortexlab&#39;</span> <span class="ow">and</span> <span class="s1">&#39;cortexlab&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">base_url</span><span class="p">:</span>
             <span class="n">base_url</span> <span class="o">=</span> <span class="s1">&#39;https://alyx.internationalbrainlab.org&#39;</span>
             <span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Changing Alyx client to </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">base_url</span><span class="p">)</span>
@@ -1191,27 +1206,32 @@
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">session_path</span><span class="p">,</span> <span class="n">signatures</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="n">one</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">patch_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s1">&#39;SDSC_PATCH_PATH&#39;</span><span class="p">,</span> <span class="n">SDSC_PATCH_PATH</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">root_path</span> <span class="o">=</span> <span class="n">SDSC_ROOT_PATH</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">linked_files</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># List of symlinks created to run tasks</span>
 
 <div class="viewcode-block" id="SDSCDataHandler.setUp">
 <a class="viewcode-back" href="../../../_autosummary/ibllib.oneibl.data_handlers.html#ibllib.oneibl.data_handlers.SDSCDataHandler.setUp">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task</span><span class="p">,</span> <span class="o">**</span><span class="n">_</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Function to create symlinks to necessary data to run tasks.&quot;&quot;&quot;</span>
         <span class="n">df</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">getData</span><span class="p">()</span>
 
-        <span class="n">SDSC_TMP</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">patch_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">))</span>
+        <span class="n">SDSC_TMP</span> <span class="o">=</span> <span class="n">ensure_alf_path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">patch_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">))</span>
         <span class="n">session_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">get_alf_path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">session_path</span><span class="p">))</span>
         <span class="k">for</span> <span class="n">uuid</span><span class="p">,</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">iterrows</span><span class="p">():</span>
             <span class="n">file_path</span> <span class="o">=</span> <span class="n">session_path</span> <span class="o">/</span> <span class="n">d</span><span class="p">[</span><span class="s1">&#39;rel_path&#39;</span><span class="p">]</span>
             <span class="n">file_uuid</span> <span class="o">=</span> <span class="n">add_uuid_string</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">uuid</span><span class="p">)</span>
             <span class="n">file_link</span> <span class="o">=</span> <span class="n">SDSC_TMP</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
             <span class="n">file_link</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-            <span class="k">try</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>  <span class="c1"># TODO append link to task attribute</span>
                 <span class="n">file_link</span><span class="o">.</span><span class="n">symlink_to</span><span class="p">(</span>
                     <span class="n">Path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">root_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">file_uuid</span><span class="p">)))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">linked_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">file_link</span><span class="p">)</span>
             <span class="k">except</span> <span class="ne">FileExistsError</span><span class="p">:</span>
                 <span class="k">pass</span>
-
-        <span class="n">task</span><span class="o">.</span><span class="n">session_path</span> <span class="o">=</span> <span class="n">SDSC_TMP</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span></div>
+        <span class="n">task</span><span class="o">.</span><span class="n">session_path</span> <span class="o">=</span> <span class="n">SDSC_TMP</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
+        <span class="c1"># If one of the symlinked input files is also an expected output, raise here to avoid overwriting</span>
+        <span class="c1"># In the future we may instead copy the data under this condition</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">getOutputFiles</span><span class="p">(</span><span class="n">session_path</span><span class="o">=</span><span class="n">task</span><span class="o">.</span><span class="n">session_path</span><span class="p">)</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span> <span class="p">(</span>
+            <span class="s2">&quot;On SDSC patcher, output files should be distinct from input files to avoid overwriting&quot;</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="SDSCDataHandler.uploadData">

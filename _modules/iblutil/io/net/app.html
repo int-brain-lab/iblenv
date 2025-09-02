@@ -123,10 +123,10 @@
 <span class="sd">... except asyncio.TimeoutError:</span>
 <span class="sd">...     server.close()</span>
 <span class="sd">&quot;&quot;&quot;</span>
+
 <span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">urllib.parse</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">urllib.request</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">argparse</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">socket</span>
@@ -149,8 +149,7 @@
     <span class="n">log</span><span class="o">.</span><span class="n">handlers</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="n">fmt_str</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">%(log_color)s%(asctime)s</span><span class="s1"> [</span><span class="si">%(name)s</span><span class="s1">] </span><span class="si">%(levelname)-8s</span><span class="s1"> </span><span class="si">%(filename)s</span><span class="s1">:</span><span class="si">%(lineno)-4d</span><span class="s1"> </span><span class="si">%(message)s</span><span class="s1">&#39;</span>
     <span class="n">stream_handler</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">StreamHandler</span><span class="p">(</span><span class="n">stream</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="p">)</span>
-    <span class="n">stream_handler</span><span class="o">.</span><span class="n">setFormatter</span><span class="p">(</span>
-        <span class="n">colorlog</span><span class="o">.</span><span class="n">ColoredFormatter</span><span class="p">(</span><span class="n">fmt_str</span><span class="p">,</span> <span class="n">util</span><span class="o">.</span><span class="n">LOG_DATE_FORMAT</span><span class="p">,</span> <span class="n">log_colors</span><span class="o">=</span><span class="n">util</span><span class="o">.</span><span class="n">LOG_COLORS</span><span class="p">))</span>
+    <span class="n">stream_handler</span><span class="o">.</span><span class="n">setFormatter</span><span class="p">(</span><span class="n">colorlog</span><span class="o">.</span><span class="n">ColoredFormatter</span><span class="p">(</span><span class="n">fmt_str</span><span class="p">,</span> <span class="n">util</span><span class="o">.</span><span class="n">LOG_DATE_FORMAT</span><span class="p">,</span> <span class="n">log_colors</span><span class="o">=</span><span class="n">util</span><span class="o">.</span><span class="n">LOG_COLORS</span><span class="p">))</span>
     <span class="n">stream_handler</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">_auto&#39;</span>
     <span class="n">stream_handler</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">level</span><span class="p">)</span>
     <span class="n">log</span><span class="o">.</span><span class="n">addHandler</span><span class="p">(</span><span class="n">stream_handler</span><span class="p">)</span>
@@ -205,7 +204,9 @@
 
     <span class="n">Server</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">_role</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="n">default_echo_timeout</span> <span class="o">=</span> <span class="mf">1.</span>
+    <span class="n">default_echo_timeout</span> <span class="o">=</span> <span class="mf">1.0</span>
+    <span class="n">max_message_size</span> <span class="o">=</span> <span class="mi">65535</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;int: Maximum message size expected.  Defaults to maximum theoretical message size for UDP.&quot;&quot;&quot;</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">server_uri</span><span class="p">,</span> <span class="n">role</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">server_uri</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
@@ -244,7 +245,7 @@
 <span class="sd">            The role must be one of {&#39;client&#39;, &#39;server&#39;}.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_role</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s1">&#39;can</span><span class="se">\&#39;</span><span class="s1">t set attribute&#39;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s2">&quot;can&#39;t set attribute&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="p">(</span><span class="n">value</span> <span class="ow">or</span> <span class="s1">&#39;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;server&#39;</span><span class="p">,</span> <span class="s1">&#39;client&#39;</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;role must be either &quot;server&quot; or &quot;client&quot;&#39;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_role</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
@@ -505,7 +506,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">role</span> <span class="o">==</span> <span class="s1">&#39;server&#39;</span><span class="p">:</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">addr</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;confirmed_send missing 1 required argument: </span><span class="se">\&#39;</span><span class="s1">addr</span><span class="se">\&#39;</span><span class="s1">&#39;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;confirmed_send missing 1 required argument: &#39;addr&#39;&quot;</span><span class="p">)</span>
         <span class="k">elif</span> <span class="n">addr</span> <span class="ow">and</span> <span class="n">addr</span> <span class="o">!=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hostname</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">port</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Unexpected remote address&#39;</span><span class="p">)</span>
         <span class="n">addr</span> <span class="o">=</span> <span class="n">addr</span> <span class="ow">or</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hostname</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">port</span><span class="p">)</span>
@@ -607,7 +608,17 @@
         <span class="k">if</span> <span class="p">(</span><span class="n">last_sent</span> <span class="o">:=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_last_sent</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">addr</span><span class="p">))</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">base</span><span class="o">.</span><span class="n">is_success</span><span class="p">(</span><span class="n">last_sent</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
             <span class="n">expected</span><span class="p">,</span> <span class="n">echo_future</span> <span class="o">=</span> <span class="n">last_sent</span>
             <span class="c1"># If echo doesn&#39;t match, raise exception</span>
-            <span class="k">if</span> <span class="n">data</span> <span class="o">!=</span> <span class="n">expected</span><span class="p">:</span>
+            <span class="n">matches</span> <span class="o">=</span> <span class="n">data</span> <span class="o">==</span> <span class="n">expected</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">matches</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_message_size</span> <span class="ow">and</span> <span class="n">data</span> <span class="o">==</span> <span class="n">expected</span><span class="p">[:</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_message_size</span><span class="p">]:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                    <span class="s1">&#39;Received truncated echo from </span><span class="si">%s</span><span class="s1">://</span><span class="si">%s</span><span class="s1">:</span><span class="si">%i</span><span class="s1">; original message &gt; </span><span class="si">%i</span><span class="s1"> bytes&#39;</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">protocol</span><span class="p">,</span>
+                    <span class="n">host</span><span class="p">,</span>
+                    <span class="n">port</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">max_message_size</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="n">matches</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">matches</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Expected </span><span class="si">%s</span><span class="s1"> from </span><span class="si">%s</span><span class="s1">, got </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">expected</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
                 <span class="n">echo_future</span><span class="o">.</span><span class="n">set_exception</span><span class="p">(</span><span class="ne">RuntimeError</span><span class="p">)</span>
             <span class="k">elif</span> <span class="ow">not</span> <span class="n">echo_future</span><span class="o">.</span><span class="n">cancelled</span><span class="p">():</span>  <span class="c1"># Notify callbacks of receipt</span>
@@ -627,8 +638,7 @@
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Called by UDP transport layer&quot;&quot;&quot;</span>
         <span class="n">host</span><span class="p">,</span> <span class="n">port</span> <span class="o">=</span> <span class="n">addr</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">role</span> <span class="o">==</span> <span class="s1">&#39;client&#39;</span> <span class="ow">and</span> <span class="n">host</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">hostname</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s1">&#39;Ignoring UDP packet from unexpected host (</span><span class="si">{</span><span class="n">host</span><span class="si">}</span><span class="s1">:</span><span class="si">{</span><span class="n">port</span><span class="si">}</span><span class="s1">) with message &quot;</span><span class="si">{</span><span class="n">data</span><span class="si">}</span><span class="s1">&quot;&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Ignoring UDP packet from unexpected host (</span><span class="si">{</span><span class="n">host</span><span class="si">}</span><span class="s1">:</span><span class="si">{</span><span class="n">port</span><span class="si">}</span><span class="s1">) with message &quot;</span><span class="si">{</span><span class="n">data</span><span class="si">}</span><span class="s1">&quot;&#39;</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_receive</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">addr</span><span class="p">)</span></div>
 
@@ -756,9 +766,10 @@
 <a class="viewcode-back" href="../../../../_autosummary/iblutil.io.net.app.html#iblutil.io.net.app.Services">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">Services</span><span class="p">(</span><span class="n">base</span><span class="o">.</span><span class="n">Service</span><span class="p">,</span> <span class="n">UserDict</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Handler for multiple remote rig services.&quot;&quot;&quot;</span>
+
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;timeout&#39;</span><span class="p">,</span> <span class="s1">&#39;server&#39;</span><span class="p">)</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">remote_rigs</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mf">10.</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">remote_rigs</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mf">10.0</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Handler for multiple remote rig services.</span>
 
 <span class="sd">        Parameters</span>
@@ -795,6 +806,7 @@
 <span class="sd">        return_service : bool</span>
 <span class="sd">            When True an instance of the Communicator is additionally passed to the callback.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+
         <span class="k">def</span><span class="w"> </span><span class="nf">_callback</span><span class="p">(</span><span class="n">service</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">addr</span><span class="p">):</span>
             <span class="n">callback</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">addr</span><span class="p">,</span> <span class="n">service</span><span class="p">)</span>
 
@@ -858,13 +870,10 @@
             <span class="n">tasks</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">timeout</span><span class="p">:</span>  <span class="c1"># py3.11 with asyncio.timeout context manager</span>
-            <span class="n">_</span><span class="p">,</span> <span class="n">pending</span> <span class="o">=</span> <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span>
-                <span class="n">tasks</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">timeout</span><span class="p">,</span> <span class="n">return_when</span><span class="o">=</span><span class="n">asyncio</span><span class="o">.</span><span class="n">ALL_COMPLETED</span>
-            <span class="p">)</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">pending</span> <span class="o">=</span> <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">tasks</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">timeout</span><span class="p">,</span> <span class="n">return_when</span><span class="o">=</span><span class="n">asyncio</span><span class="o">.</span><span class="n">ALL_COMPLETED</span><span class="p">)</span>
             <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">pending</span><span class="p">):</span>
                 <span class="n">failed</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span><span class="o">.</span><span class="n">difference</span><span class="p">(</span><span class="n">responses</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
-                <span class="k">raise</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">TimeoutError</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s1">&#39;The following services failed to respond in time: </span><span class="si">{</span><span class="n">failed</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">TimeoutError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;The following services failed to respond in time: </span><span class="si">{</span><span class="n">failed</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">gather</span><span class="p">(</span><span class="o">*</span><span class="n">tasks</span><span class="p">)</span>
 
@@ -995,7 +1004,7 @@
 <span class="sd">            Remote host failed to echo the message within the timeout period.</span>
 <span class="sd">            Remote host failed to respond within response period.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">event</span> <span class="o">=</span> <span class="n">base</span><span class="o">.</span><span class="n">ExpMessage</span><span class="o">.</span><span class="n">EXPEND</span>
+        <span class="n">event</span> <span class="o">=</span> <span class="n">base</span><span class="o">.</span><span class="n">ExpMessage</span><span class="o">.</span><span class="n">EXPEND</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">immediately</span> <span class="k">else</span> <span class="n">base</span><span class="o">.</span><span class="n">ExpMessage</span><span class="o">.</span><span class="n">EXPINTERRUPT</span>
         <span class="k">return</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_signal</span><span class="p">(</span><span class="n">event</span><span class="p">,</span> <span class="s1">&#39;stop&#39;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">data</span><span class="p">,</span> <span class="n">immediately</span><span class="o">=</span><span class="n">immediately</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
 
 
@@ -1086,13 +1095,13 @@
             <span class="c1"># Register event callbacks before sending messages otherwise we may receive a response before callback is</span>
             <span class="c1"># created.</span>
             <span class="n">all_responses</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">await_all</span><span class="p">(</span><span class="n">event</span><span class="p">),</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;service responses&#39;</span><span class="p">)</span>
-            <span class="k">for</span> <span class="n">service</span> <span class="ow">in</span> <span class="p">(</span><span class="nb">reversed</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">values</span><span class="p">()))</span> <span class="k">if</span> <span class="n">reverse</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">values</span><span class="p">()):</span>
+            <span class="k">for</span> <span class="n">service</span> <span class="ow">in</span> <span class="nb">reversed</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">values</span><span class="p">()))</span> <span class="k">if</span> <span class="n">reverse</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
                 <span class="n">f</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">service</span><span class="p">,</span> <span class="n">method</span> <span class="ow">or</span> <span class="n">event</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span>
                 <span class="k">await</span> <span class="n">f</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
             <span class="n">responses</span> <span class="o">=</span> <span class="k">await</span> <span class="n">all_responses</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">responses</span> <span class="o">=</span> <span class="nb">dict</span><span class="o">.</span><span class="n">fromkeys</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
-            <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">service</span> <span class="ow">in</span> <span class="p">(</span><span class="nb">reversed</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">items</span><span class="p">()))</span> <span class="k">if</span> <span class="n">reverse</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">items</span><span class="p">()):</span>
+            <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">service</span> <span class="ow">in</span> <span class="nb">reversed</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">items</span><span class="p">()))</span> <span class="k">if</span> <span class="n">reverse</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
                 <span class="n">f</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">service</span><span class="p">,</span> <span class="n">method</span> <span class="ow">or</span> <span class="n">event</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span>
                 <span class="k">await</span> <span class="n">f</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
                 <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">timeout</span><span class="p">:</span>
@@ -1162,8 +1171,7 @@
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="c1"># Parse parameters</span>
     <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span><span class="n">description</span><span class="o">=</span><span class="s1">&#39;UDP Experiment Communicator.&#39;</span><span class="p">)</span>
-    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;role&#39;</span><span class="p">,</span> <span class="n">choices</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;server&#39;</span><span class="p">,</span> <span class="s1">&#39;client&#39;</span><span class="p">),</span>
-                        <span class="n">help</span><span class="o">=</span><span class="s1">&#39;communicator role i.e. server or client&#39;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;role&#39;</span><span class="p">,</span> <span class="n">choices</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;server&#39;</span><span class="p">,</span> <span class="s1">&#39;client&#39;</span><span class="p">),</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;communicator role i.e. server or client&#39;</span><span class="p">)</span>
     <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--host&#39;</span><span class="p">,</span> <span class="s1">&#39;-H&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;the host address&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="n">base</span><span class="o">.</span><span class="n">hostname2ip</span><span class="p">())</span>
     <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--verbose&#39;</span><span class="p">,</span> <span class="s1">&#39;-v&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;count&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
     <span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>  <span class="c1"># returns data from the options specified</span>

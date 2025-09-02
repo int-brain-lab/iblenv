@@ -120,13 +120,13 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">one.registration</span><span class="w"> </span><span class="kn">import</span> <span class="n">RegistrationClient</span><span class="p">,</span> <span class="n">get_dataset_type</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">one.remote.globus</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_local_endpoint_id</span><span class="p">,</span> <span class="n">get_lab_from_endpoint_id</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">one.webclient</span><span class="w"> </span><span class="kn">import</span> <span class="n">AlyxClient</span><span class="p">,</span> <span class="n">no_cache</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">one.converters</span><span class="w"> </span><span class="kn">import</span> <span class="n">ConversionMixin</span><span class="p">,</span> <span class="n">datasets2records</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">one.converters</span><span class="w"> </span><span class="kn">import</span> <span class="n">datasets2records</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">one.alf.exceptions</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">alferr</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">one.alf.path</span><span class="w"> </span><span class="kn">import</span> <span class="n">ensure_alf_path</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">one.api</span><span class="w"> </span><span class="kn">import</span> <span class="n">ONE</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">iblutil.util</span><span class="w"> </span><span class="kn">import</span> <span class="n">ensure_list</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">ibllib</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">ibllib.io.extractors.base</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">ibllib.time</span><span class="w"> </span><span class="kn">import</span> <span class="n">isostr2date</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">ibllib.io.raw_data_loaders</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">raw</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">ibllib.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">session_params</span>
@@ -249,7 +249,7 @@
 <span class="sd">    overwrite : bool</span>
 <span class="sd">        If set to True, will patch the datasets. It will take very long. If set to False (default)</span>
 <span class="sd">        will skip all already registered data.</span>
-<span class="sd">    **kwargs</span>
+<span class="sd">    kwargs</span>
 <span class="sd">        Optional keyword arguments for one.registration.RegistrationClient.register_files.</span>
 
 <span class="sd">    Returns</span>
@@ -687,12 +687,13 @@
 <span class="sd">    one.remote.globus.get_lab_from_endpoint_id</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">alyx</span> <span class="o">=</span> <span class="n">alyx</span> <span class="ow">or</span> <span class="n">AlyxClient</span><span class="p">()</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">ref</span> <span class="o">:=</span> <span class="n">ConversionMixin</span><span class="o">.</span><span class="n">path2ref</span><span class="p">(</span><span class="n">session_path</span><span class="p">)):</span>
+    <span class="n">session_path</span> <span class="o">=</span> <span class="n">ensure_alf_path</span><span class="p">(</span><span class="n">session_path</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">session_path</span><span class="o">.</span><span class="n">is_session_path</span><span class="p">():</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Failed to parse session path: </span><span class="si">{</span><span class="n">session_path</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
 
-    <span class="n">labs</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="s1">&#39;lab&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;subjects&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span> <span class="n">nickname</span><span class="o">=</span><span class="n">ref</span><span class="p">[</span><span class="s1">&#39;subject&#39;</span><span class="p">])]</span>
+    <span class="n">labs</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="s1">&#39;lab&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;subjects&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span> <span class="n">nickname</span><span class="o">=</span><span class="n">session_path</span><span class="o">.</span><span class="n">subject</span><span class="p">)]</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">labs</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="n">alferr</span><span class="o">.</span><span class="n">AlyxSubjectNotFound</span><span class="p">(</span><span class="n">ref</span><span class="p">[</span><span class="s1">&#39;subject&#39;</span><span class="p">])</span>
+        <span class="k">raise</span> <span class="n">alferr</span><span class="o">.</span><span class="n">AlyxSubjectNotFound</span><span class="p">(</span><span class="n">session_path</span><span class="o">.</span><span class="n">subject</span><span class="p">)</span>
     <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">labs</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>  <span class="c1"># More than one subject with this nickname</span>
         <span class="c1"># use local endpoint ID to find the correct lab</span>
         <span class="n">endpoint_labs</span> <span class="o">=</span> <span class="n">get_lab_from_endpoint_id</span><span class="p">(</span><span class="n">alyx</span><span class="o">=</span><span class="n">alyx</span><span class="p">)</span>
