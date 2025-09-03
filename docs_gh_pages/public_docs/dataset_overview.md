@@ -3,7 +3,7 @@
 ## Collaboration-wide datasets
 
 ### [2025 Brain wide map data](../notebooks_external/2025_data_release_brainwidemap)
-The flagship dataset of the IBL ! See the [technical paper](https://doi.org/10.6084/m9.figshare.21400815).
+The flagship dataset of the IBL ! See the dataset [technical paper](https://doi.org/10.6084/m9.figshare.21400815).
 
 ### [2024 Reproducible ephys data](../notebooks_external/2024_data_release_repro_ephys)
 Data associated with the publication [Reproducibility of in vivo electrophysiological measurements in mice](https://elifesciences.org/articles/100840). 

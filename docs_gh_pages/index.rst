@@ -64,6 +64,7 @@ IBL has released a suite of tools to process and visualize our data.
    :maxdepth: 1
 
    notebooks_external/2025_data_release_autism_noel
+   notebooks_external/2025_data_release_autism_davatolhagh
    notebooks_external/2022_data_release_spikesorting_benchmarks
    public_docs/data_release_pilot
 
