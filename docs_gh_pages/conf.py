@@ -69,6 +69,7 @@ intersphinx_mapping = {
 
 redirects = {
     "notebooks_external/data_release_brainwidemap": "2025_data_release_brainwidemap.html",
+    "notebooks_external/data_release_repro_ephys": "2024_data_release_repro_ephys.html",
 }
 
 #sphinx_gallery_conf = {

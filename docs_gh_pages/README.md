@@ -91,8 +91,24 @@ Steps:
 -   merge the `docs` branch into `develop` on the `ibllib` repository
 -   run the [Deploy docs workflow](https://github.com/int-brain-lab/iblenv/actions/workflows/deploy_docs.yml).  To run the workflow click on the `run_workflow` button in the top left corner and choose the branch you want to launch it from (this should be master).
  
-The new docs will then be deployed to the main documnetation website https://int-brain-lab.github.io/iblenv/
+The new docs will then be deployed to the main documentation website https://int-brain-lab.github.io/iblenv/
 
+
+### Checking for permalinks
+As we maintain published datasets, we need to make sure the published urls are still valid and redirect to appropriate resources if we move the pages.
+
+#### checking permalinks
+The python script in [docs_gh_pages/scripts/permalinks_check.py](docs_gh_pages/scripts/permalinks_check.py) contains our published links and will check that they still point or redirect to live content. It is a good practice to run this after a major refactor.
+
+#### redirects
+The redirects are configured in [docs_gh_pages/conf.py](docs_gh_pages/conf.py), using the **sphinx_reredirects** package. Look for the `redirects` dictionary.
+
+```python
+redirects = {
+    "notebooks_external/data_release_brainwidemap": "2025_data_release_brainwidemap.html",
+    "notebooks_external/data_release_repro_ephys": "2024_data_release_repro_ephys.html",
+}
+```
 
 ## Making documentation locally
 ### Install dependencies to build the website locally
