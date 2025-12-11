@@ -55,7 +55,8 @@ extensions = ['sphinx.ext.autodoc',
               'nbsphinx_link',
               'myst_parser',
               'sphinx.ext.napoleon',
-              'sphinx.ext.viewcode']
+              'sphinx.ext.viewcode',
+              'sphinx_reredirects']
               #'sphinx_gallery.gen_gallery']
 
 # Add any paths that contain templates here, relative to this directory.
@@ -66,6 +67,10 @@ intersphinx_mapping = {
     'one_api': ('https://int-brain-lab.github.io/ONE/', None),
 }
 
+redirects = {
+    "notebooks_external/data_release_brainwidemap": "2025_data_release_brainwidemap.html",
+    "notebooks_external/data_release_repro_ephys": "2024_data_release_repro_ephys.html",
+}
 
 #sphinx_gallery_conf = {
 #     'examples_dirs': '../../ibllib-repo/examples/one/ephys',   # path to your example scripts
