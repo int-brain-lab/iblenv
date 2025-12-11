@@ -119,10 +119,12 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">shutil</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">tarfile</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tuple</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">one.alf.path</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_session_path</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">spikeglx</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">one.api</span><span class="w"> </span><span class="kn">import</span> <span class="n">ONE</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">iblutil.util</span><span class="w"> </span><span class="kn">import</span> <span class="n">Bunch</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">phylib.io.alf</span>
@@ -131,6 +133,54 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">ibllib.ephys</span><span class="w"> </span><span class="kn">import</span> <span class="n">sync_probes</span>
 
 <span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="create_insertion">
+<a class="viewcode-back" href="../../../_autosummary/ibllib.ephys.spikes.html#ibllib.ephys.spikes.create_insertion">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">create_insertion</span><span class="p">(</span><span class="n">one</span><span class="p">:</span> <span class="n">ONE</span><span class="p">,</span> <span class="n">md</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">label</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">eid</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">dict</span><span class="p">,</span> <span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Create or update a probe insertion in Alyx and return description and the alyx rest record.</span>
+
+<span class="sd">    This function checks if a probe insertion with the given label already exists for the</span>
+<span class="sd">    specified session. If it doesn&#39;t exist, it creates a new one. If it does, it updates</span>
+<span class="sd">    the existing record. It also prepares a dictionary with essential probe details.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    one : one.api.ONE</span>
+<span class="sd">        An instance of the ONE API to interact with Alyx.</span>
+<span class="sd">    md : dict</span>
+<span class="sd">        A Bunch object containing metadata from a spikeglx meta file, including</span>
+<span class="sd">        &#39;neuropixelVersion&#39;, &#39;serial&#39;, and &#39;fileName&#39;.</span>
+<span class="sd">    label : str</span>
+<span class="sd">        The label for the probe insertion (e.g., &#39;probe00&#39;).</span>
+<span class="sd">    eid : str</span>
+<span class="sd">        The unique experiment ID (UUID) for the session.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    tuple</span>
+<span class="sd">        A tuple containing:</span>
+<span class="sd">        - description (dict): A dictionary with probe details for metadata file,</span>
+<span class="sd">          containing keys &#39;label&#39;, &#39;model&#39;, &#39;serial&#39;, &#39;raw_file_name&#39;.</span>
+<span class="sd">        - insertion (dict): The Alyx record for the created or updated probe insertion.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># create json description</span>
+    <span class="n">description</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="n">label</span><span class="p">,</span> <span class="s1">&#39;model&#39;</span><span class="p">:</span> <span class="n">md</span><span class="p">[</span><span class="s1">&#39;neuropixelVersion&#39;</span><span class="p">],</span> <span class="s1">&#39;serial&#39;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">md</span><span class="p">[</span><span class="s1">&#39;serial&#39;</span><span class="p">]),</span>
+                   <span class="s1">&#39;raw_file_name&#39;</span><span class="p">:</span> <span class="n">md</span><span class="p">[</span><span class="s1">&#39;fileName&#39;</span><span class="p">]}</span>
+
+    <span class="c1"># create or update probe insertion on alyx</span>
+    <span class="n">alyx_insertion</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;session&#39;</span><span class="p">:</span> <span class="n">eid</span><span class="p">,</span> <span class="s1">&#39;model&#39;</span><span class="p">:</span> <span class="n">md</span><span class="p">[</span><span class="s1">&#39;neuropixelVersion&#39;</span><span class="p">],</span> <span class="s1">&#39;serial&#39;</span><span class="p">:</span> <span class="n">md</span><span class="p">[</span><span class="s1">&#39;serial&#39;</span><span class="p">],</span> <span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="n">label</span><span class="p">}</span>
+    <span class="n">pi</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;insertions&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span> <span class="n">session</span><span class="o">=</span><span class="n">eid</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">label</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">pi</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">qc_dict</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;qc&#39;</span><span class="p">:</span> <span class="s1">&#39;NOT_SET&#39;</span><span class="p">,</span> <span class="s1">&#39;extended_qc&#39;</span><span class="p">:</span> <span class="p">{}}</span>
+        <span class="n">alyx_insertion</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;json&#39;</span><span class="p">:</span> <span class="n">qc_dict</span><span class="p">})</span>
+        <span class="n">insertion</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;insertions&#39;</span><span class="p">,</span> <span class="s1">&#39;create&#39;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">alyx_insertion</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">insertion</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;insertions&#39;</span><span class="p">,</span> <span class="s1">&#39;partial_update&#39;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">alyx_insertion</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">pi</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;id&#39;</span><span class="p">])</span>
+
+    <span class="k">return</span> <span class="n">description</span><span class="p">,</span> <span class="n">insertion</span></div>
+
 
 
 <div class="viewcode-block" id="probes_description">
@@ -154,24 +204,6 @@
         <span class="k">return</span>
 
     <span class="n">subdirs</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">efiles_sorted</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="nb">sorted</span><span class="p">(</span><span class="n">ap_meta_files</span><span class="p">))</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">_create_insertion</span><span class="p">(</span><span class="n">md</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">eid</span><span class="p">):</span>
-
-        <span class="c1"># create json description</span>
-        <span class="n">description</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="n">label</span><span class="p">,</span> <span class="s1">&#39;model&#39;</span><span class="p">:</span> <span class="n">md</span><span class="o">.</span><span class="n">neuropixelVersion</span><span class="p">,</span> <span class="s1">&#39;serial&#39;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">md</span><span class="o">.</span><span class="n">serial</span><span class="p">),</span> <span class="s1">&#39;raw_file_name&#39;</span><span class="p">:</span> <span class="n">md</span><span class="o">.</span><span class="n">fileName</span><span class="p">}</span>
-
-        <span class="c1"># create or update probe insertion on alyx</span>
-        <span class="n">alyx_insertion</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;session&#39;</span><span class="p">:</span> <span class="n">eid</span><span class="p">,</span> <span class="s1">&#39;model&#39;</span><span class="p">:</span> <span class="n">md</span><span class="o">.</span><span class="n">neuropixelVersion</span><span class="p">,</span> <span class="s1">&#39;serial&#39;</span><span class="p">:</span> <span class="n">md</span><span class="o">.</span><span class="n">serial</span><span class="p">,</span> <span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="n">label</span><span class="p">}</span>
-        <span class="n">pi</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;insertions&#39;</span><span class="p">,</span> <span class="s1">&#39;list&#39;</span><span class="p">,</span> <span class="n">session</span><span class="o">=</span><span class="n">eid</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">label</span><span class="p">)</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">pi</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="n">qc_dict</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;qc&#39;</span><span class="p">:</span> <span class="s1">&#39;NOT_SET&#39;</span><span class="p">,</span> <span class="s1">&#39;extended_qc&#39;</span><span class="p">:</span> <span class="p">{}}</span>
-            <span class="n">alyx_insertion</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;json&#39;</span><span class="p">:</span> <span class="n">qc_dict</span><span class="p">})</span>
-            <span class="n">insertion</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;insertions&#39;</span><span class="p">,</span> <span class="s1">&#39;create&#39;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">alyx_insertion</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">insertion</span> <span class="o">=</span> <span class="n">one</span><span class="o">.</span><span class="n">alyx</span><span class="o">.</span><span class="n">rest</span><span class="p">(</span><span class="s1">&#39;insertions&#39;</span><span class="p">,</span> <span class="s1">&#39;partial_update&#39;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">alyx_insertion</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">pi</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;id&#39;</span><span class="p">])</span>
-
-        <span class="k">return</span> <span class="n">description</span><span class="p">,</span> <span class="n">insertion</span>
-
     <span class="c1"># Ouputs the probes description file</span>
     <span class="n">probe_description</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="n">alyx_insertions</span> <span class="o">=</span> <span class="p">[]</span>
@@ -184,16 +216,16 @@
                 <span class="n">nshanks</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">geometry</span><span class="p">[</span><span class="s1">&#39;shank&#39;</span><span class="p">])</span>
                 <span class="k">for</span> <span class="n">shank</span> <span class="ow">in</span> <span class="n">nshanks</span><span class="p">:</span>
                     <span class="n">label_ext</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">label</span><span class="si">}{</span><span class="nb">chr</span><span class="p">(</span><span class="mi">97</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nb">int</span><span class="p">(</span><span class="n">shank</span><span class="p">))</span><span class="si">}</span><span class="s1">&#39;</span>
-                    <span class="n">description</span><span class="p">,</span> <span class="n">insertion</span> <span class="o">=</span> <span class="n">_create_insertion</span><span class="p">(</span><span class="n">md</span><span class="p">,</span> <span class="n">label_ext</span><span class="p">,</span> <span class="n">eid</span><span class="p">)</span>
+                    <span class="n">description</span><span class="p">,</span> <span class="n">insertion</span> <span class="o">=</span> <span class="n">create_insertion</span><span class="p">(</span><span class="n">one</span><span class="p">,</span> <span class="n">md</span><span class="p">,</span> <span class="n">label_ext</span><span class="p">,</span> <span class="n">eid</span><span class="p">)</span>
                     <span class="n">probe_description</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">description</span><span class="p">)</span>
                     <span class="n">alyx_insertions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">insertion</span><span class="p">)</span>
             <span class="c1"># NP2.4 meta that has already been split</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="n">description</span><span class="p">,</span> <span class="n">insertion</span> <span class="o">=</span> <span class="n">_create_insertion</span><span class="p">(</span><span class="n">md</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">eid</span><span class="p">)</span>
+                <span class="n">description</span><span class="p">,</span> <span class="n">insertion</span> <span class="o">=</span> <span class="n">create_insertion</span><span class="p">(</span><span class="n">one</span><span class="p">,</span> <span class="n">md</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">eid</span><span class="p">)</span>
                 <span class="n">probe_description</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">description</span><span class="p">)</span>
                 <span class="n">alyx_insertions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">insertion</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">description</span><span class="p">,</span> <span class="n">insertion</span> <span class="o">=</span> <span class="n">_create_insertion</span><span class="p">(</span><span class="n">md</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">eid</span><span class="p">)</span>
+            <span class="n">description</span><span class="p">,</span> <span class="n">insertion</span> <span class="o">=</span> <span class="n">create_insertion</span><span class="p">(</span><span class="n">one</span><span class="p">,</span> <span class="n">md</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">eid</span><span class="p">)</span>
             <span class="n">probe_description</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">description</span><span class="p">)</span>
             <span class="n">alyx_insertions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">insertion</span><span class="p">)</span>
 
